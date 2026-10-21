@@ -2,7 +2,7 @@
 
 Game 3D góc nhìn thứ ba làm bằng **Godot 4** (ráp game) và **Blender** (model, rig, animation). Mèo cam Bơ phụ Cô Ba làm bánh mì trong bếp, rồi chạy nhảy khắp khu phố để giao kịp giờ cho 5 khách.
 
-Đây là **bản chơi thử**: mèo Bơ đã dùng model kiểu D "Chững chạc" (bản tạm rút gọn từ model phác thảo), còn phố, khách và Chó Mực vẫn là khối hộp tạm. Mục tiêu là thử cảm giác chạy nhảy và vòng giao đơn trước khi làm đồ họa thật.
+Đây là **bản chơi thử**: mèo Bơ đã dùng model kiểu D "Chững chạc" (bản tạm rút gọn từ model phác thảo), Chó Mực dùng 8 tư thế kiểu D đã duyệt, còn phố và khách vẫn là khối hộp tạm. Mục tiêu là thử cảm giác chạy nhảy và vòng giao đơn trước khi làm đồ họa thật.
 
 ![Toàn cảnh khu phố](docs/toan-canh.png)
 
@@ -158,7 +158,7 @@ scripts/
   main.gd              vòng chơi: nhận bánh, giao đơn, đồng hồ, mũi tên, phím điều khiển
   player.gd            mèo Bơ: chạy, nhảy, animation tạm bằng code
   camera_rig.gd        camera sau lưng mèo (SpringArm3D tránh xuyên tường)
-  dog.gd               Chó Mực: 7 trạng thái (ngủ gật, hé mắt, nghi ngờ, đuổi, đớp, sủa, mệt), nghe tiếng động
+  dog.gd               Chó Mực: 7 trạng thái (ngủ gật, hé mắt, nghi ngờ, đuổi, đớp, sủa, mệt), nghe tiếng động, đổi model tư thế theo trạng thái (assets/models/cho_muc/)
   city.gd              dựng khu phố 6 khối theo bản đồ trong sổ phác thảo
   hud.gd               thẻ đơn, đồng hồ, 5 chấm tiến độ, màn bắt đầu, tạm dừng, kết thúc
   timer_ring.gd        đồng hồ vòng tròn

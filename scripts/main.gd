@@ -113,6 +113,7 @@ func _ready() -> void:
 	hud.start_pressed.connect(start_game)
 	hud.restart_pressed.connect(restart)
 	add_child(preload("res://scripts/sound_director.gd").new())  # nhạc và tiếng động
+	add_child(FirstHints.new())  # mẹo lần đầu: gầm thấp, gần Chó Mực, tới khách
 	hud.menu_pressed.connect(_to_menu)
 	deliveries.setup(player, dog, hud, "--autotest" in OS.get_cmdline_user_args())
 
@@ -455,39 +456,7 @@ func _update_hud() -> void:
 # ---------------------------------------------------------------- dựng cảnh
 
 func _setup_environment() -> void:
-	var env := Environment.new()
-	env.background_mode = Environment.BG_SKY
-	var sky := Sky.new()
-	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Color("#6FAFD0")
-	sky_mat.sky_horizon_color = Color("#F2D9A6")
-	sky_mat.ground_horizon_color = Color("#F2D9A6")
-	sky_mat.ground_bottom_color = Color("#8F8B80")
-	sky.sky_material = sky_mat
-	env.sky = sky
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color("#BFD3DA")
-	# Bản web chạy renderer Compatibility (WebGL), cùng thông số thì sáng chói hơn hẳn Forward+,
-	# nên giảm sáng và bỏ filmic để hai bản nhìn gần giống nhau.
-	var compat := RenderingServer.get_rendering_device() == null
-	env.ambient_light_energy = 0.3 if compat else 0.45
-	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR if compat else Environment.TONE_MAPPER_FILMIC
-	env.ssao_enabled = true
-	env.fog_enabled = false
-	env.fog_light_color = Color("#F2D9A6")
-	env.fog_density = 0.006
-	var world := WorldEnvironment.new()
-	world.environment = env
-	add_child(world)
-
-	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-48, -35, 0)  # nắng sáng sớm, bóng dài
-	sun.light_color = Color("#FFE8C4")
-	sun.light_energy = 0.55 if compat else 0.9
-	sun.shadow_enabled = true
-	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
-	sun.directional_shadow_max_distance = 35.0  # bóng ở xa không cần, đỡ tốn
-	add_child(sun)
+	AnhSang.build(self, "pho_sang")  # nắng sớm, trời, sương, bóng đổ: scripts/anh_sang.gd
 
 
 func _build_bakery() -> void:

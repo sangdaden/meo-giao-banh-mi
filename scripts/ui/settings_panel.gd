@@ -120,6 +120,7 @@ func _ready() -> void:
 
 
 func open() -> void:
+	move_to_front()  # luôn nằm trên menu Esc, dù được tạo trước menu
 	visible = true
 
 

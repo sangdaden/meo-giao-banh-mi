@@ -933,6 +933,7 @@ func _autotest_run() -> void:
 	await _frames(10)
 	ok = _expect(ok, notes, lift == Lift.OPEN_TOP and absf(player.global_position.y - 12.0) < 0.3, "đi thang máy lên tầng 5 (y = %.2f)" % player.global_position.y)
 
+	ok = _expect(ok, notes, hud.self_test_menu(), "Esc > Cài đặt mở bảng Cài đặt trên menu")
 	for n in notes:
 		print(n)
 	print("AUTOTEST ", "OK" if ok else "FAIL")

@@ -126,10 +126,11 @@ func _ready() -> void:
 	root.add_child(end_screen)
 	end_text = T.label("", 20, PAPER)  # dùng khi show_end(lines) được gọi kiểu cũ
 
-	settings = SettingsPanel.new()
-	settings.visible = false
-	root.add_child(settings)
-	settings.closed.connect(_on_settings_closed)
+	if settings == null:  # _build_pause đã tạo rồi thì dùng lại, không tạo bảng thứ hai
+		settings = SettingsPanel.new()
+		settings.visible = false
+		root.add_child(settings)
+		settings.closed.connect(_on_settings_closed)
 
 	get_viewport().size_changed.connect(_apply_scale)
 	_apply_scale()
@@ -343,6 +344,29 @@ func _apply_scale() -> void:
 	var vp := get_viewport().get_visible_rect().size
 	play_root.scale = Vector2(s, s)
 	play_root.size = vp / s
+
+
+## Tự thử menu Esc (autotest): mở menu, bấm Cài đặt, bảng Cài đặt phải hiện và nằm trên menu, rồi đóng hết.
+func self_test_menu() -> bool:
+	var was := get_tree().paused
+	if not was:
+		toggle_pause()
+	var btn: Button = null
+	for b in pause_screen.find_children("*", "Button", true, false):
+		if b.text.strip_edges() == "Cài đặt":
+			btn = b
+	var ok := btn != null and pause_screen.visible
+	if btn:
+		btn.pressed.emit()
+	ok = ok and settings.visible and settings.get_parent() == pause_screen.get_parent() \
+		and settings.get_index() > pause_screen.get_index() \
+		and root.find_children("*", "SettingsPanel", true, false).size() == 1
+	settings.close()
+	ok = ok and not settings.visible and pause_screen.visible
+	if not was:
+		toggle_pause()
+	print("[autotest] menu Esc > Cài đặt: ", "OK" if ok else "FAIL")
+	return ok
 
 
 func _on_settings_closed() -> void:

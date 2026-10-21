@@ -85,6 +85,7 @@ func _ready() -> void:
 	_segment_row(right, "Cỡ chữ HUD", "hud_scale", [["Nhỏ", 0], ["Vừa", 1], ["To", 2]])
 	_switch_row(right, "Gợi ý phím", "hints")
 	_switch_row(right, "Mẹo lần đầu chơi", "tips")
+	_switch_row(right, "Chế độ thử thách (giờ gấp, phạt nặng)", "thu_thach")
 
 	var spacer := Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL

@@ -180,7 +180,7 @@ func build_static(parent: Node3D, order_list: Array) -> void:
 				_build_tu(parent, i, p, o.color, title)
 			"basket":
 				_build_na(parent, i, p, o.color, title)
-				_basket_period = float(o.get("basket_period", BASKET_PERIOD))
+				_basket_period = float(o.get("basket_period", BASKET_PERIOD)) * float(DoKho.v("basket_period_mult", 1.0))
 			"counter":
 				_build_may(parent, i, p, o.color, title)
 			"under_car":
@@ -665,7 +665,7 @@ func side_pending() -> bool:
 
 ## Đơn i bị trừ 1 sao vì lý do riêng của cách giao (góc cờ: hai ông mắng vì chạy nhanh, đụng bàn).
 func star_lost(i: int) -> bool:
-	return _kind[i] == "beside_tea" and chess != null and chess.scolded
+	return _kind[i] == "beside_tea" and chess != null and chess.scolded and bool(DoKho.v("chess_scold_star", true))
 
 
 func is_errand(i: int) -> bool:
@@ -738,7 +738,7 @@ func step(i: int, in_zone: bool, _delta: float) -> bool:
 					return true
 				else:
 					_misses += 1
-					_retry = BASKET_RETRY
+					_retry = float(DoKho.v("basket_retry", BASKET_RETRY))
 					_toast("Trật rồi! Đợi giỏ đưa lại...", 1.5)
 		"counter":
 			hint = "[E] Đặt bánh lên quầy"
@@ -1008,7 +1008,7 @@ func _update_xe_om() -> void:
 		_xe_om.visible = false
 		_passenger.visible = false
 	)
-	tw.tween_interval(XE_OM_AWAY)
+	tw.tween_interval(float(DoKho.v("xe_om_away", XE_OM_AWAY)))
 	tw.tween_callback(func():
 		_xe_om_state = "back"
 		_xe_om.visible = true
@@ -1073,7 +1073,7 @@ func _basket_hittable() -> bool:
 		return false
 	var b := _basket.global_position
 	var p := player.global_position
-	return Vector2(b.x - p.x, b.z - p.z).length() < BASKET_REACH
+	return Vector2(b.x - p.x, b.z - p.z).length() < float(DoKho.v("basket_reach", BASKET_REACH))
 
 
 func _on_moto_na() -> bool:

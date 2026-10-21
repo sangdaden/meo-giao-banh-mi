@@ -34,6 +34,7 @@ const ORDER := {
 }
 
 const NOTICE_RADIUS := 3.0      ## trong vòng này hai ông nghe thấy tiếng bước chân
+var _notice: float = NOTICE_RADIUS  ## Thong thả: 2 m (DoKho)
 const TABLE_RADIUS := 1.0       ## tiếng đụng mạnh trong vòng này là đụng bàn (bàn, ghế, hai ông)
 const WALK_NOISE := 6.0         ## bán kính tiếng động theo hợp đồng player.gd
 const BUMP_NOISE := 8.0
@@ -90,7 +91,7 @@ var _crowd_label: Label3D
 func _init() -> void:
 	name = "GocCoTuong"
 	_rng.seed = 742
-	_check_t = _rng.randf_range(CHECK_EVERY.x, CHECK_EVERY.y)
+	_check_t = _rng.randf_range(float(DoKho.v("check_every_min", CHECK_EVERY.x)), float(DoKho.v("check_every_max", CHECK_EVERY.y)))
 
 
 # ---------------------------------------------------------------- dựng cảnh
@@ -163,6 +164,7 @@ static func build_static(parent: Node3D) -> void:
 
 
 func _ready() -> void:
+	_notice = DoKho.v("chess_notice", NOTICE_RADIUS)
 	var c := CENTER
 	# Hai ông: Ông Bảy phía tây nhìn sang đông, Ông Tám phía đông nhìn sang tây
 	_men.append(_man(c + Vector3(-0.62, 0, 0), -PI / 2, SHIRT_BAY, "Ông Bảy"))
@@ -345,13 +347,13 @@ func end_order() -> void:
 
 ## Chiếu tướng ngay (test và cảnh chụp gọi; bình thường do đồng hồ trong _physics_process).
 func checkmate_now() -> void:
-	_check_t = _rng.randf_range(CHECK_EVERY.x, CHECK_EVERY.y)
-	_window_t = CHECK_WINDOW
+	_check_t = _rng.randf_range(float(DoKho.v("check_every_min", CHECK_EVERY.x)), float(DoKho.v("check_every_max", CHECK_EVERY.y)))
+	_window_t = float(DoKho.v("check_window", CHECK_WINDOW))
 	distracted = true
 	checks += 1
 	_checker = _turn
-	_set_state(_checker, "reo", CHECK_WINDOW)
-	_set_state(1 - _checker, "reo", CHECK_WINDOW)
+	_set_state(_checker, "reo", float(DoKho.v("check_window", CHECK_WINDOW)))
+	_set_state(1 - _checker, "reo", float(DoKho.v("check_window", CHECK_WINDOW)))
 	_say(_checker, "Chiếu tướng!", 1.6)
 	_crowd_label.text = "Hay! Hay quá!"
 	_crowd_label.visible = true
@@ -363,9 +365,9 @@ func _on_noise(pos: Vector3, radius: float) -> void:
 	if not active or distracted:
 		return
 	var d := Vector2(pos.x - CENTER.x, pos.z - CENTER.z).length()
-	if (radius >= BUMP_NOISE - 0.01 and d <= TABLE_RADIUS) or (radius >= SPRINT_NOISE - 0.01 and d <= NOTICE_RADIUS):
+	if (radius >= BUMP_NOISE - 0.01 and d <= TABLE_RADIUS) or (radius >= SPRINT_NOISE - 0.01 and d <= _notice):
 		_scold()
-	elif radius >= WALK_NOISE - 0.01 and d <= NOTICE_RADIUS:
+	elif radius >= WALK_NOISE - 0.01 and d <= _notice:
 		_shush(pos)
 
 
@@ -378,7 +380,8 @@ func _shush(from: Vector3) -> void:
 	var who := 0 if from.x < CENTER.x else 1
 	_set_state(who, "suyt", 1.2)
 	_say(who, "Suỵt!", 1.2)
-	_stun_player(SHUSH_STUN)
+	if float(DoKho.v("shush_stun", SHUSH_STUN)) > 0.0:
+		_stun_player(float(DoKho.v("shush_stun", SHUSH_STUN)))
 	_sfx("shush")
 	_toast("Suỵt! Rón rén thôi (giữ Alt), hai ông đang đánh cờ.", 2.0)
 	chess_event.emit("suyt")

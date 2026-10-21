@@ -311,7 +311,7 @@ func _spill(i: int) -> void:
 func _check_baskets() -> void:
 	var hv := Vector2(player.velocity.x, player.velocity.z).length()
 	var stance: String = player.get("stance") if player.get("stance") != null else "walk"
-	if hv < SPILL_SPEED or stance in ["sneak", "crouch"] or player.global_position.y > 0.5:
+	if hv < float(DoKho.v("spill_speed", SPILL_SPEED)) or stance in ["sneak", "crouch"] or player.global_position.y > 0.5:
 		return
 	var p := player.global_position
 	for i in _baskets.size():
@@ -338,7 +338,7 @@ func _build_shoppers(rng: RandomNumberGenerator) -> void:
 		s.phase = rng.randf() * TAU
 		s.keep = false
 		_shoppers.append(s)
-	for k in WALKERS:
+	for k in int(DoKho.v("market_walkers", WALKERS)):
 		var s := Shopper.new()
 		var z: float = WALK_LINES[k % WALK_LINES.size()]
 		var x0 := rng.randf_range(zone.position.x + 0.8, zone.end.x - 6.0)
@@ -425,9 +425,9 @@ func _check_bumps() -> void:
 			_bump_cd = BUMP_COOLDOWN
 			s.pause = 0.8
 			if player.has_method("bump"):
-				player.bump("person", s.pos, BUMP_STUN)
+				player.bump("person", s.pos, float(DoKho.v("market_bump_stun", BUMP_STUN)))
 			else:
-				player.knockback(s.pos, 2.5, BUMP_STUN)
+				player.knockback(s.pos, 2.5, float(DoKho.v("market_bump_stun", BUMP_STUN)))
 			bumps_this_order += 1
 			bumps_total += 1
 			person_bumped.emit(s.pos)

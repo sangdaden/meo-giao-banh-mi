@@ -244,6 +244,8 @@ const PINK := Color("#F6B8A0")
 
 
 func _ready() -> void:
+	fragile_fall = DoKho.v("fragile_fall", fragile_fall)
+	fragile_bump_speed = DoKho.v("fragile_bump_speed", fragile_bump_speed)
 	collision_layer = 2
 	collision_mask = Blocks.LAYER_WORLD | Blocks.LAYER_PROP
 	floor_snap_length = 0.3

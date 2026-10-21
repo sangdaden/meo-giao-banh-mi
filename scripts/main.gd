@@ -360,7 +360,7 @@ func _pick_up(order: Dictionary) -> void:
 
 ## Thời gian cho một đơn: số giây gốc nhân hệ số, cộng giây thưởng của ổ bánh từ màn bếp.
 func _time_limit(order: Dictionary) -> float:
-	return order.time * time_multiplier * float(day.time_mult) + Scoring.bonus_seconds(order_index)
+	return order.time * time_multiplier * float(day.time_mult) * float(DoKho.v("order_time_mult", 1.0)) + Scoring.bonus_seconds(order_index)
 
 
 func _deliver(order: Dictionary) -> void:
@@ -412,7 +412,7 @@ func _track_fall() -> void:
 	var y := player.global_position.y
 	if on_floor:
 		# Đơn mua trứng tính vỡ trứng riêng (ShopTapHoa), không có ổ bánh để dập
-		if not _was_on_floor and _air_top - y > FALL_BREAK_HEIGHT and intact and not _is_errand(orders[order_index]):
+		if not _was_on_floor and _air_top - y > float(DoKho.v("fall_break_height", FALL_BREAK_HEIGHT)) and intact and not _is_errand(orders[order_index]):
 			intact = false
 			hud.show_toast("Rơi cao quá, bánh bị dập mất rồi!")
 		_air_top = y
@@ -562,9 +562,10 @@ func _on_dog_bite() -> void:
 	_bitten = true
 	bites += 1
 	intact = false
-	time_left = maxf(time_left - BITE_PENALTY, 0.1)
+	var bite: float = DoKho.v("bite_penalty", BITE_PENALTY)
+	time_left = maxf(time_left - bite, 0.1)
 	player.knockback(dog.global_position)
-	hud.show_toast("Chó Mực đớp mất %d giây!" % int(BITE_PENALTY))
+	hud.show_toast("Chó Mực đớp mất %d giây!" % int(bite) if bite > 0.0 else "Chó Mực đớp trúng túi bánh! Ổ bánh hơi móp.")
 
 
 func _on_dog_state(s: int) -> void:
@@ -590,7 +591,7 @@ func _update_hud() -> void:
 		hud.set_timer(time_left, _time_limit(order), true)
 		hud.set_distance(player.global_position.distance_to(order.pos), order.place)
 		hud.set_goal(order.pos + Vector3.UP)
-		hud.set_bread(true, order.item, 1.0 - carry_time / 45.0)  # nguội hẳn sau 45 giây
+		hud.set_bread(true, order.item, 1.0 - carry_time / float(DoKho.v("bread_cool", 45.0)))  # nguội hẳn sau 45 giây
 		if hud.has_method("set_kitchen_stars"):
 			hud.set_kitchen_stars(Scoring.kitchen_star_for(order_index))
 	else:

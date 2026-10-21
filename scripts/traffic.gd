@@ -418,7 +418,7 @@ func _check_player(b: Bike) -> void:
 	_hit_cd = 1.5
 	_sound_at("horn", b.pos)
 	var away := right * (signf(side) if absf(side) > 0.05 else 1.0)
-	player.knockback(player.global_position - (b.dir + away) * 0.7, HIT_STRENGTH, HIT_STUN)
+	player.knockback(player.global_position - (b.dir + away) * 0.7, float(DoKho.v("hit_strength", HIT_STRENGTH)), float(DoKho.v("hit_stun", HIT_STUN)))
 	if player.has_method("bump"):
 		player.bump("bike")  # đang ngậm túi trứng thì vỡ một quả
 	b.speed *= 0.3

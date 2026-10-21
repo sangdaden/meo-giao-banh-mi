@@ -52,6 +52,34 @@ const CART_LANES := [
 	[Vector3(32.0, 0, 6.1), Vector3(42.5, 0, 6.1)],
 ]
 
+## Chợ tạm Thứ Ba (scripts/market.gd): chiếm đường lớn giữa khối 2 và khối 5, giữa hai ngã tư.
+## Hai dãy sạp sát hai mép đường (mép đường ở z = ±5), chừa hai làn xe máy ở z = ±2,5 cho xe chạy chậm qua chợ.
+const MARKET_ZONE := Rect2(-13.5, -5.0, 25.0, 10.0)
+## Mỗi sạp rộng 1,8 m, sâu 1,4 m, mặt sạp cao 0,62 m, bạt phủ rủ xuống còn cách đất 0,5 m: Bơ chui gầm được.
+## side = -1: dãy bắc (khách đứng phía nam), 1: dãy nam. Hai khoảng trống: trước sạp báo Chú Tư và trước quán cà phê Mây.
+const MARKET_STALLS := [
+	{"pos": Vector3(-12.0, 0, -4.0), "side": -1, "kind": "rau"},
+	{"pos": Vector3(-9.7, 0, -4.0), "side": -1, "kind": "trai_cay"},
+	{"pos": Vector3(-7.4, 0, -4.0), "side": -1, "kind": "ca"},
+	{"pos": Vector3(-5.1, 0, -4.0), "side": -1, "kind": "hoa"},
+	{"pos": Vector3(0.6, 0, -4.0), "side": -1, "kind": "kho"},
+	{"pos": Vector3(2.9, 0, -4.0), "side": -1, "kind": "rau"},
+	{"pos": Vector3(5.2, 0, -4.0), "side": -1, "kind": "trai_cay"},
+	{"pos": Vector3(7.5, 0, -4.0), "side": -1, "kind": "ca"},
+	{"pos": Vector3(9.8, 0, -4.0), "side": -1, "kind": "rau"},
+	{"pos": Vector3(-12.0, 0, 4.0), "side": 1, "kind": "kho"},
+	{"pos": Vector3(-9.7, 0, 4.0), "side": 1, "kind": "rau"},
+	{"pos": Vector3(-7.4, 0, 4.0), "side": 1, "kind": "hoa"},
+	{"pos": Vector3(-5.1, 0, 4.0), "side": 1, "kind": "trai_cay"},
+	{"pos": Vector3(-2.8, 0, 4.0), "side": 1, "kind": "ca"},
+	{"pos": Vector3(3.6, 0, 4.0), "side": 1, "kind": "rau"},
+	{"pos": Vector3(5.9, 0, 4.0), "side": 1, "kind": "trai_cay"},
+	{"pos": Vector3(8.2, 0, 4.0), "side": 1, "kind": "kho"},
+	{"pos": Vector3(10.5, 0, 4.0), "side": 1, "kind": "hoa"},
+]
+## Xe ba gác chở hàng về khi chợ tan (đơn 4, 5): nằm giữa đường, dọc trục X
+const MARKET_BA_GAC := Vector3(-1.0, 0, 0.2)
+
 ## Vùng không thả xe máy ngẫu nhiên (x_min, z_min, cỡ)
 const KEEP_CLEAR := [
 	Rect2(20.8, -6.2, 18.5, 0.2),   # làn xe đẩy khối 3

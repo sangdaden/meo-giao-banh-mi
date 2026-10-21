@@ -12,7 +12,7 @@ signal view_changed(first_person: bool)
 @export var follow_speed := 18.0
 @export var look_height := 0.55
 @export var fp_height := 0.44     ## độ cao mắt Bơ so với chân
-@export var fp_forward := 0.26    ## mắt nằm trước tâm người bao nhiêu
+@export var fp_forward := 0.04    ## mắt nằm trước tâm người bao nhiêu
 
 var target: Node3D
 var yaw := 0.0

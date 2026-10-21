@@ -122,6 +122,8 @@ static func merge_static(root: Node3D, cell := 0.0) -> void:
 		if mi.mesh == null or mi.mesh.get_surface_count() == 0:
 			continue
 		var m: Material = mi.material_override
+		if m == null:
+			continue  # mesh tự mang vật liệu (vd. model góc cờ): để nguyên, không gộp
 		var xf := to_root * mi.global_transform
 		var aabb := xf * mi.mesh.get_aabb()
 		var key := str(m.get_instance_id())

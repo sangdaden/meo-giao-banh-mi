@@ -35,7 +35,7 @@ func _run() -> void:
 	main.add_child(cam)
 	cam.fov = 60
 	for i in VIEWS.size():
-		var p: Vector3 = main.ORDERS[i].pos
+		var p: Vector3 = main.orders[i].pos
 		# Đang giao đơn i: khách chìa tay, giỏ thòng xuống
 		main.order_index = i
 		main.player.carrying = true

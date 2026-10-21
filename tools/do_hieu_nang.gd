@@ -33,8 +33,8 @@ const SHOTS_PHO := [
 	["tham_khao_tren_cao", Vector3(-40, 22, 30), Vector3(-5, 0, -2)],
 ]
 const SHOTS_BEP := [
-	["bep_toan_canh", Vector3(0, 3.0, 5.3), Vector3(0, 0.2, -0.2)],
-	["bep_lo", Vector3(0.6, 1.0, 0.4), Vector3(0.35, 0.5, -1.0)],
+	["bep_toan_canh", Vector3(0, 2.6, 4.3), Vector3(0, 0.0, -0.3)],
+	["bep_lo", Vector3(0.5, 0.8, 0.3), Vector3(0.3, 0.3, -1.0)],
 ]
 ## Màn hình chính (có Bơ 3D, tủ đồ): dùng camera của chính màn đó.
 const SHOTS_MENU := [

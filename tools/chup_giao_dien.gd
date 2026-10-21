@@ -86,7 +86,7 @@ func _run() -> void:
 	var main := current_scene
 	await _shot("4_hud_ve_lo")
 	main.player.global_position = Vector3(10, 0.2, 2)
-	main._pick_up(main.ORDERS[2])
+	main._pick_up(main.orders[2])
 	main.order_index = 2
 	main.results = [3, 2]
 	main.result_notes = ["dư 6 giây", "dư 3 giây"]
@@ -132,7 +132,7 @@ func _run() -> void:
 	main.bites = 1
 	main.player.carrying = true
 	main.time_left = 10.0
-	main._deliver(main.ORDERS[4])
+	main._deliver(main.orders[4])
 	await _wait(10)
 	await _shot("8_ket_qua")
 	# Bảng kết quả Thứ Hai với dữ liệu mẫu của luồng chấm điểm

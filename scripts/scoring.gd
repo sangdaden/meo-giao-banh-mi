@@ -17,7 +17,7 @@ const KITCHEN_BONUS_SECONDS := 2.0
 const STAMPS_PER_DAY := 5
 ## Hạng của ngày theo tổng sao: thường dưới 8, giòn 8–12, vàng từ 13.
 const RANKS := [["vang", 13, "Bánh mì vàng"], ["gion", 8, "Bánh mì giòn"], ["thuong", 0, "Bánh mì thường"]]
-## Tên hiển thị của nhiệm vụ phụ (id do ORDERS[i].side_quest trong main.gd đặt).
+## Tên hiển thị của nhiệm vụ phụ (id do khóa "side_quest" của đơn trong scripts/days.gd đặt).
 const SIDE_QUEST_NAMES := {
 	"bao_co_ba": "Ngậm tờ báo về cho Cô Ba",
 	"gio_nhip_dau": "Bỏ bánh vào giỏ ngay nhịp đầu",
@@ -25,7 +25,12 @@ const SIDE_QUEST_NAMES := {
 	"khong_dau": "Không giẫm vũng dầu",
 	"muc_ngu_yen": "Để Chó Mực ngủ yên",
 	"em_be_ngu_yen": "Để em bé tầng 3 ngủ yên",
+	# Thứ Ba (gói việc thiet-ke-man/goi-viec-thu-ba.md)
+	"kip_xe_om": "Giao trước khi khách xe ôm tới",
+	"du_6_trung": "Về lò còn đủ 6 quả trứng",
 	"dat_luc_chieu": "Đặt túi lúc chiếu tướng",
+	"khong_dung_nguoi": "Không đụng người đi chợ nào",
+	"khong_do_thung": "Không làm đổ thúng nào",
 }
 
 static var orders: Array = []  # kết quả từng đơn trong ngày, mỗi phần tử là Dictionary
@@ -265,8 +270,8 @@ static func end_practice() -> Dictionary:
 
 
 ## Sao cao nhất đã đạt ở đơn i (0 nếu chưa giao lần nào).
-static func best_stars(order_index: int, which := "thu_hai") -> int:
-	var a: Array = GameState.get_day("sao_don", [], which)
+static func best_stars(order_index: int, which := "") -> int:
+	var a: Array = GameState.get_day("sao_don", [], which)  # which rỗng = ngày đang chơi
 	return int(a[order_index]) if order_index < a.size() else 0
 
 

@@ -14,14 +14,14 @@ extends Node3D
 ##   (scripts/chess_corner.gd). Phụ: đặt đúng lúc chiếu tướng. Bị mắng thì đơn mất 1 sao.
 ##
 ## Cách dùng trong main.gd:
-##   build_static(self, ORDERS) trước Blocks.merge_static (phần đứng yên được gộp lệnh vẽ),
+##   build_static(self, orders) trước Blocks.merge_static (phần đứng yên được gộp lệnh vẽ),
 ##   add_child sau merge_static (phần chuyển động: giỏ, ly, tay, tờ báo...), rồi setup().
 ##   Mỗi nhịp vật lý lúc đang mang bánh: step(order_index, in_zone) trả true là đã giao xong.
 ##   Bố cục lấy theo CityProps (xe máy, ban công Bé Na, quầy và bàn cà phê, ghế mây Bà Sáu).
 ## Đồ giao bánh là model Sang duyệt 21/10 (assets/models/giao/*.glb, trang https://claude.ai/artifact/8TqKjyoKebvAqXgEUEU25X):
 ## ổ bánh gói giấy Bơ ngậm, giỏ, tờ báo, ly cà phê (và bản đổ), chén sữa. Người dân vẫn là khối tạm chờ duyệt tư thế.
 
-## Tên nhiệm vụ phụ theo khóa "side_quest" trong ORDERS
+## Tên nhiệm vụ phụ theo khóa "side_quest" của đơn (scripts/days.gd)
 const QUESTS := {
 	"bao_co_ba": "Ngậm tờ báo về cho Cô Ba",
 	"gio_nhip_dau": "Bỏ bánh vào giỏ ngay nhịp đầu",
@@ -82,7 +82,7 @@ var _hspeed_prev := 0.0
 var _tu_paper: Node3D            # tờ báo trong tay Chú Tư (hạ xuống khi Bơ tới)
 var _tu_paper_pos := Vector3.ZERO
 var _mouth_paper: Node3D         # tờ báo Bơ ngậm
-var _paper_state := ""           # "" | "carry" | "wet" | "done"
+var _paper_state := ""           # "" | "handing" | "carry" | "wet" | "done"
 var _in_puddle := false
 
 # Đơn 2: giỏ
@@ -149,6 +149,8 @@ func build_static(parent: Node3D, order_list: Array) -> void:
 				if chess == null:
 					ChessCorner.build_static(parent)
 					chess = ChessCorner.new()
+			_:
+				_build_generic(parent, i, p, o.color, title)
 	var water := StandardMaterial3D.new()
 	water.albedo_color = Color(WATER_TOP, 0.6)
 	water.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -214,6 +216,14 @@ func _build_sau(parent: Node3D, i: int, p: Vector3, shirt: Color, title: String)
 	_seated(parent, pos, 0.0, shirt)
 	_arms.append({"order": i, "pos": pos + Vector3(0.2, 1.05, -0.05), "yaw": 0.0, "color": shirt})
 	Blocks.label(parent, title, pos + Vector3(0, 3.0, 0), 40)
+
+
+## Cách giao chưa làm (on_seat, beside_tea, hand_over... của Thứ Ba): người đứng chìa tay, bấm E đưa.
+## Các gói ngày sau thay bằng cảnh riêng của mình.
+func _build_generic(parent: Node3D, i: int, p: Vector3, shirt: Color, title: String) -> void:
+	_standing(parent, p + Vector3(0, 0, -0.6), PI, shirt)
+	_arms.append({"order": i, "pos": p + Vector3(0.2, 1.05, -0.45), "yaw": PI, "color": shirt})
+	Blocks.label(parent, title, p + Vector3(0, 2.2, -0.6), 40)
 
 
 ## Người ngồi ghế, quay mặt về -Z cục bộ (yaw xoay cả người). Có màu ghế thì dựng ghế bên dưới.
@@ -509,6 +519,11 @@ func stand_point(i: int) -> Vector3:
 	return orders[i].pos
 
 
+## Còn nhiệm vụ phụ đang làm dở sau khi giao (tờ báo Chú Tư đang ngậm về lò).
+func side_pending() -> bool:
+	return _paper_state in ["handing", "carry"]
+
+
 ## Đơn i bị trừ 1 sao vì lý do riêng của cách giao (góc cờ: hai ông mắng vì chạy nhanh, đụng bàn).
 func star_lost(i: int) -> bool:
 	return _kind[i] == "beside_tea" and chess != null and chess.scolded
@@ -600,7 +615,8 @@ func step(i: int, in_zone: bool, _delta: float) -> bool:
 		"counter":
 			_deliver_may(i)
 		"under_car":
-			side_ok[i] = not _oiled
+			# Vũng dầu chỉ tính khi đơn có nhiệm vụ "khong_dau" (Thứ Ba đơn này có nhiệm vụ khác)
+			side_ok[i] = not _oiled and orders[i].get("side_quest", "") == "khong_dau"
 			_play_deliver(kind)
 			_hand_bread(hand_point(i))
 		"chair":
@@ -613,6 +629,7 @@ func step(i: int, in_zone: bool, _delta: float) -> bool:
 				_toast("Đặt túi đúng lúc chiếu tướng, chẳng ai để ý!", 2.0, 1.8)
 		_:
 			_play_deliver(kind)
+			_hand_bread(hand_point(i))
 	current = -1
 	return true
 
@@ -620,6 +637,7 @@ func step(i: int, in_zone: bool, _delta: float) -> bool:
 func _deliver_tu(i: int) -> void:
 	_play_deliver("hand")
 	side_ok[i] = false  # chỉ thành công khi tờ báo về tới lò
+	_paper_state = "handing"  # Chú Tư đang gấp báo, chưa tới miệng Bơ
 	_hand_bread(hand_point(i), func():
 		# Nhận bánh xong Chú Tư gấp báo đưa cho Bơ ngậm về
 		_tu_paper.visible = false

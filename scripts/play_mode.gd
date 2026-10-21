@@ -12,6 +12,8 @@ const CHUNG_CU_SCENE := "res://scenes/chung_cu.tscn"   ## Thứ Năm: leo chung 
 
 ## FULL: bếp rồi giao 5 đơn · KITCHEN: chỉ bếp · DELIVERY: chỉ giao 5 đơn · ORDER: giao một đơn
 static var mode := Mode.FULL
+## Ngày đang chơi, mã như Days.ORDER ("thu_hai", "thu_ba"...).
+static var day := "thu_hai"
 ## Đơn được chọn khi mode = ORDER (0–4).
 static var order := 0
 ## true khi từ màn chơi về màn hình chính: mở lại màn Chọn màn.
@@ -19,7 +21,10 @@ static var back_to_select := false
 
 
 ## Bắt đầu chơi theo lựa chọn. Xóa điểm bếp cũ để chế độ không có bếp không được cộng giây.
-static func start(tree: SceneTree, m: Mode, which := 0) -> void:
+static func start(tree: SceneTree, m: Mode, which := 0, which_day := "") -> void:
+	if which_day != "":
+		day = which_day
+	GameState.day = day  # màn bếp ghi sao_bep vào mục của ngày này
 	mode = m
 	order = which
 	GameState.from_kitchen = false
@@ -35,6 +40,7 @@ static func start(tree: SceneTree, m: Mode, which := 0) -> void:
 
 ## Chơi thử cảnh leo chung cư của Thứ Năm (một đơn cho Bé Na, không có bếp).
 static func start_chung_cu(tree: SceneTree) -> void:
+	GameState.day = "thu_nam"  # kỷ lục ghi vào mục Thứ Năm
 	mode = Mode.ORDER
 	order = 0
 	GameState.from_kitchen = false

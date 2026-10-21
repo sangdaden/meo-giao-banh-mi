@@ -1,6 +1,6 @@
 # Mèo Giao Bánh Mì
 
-Game 3D góc nhìn thứ ba làm bằng **Godot 4** (ráp game) và **Blender** (model, rig, animation). Mèo cam Bơ nhận bánh ở lò Cô Ba rồi chạy nhảy khắp khu phố để giao kịp giờ cho 5 khách.
+Game 3D góc nhìn thứ ba làm bằng **Godot 4** (ráp game) và **Blender** (model, rig, animation). Mèo cam Bơ phụ Cô Ba làm bánh mì trong bếp, rồi chạy nhảy khắp khu phố để giao kịp giờ cho 5 khách.
 
 Đây là **bản chơi thử**: mèo Bơ đã dùng model kiểu D "Chững chạc" (bản tạm rút gọn từ model phác thảo), còn phố, khách và Chó Mực vẫn là khối hộp tạm. Mục tiêu là thử cảm giác chạy nhảy và vòng giao đơn trước khi làm đồ họa thật.
 
@@ -75,7 +75,29 @@ Trong `export_presets.cfg` còn có sẵn preset **Android** (arm64, chưa ký) 
 3. Mở Godot, ở Project Manager bấm **Import**, chọn file `project.godot` trong thư mục vừa giải nén, rồi bấm **Import & Edit**.
 4. Lần đầu mở, Godot mất vài giây để nhập project. Xong thì bấm **F5** (hoặc nút ▶ góc trên bên phải) để chơi.
 
-## Cách chơi
+## Màn bếp
+
+Vào game là tới bếp Cô Ba trước (`scenes/kitchen.tscn`). Camera đứng cố định ngoài tủ kính nhìn vào. Bơ phải làm **2 ổ bánh mì trong 2 phút 30 giây**, mỗi lần chỉ cầm được một món.
+
+![Bếp Cô Ba](docs/bep.png)
+
+| Trạm | Cần cầm | Các bước (mỗi bước bấm E, có cận cảnh chân Bơ) | Ra món |
+|---|---|---|---|
+| Bao bột | tay không | Xúc bột | bột |
+| Bàn nhồi | bột | Đổ nước · Nhồi bột (×4) · Ủ bột · Chia bột · Vê thành ổ (×2) · Khía mặt (×2) | khay bánh sống |
+| Lò gạch | khay bánh sống | Mở cửa · Phun hơi nước · Đẩy khay vào · Đóng cửa | (nướng 6 giây) |
+| Lò gạch | tay không, bánh đã chín | Mở cửa · Kéo khay ra (để quá 5 giây là cháy) | khay bánh nướng |
+| Kệ: rau, chả, thịt | tay không | Lấy rau / chả lụa / thịt nguội | món sống |
+| Thớt | rau / chả / thịt | Rau: Rửa · Nhặt lá úa · Cắt (×3). Chả: Bóc lá chuối · Thái (×3). Thịt: Thái (×3) · Xếp ra đĩa | món đã sơ chế |
+| Bàn ráp | bánh hoặc nhân | đặt xuống ngay | |
+| Bàn ráp | tay không, đủ bánh + 3 nhân | Xẻ bánh · Phết pate · Kẹp chả, thịt · Thêm rau · Rưới nước tương | ổ bánh mì |
+| Tủ kính | ổ bánh mì | Gói giấy · Bỏ vào tủ | xong 1 ổ |
+
+Vòng sáng cam dưới đất chỉ trạm nên tới tiếp; đứng trong vòng thì vòng chuyển vàng và hiện "E · tên trạm". Chấm điểm: ★ làm đủ 2 ổ trước giờ, ★ bánh không cháy, ★ còn dư từ 45 giây. Mỗi sao cộng **2 giây** vào đồng hồ của mọi đơn giao (tối đa +6 giây). Xong bếp bấm Enter là sang màn giao bánh.
+
+Đồ bếp hiện là khối tạm (`scripts/kitchen_props.gd`), màu theo 15 thẻ đồ bếp kiểu D; khi có `.glb` low-poly từ Blender thì thay từng hàm trong file đó.
+
+## Cách chơi màn giao bánh
 
 | Phím | Tay cầm | Việc |
 |---|---|---|
@@ -84,6 +106,7 @@ Trong `export_presets.cfg` còn có sẵn preset **Android** (arm64, chưa ký) 
 | Space | A | nhảy (giữ lâu nhảy cao, bấm nhanh nhảy thấp) |
 | Chuột | cần phải | xoay camera |
 | Esc | Start | tạm dừng, trả chuột |
+| E hoặc Enter | B | làm việc ở trạm trong bếp |
 | Enter | | bắt đầu, chơi lại |
 | F3 | | hiện hoặc ẩn bộ đếm FPS |
 
@@ -117,8 +140,14 @@ Mọi con số chỉnh được đều nằm ở đầu file script, có chú th
 
 ```
 project.godot          cấu hình project
-scenes/main.tscn       scene duy nhất, gắn script main.gd
+scenes/kitchen.tscn    màn bếp (scene chạy đầu tiên), gắn script kitchen.gd
+scenes/main.tscn       màn giao bánh, gắn script main.gd
 scripts/
+  kitchen.gd           màn bếp: trạm, luật làm bánh, đồng hồ 2:30, cận cảnh từng bước, bot tự chơi
+  kitchen_props.gd     đồ bếp dựng tạm bằng khối, chân trước của Bơ cho cận cảnh
+  kitchen_camera.gd    camera cố định ngoài tủ kính, lướt vào cận cảnh
+  kitchen_hud.gd       giao diện bếp (dùng lại khung của hud.gd)
+  game_state.gd        điểm bếp chuyền sang màn giao bánh
   main.gd              vòng chơi: nhận bánh, giao đơn, đồng hồ, mũi tên, phím điều khiển
   player.gd            mèo Bơ: chạy, nhảy, animation tạm bằng code
   camera_rig.gd        camera sau lưng mèo (SpringArm3D tránh xuyên tường)
@@ -161,6 +190,14 @@ Lệnh sau cho mèo tự "dịch chuyển" qua cả 5 đơn, ghé Chó Mực đ�
 ```
 godot --headless --path . -- --autotest
 ```
+
+Lệnh này bỏ qua màn bếp. Muốn thử màn bếp, cho Bơ tự chơi hết 2 ổ rồi in `AUTOTEST BEP OK`:
+
+```
+godot --headless --path . --fixed-fps 60 -- --autotest-bep
+```
+
+Thêm `-- --demo-bep` (không có `--headless`) để xem Bơ tự làm bếp, xong tự sang màn giao bánh. Clip trong PR quay bằng lệnh này cộng `--write-movie bep.avi --fixed-fps 30`.
 
 ## Xuất bản chạy trên Windows
 

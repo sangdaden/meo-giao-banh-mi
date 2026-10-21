@@ -6,8 +6,8 @@ config_version=5
 [application]
 
 config/name="Mèo Giao Bánh Mì"
-config/description="Bản khối thô (block-out) tuần 1: mèo Bơ chạy nhảy và giao 5 đơn bánh mì."
-run/main_scene="res://scenes/main.tscn"
+config/description="Bản chơi thử: mèo Bơ làm bánh mì trong bếp Cô Ba rồi chạy nhảy giao 5 đơn."
+run/main_scene="res://scenes/kitchen.tscn"
 config/features=PackedStringArray("4.3", "Forward Plus")
 config/icon="res://icon.svg"
 

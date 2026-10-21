@@ -20,7 +20,7 @@ const PARK_INDEX := 3
 const BAKERY_POINT := Vector3(-33, 0, -5.8)
 ## Thùng hàng để nhảy qua (theo bản đồ) và vài chồng thêm cho vui
 const CRATES := [
-	Vector3(-18, 0, -12), Vector3(16, 0, 0.5), Vector3(-7, 0, 0.8), Vector3(26, 0, 27.5), Vector3(-18, 0, 12),
+	Vector3(-18, 0, -12), Vector3(16, 0, 0.5), Vector3(-7, 0, 0.8), Vector3(26, 0, 27.5), Vector3(-19.4, 0, 10.5),
 	Vector3(-25, 0, -2), Vector3(5, 0, -3.5), Vector3(14, 0, 18),
 ]
 
@@ -41,13 +41,14 @@ static func build(parent: Node3D) -> void:
 		if i == PARK_INDEX:
 			_park(parent, BLOCKS[i], rng)
 		else:
-			_block(parent, BLOCKS[i], rng, i == 0)
+			_block(parent, BLOCKS[i], rng, i)
 	for c in CRATES:
 		Blocks.solid_box(parent, Vector3(0.8, 0.8, 0.8), c + Vector3(0, 0.4, 0), CRATE, Blocks.LAYER_PROP)
 	# Chồng thùng bậc thang gần lò bánh: tập nhảy
 	Blocks.solid_box(parent, Vector3(0.8, 0.8, 0.8), Vector3(-25.8, 0.4, -2), CRATE, Blocks.LAYER_PROP)
 	Blocks.solid_box(parent, Vector3(0.8, 0.8, 0.8), Vector3(-25.8, 1.2, -2), CRATE, Blocks.LAYER_PROP)
 	_street_props(parent, rng)
+	CityProps.build(parent)
 	_bounds(parent)
 
 
@@ -63,7 +64,8 @@ static func _ground(parent: Node3D) -> void:
 	for lane_x in [-18.0, 16.0]:
 		var z := -28.0
 		while z < 28.0:
-			if absf(z) > 6:
+			# Đoạn x = -18 phía nam đã thành hẻm 42, không kẻ vạch
+			if absf(z) > 6 and not (lane_x < 0 and z > 8):
 				Blocks.box(parent, Vector3(0.2, 0.02, 1.8), Vector3(lane_x, 0.01, z), LANE)
 			z += 3.6
 	# Vạch qua đường ở ngã tư
@@ -74,7 +76,9 @@ static func _ground(parent: Node3D) -> void:
 
 
 ## Một khối nhà: vỉa hè bao quanh, hai dãy nhà ống quay lưng vào nhau, giữa có hẻm nhỏ.
-static func _block(parent: Node3D, r: Rect2, rng: RandomNumberGenerator, is_bakery_block: bool) -> void:
+## Chỗ nào có nhà đặc biệt (CityProps.SLOTS: chung cư, tiệm xe) thì chừa ô đó cho CityProps dựng.
+static func _block(parent: Node3D, r: Rect2, rng: RandomNumberGenerator, block_index: int) -> void:
+	var is_bakery_block := block_index == 0
 	var center := r.get_center()
 	# Vỉa hè (chỉ để nhìn, không có bậc để mèo khỏi vấp)
 	Blocks.box(parent, Vector3(r.size.x, 0.04, r.size.y), Vector3(center.x, 0.02, center.y), SIDEWALK)
@@ -85,11 +89,21 @@ static func _block(parent: Node3D, r: Rect2, rng: RandomNumberGenerator, is_bake
 		{"z0": r.position.y + inset, "faces_south": false},
 		{"z0": r.position.y + inset + depth + alley, "faces_south": true},
 	]
-	for row in rows:
+	for row_index in rows.size():
+		var row: Dictionary = rows[row_index]
 		var x := r.position.x + inset
 		var x_end := r.end.x - inset
 		while x < x_end - 0.5:
+			var slot := CityProps.slot_at(block_index, row_index, x)
+			if not slot.is_empty():
+				CityProps.build_slot(parent, slot, row.z0, depth)
+				x = slot.x1
+				continue
 			var w := minf(rng.randf_range(3.6, 6.0), x_end - x)
+			# Nhà không được lấn sang ô đặc biệt kế bên
+			var next_slot := CityProps.next_slot_x(block_index, row_index, x)
+			if next_slot < x + w:
+				w = next_slot - x
 			var h := rng.randf_range(5.0, 13.0)
 			var col: Color = FACADES[rng.randi() % FACADES.size()]
 			var pos := Vector3(x + w / 2.0, h / 2.0, row.z0 + depth / 2.0)
@@ -101,7 +115,8 @@ static func _block(parent: Node3D, r: Rect2, rng: RandomNumberGenerator, is_bake
 			var face_z: float = row.z0 + (depth if row.faces_south else 0.0)
 			var out := 1.0 if row.faces_south else -1.0
 			Blocks.box(parent, Vector3(w - 0.9, 2.4, 0.06), Vector3(pos.x, 1.2, face_z + 0.04 * out), SHUTTER.darkened(0.1) if not is_bakery else Color("#C8412F"))
-			Blocks.box(parent, Vector3(w - 0.4, 0.12, 1.0), Vector3(pos.x, 2.9, face_z + 0.5 * out), col.darkened(0.25))
+			# Mái hiên cao 2,9 m nối liền nhau, có va chạm để Bơ chạy trên đó
+			CityProps.awning(parent, w, Vector3(pos.x, 2.9, face_z + 0.5 * out), col.darkened(0.25))
 			# Cửa sổ các tầng trên
 			var y := 4.2
 			while y < h - 1.0:
@@ -148,8 +163,7 @@ static func _park(parent: Node3D, r: Rect2, rng: RandomNumberGenerator) -> void:
 	# Ghế đá để nhảy lên
 	for b in [Vector3(-38, 0, 10), Vector3(-28, 0, 22), Vector3(-40, 0, 20)]:
 		Blocks.solid_box(parent, Vector3(1.8, 0.45, 0.6), b + Vector3(0, 0.225, 0), Color("#B8B2A2"), Blocks.LAYER_PROP)
-	# Hàng rào thấp dọc hẻm phía đông công viên (chỗ Chó Mực canh)
-	Blocks.solid_box(parent, Vector3(0.2, 0.7, 12.0), Vector3(-22.3, 0.35, 15.5), Color("#5E6F6C"), Blocks.LAYER_PROP)
+	# Bờ rào dọc hẻm 42 nay do CityProps.hem_42 dựng
 
 
 static func _street_props(parent: Node3D, rng: RandomNumberGenerator) -> void:
@@ -164,6 +178,8 @@ static func _street_props(parent: Node3D, rng: RandomNumberGenerator) -> void:
 			continue
 		var along := rng.randf_range(r.position.x + 3, r.end.x - 3)
 		var z := r.end.y - 1.0 if rng.randf() < 0.5 else r.position.y + 1.0
+		if CityProps.keep_clear(Vector2(along, z)):
+			continue  # chỗ này đã có bàn quán cà phê hoặc đồ đặt sẵn
 		var bike := Blocks.solid_box(parent, Vector3(0.5, 0.9, 1.6), Vector3(along, 0.45, z), Color("#C8412F") if i % 2 == 0 else Color("#3D5A80"), Blocks.LAYER_PROP)
 		bike.rotation.y = deg_to_rad(rng.randf_range(-15, 15))
 

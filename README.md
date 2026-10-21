@@ -159,7 +159,7 @@ scripts/
   main.gd              vòng chơi: nhận bánh, giao đơn, đồng hồ, mũi tên, phím điều khiển
   player.gd            mèo Bơ: chạy, nhảy, animation tạm bằng code
   camera_rig.gd        camera sau lưng mèo (SpringArm3D tránh xuyên tường)
-  dog.gd               Chó Mực: 7 trạng thái (ngủ gật, hé mắt, nghi ngờ, đuổi, đớp, sủa, mệt), nghe tiếng động, đổi model tư thế theo trạng thái (assets/models/cho_muc/)
+  dog.gd               Chó Mực: 7 trạng thái (ngủ gật, hé mắt, nghi ngờ, đuổi, đớp, sủa, mệt), nghe tiếng động, model có 30 xương, 22 animation theo trạng thái và theo ngày (assets/models/cho_muc/cho_muc.glb, thẻ tên rời the_ten_muc.glb)
   city.gd              dựng khu phố 6 khối theo bản đồ trong sổ phác thảo
   hud.gd               thẻ đơn, đồng hồ, 5 chấm tiến độ, màn bắt đầu, tạm dừng, kết thúc
   timer_ring.gd        đồng hồ vòng tròn

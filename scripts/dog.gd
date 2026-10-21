@@ -53,28 +53,27 @@ var _fake_cd := 0.0
 var _air_peak := 0.0
 
 var _visual: Node3D
-var _body: Node3D                      # nghiêng, nhún theo trạng thái; chứa các tư thế
-var _poses := {}                       # tên tư thế -> model
+var _body: Node3D                      # chứa model có xương
 var _pose := ""
-var _phase := 0.0
 var _zzz: Label3D
 var _what: Label3D
 var _bark: Label3D
 var _prev_pos := Vector3.ZERO
 var _curr_pos := Vector3.ZERO
 
-## Model phong cách D, mỗi trạng thái một tư thế (Sang duyệt 21/10). Chưa có xương nên đổi mesh theo trạng thái.
-const POSE_MODELS := {
-	"dung": preload("res://assets/models/cho_muc/cho_muc_dung.glb"),
-	"ngu_gat": preload("res://assets/models/cho_muc/cho_muc_ngu_gat.glb"),
-	"he_mat": preload("res://assets/models/cho_muc/cho_muc_he_mat.glb"),
-	"ngui": preload("res://assets/models/cho_muc/cho_muc_ngui.glb"),
-	"nghi_ngo": preload("res://assets/models/cho_muc/cho_muc_nghi_ngo.glb"),
-	"duoi": preload("res://assets/models/cho_muc/cho_muc_duoi.glb"),
-	"sua": preload("res://assets/models/cho_muc/cho_muc_sua.glb"),
-	"dop": preload("res://assets/models/cho_muc/cho_muc_dop.glb"),
-	"met": preload("res://assets/models/cho_muc/cho_muc_met.glb"),
-}
+## Model phong cách D có 30 xương và 22 animation (gói G3, Sang duyệt 21/10).
+## Tên clip: dung_tho ngu_gat he_mat dung_day nam_xuong ngui nghi_ngo di duoi sua dop met
+## canh_giac di_tuan (T6) nam_buon an_banh vay_duoi di_theo ngoi nhan_the sua_bo_cau (T7) dung_gac (CN).
+const MODEL := preload("res://assets/models/cho_muc/cho_muc.glb")
+## Thẻ tên rời để Bơ nhặt (Thứ Bảy); cỡ thật 5,2 cm, gốc ở đáy đĩa.
+const TAG_MODEL := preload("res://assets/models/cho_muc/the_ten_muc.glb")
+const LOOPS := ["dung_tho", "ngu_gat", "ngui", "nghi_ngo", "di", "duoi", "sua", "met", "canh_giac", "di_tuan",
+		"nam_buon", "an_banh", "di_theo", "ngoi", "sua_bo_cau", "dung_gac"]
+const BLEND := 0.2
+
+var _anim: AnimationPlayer
+var _tag_node: Node3D
+var _override := ""                    # clip do kịch bản ngày chọn, thay cho clip theo trạng thái AI
 
 
 func _ready() -> void:
@@ -298,14 +297,21 @@ func _build_visual() -> void:
 	add_child(_visual)
 	_body = Node3D.new()
 	_visual.add_child(_body)
-	for pose_name in POSE_MODELS:
-		var model: Node3D = POSE_MODELS[pose_name].instantiate()
-		model.rotation.y = PI  # model quay mũi về +Z (glTF), Godot coi -Z là phía trước
-		model.visible = false
-		_body.add_child(model)
-		for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
+	var model: Node3D = MODEL.instantiate()
+	model.rotation.y = PI  # model quay mũi về +Z (glTF), Godot coi -Z là phía trước
+	_body.add_child(model)
+	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
+		if mi.name.begins_with("Muc_Sang"):
+			var glint := StandardMaterial3D.new()
+			glint.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			mi.material_override = glint
+		else:
 			_apply_style(mi)
-		_poses[pose_name] = model
+	_tag_node = model.find_child("Muc_The", true, false)
+	_anim = model.find_child("AnimationPlayer", true, false)
+	for clip in LOOPS:
+		if _anim.has_animation(clip):
+			_anim.get_animation(clip).loop_mode = Animation.LOOP_LINEAR
 	_show_pose("ngu_gat")
 	_zzz = Blocks.label(self, "z z z", Vector3(0, 1.0, 0), 40, Color("#9FD3D6"))
 	_what = Blocks.label(self, "?", Vector3(0, 1.3, 0), 72, Color("#F2C14E"))
@@ -335,54 +341,50 @@ func _apply_style(mi: MeshInstance3D) -> void:
 		mi.set_surface_override_material(i, m)
 
 
-func _show_pose(pose_name: String) -> void:
+func _show_pose(pose_name: String, speed := 1.0) -> void:
+	_anim.speed_scale = speed
 	if pose_name == _pose:
 		return
-	if _poses.has(_pose):
-		_poses[_pose].visible = false
 	_pose = pose_name
-	_poses[_pose].visible = true
+	_anim.play(pose_name, BLEND)
 
 
-## Tư thế theo trạng thái, cộng chút chuyển động phụ (thở, nhún khi chạy, giật đầu khi sủa)
-## để người chơi đọc được trạng thái từ xa.
-func _animate(delta: float) -> void:
-	var k := 1.0 - exp(-10.0 * delta)
+## Cho kịch bản ngày khác (đi tuần, làm bạn, gác cổng) chọn clip; chuỗi rỗng trả lại cho AI.
+func play_clip(clip: String) -> void:
+	_override = clip
+
+
+## Thứ Bảy: Mực mất thẻ tên (cổ trống) tới khi Bơ mang trả.
+func set_tag_visible(on: bool) -> void:
+	if _tag_node:
+		_tag_node.visible = on
+
+
+## Clip theo trạng thái; tốc độ phát theo tốc độ chạy để chân không trượt.
+func _animate(_delta: float) -> void:
 	var hspeed := _flat(velocity).length()
-	_phase += delta * (2.0 + hspeed * 2.2)
-	var pose := "dung"
-	var bob := 0.0
-	var pitch := 0.0
-	var squash := 1.0
+	if _override != "":
+		_show_pose(_override)
+		return
 	match state:
 		State.SLEEP:
-			pose = "ngu_gat" if hspeed < 0.5 else "dung"
-			squash = 1.0 + sin(_t * 2.2) * 0.015  # thở chậm
+			if hspeed > 0.5:
+				_show_pose("di", clampf(hspeed / 1.2, 0.6, 1.8))
+			else:
+				_show_pose("ngu_gat")
 		State.PEEK:
-			pose = "he_mat"
+			_show_pose("he_mat")
 		State.SUSPICIOUS:
 			# Ngóc đầu nhìn về phía tiếng động, thỉnh thoảng cúi ngửi đất
-			pose = "nghi_ngo" if fmod(_t, 1.6) < 1.0 else "ngui"
+			_show_pose("nghi_ngo" if fmod(_t, 3.0) < 2.0 else "ngui")
 		State.CHASE:
-			pose = "duoi"
-			bob = absf(sin(_phase)) * 0.08
-			pitch = sin(_phase * 2.0) * 0.06
+			_show_pose("duoi", clampf(hspeed / chase_speed, 0.6, 1.4))
 		State.BITE:
-			pose = "dop"
-			squash = 1.0 + sin(minf(_t / bite_time, 1.0) * PI) * 0.1
+			_show_pose("dop")
 		State.BARK:
-			pose = "sua"
-			pitch = -absf(sin(_t * 9.0)) * 0.12
+			_show_pose("sua")
 		State.TIRED:
-			pose = "met"
-			if hspeed > 0.5:
-				bob = absf(sin(_phase)) * 0.03
-			else:
-				squash = 1.0 + sin(_t * 6.0) * 0.02  # thở dốc
-	_show_pose(pose)
-	_body.position.y = lerpf(_body.position.y, bob, k)
-	_body.rotation.x = lerpf(_body.rotation.x, pitch, k)
-	_body.scale = _body.scale.lerp(Vector3(1.0, squash, 1.0), k)
+			_show_pose("met", clampf(hspeed / 1.0, 0.5, 1.4) if hspeed > 0.3 else 0.5)
 
 
 func _process(_delta: float) -> void:

@@ -1259,27 +1259,7 @@ func _particles(pos: Vector3, color: Color, amount: int, size: float, gravity_y:
 # ---------------------------------------------------------------- môi trường, phím
 
 func _setup_environment() -> void:
-	var env := Environment.new()
-	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color("#2A2620")
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color("#FFE6C4")
-	var compat := RenderingServer.get_rendering_device() == null
-	env.ambient_light_energy = 0.22 if compat else 0.4
-	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR if compat else Environment.TONE_MAPPER_FILMIC
-	env.ssao_enabled = true
-	var world := WorldEnvironment.new()
-	world.environment = env
-	add_child(world)
-
-	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-55, 25, 0)  # nắng xiên qua cửa sổ sau
-	sun.light_color = Color("#FFE8C4")
-	sun.light_energy = 0.45 if compat else 0.8
-	sun.shadow_enabled = true
-	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
-	sun.directional_shadow_max_distance = 14.0
-	add_child(sun)
+	AnhSang.build(self, "bep_sang")  # nắng xiên qua cửa sổ sau: scripts/anh_sang.gd
 	for x in [-1.6, 1.4]:
 		var lamp := OmniLight3D.new()
 		lamp.position = Vector3(x, 1.95, -0.2)

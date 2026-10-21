@@ -15,6 +15,8 @@ const DEFAULTS := {
 	"show_fps": false,
 	"hud_scale": 1,          # 0 nhỏ, 1 vừa, 2 to
 	"hints": true,           # gợi ý phím góc phải dưới
+	"tips": true,            # mẹo lần đầu (gầm thấp, gần Chó Mực, tới khách), mỗi mẹo hiện một lần
+	"tips_seen": "",         # các mẹo đã hiện, cách nhau bằng dấu phẩy
 }
 
 static var _data := {}
@@ -75,7 +77,8 @@ static func apply_graphics(tree: SceneTree) -> void:
 	var shadows: bool = get_value("shadows")
 	if tree.current_scene:
 		for light in tree.current_scene.find_children("*", "DirectionalLight3D", true, false):
-			light.shadow_enabled = shadows
+			if not light.is_in_group("den_phu"):  # đèn phụ (ánh trời) không bao giờ đổ bóng
+				light.shadow_enabled = shadows
 
 
 ## Áp cài đặt camera cho rig (rig của luồng màn chơi: group "camera_rig").

@@ -38,11 +38,11 @@ for o in meshes:
 
 def target_tris(name):
     if name.startswith('Bo_Than'):
-        return 4700
+        return 9000
     if name.startswith('Bo_Khan'):
         return 700
     if name.startswith('Mat'):
-        return 350     # tròng mắt: đủ mịn để giữ màu hổ phách và đồng tử dọc
+        return 2400    # tròng mắt: màu đồng tử khe dọc nằm ở màu đỉnh, 350 tam giác thì mất hẳn đồng tử (mắt nâu đục, trông buồn)
     return 40          # đốm sáng trong mắt
 
 
@@ -173,7 +173,9 @@ for v in cat.data.vertices:
     # Chân: cột thẳng đứng dưới thân
     for n, (lx, ly, top) in {'leg_FL': (-.056, -.1, .2), 'leg_FR': (.056, -.1, .2),
                              'leg_BL': (-.064, .15, .17), 'leg_BR': (.064, .15, .17)}.items():
-        if abs(x - lx) < .05 and abs(y - ly) < .075 and z < top + .04:
+        # Bàn chân rộng và dài hơn ống chân: nới hộp ở sát đất để ngón chân đi theo khi nhấc chân
+        low = z < .06
+        if abs(x - lx) < (.06 if low else .05) and abs(y - ly) < (.11 if low else .075) and z < top + .04:
             w[n] = ramp(z, top + .04, top - .06)
     # Đầu: phía trước và cao hơn cổ
     if y < -.05 and z > .3:

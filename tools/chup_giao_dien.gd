@@ -168,4 +168,7 @@ func _run() -> void:
 	kh.show_closeup("Chẻ dọc dưa leo", "bấm khi dao vào vùng xanh", 2, 3)
 	kh.set_closeup_meter(0.47, 0.52, 0.68)
 	await _shot("7_hud_bep")
+	kh.toggle_pause()
+	await _shot("7b_menu_esc_bep")
+	kh.toggle_pause()
 	quit()

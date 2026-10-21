@@ -278,6 +278,7 @@ func show_toast(text: String, seconds := 2.0) -> void:
 
 
 var _pause_text := ""
+var _mouse_before := Input.MOUSE_MODE_CAPTURED  # chế độ chuột trước khi mở menu, đóng menu thì trả lại
 
 
 ## Dòng tóm tắt hiện dưới chữ "Tạm dừng" (vd. "Đơn 3/5 · Chị Mây · đồng hồ đứng ở 0:09").
@@ -292,12 +293,19 @@ func toggle_pause() -> void:
 	var tree := get_tree()
 	tree.paused = not tree.paused
 	pause_screen.visible = tree.paused
-	if tree.paused and pause_info:
-		pause_info.text = info if info != "" else "%s · %s" % [order_chip.text, order_label.text]
+	if tree.paused:
+		_mouse_before = Input.mouse_mode
+		if pause_info:
+			if info == "" and order_chip:
+				info = "%s · %s" % [order_chip.text, order_label.text]
+			pause_info.text = info
+			pause_info.visible = info != ""
 		pause_screen.get_meta("first").grab_focus.call_deferred()
-	elif settings:
-		settings.visible = false
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if tree.paused else Input.MOUSE_MODE_CAPTURED
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	else:
+		if settings:
+			settings.visible = false
+		Input.mouse_mode = _mouse_before
 
 
 ## Kiểu cũ: một khối chữ. Màn chơi hiện dùng show_results.
@@ -719,44 +727,74 @@ func _keycap(text: String, size := 14) -> PanelContainer:
 	return k
 
 
-func _build_pause() -> Control:
+const HELP_PHO := [["W A S D", "chạy"], ["Shift", "chạy nhanh"], ["Space", "nhảy, nhảy qua Chó Mực"],
+	["C", "chui"], ["Z", "rón rén"], ["E", "giao bánh"], ["Chuột", "xoay camera"], ["V", "góc nhìn thứ ba / thứ nhất"]]
+const HELP_NOTE_PHO := "Tay cầm: cần trái chạy, A nhảy, Start mở menu. Mũi tên đỏ trên đầu Bơ luôn chỉ về phía khách."
+
+
+## Menu Esc dùng chung cho phố, bếp và leo chung cư: thẻ giấy giữa màn hình với Tiếp tục, Chơi lại,
+## Cài đặt, Chọn màn chơi, Về trang chủ; bên phải là thẻ "Cách chơi" của màn đó.
+## Chơi lại phát restart_pressed (màn nào không nối thì tải lại cảnh); Chọn màn chơi phát menu_pressed.
+func _build_pause(help := HELP_PHO, note := HELP_NOTE_PHO) -> Control:
+	if settings == null:
+		settings = SettingsPanel.new()
+		settings.visible = false
+		root.add_child(settings)
+		settings.closed.connect(_on_settings_closed)
 	var scr := Control.new()
 	scr.set_anchors_preset(Control.PRESET_FULL_RECT)
 	var dim := ColorRect.new()
 	dim.color = Color(INK, 0.72)
 	scr.add_child(T.full_rect(dim))
 
+	var card := PanelContainer.new()
+	card.add_theme_stylebox_override("panel", T.box(PAPER, 22, 0, INK, 4, 8))
+	_place(card, 0.5, 0.5, Rect2(-470, -270, 430, 0))
+	scr.add_child(card)
+	var cv := VBoxContainer.new()
+	cv.add_theme_constant_override("separation", 0)
+	card.add_child(cv)
+	cv.add_child(T.stripe(12, 22))
+	var m := MarginContainer.new()
+	for side in ["left", "right"]:
+		m.add_theme_constant_override("margin_" + side, 28)
+	m.add_theme_constant_override("margin_top", 14)
+	m.add_theme_constant_override("margin_bottom", 26)
+	cv.add_child(m)
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 16)
-	_place(col, 0.5, 0.5, Rect2(-310, -290, 420, 560))
-	scr.add_child(col)
-	col.add_child(T.label("Tạm dừng", 64, PAPER, "display"))
-	pause_info = T.label("", 16, T.CREAM, "bold")
+	col.add_theme_constant_override("separation", 12)
+	m.add_child(col)
+	col.add_child(T.label("Tạm dừng", 46, INK, "display"))
+	pause_info = T.label("", 15, T.MUTED, "bold")
+	pause_info.autowrap_mode = TextServer.AUTOWRAP_WORD
 	col.add_child(pause_info)
-	var resume := T.button("  Chơi tiếp", "primary", 70, 24)
+	var resume := T.button("  Tiếp tục", "primary", 64, 22)
 	resume.pressed.connect(func(): toggle_pause())
 	col.add_child(resume)
 	_add_key_hint(resume, "Esc", T.ON_CRUST)
-	var st := T.button("  Cài đặt", "secondary", 62, 20)
+	var again := T.button("  Chơi lại", "secondary", 56, 19)
+	again.pressed.connect(_on_menu_restart)
+	col.add_child(again)
+	var st := T.button("  Cài đặt", "secondary", 56, 19)
 	st.pressed.connect(func(): settings.open())
 	col.add_child(st)
-	var again := T.button("  Làm lại ca từ đầu", "secondary", 62, 20)
-	again.pressed.connect(func(): restart_pressed.emit())
-	col.add_child(again)
-	var home := T.button("  Về màn hình chính", "ghost", 62, 20)
-	home.pressed.connect(func(): menu_pressed.emit())
+	var pick := T.button("  Chọn màn chơi", "secondary", 56, 19)
+	pick.pressed.connect(_on_menu_select)
+	col.add_child(pick)
+	var home := T.button("  Về trang chủ", "ghost", 56, 19)
+	home.pressed.connect(func(): PlayMode.go_home(get_tree()))
 	col.add_child(home)
 	scr.set_meta("first", resume)
 
-	var help := PanelContainer.new()
-	help.add_theme_stylebox_override("panel", T.box(PAPER, 22, 24, INK, 3, 6))
-	_place(help, 0.5, 0.5, Rect2(180, -210, 330, 0))
-	scr.add_child(help)
+	var helpc := PanelContainer.new()
+	helpc.add_theme_stylebox_override("panel", T.box(PAPER, 22, 24, INK, 3, 6))
+	_place(helpc, 0.5, 0.5, Rect2(0, -230, 400, 0))
+	scr.add_child(helpc)
 	var hv := VBoxContainer.new()
-	hv.add_theme_constant_override("separation", 10)
-	help.add_child(hv)
+	hv.add_theme_constant_override("separation", 9)
+	helpc.add_child(hv)
 	hv.add_child(T.label("Cách chơi", 26, INK, "display"))
-	for line in [["W A S D", "chạy"], ["Shift", "chạy nhanh"], ["Space", "nhảy, nhảy qua Chó Mực"], ["Chuột", "xoay camera"], ["V", "góc nhìn thứ ba / thứ nhất"]]:
+	for line in help:
 		var h := HBoxContainer.new()
 		h.add_theme_constant_override("separation", 10)
 		h.add_child(_keycap(line[0], 14))
@@ -764,11 +802,28 @@ func _build_pause() -> Control:
 		l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		h.add_child(l)
 		hv.add_child(h)
-	var note := T.label("Tay cầm: cần trái chạy, A nhảy, Start tạm dừng. Mũi tên đỏ trên đầu Bơ luôn chỉ về phía khách.", 14, Color("#2C4F52"))
-	note.autowrap_mode = TextServer.AUTOWRAP_WORD
-	note.custom_minimum_size.x = 280
-	hv.add_child(note)
+	if note != "":
+		var nl := T.label(note, 14, Color("#2C4F52"))
+		nl.autowrap_mode = TextServer.AUTOWRAP_WORD
+		nl.custom_minimum_size.x = 340
+		hv.add_child(nl)
+	T.wire_clicks(scr)
 	return scr
+
+
+func _on_menu_restart() -> void:
+	if restart_pressed.get_connections().is_empty():
+		get_tree().paused = false
+		get_tree().reload_current_scene()
+	else:
+		restart_pressed.emit()
+
+
+func _on_menu_select() -> void:
+	if menu_pressed.get_connections().is_empty():
+		PlayMode.back_to_menu(get_tree())
+	else:
+		menu_pressed.emit()
 
 
 func _add_key_hint(btn: Button, text: String, color: Color) -> void:

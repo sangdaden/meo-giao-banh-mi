@@ -222,7 +222,8 @@ func _ready() -> void:
 	start_text = start_screen.find_child("Body", true, false)
 	root.add_child(start_screen)
 
-	pause_screen = _overlay("Tạm dừng", "Nhấn Esc để làm tiếp.", "Làm tiếp", func(): toggle_pause())
+	pause_screen = _build_pause([["W A S D", "chạy trong bếp"], ["E", "làm việc ở trạm"], ["Space", "nhảy"],
+		["Chuột", "xoay camera, vuốt ở cận cảnh"]], "Thẻ cận cảnh góc phải chỉ phím cần bấm cho từng bước.")
 	pause_screen.visible = false
 	root.add_child(pause_screen)
 
@@ -241,12 +242,6 @@ func show_playing_ui(on: bool) -> void:
 		n.visible = on
 	if not on:
 		step_panel.visible = false
-
-
-func toggle_pause() -> void:
-	var tree := get_tree()
-	tree.paused = not tree.paused
-	pause_screen.visible = tree.paused
 
 
 ## Công thức: dòng đầu là tiêu đề; dòng bắt đầu bằng "✓ " / "○ " thành việc có vòng đánh dấu;

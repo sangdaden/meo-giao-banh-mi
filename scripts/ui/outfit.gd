@@ -85,10 +85,14 @@ const BREEDS := [
 	["bingo", "Bí Ngô", "Mèo đen vằn cam", "sukien", "#26242A", "#E8913A", "#7CFF6A", "Mở dịp Halloween"],
 ]
 
+## Giống mặc định là mèo cái khi người chơi chưa tự chọn (mèo tam thể gần như luôn là mèo cái)
+const FEMALE_DEFAULT := ["tamthe"]
+
 const DEFAULT_WORN := {"neck": "khando", "back": "tuibanh"}
 
 static var _worn := {}
 static var _breed := "bo"
+static var _sex := ""  # "duc", "cai"; "" = theo giống (Tam Thể mặc định cái, còn lại đực)
 static var _loaded := false
 
 
@@ -120,6 +124,22 @@ static func breed_ready(id: String) -> bool:
 static func breed() -> String:
 	_ensure()
 	return _breed
+
+
+## Giới tính đang chọn cho giống `id` (mặc định giống đang dùng). Đổi miễn phí; mua giống là có cả đực lẫn cái.
+static func sex(id := "") -> String:
+	_ensure()
+	if _sex != "":
+		return _sex
+	return "cai" if (id if id != "" else _breed) in FEMALE_DEFAULT else "duc"
+
+
+static func choose_sex(s: String) -> void:
+	if s not in ["duc", "cai"]:
+		return
+	_ensure()
+	_sex = s
+	_save()
 
 
 static func choose_breed(id: String) -> void:
@@ -183,6 +203,7 @@ static func _ensure() -> void:
 	if cfg.load(PATH) == OK:
 		var b := str(cfg.get_value("giong", "dang_dung", "bo"))
 		_breed = b if breed_ready(b) else "bo"
+		_sex = str(cfg.get_value("giong", "gioi_tinh", ""))
 		for s in SLOTS:
 			var id: String = str(cfg.get_value("worn", s[0], _worn.get(s[0], "")))
 			_worn[s[0]] = id if (id == "" or in_game(id)) else ""
@@ -193,4 +214,5 @@ static func _save() -> void:
 	for s in SLOTS:
 		cfg.set_value("worn", s[0], _worn.get(s[0], ""))
 	cfg.set_value("giong", "dang_dung", _breed)
+	cfg.set_value("giong", "gioi_tinh", _sex)
 	cfg.save(PATH)

@@ -34,10 +34,20 @@ static func has_breed(breed: String) -> bool:
 	return breed == "bo" or ResourceLoader.exists(DIR + "giong/%s_duc.glb" % breed)
 
 
-static func breed_scene(breed: String) -> PackedScene:
+## Model giống `breed` theo giới tính. Bản cái (<id>_cai.glb) chưa xuất thì dùng bản đực; null = Bơ chuẩn.
+static func breed_scene(breed: String, sex := "duc") -> PackedScene:
+	if has_sex_model(breed, sex) and sex == "cai":
+		return load(DIR + "giong/%s_cai.glb" % breed)
 	if breed == "bo" or not has_breed(breed):
 		return null
 	return load(DIR + "giong/%s_duc.glb" % breed)
+
+
+## Có model riêng cho giới tính này chưa (Bơ đực là model chuẩn assets/models/bo.glb).
+static func has_sex_model(breed: String, sex: String) -> bool:
+	if sex == "duc":
+		return has_breed(breed)
+	return ResourceLoader.exists(DIR + "giong/%s_cai.glb" % breed)
 
 
 static func ears_down(id: String) -> bool:
@@ -45,9 +55,10 @@ static func ears_down(id: String) -> bool:
 
 
 ## Vị trí gốc (trong không gian model) của một điểm gắn trên giống `breed`.
-static func _socket_xform(sock: String, breed: String) -> Transform3D:
+static func _socket_xform(sock: String, breed: String, sex := "duc") -> Transform3D:
 	var m := meta()
-	var g: Dictionary = m.get("giong", {}).get(breed + "_duc", {})
+	var gs: Dictionary = m.get("giong", {})
+	var g: Dictionary = gs.get(breed + "_" + sex, gs.get(breed + "_duc", {}))
 	if sock == "head":
 		var bo_head: Dictionary = m.get("bo_head", {})
 		var h: Dictionary = g if g.has("basis") else bo_head
@@ -68,7 +79,7 @@ static func _v(a: Array) -> Vector3:
 
 
 ## Gắn món `id` vào skel. Trả về các node đã thêm (để gỡ ra sau).
-static func attach(skel: Skeleton3D, id: String, breed := "bo") -> Array:
+static func attach(skel: Skeleton3D, id: String, breed := "bo", sex := "duc") -> Array:
 	var out := []
 	if not has_model(id):
 		return out
@@ -87,7 +98,7 @@ static func attach(skel: Skeleton3D, id: String, breed := "bo") -> Array:
 		att.bone_idx = bone
 		skel.add_child(att)
 		var holder := Node3D.new()
-		var xf := _socket_xform(sock, breed)
+		var xf := _socket_xform(sock, breed, sex)
 		if sock == "head":
 			xf.origin += xf.basis.y.normalized() * float(LIFT.get(id, 0.0))
 		holder.transform = skel.get_bone_global_rest(bone).affine_inverse() * xf

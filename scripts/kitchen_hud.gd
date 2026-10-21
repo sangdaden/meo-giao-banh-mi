@@ -1,11 +1,11 @@
 extends "res://scripts/hud.gd"
 ## Giao diện màn bếp, cùng kiểu với HUD ở phố (bản phác thảo Sang duyệt, artboard 7):
 ## thẻ giấy viền mực, phím vẽ thành nút phím (không dùng ký tự mũi tên vì font không có).
-## - Trái trên: thẻ công thức 2 ổ, từng việc có vòng tròn đánh dấu xong, món đang cầm.
-## - Giữa trên: đồng hồ ca. Phải trên: thẻ số ổ xong, lò, bột.
+## - Trái trên: thẻ một dòng "việc bây giờ" (Sang 21/10: chỉ hiện việc đang làm), dòng nhỏ số ổ và món đang cầm.
+## - Giữa trên: đồng hồ ca. Dưới giữa, trên viên nhắc: thẻ lời Cô Ba. Phải trên: viên nhỏ trạng thái lò, bột (ẩn khi không có gì).
 ## - Dưới giữa: viên nhắc "[E] tên trạm" khi đứng ở trạm, hoặc trạm nên tới tiếp.
-## - Cận cảnh: thẻ giấy phải dưới (chừa chỗ giữa màn hình cho hai chân Bơ): "CẬN CẢNH · BƯỚC 2/4",
-##   tên bước, hàng phím cần bấm, thước đo (độ đầy, vùng xanh, kim), các ô chọn, các chấm bước.
+## - Cận cảnh: thẻ giấy gọn phải dưới (chừa chỗ giữa màn hình cho hai chân Bơ): chấm bước, tên bước,
+##   hàng phím cần bấm, thước đo (độ đầy, vùng xanh, kim), các ô chọn.
 ## - Phải dưới khi đi lại: hàng phím gợi ý như ở phố.
 
 signal go_delivery_pressed
@@ -17,6 +17,10 @@ const GLYPHS := ["←", "→", "↑", "↓", "chuột"]
 var recipe_label: Label        # giữ tên cũ: dòng tiêu đề thẻ công thức
 var recipe_rows: VBoxContainer
 var held_label: Label
+var task_label: Label          # dòng việc bây giờ
+var say_panel: PanelContainer  # thẻ lời Cô Ba
+var say_label: Label
+var _say_t := 0.0
 var status_label: Label
 var prompt_label: Label
 var prompt_key: Control
@@ -100,27 +104,33 @@ func _ready() -> void:
 	root.add_child(play_root)
 
 	# Thẻ công thức, trái trên
-	var card := _paper(16)
+	var card := _paper(12)
 	card.position = Vector2(24, 22)
-	card.custom_minimum_size.x = 300
 	play_root.add_child(card)
 	var cv := VBoxContainer.new()
-	cv.add_theme_constant_override("separation", 6)
+	cv.add_theme_constant_override("separation", 2)
 	card.add_child(cv)
-	recipe_label = T.label("", 20, INK, "display")
-	cv.add_child(recipe_label)
-	recipe_rows = VBoxContainer.new()
-	recipe_rows.add_theme_constant_override("separation", 3)
-	cv.add_child(recipe_rows)
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 8)
+	cv.add_child(head)
+	recipe_label = T.label("", 12, T.MUTED, "bold")
+	recipe_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	head.add_child(recipe_label)
 	var held_row := HBoxContainer.new()
-	held_row.add_theme_constant_override("separation", 8)
-	cv.add_child(held_row)
+	held_row.add_theme_constant_override("separation", 6)
+	head.add_child(held_row)
 	var tag := PanelContainer.new()
-	tag.add_theme_stylebox_override("panel", T.box(T.TEAL, 999, 10, Color(0, 0, 0, 0), 0))
-	tag.add_child(T.label("Đang cầm", 12, PAPER, "bold"))
+	tag.add_theme_stylebox_override("panel", T.box(T.TEAL, 999, 8, Color(0, 0, 0, 0), 0))
+	tag.add_child(T.label("Đang cầm", 11, PAPER, "bold"))
 	held_row.add_child(tag)
-	held_label = T.label("", 15, INK, "bold")
+	held_label = T.label("", 12, INK, "bold")
+	held_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	held_row.add_child(held_label)
+	task_label = T.label("", 21, INK, "display")
+	cv.add_child(task_label)
+	recipe_rows = VBoxContainer.new()  # giữ tên cũ cho set_recipe (Thử thách vẫn dùng được)
+	recipe_rows.visible = false
+	cv.add_child(recipe_rows)
 	order_label = recipe_label  # để các hàm chung của hud.gd không lỗi
 
 	timer_ring = TimerRing.new()
@@ -128,12 +138,34 @@ func _ready() -> void:
 	timer_ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	play_root.add_child(timer_ring)
 
-	var right := _paper(16)
-	_place(right, 1.0, 0.0, Rect2(-264, 22, 240, 0))
+	var right := _paper(10)
+	_place(right, 1.0, 0.0, Rect2(-24, 22, 0, 0))
+	right.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	play_root.add_child(right)
-	status_label = T.label("", 16, INK, "bold")
+	status_label = T.label("", 15, INK, "bold")
 	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	right.add_child(status_label)
+
+	# Lời Cô Ba, giữa trên dưới đồng hồ
+	say_panel = _paper(12)
+	_place(say_panel, 0.5, 1.0, Rect2(-260, -130, 520, 0))   # trên viên nhắc, không che các trạm ở vách sau
+	say_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	say_panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	play_root.add_child(say_panel)
+	var sh := HBoxContainer.new()
+	sh.add_theme_constant_override("separation", 10)
+	say_panel.add_child(sh)
+	var who := PanelContainer.new()
+	who.add_theme_stylebox_override("panel", T.box(T.CRUST, 999, 8, INK, 2))
+	who.add_child(T.label("Cô Ba", 13, PAPER, "bold"))
+	who.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	sh.add_child(who)
+	say_label = T.label("", 18, INK, "bold")
+	say_label.autowrap_mode = TextServer.AUTOWRAP_WORD
+	say_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	say_label.custom_minimum_size.x = 380
+	sh.add_child(say_label)
+	say_panel.visible = false
 
 	# Viên nhắc dưới giữa: [E] tên trạm
 	var pill := PanelContainer.new()
@@ -154,18 +186,28 @@ func _ready() -> void:
 
 	# Thẻ cận cảnh, phải dưới
 	var panel := PanelContainer.new()
-	panel.add_theme_stylebox_override("panel", T.box(PAPER, 20, 18, T.CRUST, 3, 6))
+	panel.add_theme_stylebox_override("panel", T.box(PAPER, 16, 12, T.CRUST, 3, 5))
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_place(panel, 1.0, 1.0, Rect2(-494, -22, 470, 0))
+	_place(panel, 1.0, 1.0, Rect2(-24, -22, 0, 0))
 	panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	panel.custom_minimum_size.x = 300
 	play_root.add_child(panel)
 	step_panel = panel
 	var sv := VBoxContainer.new()
-	sv.add_theme_constant_override("separation", 10)
+	sv.add_theme_constant_override("separation", 6)
 	panel.add_child(sv)
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 8)
+	sv.add_child(top)
 	step_count = T.label("", 12, T.MUTED, "bold")
-	sv.add_child(step_count)
-	step_title = T.label("", 28, INK, "display")
+	step_count.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	top.add_child(step_count)
+	step_dots = HBoxContainer.new()
+	step_dots.add_theme_constant_override("separation", 5)
+	step_dots.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	top.add_child(step_dots)
+	step_title = T.label("", 22, INK, "display")
 	step_title.add_theme_constant_override("line_spacing", -10)
 	step_title.autowrap_mode = TextServer.AUTOWRAP_WORD
 	sv.add_child(step_title)
@@ -177,15 +219,12 @@ func _ready() -> void:
 	step_flash.visible = false
 	sv.add_child(step_flash)
 	meter = Meter.new()
-	meter.custom_minimum_size = Vector2(0, 26)
+	meter.custom_minimum_size = Vector2(0, 18)
 	sv.add_child(meter)
 	pick_row = HFlowContainer.new()
 	pick_row.add_theme_constant_override("h_separation", 8)
 	pick_row.add_theme_constant_override("v_separation", 8)
 	sv.add_child(pick_row)
-	step_dots = HBoxContainer.new()
-	step_dots.add_theme_constant_override("separation", 8)
-	sv.add_child(step_dots)
 	step_panel.visible = false
 
 	toast = T.outlined("", 28, PAPER, 10)
@@ -201,7 +240,7 @@ func _ready() -> void:
 	keys.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_place(keys, 1.0, 1.0, Rect2(-560, -80, 532, 50))
 	play_root.add_child(keys)
-	keys.add_child(_key_line([["W A S D", "chạy"], ["E", "làm việc ở trạm"], ["Space", "nhảy"], ["Esc", "tạm dừng"]]))
+	keys.add_child(_key_line([["W A S D", "chạy"], ["E", "làm việc ở trạm"], ["Tab", "tự đi"], ["Esc", "tạm dừng"]]))
 	hint = keys
 
 	fps_label = T.outlined("", 16, PAPER, 6)
@@ -237,10 +276,11 @@ func _ready() -> void:
 
 
 func show_playing_ui(on: bool) -> void:
-	for n in [recipe_label.get_parent().get_parent(), timer_ring, status_label.get_parent(), prompt_label.get_parent().get_parent(), hint]:
+	for n in [task_label.get_parent().get_parent(), timer_ring, status_label.get_parent(), prompt_label.get_parent().get_parent(), hint]:
 		n.visible = on
 	if not on:
 		step_panel.visible = false
+		say_panel.visible = false
 
 
 func toggle_pause() -> void:
@@ -256,6 +296,8 @@ func set_recipe(text: String) -> void:
 	if lines.is_empty():
 		return
 	recipe_label.text = lines[0]
+	task_label.visible = false
+	recipe_rows.visible = true
 	var rows: Array = []
 	var held := ""
 	for i in range(1, lines.size()):
@@ -294,6 +336,27 @@ func set_recipe(text: String) -> void:
 
 func set_status(text: String) -> void:
 	status_label.text = text
+	status_label.get_parent().visible = text != "" and task_label.get_parent().get_parent().visible
+
+
+## Thẻ việc bây giờ: head = dòng nhỏ (vd "VIỆC BÂY GIỜ · Ổ 0/2"), task = một dòng việc, held = món đang cầm.
+func set_task(head: String, task: String, held: String) -> void:
+	recipe_label.text = head
+	task_label.text = task
+	task_label.visible = true
+	recipe_rows.visible = false
+	held_label.text = held
+	held_label.get_parent().visible = held != ""
+
+
+## Cô Ba nói một câu, hiện secs giây ở thẻ giữa trên.
+func say(text: String, secs := 3.5) -> void:
+	say_label.text = text
+	say_panel.visible = true
+	say_panel.reset_size()
+	_say_t = secs
+	say_panel.modulate.a = 0.0
+	create_tween().tween_property(say_panel, "modulate:a", 1.0, 0.15)
 
 
 ## Viên nhắc dưới giữa. ready = đang đứng ở trạm: hiện nút phím E; không thì chỉ chữ "Tới ...".
@@ -310,7 +373,7 @@ func show_step(title: String, index: int, count: int, hint_parts: Array) -> void
 	step_panel.visible = true
 	prompt_label.get_parent().get_parent().visible = false
 	hint.visible = false
-	step_count.text = "CẬN CẢNH · BƯỚC %d/%d" % [index + 1, count]
+	step_count.text = "BƯỚC %d/%d" % [index + 1, count]
 	step_title.text = title
 	var key := str(hint_parts)
 	if key != _hint_key:
@@ -321,9 +384,9 @@ func show_step(title: String, index: int, count: int, hint_parts: Array) -> void
 		for part in hint_parts:
 			if part is Array:
 				for k in part:
-					step_hint.add_child(_keycap(k, 16))
+					step_hint.add_child(_keycap(k, 15))
 			else:
-				var l := T.label(str(part), 16, T.MUTED if str(part) == "hoặc" else INK, "bold")
+				var l := T.label(str(part), 15, T.MUTED if str(part) == "hoặc" else INK, "bold")
 				l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 				step_hint.add_child(l)
 	if step_dots.get_child_count() != count:
@@ -332,7 +395,7 @@ func show_step(title: String, index: int, count: int, hint_parts: Array) -> void
 			c.free()
 		for i in count:
 			var d := Panel.new()
-			d.custom_minimum_size = Vector2(16, 16)
+			d.custom_minimum_size = Vector2(11, 11)
 			step_dots.add_child(d)
 	for i in count:
 		var col := T.LEAF if i < index else (T.CRUST if i == index else PAPER)
@@ -366,7 +429,7 @@ func set_pick(options: Array, done: Array, cursor: int) -> void:
 			var b := Button.new()
 			b.focus_mode = Control.FOCUS_NONE
 			b.add_theme_font_override("font", T.font("bold"))
-			b.add_theme_font_size_override("font_size", 16)
+			b.add_theme_font_size_override("font_size", 14)
 			b.pressed.connect(func(): option_pressed.emit(i))
 			pick_row.add_child(b)
 	for i in options.size():
@@ -375,7 +438,7 @@ func set_pick(options: Array, done: Array, cursor: int) -> void:
 		b.disabled = done[i]
 		var col := T.LEAF if done[i] else (T.AMBER if i == cursor else PAPER)
 		for st in ["normal", "hover", "pressed", "disabled"]:
-			b.add_theme_stylebox_override(st, T.box(col, 12, 10, INK, 2, 0 if done[i] else 3))
+			b.add_theme_stylebox_override(st, T.box(col, 10, 7, INK, 2, 0 if done[i] else 3))
 		b.add_theme_color_override("font_color", INK)
 		b.add_theme_color_override("font_hover_color", INK)
 		b.add_theme_color_override("font_pressed_color", INK)
@@ -397,6 +460,10 @@ func flash(text: String) -> void:
 
 func _process(delta: float) -> void:
 	super(delta)
+	if _say_t > 0.0:
+		_say_t -= delta
+		if _say_t <= 0.0:
+			say_panel.visible = false
 	if _flash_t > 0.0:
 		_flash_t -= delta
 		if _flash_t <= 0.0:

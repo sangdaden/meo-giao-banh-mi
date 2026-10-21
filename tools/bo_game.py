@@ -71,45 +71,14 @@ BONES = {
     'leg_FR': ((.056, -.1, .27), (.056, -.1, .01), 'spine'),
     'leg_BL': ((-.064, .15, .23), (-.064, .15, .01), 'spine'),
     'leg_BR': ((.064, .15, .23), (.064, .15, .01), 'spine'),
-    # Đuôi 4 đốt chạy theo đường cong của đuôi phác thảo: mọc ở mông, vươn ra sau, móc ở chóp
-    'tail_1': ((0, .2, .27), (0, .38, .29), 'spine'),
-    'tail_2': ((0, .38, .29), (0, .41, .42), 'tail_1'),
-    'tail_3': ((0, .41, .42), (.02, .40, .51), 'tail_2'),
-    'tail_4': ((.02, .40, .51), (.035, .30, .58), 'tail_3'),
+    # Đuôi 4 đốt (~7,5 cm mỗi đốt, tổng ~0,30 m) theo đường cong của đuôi phác thảo:
+    # mọc ở mông, rủ xuống ra sau, rồi cong lên ở chóp
+    'tail_1': ((0, .2, .27), (0, .28, .25), 'spine'),
+    'tail_2': ((0, .28, .25), (0, .35, .28), 'tail_1'),
+    'tail_3': ((0, .35, .28), (.01, .38, .35), 'tail_2'),
+    'tail_4': ((.01, .38, .35), (.02, .375, .42), 'tail_3'),
 }
 TAIL = [n for n in BONES if n.startswith('tail')]
-
-# Đuôi phác thảo dài gấp rưỡi thân, mèo thật đuôi chỉ cỡ 2/3 thân (Sang góp ý).
-# Thu nhỏ cả khúc đuôi về phía gốc đuôi; gần mông thu ít dần để chỗ nối không gãy.
-TAIL_SCALE = 0.57  # đuôi ~0,30 m dọc đường cong, khớp với style guide D
-TAIL_BASE = Vector(BONES['tail_1'][0])
-ORIG_BONES = dict(BONES)
-
-
-def shrink(p, w=1.0):
-    p = Vector(p)
-    return tuple(p.lerp(TAIL_BASE + (p - TAIL_BASE) * TAIL_SCALE, w))
-
-
-for n in TAIL:
-    h, t, parent = BONES[n]
-    BONES[n] = (shrink(h), shrink(t), parent)
-# Trục đuôi gốc (trước khi thu) để biết mỗi đỉnh nằm ở đâu dọc đuôi.
-# Đường trục co lại theo TAIL_SCALE, còn độ dày chỉ co theo TAIL_THICK để đuôi không mảnh quá.
-TAIL_THICK = 0.9
-axis = [Vector(ORIG_BONES['tail_1'][0])] + [Vector(ORIG_BONES[n][1]) for n in TAIL]
-for v in cat.data.vertices:
-    x, y, z = v.co
-    if y > .17 and z > .18 and abs(x) < .09:
-        p = Vector((x, y, z))
-        best = None
-        for a, b in zip(axis, axis[1:]):
-            k = max(0.0, min(1.0, (p - a).dot(b - a) / (b - a).length_squared))
-            c = a + (b - a) * k
-            if best is None or (p - c).length < (p - best).length:
-                best = c
-        target = TAIL_BASE + (best - TAIL_BASE) * TAIL_SCALE + (p - best) * TAIL_THICK
-        v.co = p.lerp(target, ramp(y, .18, .27))
 
 arm_data = bpy.data.armatures.new('BoRig')
 arm = bpy.data.objects.new('BoRig', arm_data)

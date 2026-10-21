@@ -276,10 +276,10 @@ func _update_tail(delta: float, hspeed: float, vy: float, on_floor: bool) -> voi
 	_last_yaw = yaw
 	_yaw_rate = lerpf(_yaw_rate, rate, 1.0 - exp(-8.0 * delta))
 
-	# Góc đích (radian, dương là cụp xuống/ra sau). Đứng yên thì gần dáng gốc của model.
-	var idle := [0.3, 0.2, 0.05 + sin(t * 1.3) * 0.12, sin(t * 1.3 - 0.8) * 0.25]
-	var walk := [0.45, 0.35, 0.05, -0.15]  # hạ thấp hơn, chóp vẫn móc nhẹ
-	var run := [0.75, 0.6, 0.3, 0.1]       # duỗi ra sau
+	# Góc đích (radian, dương là cụp xuống/ra sau). Đứng yên là dáng gốc của model: rủ xuống rồi cong lên.
+	var idle := [0.0, 0.0, sin(t * 1.3) * 0.12, sin(t * 1.3 - 0.8) * 0.25]
+	var walk := [0.1, 0.1, 0.25, 0.1]      # hạ thấp hơn, chóp vẫn cong lên nhẹ
+	var run := [-0.1, 0.25, 0.7, 0.45]     # duỗi ra sau
 	var targets := []
 	for i in 4:
 		var a: float

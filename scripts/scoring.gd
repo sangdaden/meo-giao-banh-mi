@@ -24,6 +24,7 @@ const SIDE_QUEST_NAMES := {
 	"khong_do_ly": "Không đổ ly nào",
 	"khong_dau": "Không giẫm vũng dầu",
 	"muc_ngu_yen": "Để Chó Mực ngủ yên",
+	"em_be_ngu_yen": "Để em bé tầng 3 ngủ yên",
 	# Thứ Ba (gói việc thiet-ke-man/goi-viec-thu-ba.md)
 	"kip_xe_om": "Giao trước khi khách xe ôm tới",
 	"du_6_trung": "Về lò còn đủ 6 quả trứng",

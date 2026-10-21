@@ -8,6 +8,7 @@ enum Mode { FULL, KITCHEN, DELIVERY, ORDER }
 const MENU_SCENE := "res://scenes/menu.tscn"
 const KITCHEN_SCENE := "res://scenes/kitchen.tscn"
 const DELIVERY_SCENE := "res://scenes/main.tscn"
+const CHUNG_CU_SCENE := "res://scenes/chung_cu.tscn"   ## Thứ Năm: leo chung cư (cảnh riêng, chơi thử từ màn Chọn màn)
 
 ## FULL: bếp rồi giao 5 đơn · KITCHEN: chỉ bếp · DELIVERY: chỉ giao 5 đơn · ORDER: giao một đơn
 static var mode := Mode.FULL
@@ -35,6 +36,16 @@ static func start(tree: SceneTree, m: Mode, which := 0, which_day := "") -> void
 		scene = KITCHEN_SCENE
 	tree.paused = false
 	tree.change_scene_to_file(scene)
+
+
+## Chơi thử cảnh leo chung cư của Thứ Năm (một đơn cho Bé Na, không có bếp).
+static func start_chung_cu(tree: SceneTree) -> void:
+	GameState.day = "thu_nam"  # kỷ lục ghi vào mục Thứ Năm
+	mode = Mode.ORDER
+	order = 0
+	GameState.from_kitchen = false
+	tree.paused = false
+	tree.change_scene_to_file(CHUNG_CU_SCENE)
 
 
 ## Về màn hình chính và mở lại màn Chọn màn.

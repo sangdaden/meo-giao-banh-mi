@@ -11,6 +11,9 @@ signal deliver_finished(kind: String)   ## xong động tác giao bánh
 signal bread_released(kind: String)     ## lúc nhả ổ bánh khỏi miệng (0,8 s khi giao cao, 0,7 s khi giao thấp)
 signal startled                         ## giật mình (bị đớp, xe tông)
 signal slipped                          ## bắt đầu trượt trên vũng dầu
+signal ledge_grabbed                    ## bám được mép (Thứ Năm)
+signal ledge_climbed                    ## leo lên xong mép
+signal wall_kicked(count: int)          ## bật tường lần thứ count trong một lần bay
 signal bumped(kind: String)              ## va "person" | "cart" | "stall" (chợ Thứ Ba); đồ dễ vỡ nghe để vỡ
 
 @export_group("Chạy")
@@ -41,6 +44,16 @@ signal bumped(kind: String)              ## va "person" | "cart" | "stall" (ch�
 @export var short_hop_multiplier := 2.2  ## thả nút nhảy sớm thì nhảy thấp
 @export var coyote_time := 0.12       ## vẫn nhảy được ngay sau khi rời mép
 @export var jump_buffer := 0.12       ## bấm nhảy hơi sớm trước khi chạm đất vẫn tính
+
+@export_group("Leo (Thứ Năm, chung cư)")
+@export var ledge_min := 0.3          ## mép thấp nhất (so với chân) để bám; thấp hơn thì nhảy lên luôn
+@export var ledge_reach := 0.95       ## mép cao nhất với tới khi đang bay: nhảy 1,3 m + 0,95 = mép 2,2 m
+@export var pull_time := 0.6          ## leo từ tư thế bám lên mặt mép
+@export var wall_kick_up := 8.5
+@export var wall_kick_out := 4.5
+@export var wall_kick_max := 3        ## số lần đạp tối đa trước khi chạm đất
+@export var wall_gap_max := 1.5       ## chỉ bật tường trong khe hẹp: phía sau lưng có tường trong 1,5 m
+@export var pipe_speed := 1.4         ## leo ống nước
 
 var camera_rig: Node3D               ## main.gd gán: để lấy hướng camera
 var can_move := false
@@ -92,6 +105,20 @@ var _mouth_bread: Node3D          ## ổ bánh gói giấy ngậm ở miệng kh
 var _bob := 0.0                   ## nhún người theo bước
 const BANH_GOI := preload("res://assets/models/do/banh_goi.glb")
 const MOUTH := Vector3(0, 0.368, 0.30)   ## điểm miệng trong hệ model Bơ (đã duyệt)
+
+## Cảnh chung cư bật: bám mép, bật tường, leo ống nước. Thứ Hai để tắt nên khu phố không đổi.
+var climb_moves := false
+## Đang leo: "" | "hang" (bám mép) | "pull" (đang leo lên mép) | "pipe" (ôm ống nước)
+var climb := ""
+var _climb_t := 0.0
+var _wall_n := Vector3.FORWARD     ## pháp tuyến tường đang bám/ôm (chỉ ra ngoài)
+var _pull_from := Vector3.ZERO
+var _pull_to := Vector3.ZERO
+var _kicks := 0
+var _kick_lock := 0.0               ## vừa đạp tường: khóa điều khiển một chút cho khỏi lao lại vào tường
+var _grab_cooldown := 0.0           ## vừa buông/nhảy khỏi chỗ bám: chưa bám lại ngay
+var _pipes: Array = []              ## ống nước đang chạm (cảnh đặt Area3D gọi enter_pipe/exit_pipe)
+var _pipe: Node3D
 
 var _coyote := 0.0
 var _buffer := 0.0
@@ -477,7 +504,15 @@ func _vertex_colors_to_srgb(mi: MeshInstance3D) -> void:
 
 func _physics_process(delta: float) -> void:
 	_prev_pos = _curr_pos
+	_grab_cooldown = maxf(_grab_cooldown - delta, 0.0)
+	_kick_lock = maxf(_kick_lock - delta, 0.0)
+	if climb != "":
+		_climb_process(delta)
+		_curr_pos = global_position
+		return
 	var on_floor := is_on_floor()
+	if on_floor:
+		_kicks = 0
 	_coyote = coyote_time if on_floor else _coyote - delta
 	_buffer = jump_buffer if (can_move and Input.is_action_just_pressed("jump")) else _buffer - delta
 	_stun = maxf(_stun - delta, 0.0)
@@ -496,9 +531,11 @@ func _physics_process(delta: float) -> void:
 		_coyote = 0.0
 		visual.scale = Vector3(0.8, 1.25, 0.8)
 		jumped.emit()
+	elif climb_moves and _buffer > 0.0 and not on_floor and _stun <= 0.0:
+		_try_wall_kick()
 
 	var input := Vector2.ZERO
-	if can_move and _stun <= 0.0 and _act == "":
+	if can_move and _stun <= 0.0 and _act == "" and _kick_lock <= 0.0:
 		input = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var yaw: float = camera_rig.yaw if camera_rig else 0.0
 	var dir := Vector3(input.x, 0, input.y).rotated(Vector3.UP, yaw)
@@ -510,7 +547,9 @@ func _physics_process(delta: float) -> void:
 		accel = ground_accel if dir.length() > 0.01 else ground_decel
 		if _oil > 0:
 			accel = oil_accel
-	var hv := Vector2(velocity.x, velocity.z).move_toward(target, accel * delta)
+	var hv := Vector2(velocity.x, velocity.z)
+	if _kick_lock <= 0.0:
+		hv = hv.move_toward(target, accel * delta)
 	velocity.x = hv.x
 	velocity.z = hv.y
 	var sliding := on_floor and _oil > 0 and hv.length() > 1.0
@@ -522,6 +561,9 @@ func _physics_process(delta: float) -> void:
 	var speed_before := hv.length()
 	move_and_slide()
 	_check_bump(speed_before, delta)
+	if climb_moves and can_move and _stun <= 0.0 and _act == "":
+		if not _try_pipe(dir):
+			_try_grab(dir)
 
 	if not is_on_floor() and _was_on_floor:
 		_fall_from = global_position.y
@@ -556,6 +598,161 @@ func _physics_process(delta: float) -> void:
 		global_position = Vector3(-33, 1, -2)
 		velocity = Vector3.ZERO
 	_curr_pos = global_position
+
+
+# ---------------------------------------------------------------- leo (Thứ Năm)
+
+## Đang bay và đẩy về phía tường: nếu mép tường cao hơn chân từ ledge_min tới ledge_reach
+## và trên mép đủ chỗ đứng thì bám lại. Đang bay lên nhanh thì chưa bám (nhảy qua bậc thấp vẫn như cũ).
+func _try_grab(dir: Vector3) -> bool:
+	if is_on_floor() or _grab_cooldown > 0.0 or velocity.y > 1.0 or dir.length() < 0.1:
+		return false
+	var fwd := dir.normalized()
+	var space := get_world_3d().direct_space_state
+	var from := global_position + Vector3.UP * 0.3
+	var q := PhysicsRayQueryParameters3D.create(from, from + fwd * 0.55, collision_mask, [get_rid()])
+	var hit := space.intersect_ray(q)
+	if hit.is_empty() or absf(hit.normal.y) > 0.3:
+		return false
+	var n: Vector3 = hit.normal
+	n.y = 0.0
+	n = n.normalized()
+	if n.dot(fwd) > -0.5:
+		return false
+	# Dò mặt mép: tia đi xuống ngay sau mặt tường (lan can chỉ dày 6 cm)
+	var top_from: Vector3 = hit.position - n * 0.03
+	top_from.y = global_position.y + ledge_reach + 0.05
+	var down := top_from
+	down.y = global_position.y + ledge_min
+	var h2 := space.intersect_ray(PhysicsRayQueryParameters3D.create(top_from, down, collision_mask, [get_rid()]))
+	if h2.is_empty() or h2.normal.y < 0.7:
+		return false
+	var ledge_y: float = h2.position.y
+	var on_top: Vector3 = hit.position - n * 0.32
+	on_top.y = ledge_y + 0.02
+	if _shape_hits(_stand_shape, Transform3D(Basis.IDENTITY, on_top)):
+		return false  # trên mép không đủ chỗ (sát trần, sát tường khác)
+	climb = "hang"
+	_climb_t = 0.0
+	_wall_n = n
+	_pull_to = on_top
+	velocity = Vector3.ZERO
+	global_position = Vector3(hit.position.x, ledge_y - 0.5, hit.position.z) + n * 0.27
+	visual.rotation.y = atan2(n.x, n.z)
+	visual.scale = Vector3(0.9, 1.15, 0.9)
+	ledge_grabbed.emit()
+	return true
+
+
+## Ôm ống nước: đang chạm ống và đẩy về phía tường sau ống.
+func _try_pipe(dir: Vector3) -> bool:
+	if _pipes.is_empty() or _grab_cooldown > 0.0:
+		return false
+	var p: Node3D = _pipes.back()
+	var n: Vector3 = p.get_meta("normal", Vector3.BACK)
+	if dir.length() < 0.1 or dir.normalized().dot(-n) < 0.4:
+		return false
+	if global_position.y > float(p.get_meta("top", 99.0)) - 0.3:
+		return false
+	climb = "pipe"
+	_pipe = p
+	_wall_n = n
+	_climb_t = 0.0
+	velocity = Vector3.ZERO
+	visual.rotation.y = atan2(n.x, n.z)
+	return true
+
+
+## Bật tường: đang bay, sát tường, sau lưng có tường thứ hai trong wall_gap_max (khe giữa hai nhà).
+func _try_wall_kick() -> void:
+	if _kicks >= wall_kick_max or not is_on_wall():
+		return
+	var n := get_wall_normal()
+	n.y = 0.0
+	if n.length() < 0.5:
+		return
+	n = n.normalized()
+	var from := global_position + Vector3.UP * 0.3
+	var q := PhysicsRayQueryParameters3D.create(from, from + n * wall_gap_max, collision_mask, [get_rid()])
+	if get_world_3d().direct_space_state.intersect_ray(q).is_empty():
+		return  # tường đơn ngoài trời rộng: không bật được
+	_kicks += 1
+	_buffer = 0.0
+	_kick_lock = 0.18
+	velocity = n * wall_kick_out + Vector3.UP * wall_kick_up
+	visual.rotation.y = atan2(-n.x, -n.z)
+	visual.scale = Vector3(0.8, 1.25, 0.8)
+	noise_made.emit(global_position, noise_walk)
+	wall_kicked.emit(_kicks)
+
+
+func _climb_process(delta: float) -> void:
+	_climb_t += delta
+	var jump := can_move and Input.is_action_just_pressed("jump")
+	var drop := can_move and (_pressed("crouch") or Input.is_action_pressed("move_back"))
+	match climb:
+		"hang":
+			velocity = Vector3.ZERO
+			if jump:
+				climb = "pull"
+				_climb_t = 0.0
+				_pull_from = global_position
+				noise_made.emit(global_position, noise_sneak)
+			elif drop and _climb_t > 0.15:
+				_release(Vector3.ZERO)
+		"pull":
+			var u := clampf(_climb_t / pull_time, 0.0, 1.0)
+			# Lên trước (móng bám, chân sau đạp), rồi mới nhích tới mặt mép
+			var up := smoothstep(0.0, 0.7, u)
+			var fwd := smoothstep(0.45, 1.0, u)
+			global_position = Vector3(lerpf(_pull_from.x, _pull_to.x, fwd), lerpf(_pull_from.y, _pull_to.y, up), lerpf(_pull_from.z, _pull_to.z, fwd))
+			if u >= 1.0:
+				climb = ""
+				velocity = Vector3.ZERO
+				_kicks = 0
+				_fall_from = global_position.y
+				ledge_climbed.emit()
+		"pipe":
+			var p := _pipe
+			var target := p.global_position + _wall_n * 0.24
+			var v := 0.0
+			if can_move and Input.is_action_pressed("move_forward"):
+				v = pipe_speed
+			elif can_move and Input.is_action_pressed("move_back"):
+				v = -pipe_speed * 1.6
+			var y := clampf(global_position.y + v * delta, p.global_position.y, float(p.get_meta("top", 99.0)) - 0.3)
+			global_position = Vector3(target.x, y, target.z)
+			velocity = Vector3(0, v, 0)
+			if jump:
+				# Nhảy khỏi ống: bật ra sau và lên, hướng phím trái/phải đẩy sang ngang
+				var side := Input.get_axis("move_left", "move_right")
+				var right := Vector3.UP.cross(_wall_n).normalized()
+				_release(_wall_n * 2.5 + right * side * 2.5 + Vector3.UP * jump_velocity * 0.8)
+				_kick_lock = 0.2
+				jumped.emit()
+			elif _pressed("crouch") or (v < 0.0 and y <= p.global_position.y + 0.01):
+				_release(_wall_n * 1.0)
+	_curr_pos = global_position
+
+
+func _release(vel: Vector3) -> void:
+	climb = ""
+	_pipe = null
+	velocity = vel
+	_grab_cooldown = 0.35
+	_fall_from = global_position.y
+
+
+## Ống nước (Area3D của cảnh) gọi khi Bơ chạm/rời. Ống có meta "normal" (hướng ra khỏi tường) và "top" (độ cao đầu ống).
+func enter_pipe(p: Node3D) -> void:
+	if p not in _pipes:
+		_pipes.append(p)
+
+
+func exit_pipe(p: Node3D) -> void:
+	_pipes.erase(p)
+	if p == _pipe and climb == "pipe":
+		_release(_wall_n * 1.0)
 
 
 ## Góc nhìn thứ nhất: camera không vẽ thân Bơ, nhưng bóng đổ của Bơ vẫn đủ cả đầu lẫn đuôi.
@@ -776,6 +973,22 @@ func _animate(delta: float, hspeed: float, vy: float, on_floor: bool) -> void:
 			_foot[i] = _foot[i].lerp(air, tl)
 			_paw_tilt[i] = lerpf(_paw_tilt[i], 0.5, tl)
 		_bob = lerpf(_bob, 0.0, tl)
+	# Leo (tạm, thay bằng tư thế Blender khi Sang duyệt): bám thì chân trước vươn lên mép,
+	# chân sau buông; leo lên thì chân sau đạp; ôm ống thì bốn chân thay nhau với
+	var climb_u := clampf(_climb_t / pull_time, 0.0, 1.0)
+	match climb:
+		"hang":
+			var sw := sin(t * 3.0) * 0.015
+			_foot = [Vector3(0, 0.12, 0.12), Vector3(0, 0.12, 0.12), Vector3(0, 0, -0.04 + sw), Vector3(0, 0, -0.04 - sw)]
+			_paw_tilt = [0.9, 0.9, 0.3, 0.3]
+		"pull":
+			var f := Vector3(0, 0.12, 0.12).lerp(Vector3(0, 0.02, 0.05), climb_u)
+			var kick := sin(climb_u * TAU * 2.0)
+			_foot = [f, f, Vector3(0, 0.04 + 0.03 * kick, 0.06 * kick), Vector3(0, 0.04 - 0.03 * kick, -0.06 * kick)]
+		"pipe":
+			_phase += delta * absf(vy) * 6.0
+			var c := sin(_phase)
+			_foot = [Vector3(0, 0.07 + 0.04 * c, 0.08), Vector3(0, 0.07 - 0.04 * c, 0.08), Vector3(0, 0.04 - 0.03 * c, 0.02), Vector3(0, 0.04 + 0.03 * c, 0.02)]
 	for i in 4:
 		_legs[i] = -atan2(_foot[i].z, 0.23)  # góc vung tương đương (dương: ra sau), cho chân góc thứ nhất
 
@@ -789,6 +1002,10 @@ func _animate(delta: float, hspeed: float, vy: float, on_floor: bool) -> void:
 	lean_target += _slide_amt * (deg_to_rad(11.0) + sin(t * 9.0) * 0.06)  # trượt: nghiêng 11°, chao nhẹ
 	pitch_target -= deg_to_rad(3.0) * sneak_k                            # rón rén: chúi 3°
 	pitch_target += deg_to_rad(54.0) * high                              # giao cao: ngửa thân 54° quanh hông
+	if climb in ["hang", "pipe"]:
+		pitch_target = 1.15  # thân dựng đứng áp vào tường
+	elif climb == "pull":
+		pitch_target = lerpf(1.15, -0.1, climb_u)
 	_body.rotation.z = _lean.step(lean_target, 120.0, 0.7, delta)
 	_body.rotation.y = deg_to_rad(6.0) * _slide_amt
 	_pitch.step(pitch_target, 150.0, 0.6, delta)

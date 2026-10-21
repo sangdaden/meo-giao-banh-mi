@@ -45,6 +45,7 @@ const TRAY_IN := -1.3     ## z của khay khi nằm trong lò
 enum State { MENU, PLAY, END }
 
 var state := State.MENU
+var paw_breed := ""         ## giống mèo của hai chân cận cảnh; "" = giống đang dùng trong tủ đồ
 var time_left := 0.0
 var holding := ""          ## món đang cầm: "", bot, khay_song, khay_chin, khay_chay, rau, rau_sach, cha, thit, *_xong, do_chua, banh_mi
 var flour_taken := false
@@ -136,6 +137,8 @@ func _ready() -> void:
 	for a in args:
 		if a.begins_with("--ngay="):   # bot thử bếp của ngày khác, vd --ngay=thu_ba (phiếu ghi món)
 			GameState.day = a.trim_prefix("--ngay=")
+		elif a.begins_with("--giong="):  # chụp thử chân cận cảnh của giống khác, vd --giong=mun
+			paw_breed = a.trim_prefix("--giong=")
 	if "--autotest-rap-nhanh" in args or "--demo-rap-nhanh" in args:
 		GameState.day = "thu_ba"
 		GameState.quick_assemble_request = 2
@@ -162,6 +165,8 @@ func _ready() -> void:
 	player.sprint_speed = 3.0
 	player.position = Vector3(-0.5, 0.05, 0.45)
 	add_child(player)
+	if paw_breed != "" and player.has_method("set_breed"):
+		player.set_breed(paw_breed)
 
 	cam = CameraScript.new()
 	cam.name = "CameraBep"
@@ -961,7 +966,7 @@ func _update_hud() -> void:
 	if seq.is_empty():
 		var near := _near_station()
 		if near != "":
-			hud.set_prompt("E · %s" % stations[near].name, true)
+			hud.set_prompt(stations[near].name, true)
 		else:
 			var g := _suggest()
 			hud.set_prompt("Tới %s" % stations[g].name.to_lower() if g != "" else "", false)
@@ -994,9 +999,9 @@ func _build_paws() -> void:
 	paw_rig = Node3D.new()
 	paw_rig.name = "ChanBo"
 	add_child(paw_rig)
-	paw_l = BoPaw.create(-1.0, PAW_SIZE)
+	paw_l = BoPaw.create(-1.0, PAW_SIZE, "bep", paw_breed)
 	paw_rig.add_child(paw_l)
-	paw_r = BoPaw.create(1.0, PAW_SIZE)
+	paw_r = BoPaw.create(1.0, PAW_SIZE, "bep", paw_breed)
 	paw_rig.add_child(paw_r)
 	paw_rig.visible = false
 

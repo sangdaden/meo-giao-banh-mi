@@ -4,8 +4,8 @@ extends RefCounted
 ##   tap          bấm E n lần (chặt, mở cửa, xịt)
 ##   hold         giữ E tới khi đầy (đẩy khay, bóc lá)
 ##   hold_release giữ E cho kim lên rồi thả đúng vùng xanh (rót nước, xẻ bánh)
-##   alt          bấm xen kẽ A/D (←/→) n lần (nhào, lăn, chà rửa)
-##   dip          bấm xen kẽ S/W (↓/↑) n lần (nhúng lắc rau)
+##   alt          bấm xen kẽ A/D (hoặc mũi tên trái/phải) n lần (nhào, lăn, chà rửa)
+##   dip          bấm xen kẽ S/W (hoặc mũi tên xuống/lên) n lần (nhúng lắc rau)
 ##   timing       kim chạy qua lại, bấm E khi kim trong vùng xanh, cần n lần trúng (rạch, thái)
 ##   swipe        vuốt: giữ D (→) hoặc kéo chuột sang phải cho đầy một nhát, n nhát (gọt, bào)
 ##   rotate       xoay: W→D→S→A (cần analog hay chuột vẽ vòng) cho đủ một vòng, n vòng (khuấy)
@@ -283,25 +283,27 @@ func _bot(delta: float) -> void:
 
 # ---------------------------------------------------------------- lời nhắc phím cho HUD
 
-func hint() -> String:
+## Cách bấm của bước cho thẻ cận cảnh: phần tử Array là nhóm phím (HUD vẽ thành nút phím,
+## "←" "→" "↑" "↓" "chuột" vẽ bằng hình), phần tử String là chữ.
+func hint() -> Array:
 	var left := n - count
 	match kind:
 		"tap":
-			return "Bấm E" if left <= 1 else "Bấm E × %d" % left
+			return [["E"], "bấm" if left <= 1 else "bấm %d lần" % left]
 		"hold":
-			return "Giữ E"
+			return [["E"], "giữ tới khi đầy thước"]
 		"hold_release":
-			return "Giữ E rồi thả khi kim vào vùng xanh"
+			return [["E"], "giữ, thả khi vào vùng xanh"]
 		"alt":
-			return "Bấm xen kẽ A  D  (← →) · còn %d" % left
+			return [["A", "D"], "hoặc", ["←", "→"], "bấm xen kẽ · còn %d" % left]
 		"dip":
-			return "Nhúng lên xuống: S  W  (↓ ↑) · còn %d" % left
+			return [["S", "W"], "hoặc", ["↓", "↑"], "nhúng lên xuống · còn %d" % left]
 		"timing":
-			return "Bấm E khi kim vào vùng xanh · còn %d" % left
+			return [["E"], "bấm khi kim vào vùng xanh · còn %d" % left]
 		"swipe":
-			return "Vuốt: giữ D (→) hoặc kéo chuột sang phải · còn %d nhát" % left
+			return [["D"], "hoặc", ["chuột"], "vuốt sang phải · còn %d nhát" % left]
 		"rotate":
-			return "Xoay: W → D → S → A, hoặc vẽ vòng bằng chuột · còn %d vòng" % left
+			return [["W", "D", "S", "A"], "hoặc", ["chuột"], "xoay vòng · còn %d" % left]
 		"pick":
-			return "Chọn đúng thứ tự: phím số, ← → rồi E, hoặc bấm chuột"
-	return ""
+			return [["1", "2", "3"], "hoặc", ["←", "→", "E"], "chọn đúng thứ tự"]
+	return []

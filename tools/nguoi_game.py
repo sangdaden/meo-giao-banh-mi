@@ -58,6 +58,12 @@ ROLES = {
     'dicho1':   dict(base='dung', tempo=.8, energy=.8),
     'dicho2':   dict(base='dung', tempo=1.1, energy=1.1),
     'dicho3':   dict(base='dung', tempo=1.0, energy=1.0),
+    # 5 người chợ thêm (nguoi3.py cho4-cho8, Sang duyệt 21/10 17:07)
+    'cho4': dict(base='dung', tempo=1.0, energy=1.0),            # Cô Năm bán hàng đứng
+    'cho5': dict(base='dung', tempo=1.25, energy=1.2),           # Bé Thư
+    'cho6': dict(base='dung', tempo=.75, energy=.7),             # Ông Út
+    'cho7': dict(base='dung', tempo=1.05, energy=1.0),           # Chị Mai
+    'cho8': dict(base='ngoi', seat=.32, tempo=.9, energy=.9),    # Chú Tám ngồi ghế đẩu (hông 0,4 như DANG)
     # Chị Thảo khách xe ôm: ngồi yên sau xe Chú Năm (hông 0,95), xuống xe thì đứng
     'khachxeom': dict(base='dung', tempo=1.0, energy=1.0),
 }
@@ -73,7 +79,7 @@ BAN = {
 }
 Q = BAN['']
 # Người ở chợ sáng Thứ Ba: ai cũng có 'va' (bị Bơ va) và 'di_bo' (người bán đi khỏi khi dọn sạp)
-CHO = {'xemco', 'bancho', 'hangrong', 'ganhhang', 'dicho1', 'dicho2', 'dicho3'}
+CHO = {'xemco', 'bancho', 'hangrong', 'ganhhang', 'dicho1', 'dicho2', 'dicho3', 'cho4', 'cho5', 'cho6', 'cho7', 'cho8'}
 
 HEAD_PARTS = {'head', 'brow', 'hair', 'tie', 'must', 'goatee', 'cap', 'helmet', 'earring', 'nonla', 'quai'}
 ARM_PARTS = {'delt', 'arm', 'sleeve', 'hand', 'towel'}
@@ -1238,6 +1244,18 @@ def anim_tray(R, role):
     return lambda t: add(walk(t), hold)
 
 
+def anim_bargain(R, role, cid):
+    """Mặc cả (3 s lặp, dáng 'macca'): tay trái giơ ra phẩy phẩy, đầu lắc nhẹ, người xoay qua lại."""
+    g = dp(R, cid, 'macca')
+
+    def f(t):
+        return add(base(t, R, role), g, {
+            'hand.L': {'out': osc(t, .5) * 22}, 'forearm.L': {'fw': osc(t, 1.0) * 8},
+            'head': {'tw': osc(t, 1.5) * 10, 'fw': osc(t, .75) * 4}, 'chest': {'tw': osc(t, 3.0) * 5},
+        })
+    return f
+
+
 def anim_watch(R, role, cid):
     """Đứng xem cờ (4 s lặp): chắp tay sau lưng (Ông Chín) hoặc khoanh tay, nghiêng người nhìn bàn, gật gù."""
     g = dp(R, cid, 'dang') if cid == 'xemco' else {
@@ -1356,6 +1374,13 @@ def thu_ba_clips(R, role, cid):
         out = [('xem', 4.0, anim_watch(R, role, cid), True), ('reo', 2.0, anim_watch_cheer(R, role, cid), False)]
         if cid != 'xemco':
             out += [('dung_chon', 4.0, anim_shop(R, role, cid), True), ('va', .6, anim_startle(R, role, cid), False)]
+        return out
+    if cid in ('cho4', 'cho5', 'cho6', 'cho7', 'cho8'):
+        out = [('mac_ca', 3.0, anim_bargain(R, role, cid), True),
+               ('va', .8, anim_dang_once(R, role, cid, 'giatminh', .8, .1, .35), False)]  # giật mình theo dáng phác
+        if cid != 'cho8':  # người đứng: lựa hàng (Cô Năm thì sắp hàng), xem, reo
+            out += [('dung_chon', 4.0, anim_shop(R, role, cid), True),
+                    ('xem', 4.0, anim_watch(R, role, cid), True), ('reo', 2.0, anim_watch_cheer(R, role, cid), False)]
         return out
     if cid == 'bancho':
         return [('ngoi_rao', 3.0, anim_sell(R, role, cid), True)]

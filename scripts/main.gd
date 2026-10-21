@@ -80,6 +80,11 @@ func _ready() -> void:
 	if _autotest:
 		print("[autotest] bắt đầu")
 		start_game()
+	elif GameState.from_kitchen:
+		# Vừa làm xong màn bếp: vào giao luôn, đồng hồ mỗi đơn được cộng điểm bếp
+		start_game()
+		if GameState.kitchen_bonus > 0.0:
+			hud.show_toast("Bếp được %d sao: mỗi đơn cộng thêm %d giây!" % [GameState.kitchen_stars, int(GameState.kitchen_bonus)], 3.0)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -157,15 +162,20 @@ func _current_goal() -> Vector3:
 
 func _pick_up(order: Dictionary) -> void:
 	player.carrying = true
-	time_left = order.time * time_multiplier
+	time_left = _time_limit(order)
 	dog.awake = order.get("boss", false)
 	hud.show_toast("Nhận %s! Giao cho %s ở %s" % [order.item, order.who, order.place])
 	if dog.awake:
 		hud.show_toast("Nhận %s! Coi chừng Chó Mực canh hẻm!" % order.item, 2.5)
 
 
+## Thời gian cho một đơn: số giây gốc nhân hệ số, cộng điểm màn bếp (0–6 giây).
+func _time_limit(order: Dictionary) -> float:
+	return order.time * time_multiplier + GameState.kitchen_bonus
+
+
 func _deliver(order: Dictionary) -> void:
-	var ratio: float = time_left / (order.time * time_multiplier)
+	var ratio: float = time_left / _time_limit(order)
 	var stars: int = 3 if ratio >= 0.5 else (2 if ratio >= 0.25 else 1)
 	results.append(stars)
 	hud.show_toast("Giao xong cho %s! %d sao" % [order.who, stars])
@@ -219,7 +229,7 @@ func _update_hud() -> void:
 	var order: Dictionary = ORDERS[order_index]
 	if player.carrying:
 		hud.set_order(order_index, ORDERS.size(), "%s · %s" % [order.who, order.place], order.item)
-		hud.set_timer(time_left, order.time * time_multiplier, true)
+		hud.set_timer(time_left, _time_limit(order), true)
 		hud.set_distance(player.global_position.distance_to(order.pos), "Tới chỗ khách")
 	else:
 		hud.set_order(order_index, ORDERS.size(), "Lò bánh Cô Ba", "Tới lò nhận bánh")

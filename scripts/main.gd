@@ -74,6 +74,7 @@ func _ready() -> void:
 	add_child(hud)
 	hud.start_pressed.connect(start_game)
 	hud.restart_pressed.connect(restart)
+	add_child(preload("res://scripts/sound_director.gd").new())  # nhạc và tiếng động
 
 	_autotest = "--autotest" in OS.get_cmdline_user_args()
 	if _autotest:

@@ -99,6 +99,11 @@ scripts/
   hud.gd               thẻ đơn, đồng hồ, 5 chấm tiến độ, màn bắt đầu, tạm dừng, kết thúc
   timer_ring.gd        đồng hồ vòng tròn
   blocks.gd            hàm tiện ích dựng khối hộp tạm, gộp mesh cho nhẹ
+  sound.gd             autoload "Sound": bus Music/SFX/Ambience, phát tiếng, đổi nhạc, lưu âm lượng
+  sound_panel.gd       nút loa góc phải dưới và bảng chỉnh âm lượng
+  sound_director.gd    gắn tiếng vào màn giao bánh (bước chân, nhận/giao đơn, đồng hồ, Chó Mực)
+assets/audio/          nhạc và tiếng động, nguồn và giấy phép ở assets/audio/NGUON.md
+tools/sound/synth.py   tự tổng hợp toàn bộ file âm thanh (pip install numpy scipy, cần ffmpeg)
 assets/models/bo.glb   mèo Bơ kiểu D: ~6,3k tam giác, 16 xương (bản tạm)
 tools/bo_game.py       tạo bo.glb từ model phác thảo bằng Blender (pip install bpy)
 web/update-check.js    bản web tự nhắc tải lại khi có bản mới
@@ -110,6 +115,16 @@ Khu phố rộng 96 × 60 m, gốc tọa độ ở giữa ngã tư; trục X là
 Model Bơ hiện tại tạo bằng `python3 tools/bo_game.py chung2.glb assets/models/bo.glb`: giảm tam giác, dồn màu lông vào màu đỉnh, gắn 16 xương (đầu, 4 chân, 4 đốt đuôi, 2 tai, 2 mắt, khăn). Game tự xoay các xương này bằng code (hàm `_animate` trong player.gd): chân vung, thân nghiêng khi quẹo và chúi khi tăng tốc, đầu gật và ngó quanh, tai cụp khi chạy, mắt chớp, khăn đung đưa; đuôi (dài ~0,30 m, khoảng 0,55 lần đầu + thân như mèo thật) là chuỗi lò xo nên tự đổi dáng khi đứng, đi, chạy, nhảy, quẹo. Model chính thức 22 xương có animation làm trong Blender sẽ thay vào sau.
 
 Bản khối thô dựng mọi thứ bằng code để dễ đọc từ trên xuống. Khi model Blender xong (tuần 2 và 3), mèo, chó và các mảnh phố sẽ thành scene `.tscn` riêng, thay cho các khối hộp.
+
+## Âm thanh
+
+Toàn bộ nhạc và tiếng động do `tools/sound/synth.py` tự tổng hợp, không dùng mẫu của ai nên không vướng giấy phép (CC0, chi tiết ở `assets/audio/NGUON.md`). Có 4 bài nhạc nền lặp (menu, giao bánh, bị Chó Mực đuổi, bếp), 2 nhạc kết, tiếng nền phố và bếp, cùng khoảng 35 hiệu ứng.
+
+- Gọi từ code: `Sound.play("jump")`, `Sound.music("chase")`, `Sound.ambience("street")`, `Sound.loop("sizzle")` / `Sound.stop_loop("sizzle")`. Tên không có file thì bỏ qua.
+- Âm lượng: nút loa góc phải dưới (hiện ở màn bắt đầu, tạm dừng, kết thúc), phím **M** tắt/bật tiếng bất cứ lúc nào. Lưu vào `user://am_thanh.cfg`.
+- Cân to nhỏ giữa các tiếng: bảng `LEVEL` đầu file `scripts/sound.gd`. Nhịp bước chân, mấy giây cuối kêu tích tắc, tầm sủa của chó: hằng số đầu `scripts/sound_director.gd`.
+- Bản web: trình duyệt chặn âm thanh cho tới cú bấm hoặc phím đầu tiên; Godot tự mở lại khi người chơi bấm, nên nhạc menu bắt đầu ngay khi chạm vào trang.
+- In tên từng tiếng ra console khi chạy thử: thêm `--sound-log`, ví dụ `godot --path . -- --sound-log`.
 
 ## Tự kiểm tra
 

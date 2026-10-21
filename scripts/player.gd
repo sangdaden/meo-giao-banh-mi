@@ -4,6 +4,12 @@ extends CharacterBody3D
 
 signal jumped
 signal landed
+## Bơ gây tiếng động: Chó Mực (và ai muốn nghe) nghe thấy nếu ở trong bán kính radius (mét)
+signal noise_made(pos: Vector3, radius: float)
+signal stance_changed(stance: String)   ## HUD hiện chấm chỉ báo khi rón rén/chui
+signal deliver_finished(kind: String)   ## xong động tác giao bánh
+signal startled                         ## giật mình (bị đớp, xe tông)
+signal slipped                          ## bắt đầu trượt trên vũng dầu
 
 @export_group("Chạy")
 @export var walk_speed := 5.0
@@ -12,6 +18,19 @@ signal landed
 @export var ground_decel := 55.0      ## phanh khi thả phím
 @export var air_accel := 18.0         ## đổi hướng giữa không trung
 @export var turn_speed := 14.0        ## tốc độ xoay người theo hướng chạy
+
+@export_group("Chui và rón rén")
+@export var crouch_speed := 2.5       ## chui: thấp 0,25 m
+@export var sneak_speed := 2.0        ## rón rén: đi êm, tiếng động nhỏ
+@export var crouch_height := 0.25
+@export var oil_accel := 4.0          ## trên vũng dầu: gần như không bám, trượt theo quán tính
+
+@export_group("Tiếng động (bán kính, mét)")
+@export var noise_sneak := 2.5
+@export var noise_walk := 6.0
+@export var noise_sprint := 10.0
+@export var noise_land := 8.0         ## đáp đất từ cao hơn 1 m
+@export var noise_bump := 8.0         ## đụng thùng, đồ nhỏ khi đang chạy
 
 @export_group("Nhảy")
 @export var jump_velocity := 8.5      ## cao khoảng 1,3 m khi giữ nút nhảy
@@ -30,6 +49,22 @@ var carrying := false:
 			bread.visible = v
 		if _bag:
 			_bag.visible = v or _wear_bag
+
+## Dáng đi hiện tại: "walk" | "sprint" | "crouch" | "sneak"
+var stance := "walk"
+var crouch_amount := 0.0          ## 0 đứng, 1 chui hẳn (hình và camera hạ xuống theo)
+var _stand_shape: CollisionShape3D
+var _crouch_shape: CollisionShape3D
+var _forced_crouch := false       ## đang ở dưới gầm thấp: thả phím chui vẫn phải chui
+var _oil := 0                     ## số vũng dầu đang đứng lên (các vùng có thể chồng nhau)
+var _sliding := false
+var _fall_from := 0.0             ## độ cao lúc bắt đầu rơi, để biết đáp đất từ bao cao
+var _bump_cooldown := 0.0
+var _step_side := 1.0             ## dấu của nhịp bước trước, đổi dấu là một bước chân
+var _act := ""                    ## động tác đang diễn: "" | "deliver" | "startle"
+var _act_kind := ""
+var _act_t := 0.0
+var _act_len := 0.0
 
 var _coyote := 0.0
 var _buffer := 0.0
@@ -120,13 +155,22 @@ func _ready() -> void:
 	collision_layer = 2
 	collision_mask = Blocks.LAYER_WORLD | Blocks.LAYER_PROP
 	floor_snap_length = 0.3
-	var shape := CollisionShape3D.new()
+	_stand_shape = CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
 	cap.radius = 0.25
 	cap.height = 0.7
-	shape.shape = cap
-	shape.position.y = 0.35
-	add_child(shape)
+	_stand_shape.shape = cap
+	_stand_shape.position.y = 0.35
+	add_child(_stand_shape)
+	# Khi chui: trụ dẹt cao 0,25 m, lọt gầm ba gác, gầm bàn cà phê
+	_crouch_shape = CollisionShape3D.new()
+	var cyl := CylinderShape3D.new()
+	cyl.radius = 0.22
+	cyl.height = crouch_height
+	_crouch_shape.shape = cyl
+	_crouch_shape.position.y = crouch_height * 0.5
+	_crouch_shape.disabled = true
+	add_child(_crouch_shape)
 	_build_visual()
 	# Phần hình tách khỏi thân vật lý: thân di chuyển 60 lần/giây theo nhịp vật lý,
 	# còn hình được nội suy mỗi khung hình nên vẫn mượt trên màn 75, 120, 144 Hz.
@@ -297,30 +341,52 @@ func _physics_process(delta: float) -> void:
 		jumped.emit()
 
 	var input := Vector2.ZERO
-	if can_move and _stun <= 0.0:
+	if can_move and _stun <= 0.0 and _act == "":
 		input = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var yaw: float = camera_rig.yaw if camera_rig else 0.0
 	var dir := Vector3(input.x, 0, input.y).rotated(Vector3.UP, yaw)
-	var speed := sprint_speed if Input.is_action_pressed("sprint") else walk_speed
+	_update_stance(dir, on_floor)
+	var speed: float = {"walk": walk_speed, "sprint": sprint_speed, "crouch": crouch_speed, "sneak": sneak_speed}[stance]
 	var target := Vector2(dir.x, dir.z) * speed
 	var accel := air_accel
 	if on_floor:
 		accel = ground_accel if dir.length() > 0.01 else ground_decel
+		if _oil > 0:
+			accel = oil_accel
 	var hv := Vector2(velocity.x, velocity.z).move_toward(target, accel * delta)
 	velocity.x = hv.x
 	velocity.z = hv.y
+	var sliding := on_floor and _oil > 0 and hv.length() > 1.0
+	if sliding and not _sliding:
+		slipped.emit()
+		_sfx("oil_slip")
+	_sliding = sliding
 
+	var speed_before := hv.length()
 	move_and_slide()
+	_check_bump(speed_before, delta)
 
+	if not is_on_floor() and _was_on_floor:
+		_fall_from = global_position.y
+	if not is_on_floor():
+		_fall_from = maxf(_fall_from, global_position.y)
 	if is_on_floor() and not _was_on_floor:
 		visual.scale = Vector3(1.25, 0.75, 1.25)
 		landed.emit()
+		if _fall_from - global_position.y > 1.0:
+			noise_made.emit(global_position, noise_land)
 	_was_on_floor = is_on_floor()
+	_act_t += delta
+	if _act != "" and _act_t >= _act_len:
+		var done := _act
+		_act = ""
+		if done == "deliver":
+			deliver_finished.emit(_act_kind)
 
 	if first_person:
 		# Góc nhìn thứ nhất: người (và bóng) luôn quay theo hướng nhìn, đi tới là đi theo mắt
 		visual.rotation.y = lerp_angle(visual.rotation.y, yaw, 1.0 - exp(-turn_speed * 2.0 * delta))
-	elif dir.length() > 0.1:
+	elif dir.length() > 0.1 and _act == "":
 		visual.rotation.y = lerp_angle(visual.rotation.y, atan2(-dir.x, -dir.z), 1.0 - exp(-turn_speed * delta))
 
 	# Rơi khỏi bản đồ thì đưa về chỗ cũ
@@ -357,6 +423,118 @@ func _build_fp_paws() -> void:
 		_fp_paws.append(pivot)
 
 
+## Chọn dáng đi: chui (giữ Ctrl/C, hoặc tự chui khi chạy vào gầm thấp và ở yên dưới đó),
+## rón rén (giữ Alt), chạy nhanh (Shift), còn lại là đi.
+func _update_stance(dir: Vector3, on_floor: bool) -> void:
+	var want_crouch := can_move and Input.is_action_pressed("crouch")
+	if not want_crouch and stance == "crouch" and _blocked_above():
+		want_crouch = true  # còn ở dưới gầm thì không đứng dậy được
+	if not want_crouch and on_floor and dir.length() > 0.1 and _low_gap_ahead(dir):
+		want_crouch = true  # chạy tới gầm thấp: tự cúi người chui vào
+	var s := "walk"
+	if want_crouch:
+		s = "crouch"
+	elif can_move and Input.is_action_pressed("sneak"):
+		s = "sneak"
+	elif Input.is_action_pressed("sprint") and dir.length() > 0.1:
+		s = "sprint"
+	if s != stance:
+		var was_crouch := stance == "crouch"
+		stance = s
+		if was_crouch != (s == "crouch"):
+			_stand_shape.disabled = s == "crouch"
+			_crouch_shape.disabled = s != "crouch"
+		stance_changed.emit(s)
+
+
+## Trên đầu có vật chắn: dáng đứng sẽ va vào nó.
+func _blocked_above() -> bool:
+	return _shape_hits(_stand_shape, global_transform)
+
+
+## Phía trước là gầm thấp: đứng thì đụng, chui thì lọt.
+func _low_gap_ahead(dir: Vector3) -> bool:
+	var xf := global_transform.translated(dir.normalized() * 0.3)
+	return _shape_hits(_stand_shape, xf) and not _shape_hits(_crouch_shape, xf)
+
+
+func _shape_hits(cs: CollisionShape3D, xf: Transform3D) -> bool:
+	var q := PhysicsShapeQueryParameters3D.new()
+	q.shape = cs.shape
+	q.transform = xf * cs.transform
+	q.collision_mask = collision_mask
+	q.exclude = [get_rid()]
+	q.margin = 0.01
+	# Bỏ qua mặt đất: nâng nhẹ khối kiểm tra lên khỏi sàn
+	q.transform.origin.y += 0.04
+	return not get_world_3d().direct_space_state.intersect_shape(q, 1).is_empty()
+
+
+## Đụng thùng, đồ nhỏ khi đang chạy (không phải rón rén/chui) thì kêu lớn.
+func _check_bump(speed_before: float, delta: float) -> void:
+	_bump_cooldown = maxf(_bump_cooldown - delta, 0.0)
+	if _bump_cooldown > 0.0 or speed_before < walk_speed * 0.6 or stance in ["sneak", "crouch"]:
+		return
+	for i in get_slide_collision_count():
+		var c := get_slide_collision(i)
+		var body := c.get_collider() as CollisionObject3D
+		if body and body.collision_layer & Blocks.LAYER_PROP and absf(c.get_normal().y) < 0.5:
+			noise_made.emit(c.get_position(), noise_bump)
+			_bump_cooldown = 0.6
+			return
+
+
+## Mỗi bước chân phát một tiếng động nhỏ theo dáng đi. Gọi từ _animate khi nhịp bước đổi dấu.
+func _footstep() -> void:
+	var r: float = {"walk": noise_walk, "sprint": noise_sprint, "crouch": noise_sneak, "sneak": noise_sneak}[stance]
+	noise_made.emit(global_position, r)
+	if stance == "sneak":
+		_sfx("sneak")
+
+
+## Động tác giao bánh. kind: "hand" (đưa tận tay), "basket" (bỏ vào giỏ thòng dây),
+## "counter" (nhảy đặt lên quầy), "under_car" (chui đẩy vào gầm xe), "chair" (đặt lên ghế mây).
+## Bơ đứng yên trong lúc diễn, xong phát deliver_finished(kind).
+func play_deliver(kind: String) -> void:
+	_act = "deliver"
+	_act_kind = kind
+	_act_t = 0.0
+	_act_len = {"hand": 0.9, "basket": 1.0, "counter": 1.1, "under_car": 1.2, "chair": 1.0}.get(kind, 0.9)
+	velocity.x = 0.0
+	velocity.z = 0.0
+	if kind == "counter" and is_on_floor():
+		velocity.y = jump_velocity * 0.75
+
+
+## Giật mình: nhảy dựng tại chỗ, lông đuôi xù, tai cụp, khựng lại một chút.
+func play_startle() -> void:
+	_act = "startle"
+	_act_t = 0.0
+	_act_len = 0.6
+	if is_on_floor():
+		velocity.y = jump_velocity * 0.45
+	visual.scale = Vector3(0.85, 1.25, 0.85)
+	for i in 2:
+		_ear[i].v += 10.0
+	startled.emit()
+
+
+## Phát tiếng qua autoload Sound nếu có (chạy test riêng bằng -s thì không có autoload).
+func _sfx(name: String) -> void:
+	var snd := get_node_or_null("/root/Sound")
+	if snd:
+		snd.play(name)
+
+
+## Vũng dầu (gói giao bánh đặt Area3D) gọi khi Bơ bước vào/ra.
+func enter_oil() -> void:
+	_oil += 1
+
+
+func exit_oil() -> void:
+	_oil = maxi(_oil - 1, 0)
+
+
 ## Vị trí mèo đã nội suy giữa hai nhịp vật lý: camera và mũi tên bám theo vị trí này.
 func smooth_position() -> Vector3:
 	return _prev_pos.lerp(_curr_pos, Engine.get_physics_interpolation_fraction())
@@ -386,12 +564,29 @@ func _animate(delta: float, hspeed: float, vy: float, on_floor: bool) -> void:
 	var landed_now := on_floor and not _was_floor_anim
 	_was_floor_anim = on_floor
 
+	# Dáng tạm cho chui/rón rén (thay bằng tư thế Blender khi Sang duyệt bản phác)
+	var crouch_t := 1.0 if stance == "crouch" else 0.0
+	crouch_amount = move_toward(crouch_amount, crouch_t, delta * 6.0)
+	var sneak_k := 1.0 if stance == "sneak" else 0.0
+	# Động tác: u chạy 0→1 trong thời gian diễn, pose = 0→1→0
+	var act_u := clampf(_act_t / maxf(_act_len, 0.01), 0.0, 1.0) if _act != "" else 0.0
+	var act_pose := sin(act_u * PI) if _act != "" else 0.0
+	# Bước dài và chậm hơn khi rón rén, ngắn và nhanh khi chui
+	var gait := 2.2 if stance in ["walk", "sprint"] else (1.6 if stance == "sneak" else 3.0)
 	# Chân và nhún người
 	if on_floor:
-		_phase += delta * (4.0 + hspeed * 2.2)
-		var swing := sin(_phase) * 0.9 * k
+		_phase += delta * (4.0 + hspeed * gait)
+		var swing := sin(_phase) * 0.9 * maxf(k, 0.35 if hspeed > 0.3 else 0.0)
+		if stance == "crouch":
+			swing *= 0.6
 		_legs = [swing, -swing, -swing, swing]
+		if _sliding:
+			_legs = [0.7, 0.7, -0.7, -0.7]  # trượt dầu: chân dạng ra, cứng đơ
 		_body.position.y = absf(sin(_phase)) * 0.04 * k
+		var side := signf(sin(_phase))
+		if hspeed > 0.3 and side != 0.0 and side != _step_side:
+			_step_side = side
+			_footstep()
 	else:
 		# Trên không: chân trước duỗi, chân sau co
 		var tl := 1.0 - exp(-10.0 * delta)
@@ -405,6 +600,13 @@ func _animate(delta: float, hspeed: float, vy: float, on_floor: bool) -> void:
 	var pitch_target := clampf(-_accel * 0.012, -0.12, 0.12)
 	if not on_floor:
 		pitch_target = clampf(vy * 0.04, -0.3, 0.3)
+	if _sliding:
+		lean_target += sin(t * 9.0) * 0.18  # chao đảo
+	if _act == "deliver":
+		# Đưa tận tay/đặt quầy/ghế: ngẩng lên; gầm xe: chúi xuống đẩy vào; giỏ: vươn cao
+		pitch_target += act_pose * {"hand": 0.25, "basket": 0.45, "counter": 0.2, "under_car": -0.3, "chair": 0.3}.get(_act_kind, 0.2)
+	elif _act == "startle":
+		pitch_target += act_pose * 0.35
 	_body.rotation.z = _lean.step(lean_target, 120.0, 0.7, delta)
 	_body.rotation.x = _pitch.step(pitch_target, 150.0, 0.6, delta)
 	if landed_now:
@@ -413,6 +615,11 @@ func _animate(delta: float, hspeed: float, vy: float, on_floor: bool) -> void:
 	# Thở khi đứng yên: ngực phồng nhẹ
 	var breath := sin(t * 2.4) * (1.0 - k)
 	_body.scale = Vector3(1.0 + 0.012 * breath, 1.0 + 0.008 * breath, 1.0 + 0.006 * breath)
+	# Chui: ép thân thấp xuống 0,25 m (tạm); rón rén: hạ thấp người
+	var low := lerpf(1.0, 0.45, crouch_amount) * lerpf(1.0, 0.85, sneak_k)
+	_body.scale *= Vector3(lerpf(1.0, 1.12, crouch_amount), low, lerpf(1.0, 1.08, crouch_amount))
+	if _act == "deliver" and _act_kind == "under_car":
+		_body.scale.y *= lerpf(1.0, 0.6, act_pose)
 
 	# Đầu: nhìn về hướng quẹo, gật ngược nhịp nhún, giữ thăng bằng khi thân chúi
 	_idle_time = _idle_time + delta if (hspeed < 0.3 and on_floor) else 0.0
@@ -424,6 +631,9 @@ func _animate(delta: float, hspeed: float, vy: float, on_floor: bool) -> void:
 	var yaw_target := clampf(_yaw_rate * 0.13, -0.45, 0.45) + look.x
 	var nod := sin(_phase * 2.0 + 0.6) * 0.06 * k if on_floor else 0.0
 	var head_pitch_target := look.y + nod - _body.rotation.x * 0.7
+	head_pitch_target += sneak_k * 0.25 + crouch_amount * 0.1   # rón rén: cúi đầu, mắt nhìn tới
+	if _act == "deliver":
+		head_pitch_target -= act_pose * 0.35  # ngửa đầu đưa ổ bánh tới
 	if not on_floor:
 		head_pitch_target += clampf(-vy * 0.03, -0.25, 0.2)  # rơi thì cúi nhìn chỗ đáp
 	_head_yaw.step(yaw_target, 60.0, 0.8, delta)
@@ -431,6 +641,9 @@ func _animate(delta: float, hspeed: float, vy: float, on_floor: bool) -> void:
 
 	# Tai: chạy nhanh thì cụp ra sau, bay lên thì dựng; nảy khi tiếp đất; thỉnh thoảng giật
 	var ear_target := k * 0.55 - (0.25 if not on_floor and vy > 0.0 else 0.0)
+	ear_target += sneak_k * 0.35 + crouch_amount * 0.3   # rón rén/chui: tai xuôi ra sau
+	if _act == "startle":
+		ear_target = 1.0  # giật mình: tai cụp hẳn
 	for i in 2:
 		_ear[i].step(ear_target, 140.0, 0.35, delta)
 		if landed_now:
@@ -507,6 +720,10 @@ func _update_tail(delta: float, hspeed: float, vy: float, on_floor: bool) -> voi
 		if not on_floor:
 			# Lên: cụp (+), xuống: vểnh (-). Chủ yếu ở gốc đuôi.
 			a += clampf(vy * 0.07, -0.6, 0.5) * (1.0 if i < 2 else 0.5)
+		if stance == "sneak" or stance == "crouch":
+			a += 0.3 * (1.0 if i < 2 else 0.4)  # đuôi hạ thấp, giữ ngang
+		if _act == "startle":
+			a = -0.7 if i < 2 else -0.2  # giật mình: đuôi dựng đứng
 		targets.append(a)
 
 	# Lắc ngang: đứng yên vẫy chậm, chạy thì vẫy nhẹ theo bước; quẹo thì văng ra ngoài
@@ -534,10 +751,11 @@ func _pose(bone_name: String, axis: Vector3, angle: float) -> void:
 
 
 ## Bị Chó Mực đớp: văng ra và khựng lại một chút.
-func knockback(from: Vector3, strength := 9.0) -> void:
+func knockback(from: Vector3, strength := 9.0, stun := 0.45) -> void:
 	var away := global_position - from
 	away.y = 0
 	away = away.normalized() if away.length() > 0.01 else Vector3.BACK
+	play_startle()
 	velocity = away * strength + Vector3.UP * 4.5
-	_stun = 0.45
+	_stun = stun
 	visual.scale = Vector3(1.3, 0.7, 1.3)

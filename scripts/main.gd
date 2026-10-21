@@ -87,6 +87,7 @@ func _ready() -> void:
 	add_child(dog)
 	dog.bit_player.connect(_on_dog_bite)
 	dog.state_changed.connect(_on_dog_state)
+	add_child(preload("res://scripts/traffic.gd").new())  # xe máy, đèn giao thông, người đi bộ
 
 	stamps = StampsScript.new()
 	stamps.name = "TemCoBa"
@@ -369,6 +370,8 @@ func _on_dog_state(s: int) -> void:
 func _update_hud() -> void:
 	if order_index >= ORDERS.size():
 		return
+	if "stance" in player:  # dáng rón rén/chui do luồng động tác của Bơ thêm vào player.gd
+		hud.set_stance(player.stance)
 	var order: Dictionary = ORDERS[order_index]
 	if player.carrying:
 		hud.set_order(order_index, ORDERS.size(), "%s · %s" % [order.who, order.place], order.item, order.color)
@@ -534,6 +537,10 @@ func _setup_input() -> void:
 	_action("jump", [KEY_SPACE], [JOY_BUTTON_A], [])
 	_action("sprint", [KEY_SHIFT], [JOY_BUTTON_RIGHT_SHOULDER, JOY_BUTTON_X], [])
 	_action("pause", [KEY_ESCAPE], [JOY_BUTTON_START], [])
+	# Ctrl+W đóng tab trên bản web nên có thêm phím C để chui
+	_action("crouch", [KEY_CTRL, KEY_C], [JOY_BUTTON_B], [])
+	_action("sneak", [KEY_ALT, KEY_Z], [JOY_BUTTON_LEFT_STICK], [])
+	_action("deliver", [KEY_E], [JOY_BUTTON_Y], [])
 	_action("cam_left", [], [], [[JOY_AXIS_RIGHT_X, -1.0]])
 	_action("cam_right", [], [], [[JOY_AXIS_RIGHT_X, 1.0]])
 	_action("cam_up", [], [], [[JOY_AXIS_RIGHT_Y, -1.0]])

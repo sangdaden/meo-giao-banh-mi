@@ -36,7 +36,7 @@ Khi thêm tiếng lấy từ nơi khác, ghi thêm một dòng vào bảng cuố
 | star_1..3.wav | mỗi sao một tiếng, cao dần | tự tổng hợp, CC0 |
 | fail.wav | trễ đơn | tự tổng hợp, CC0 |
 | tick.wav, tick_urgent.wav | 5 giây cuối, 3 giây cuối kêu gấp | tự tổng hợp, CC0 |
-| bark.wav, bark_single.wav | Chó Mực sủa (gâu gâu / gâu), nhỏ dần theo khoảng cách | tự tổng hợp, CC0 |
+| bark.wav, bark_single.wav | Chó Mực sủa (gâu gâu / gâu), nhỏ dần theo khoảng cách. Tạo bằng mô hình nguồn-bộ lọc trong tools/sound/bark.py; đổi giọng bằng BARK_KIND=vua/tram/kho | tự tổng hợp, CC0 |
 | growl.wav | Chó Mực thức dậy | tự tổng hợp, CC0 |
 | bite.wav | bị đớp | tự tổng hợp, CC0 |
 | ui_click.wav, ui_start.wav | bấm nút, bấm Bắt đầu | tự tổng hợp, CC0 |

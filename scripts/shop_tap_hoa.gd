@@ -14,8 +14,9 @@ extends Node3D
 ## - Một node ShopTapHoa (deliveries.gd tạo khi trong ngày có đơn "errand"): Cô Hai đưa túi trứng,
 ##   vết trứng vỡ, chỉ báo số trứng trên HUD, ghi số trứng cho màn bếp (GameState.eggs_brought).
 ##   Đường đi và đồng hồ do main.gd lo (đơn errand: lấy đồ ở vùng quanh COUNTER_POINT, mang về lò).
-## Toàn bộ là khối tạm. Nội thất, túi trứng, tư thế Bơ ngậm túi và animation Cô Hai chờ Sang duyệt
-## trang "Phác thảo Thứ Ba".
+## Đồ trong tiệm, túi trứng và trứng vỡ là model của trang "Phác thảo Thứ Ba" (Sang duyệt 21/10,
+## assets/models/pho/: quay, ke_cao, bao_gao, tu_kem, tu_kem_vo, day_snack, tui_trung, trung, trung_vo_dat).
+## Va chạm vẫn là các hộp ẩn đặt theo kích thước model.
 
 const MODEL := "res://assets/models/pho/tap_hoa.glb"
 const X0 := 5.6
@@ -25,8 +26,10 @@ const DEPTH := 7.3
 const GROUND_H := 3.2
 ## Chỗ Bơ đứng trước quầy để nhận túi trứng ("pos" của đơn 2 Thứ Ba trong days.gd)
 const COUNTER_POINT := Vector3(7.8, 0, -18.9)
-const COUNTER_TOP := Vector3(7.8, 0.95, -18.1)
+const COUNTER_TOP := Vector3(7.8, 0.93, -18.1)
 const CO_HAI := Vector3(7.8, 0, -17.45)
+## Đĩa cân đồng hồ trên quầy (model quay đã có cân), chỗ đặt túi trứng chờ Bơ
+const SCALE_PLATE := Vector3(7.35, 1.17, -18.1)
 const EGGS := 6
 ## Vỡ nhiều hơn số này thì ổ trứng đơn 3 tối đa 1 sao bếp, và đơn mua trứng mất sao nguyên vẹn
 const EGGS_OK := 3
@@ -35,10 +38,11 @@ const WALL := Color("#E39C7A")
 const SHELF := Color("#8A9A98")
 const RICE := Color("#EDE3C8")
 const FREEZER := Color("#D8E4E6")
-const GLASS := Color(0.75, 0.9, 0.95, 0.45)
 const COUNTER := Color("#9B6A3A")
 const SHIRT := Color("#E8C15A")
-const GOODS := [Color("#C8412F"), Color("#E8C15A"), Color("#3D7FB8"), Color("#4E8F4A"), Color("#F4F1EA"), Color("#D7A9C4")]
+## Độ cao mặt các tầng kệ ke_cao (đo trên model) và một bao gạo nằm
+const SHELF_TIERS := [0.12, 0.55, 0.98, 1.41, 1.98]
+const RICE_H := 0.2225
 
 var player: CharacterBody3D
 var hud: CanvasLayer
@@ -77,38 +81,52 @@ static func build(parent: Node3D, x0: float, x1: float, z0: float, depth: float)
 		Blocks.box(parent, Vector3(w - 0.4, 0.02, depth - 0.2), Vector3(cx, 0.03, zc), Color("#CFC6B2"))  # nền gạch bông
 		Blocks.label(parent, "TẠP HÓA CÔ HAI", Vector3(cx, 3.6, z0 - 0.2), 52, Color("#C8412F"))
 	CityProps.awning(parent, w, Vector3(cx, 2.9, z0 - 0.5), "mai_hien_xanh", -1.0)
-	# Kệ hàng cao gần sát trần dọc vách trái (leo được: các tầng kệ cách nhau 0,6 m)
-	_shelf(parent, Vector3(x0 + 0.45, 0, z0 + 0.6), Vector2(0.45, 4.6), 2.8)
-	# Kệ thấp hơn dọc vách phải, phía trong
-	_shelf(parent, Vector3(x1 - 0.45, 0, z0 + 3.4), Vector2(0.45, 2.2), 2.2)
-	# Bao gạo xếp bậc ở góc phải mặt tiền: 0,4 → 0,8 → 1,2 m, leo lên nóc tủ kem rồi lên kệ
+	# Kệ sắt 5 tầng (ke_cao 1,2 × 0,4 × 2 m) dọc vách trái: leo được, các tầng cách nhau ~0,45 m
 	for k in 3:
-		var sz := Vector3(1.0, 0.4 * (k + 1), 0.5)
-		var b := Blocks.solid_box(parent, sz, Vector3(x1 - 0.75, sz.y / 2.0, z0 + 0.45 + k * 0.5), RICE, Blocks.LAYER_PROP)
+		_shelf(parent, Vector3(x0 + 0.42, 0, z0 + 1.2 + k * 1.2), PI / 2.0)
+	# Hai kệ phía trong vách phải, quay vào lòng tiệm
+	for k in 2:
+		_shelf(parent, Vector3(x1 - 0.42, 0, z0 + 3.75 + k * 1.2), -PI / 2.0)
+	# Bao gạo xếp bậc ở góc phải mặt tiền: 2, 4, 6 bao (0,45 → 0,9 → 1,35 m), leo lên nóc tủ kem rồi lên kệ
+	for k in 3:
+		var bz := z0 + 0.4 + k * 0.6
+		var n := 2 * (k + 1)
+		var b := _solid(parent, Vector3(0.8, n * RICE_H, 0.6), Vector3(x1 - 0.65, n * RICE_H / 2.0, bz), RICE, true, Blocks.LAYER_PROP)
 		b.add_to_group("bao_gao")
-	# Tủ kem nắp kính: trơn như vũng dầu, đứng lên là trượt
-	var fz := z0 + 2.4
-	_solid(parent, Vector3(1.0, 0.85, 1.0), Vector3(x1 - 0.75, 0.425, fz), FREEZER, false, Blocks.LAYER_PROP)
-	Blocks.box(parent, Vector3(0.96, 0.03, 0.96), Vector3(x1 - 0.75, 0.865, fz), GLASS)
+		for i in n:
+			var side := -0.2 if i % 2 == 0 else 0.2
+			var jitter := 0.03 * float((i + k) % 3 - 1)
+			PhoModels.put(parent, "bao_gao", Vector3(x1 - 0.65 + side, int(i / 2.0) * RICE_H, bz + jitter), PI / 2.0 + jitter)
+	# Tủ kem nắp kính (tu_kem 1,1 × 0,63 × 0,81 m) dọc vách phải, mặt chữ KEM quay vào lòng tiệm.
+	# Nắp kính trơn như vũng dầu, đứng lên là trượt
+	var fz := z0 + 2.55
+	var fx := x1 - 0.52
+	_solid(parent, Vector3(0.63, 0.81, 1.1), Vector3(fx, 0.405, fz), FREEZER, true, Blocks.LAYER_PROP)
+	PhoModels.put(parent, "tu_kem", Vector3(fx, 0, fz), -PI / 2.0)
+	var glass := PhoModels.put(parent, "tu_kem_vo", Vector3(fx, 0.81 - 0.042, fz), -PI / 2.0)
+	glass.material_override = _glass_material()
 	var lid := Area3D.new()
 	lid.name = "NapTuKem"
 	lid.collision_layer = 0
 	lid.collision_mask = 2
-	lid.position = Vector3(x1 - 0.75, 0.95, fz)
+	lid.position = Vector3(fx, 0.9, fz)
 	var ls := CollisionShape3D.new()
 	var lb := BoxShape3D.new()
-	lb.size = Vector3(1.0, 0.2, 1.0)
+	lb.size = Vector3(0.63, 0.2, 1.1)
 	ls.shape = lb
 	lid.add_child(ls)
 	lid.body_entered.connect(func(b: Node3D): if b.has_method("enter_oil"): b.enter_oil())
 	lid.body_exited.connect(func(b: Node3D): if b.has_method("exit_oil"): b.exit_oil())
 	parent.add_child(lid)
-	# Quầy và cái cân, Cô Hai đứng sau quầy
-	_solid(parent, Vector3(2.2, 0.95, 0.6), Vector3(COUNTER_TOP.x, 0.475, COUNTER_TOP.z), COUNTER, false, Blocks.LAYER_PROP)
-	Blocks.box(parent, Vector3(0.3, 0.06, 0.25), COUNTER_TOP + Vector3(-0.7, 0.03, 0), Color("#C9CFCD"))   # đế cân
-	Blocks.box(parent, Vector3(0.22, 0.16, 0.06), COUNTER_TOP + Vector3(-0.7, 0.14, 0.08), Color("#E8E2D0"))  # mặt số
-	Blocks.box(parent, Vector3(0.34, 0.02, 0.3), COUNTER_TOP + Vector3(-0.7, 0.24, 0), Color("#C9CFCD"))  # đĩa cân
-	_shelf(parent, Vector3(cx - 1.3, 0, zb - 0.45), Vector2(2.6, 0.35), 2.6, true)  # kệ sau lưng Cô Hai
+	# Quầy (quay 1,6 × 0,55 m, mặt gỗ cao 0,93 m, tủ kính, 3 hũ kẹo, cân đồng hồ), mặt trước nhìn ra cửa
+	_solid(parent, Vector3(1.6, COUNTER_TOP.y, 0.55), Vector3(COUNTER_TOP.x, COUNTER_TOP.y / 2.0, COUNTER_TOP.z), COUNTER, true, Blocks.LAYER_PROP)
+	PhoModels.put(parent, "quay", Vector3(COUNTER_TOP.x, 0, COUNTER_TOP.z), PI)
+	# Kệ sau lưng Cô Hai, quay ra cửa
+	for k in 2:
+		_shelf(parent, Vector3(cx - 0.6 + k * 1.2, 0, zb - 0.42), PI)
+	# Dây snack treo dưới mái hiên hai bên cửa
+	for sx in [cx - 1.6, cx - 1.35, cx + 1.35, cx + 1.6]:
+		PhoModels.put(parent, "day_snack", Vector3(sx, GROUND_H - 1.25, z0 + 0.15), PI)
 	var co_hai := StaticBody3D.new()
 	co_hai.collision_layer = Blocks.LAYER_PROP
 	co_hai.position = CO_HAI
@@ -146,27 +164,26 @@ static func _solid(parent: Node3D, size: Vector3, pos: Vector3, color: Color, hi
 	return body
 
 
-## Kệ hàng: corner là góc gần mặt tiền (x tâm, z đầu kệ), size = (sâu x, dài z); along_x = kệ nằm ngang
-static func _shelf(parent: Node3D, corner: Vector3, size: Vector2, height: float, along_x := false) -> void:
-	var sx := size.y if along_x else size.x
-	var sz := size.y if not along_x else size.x
-	var center := corner + (Vector3(sx / 2.0, 0, 0) if along_x else Vector3(0, 0, sz / 2.0))
-	# Cột hai đầu và các tầng kệ (va chạm từng tầng để Bơ nhảy lên được)
+## Kệ sắt ke_cao: pos là giữa đáy, rot_y quay mặt trước kệ (mặt +Z của model) vào lòng tiệm.
+## Va chạm từng tầng kệ để Bơ nhảy lên được; hàng trên kệ chỉ để nhìn.
+static func _shelf(parent: Node3D, pos: Vector3, rot_y: float) -> void:
+	PhoModels.put(parent, "ke_cao", pos, rot_y)
+	var basis := Basis(Vector3.UP, rot_y)
+	for y in SHELF_TIERS:
+		var body := _solid(parent, Vector3(1.2, 0.04, 0.4), pos + Vector3(0, y - 0.02, 0), SHELF, true, Blocks.LAYER_PROP)
+		body.basis = basis
 	for end in [-1.0, 1.0]:
-		var off := Vector3(end * (sx / 2.0 - 0.03), height / 2.0, 0) if along_x else Vector3(0, height / 2.0, end * (sz / 2.0 - 0.03))
-		Blocks.solid_box(parent, Vector3(0.06 if along_x else sx, height, sz if along_x else 0.06), center + off, SHELF, Blocks.LAYER_PROP)
-	var y := 0.6
-	var n := 0
-	while y < height:
-		Blocks.solid_box(parent, Vector3(sx, 0.04, sz), center + Vector3(0, y, 0), SHELF, Blocks.LAYER_PROP)
-		# Hàng hóa: mấy khối màu đứng trên tầng kệ (chỉ để nhìn)
-		var count := int((sz if not along_x else sx) / 0.35)
-		for k in count:
-			var t := -0.5 + (k + 0.5) / count
-			var gpos := center + (Vector3(t * sx, y + 0.13, 0) if along_x else Vector3(0, y + 0.13, t * sz))
-			Blocks.box(parent, Vector3(0.22, 0.22, 0.22) * (0.8 + 0.1 * ((k + n) % 3)), gpos, GOODS[(k * 2 + n) % GOODS.size()])
-		y += 0.6
-		n += 1
+		var post := _solid(parent, Vector3(0.05, 2.0, 0.4), pos + basis * Vector3(end * 0.575, 1.0, 0), SHELF, true, Blocks.LAYER_PROP)
+		post.basis = basis
+
+
+## Nắp kính tủ kem: màu đỉnh của model, trong suốt một phần
+static func _glass_material() -> StandardMaterial3D:
+	var m := PhoModels.material().duplicate() as StandardMaterial3D
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.albedo_color = Color(1, 1, 1, 0.45)
+	m.roughness = 0.1
+	return m
 
 
 # ---------------------------------------------------------------- đơn ngược
@@ -196,8 +213,10 @@ func _ready() -> void:
 	add_child(_co_hai)
 	_bag_on_counter = Node3D.new()
 	add_child(_bag_on_counter)
-	_bag_on_counter.position = COUNTER_TOP + Vector3(0.3, 0.05, 0)
-	Blocks.box(_bag_on_counter, Vector3(0.11, 0.07, 0.075), Vector3.ZERO, Color(0.96, 0.95, 0.92, 0.6))
+	# Túi trứng chờ sẵn trên đĩa cân (cân ở mép trái quầy nhìn từ cửa vào)
+	_bag_on_counter.position = SCALE_PLATE
+	_bag_on_counter.rotation.y = PI
+	PhoModels.put(_bag_on_counter, "tui_trung", Vector3.ZERO)
 
 
 ## Bơ tới quầy (main.gd nhận đơn errand ở vùng quanh COUNTER_POINT): Cô Hai cân trứng, chìa túi qua quầy,
@@ -266,24 +285,12 @@ func _on_egg_broken(remaining: int) -> void:
 	if remaining <= EGGS_OK and _main and "intact" in _main:
 		_main.intact = false
 	_set_hud_eggs(remaining)
-	# Vệt trứng vỡ trên đất (decal tạm: lòng trắng, lòng đỏ)
-	# Quả trứng rơi khỏi túi ngay trước mũi Bơ, lệch ngẫu nhiên một chút
+	# Quả trứng rơi khỏi túi, vỡ ngay trước mũi Bơ (trung_vo_dat: vũng lòng trắng, lòng đỏ, mảnh vỏ)
 	var ahead: Vector3 = -player.visual.global_transform.basis.z if "visual" in player and player.visual else Vector3.FORWARD
 	var at := player.global_position + ahead * 0.35 + Vector3(randf_range(-0.12, 0.12), 0, randf_range(-0.12, 0.12))
-	var splat := Node3D.new()
-	add_child(splat)
-	splat.global_position = Vector3(at.x, at.y + 0.02, at.z)
-	var disc := CylinderMesh.new()
-	disc.top_radius = 0.09
-	disc.bottom_radius = 0.09
-	disc.height = 0.005
-	disc.radial_segments = 12
-	disc.rings = 1
-	Blocks.mesh(splat, disc, Vector3.ZERO, Color(0.97, 0.95, 0.88, 0.85))
-	var yolk := disc.duplicate() as CylinderMesh
-	yolk.top_radius = 0.035
-	yolk.bottom_radius = 0.035
-	Blocks.mesh(splat, yolk, Vector3(0.01, 0.004, 0), Color("#F2B233"))
+	var splat := PhoModels.put(self, "trung_vo_dat", Vector3.ZERO, randf() * TAU)
+	splat.global_position = Vector3(at.x, at.y + 0.01, at.z)
+	splat.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	get_tree().create_timer(12.0).timeout.connect(splat.queue_free)
 	if remaining == 0:
 		_toast("Bể hết trứng rồi! Vẫn mang túi về cho Cô Ba nhé.", 2.5)

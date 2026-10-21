@@ -199,17 +199,13 @@ def nha_ba_sau(depth=3.6):
 
 def tap_hoa():
     w = 4.4
-    g = nha_ong('tap_hoa', (0, 0, 0), w=w, floors=3, wall='salmon', ground='open', uppers=['cage', 'balcony'], roof='flat', seed=8)
+    # Tiệm đi vào được hết lòng (shop_tap_hoa.gd: sâu 7,3 m, cửa sau ra hẻm giữa khối ở góc x 0,2..0,95)
+    g = nha_ong('tap_hoa', (0, 0, 0), w=w, floors=3, wall='salmon', ground='open', uppers=['cage', 'balcony'], roof='flat', seed=8,
+                shop_d=7.1, back_door=(.2, .95, 1.4))
     with at(g):
         sign_board(w / 2, 3.45, w - .4, .8, -.3, '#3F8A5C', '#FFF3D6', 'TẠP HÓA CÔ HAI', 'nước ngọt · gạo · mì gói')
-        ke_tap_hoa((1.1, 2.0, 0), rot=0, w=1.6); ke_tap_hoa((3.3, 2.0, 0), rot=0, w=1.6, seed=9)
-        ke_tap_hoa((.5, 1.0, 0), rot=math.pi / 2, w=1.2, seed=3)
-        rnd = random.Random(2)
-        for i in range(14):
-            x = .4 + i * .27; c_ = rnd.choice(['#F2B33D', '#C8412F', '#3A6EA5', '#E8913A', '#3F8A5C'])
-            for k in range(4): box((.16, .02, .2), (x, .35, 2.7 - k * .22), M(c_, .5), 0)
-        box((1.0, .5, .9), (w - 1.4, .9, .45), M(C['steel'], .3, .5), 0)
-        box((1.0, .5, .3), (w - 1.4, .9, 1.05), M('#CFE8EA', .05), 0)
+        # Đồ trong tiệm (quầy, kệ, bao gạo, tủ kem, dây snack) là model riêng của trang "Phác thảo Thứ Ba",
+        # scripts/shop_tap_hoa.gd đặt vào; vỏ tiệm chỉ còn nhà và bảng hiệu.
     return g
 
 

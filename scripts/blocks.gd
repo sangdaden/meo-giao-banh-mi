@@ -107,6 +107,7 @@ static func merge_static(root: Node3D) -> void:
 			tools[key] = st
 			mats[key] = m
 		tools[key].append_from(mi.mesh, 0, to_root * mi.global_transform)
+		mi.mesh = null  # bỏ mesh trước khi xoá node, nếu không bản headless báo 'Parameter "m" is null'
 		mi.get_parent().remove_child(mi)
 		mi.free()
 	for key in tools:

@@ -4,7 +4,8 @@ extends Control
 ## lăn chuột để phóng to; sáu ô gắn phụ kiện. Bên phải: ba tab Giống mèo, Phụ kiện, Bộ đồ.
 ## Danh mục và đồ đang mặc nằm ở Outfit. Món khoá mà đã có model (assets/models/skin, xem OutfitView)
 ## thì bấm để mặc thử trên bục: chỉ xem trước, "Xong" trả Bơ về đồ đã có. Món chưa xuất model hiện "Đang dựng".
-## Đang thử món mua được thì nút "Mua · giá" ở chân trang mua bằng tiền boa trong ví (Shop).
+## Đang thử món còn khoá thì chân trang có "Để dành" (lưu lại mua sau) và "Mua · giá" (tiền boa trong ví, Shop).
+## Mua xong món chỉ vào đồ đã có, người chơi tự bấm để đeo. Món để dành hiện "Đủ tiền" khi ví đủ.
 
 signal closed
 
@@ -36,6 +37,7 @@ var _note: Label
 var _done: Button
 var _untry: Button
 var _buy: Button
+var _wish: Button
 var _wallet: Label
 var _name: Label
 ## Món vừa bấm thử (giống hoặc phụ kiện), nút Mua mua món này.
@@ -138,14 +140,14 @@ func _ready() -> void:
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	right.add_child(_scroll)
 
+	# Ghi chú nằm riêng một dòng trên hàng nút, để đủ chỗ cho Bỏ mặc thử, Để dành, Mua, Xong.
+	_note = T.label("", 15, T.MUTED, "bold")
+	_note.autowrap_mode = TextServer.AUTOWRAP_WORD
+	right.add_child(_note)
 	var foot := HBoxContainer.new()
 	foot.add_theme_constant_override("separation", 12)
+	foot.alignment = BoxContainer.ALIGNMENT_END
 	right.add_child(foot)
-	_note = T.label("", 15, T.MUTED, "bold")
-	_note.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_note.autowrap_mode = TextServer.AUTOWRAP_WORD
-	_note.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	foot.add_child(_note)
 	_untry = T.button("Bỏ mặc thử", "secondary", 60, 17)
 	_untry.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_untry.pressed.connect(func():
@@ -153,8 +155,15 @@ func _ready() -> void:
 		_refresh()
 		_note.text = "Đã bỏ đồ mặc thử.")
 	foot.add_child(_untry)
+	_wish = T.button("Để dành", "secondary", 60, 17)
+	_wish.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_wish.tooltip_text = "Lưu món này để mua sau khi đủ tiền boa"
+	_wish.pressed.connect(_wish_tried)
+	foot.add_child(_wish)
 	_buy = T.button("Mua", "primary", 60, 17)
 	_buy.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_buy.clip_text = true
+	_buy.custom_minimum_size.x = 180
 	_buy.pressed.connect(_buy_tried)
 	foot.add_child(_buy)
 	_done = T.button("Xong", "primary", 60, 20)
@@ -205,30 +214,40 @@ func _clear_try() -> void:
 	_buy_id = ""
 
 
-## Mua món đang thử rồi mặc luôn.
+## Mua món đang thử. Món vào đồ đã có, chưa đeo: người chơi bấm vào ô để đeo khi muốn.
 func _buy_tried() -> void:
 	var id := _buy_id
 	if id == "" or not Shop.buy(id):
 		return
 	if Shop.is_breed(id):
 		_try_breed = ""
-		Outfit.choose_breed(id)
-		_note.text = "Đã mua %s! Bơ đổi sang giống này khi vào chơi." % _breed(id)[1]
+		_note.text = "Đã mua %s! Bấm vào ô giống mèo để chọn khi muốn đổi." % _breed(id)[1]
 	else:
 		var a := Outfit.acc(id)
 		_try.erase(a[3])
-		Outfit.wear(id)
-		_note.text = "Đã mua và đeo %s!" % a[1].to_lower()
+		_note.text = "Đã mua %s! Bấm vào ô để đeo khi muốn." % a[1].to_lower()
 	_buy_id = ""
 	_refresh()
 
 
-## Chữ trên dải khoá: giá nếu bán, không thì "bấm để thử".
+## Để dành món đang thử (bấm lần nữa để bỏ).
+func _wish_tried() -> void:
+	if _buy_id == "":
+		return
+	Shop.toggle_wish(_buy_id)
+	var name: String = _breed(_buy_id)[1] if Shop.is_breed(_buy_id) else Outfit.acc(_buy_id)[1].to_lower()
+	_note.text = ("Đã để dành %s. Khi đủ tiền boa, ô này hiện \"Đủ tiền\"." % name) if Shop.wished(_buy_id) else ("Đã bỏ %s khỏi danh sách để dành." % name)
+	_refresh()
+
+
+## Chữ trên dải khoá: giá nếu bán, không thì "bấm để thử". Món để dành ghi "Để dành", ví đủ thì "Đủ tiền".
 func _lock_text(id: String, model: bool) -> String:
 	if not model:
-		return "đang dựng"
+		return "Khoá · đang dựng"
 	var p := Shop.price(id)
-	return Shop.money(p) if p > 0 else "bấm để thử"
+	if Shop.wished(id):
+		return ("Đủ tiền · " if Shop.check(id).ok else "Để dành · ") + Shop.money(p)
+	return "Khoá · " + (Shop.money(p) if p > 0 else "bấm để thử")
 
 
 func _breed(id: String) -> Array:
@@ -251,13 +270,21 @@ func _refresh() -> void:
 		txt += " · thử: " + ", ".join(tried)
 	_worn_label.text = txt
 	_untry.visible = _trying()
+	var wl := Shop.wishlist().size()
 	_wallet.text = "Ví %s · %d sao" % [Shop.money(Shop.wallet()), Shop.total_stars()]
+	if wl > 0:
+		var ready := Shop.wish_ready()
+		_wallet.text += " · để dành %d món%s" % [wl, (", %d món đủ tiền" % ready) if ready > 0 else ""]
 	var still_tried := _buy_id != "" and (_try_breed == _buy_id or _try.values().has(_buy_id))
 	_buy.visible = still_tried and not Shop.owned(_buy_id)
+	_wish.visible = _buy.visible and Shop.price(_buy_id) > 0
 	if _buy.visible:
 		var c := Shop.check(_buy_id)
-		_buy.text = c.text
+		# Điều kiện dài (thành tích, dịp lễ) ghi ở dòng ghi chú, nút chỉ ghi ngắn để giữ chiều cao bình thường
+		_buy.text = c.text if c.ok or c.text.length() <= 16 else "Chưa mở được"
+		_buy.tooltip_text = c.text
 		_buy.disabled = not c.ok
+		_wish.text = "Bỏ để dành" if Shop.wished(_buy_id) else "Để dành"
 	if preview.cat:
 		var want := _try_breed if _try_breed != "" else Outfit.breed()
 		if preview.cat.breed != want:
@@ -432,7 +459,10 @@ func _lock_cover(b: Button, body: Control, text: String, tried := false) -> void
 	rib.offset_left = 8
 	rib.offset_right = -8
 	rib.offset_top = 8
-	var l := T.label("Đang thử · bấm để bỏ" if tried else "Khoá · " + text, 10, T.PAPER, "bold")
+	var ready_wish := text.begins_with("Đủ tiền")
+	if ready_wish and not tried:
+		rib.add_theme_stylebox_override("panel", T.box(T.AMBER, 8, 4, Color(0, 0, 0, 0), 0))
+	var l := T.label("Đang thử · bấm để bỏ" if tried else text, 10, T.ON_CRUST if ready_wish and not tried else T.PAPER, "bold")
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD
 	rib.add_child(l)

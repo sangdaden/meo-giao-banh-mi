@@ -2,7 +2,8 @@ class_name Shop
 ## Cửa hàng tủ đồ: mua giống mèo và phụ kiện bằng tiền boa kiếm được khi giao bánh (không dùng tiền thật).
 ## Hồ sơ người chơi nằm ở mục [chung] của user://luu_game.cfg (GameState):
 ##   vi_tien_boa (đồng trong ví), tong_sao (tổng sao mọi lần chơi), don_kip (số đơn giao kịp giờ),
-##   kip_ca_5 (đã có ngày giao kịp cả 5 đơn), da_mua (id giống và phụ kiện đã mua).
+##   kip_ca_5 (đã có ngày giao kịp cả 5 đơn), da_mua (id giống và phụ kiện đã mua),
+##   de_danh (món người chơi xem trước rồi để dành mua sau).
 ## Bảng giá là đề xuất ban đầu, Sang chốt lại thì chỉ sửa PRICE_ACC, PRICE_BREED và GOALS.
 
 ## Giá phụ kiện theo độ hiếm (đồng). Một ngày giao tốt được khoảng 60.000–110.000đ.
@@ -93,8 +94,34 @@ static func buy(id: String) -> bool:
 	list.append(id)
 	GameState.set_global("da_mua", list)
 	GameState.set_global("vi_tien_boa", wallet() - price(id))
+	GameState.set_global("de_danh", wishlist().filter(func(x): return x != id))
 	GameState.write_save()
 	return true
+
+
+## Danh sách để dành: món đã xem trước, chưa đủ tiền (hoặc chưa muốn) mua.
+static func wishlist() -> Array:
+	return GameState.get_global("de_danh", [])
+
+
+static func wished(id: String) -> bool:
+	return id in wishlist()
+
+
+## Thêm hoặc bỏ một món khỏi danh sách để dành, lưu ngay.
+static func toggle_wish(id: String) -> void:
+	var list := wishlist().duplicate()
+	if id in list:
+		list.erase(id)
+	elif not owned(id) and price(id) > 0:
+		list.append(id)
+	GameState.set_global("de_danh", list)
+	GameState.write_save()
+
+
+## Số món để dành mua được ngay với ví hiện tại.
+static func wish_ready() -> int:
+	return wishlist().filter(func(x): return check(x).ok).size()
 
 
 ## Cộng số liệu hồ sơ sau mỗi lần chơi (Scoring gọi).
@@ -128,6 +155,10 @@ static func self_test() -> bool:
 	ok = ok and owned("kinhram") and wallet() == 5000 and not buy("kinhram")
 	ok = ok and not check("mubaohiem").ok and price("muphuthuy") == -1 and owned("khando")
 	ok = ok and money(110000) == "110.000đ"
+	toggle_wish("munlen")
+	ok = ok and wished("munlen") and wish_ready() == 0
+	toggle_wish("munlen")
+	ok = ok and not wished("munlen")
 	GameState.set_global("da_mua", bought().filter(func(x): return x != "kinhram"))
 	GameState.set_global("vi_tien_boa", before)
 	if not ok:

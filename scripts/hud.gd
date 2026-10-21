@@ -16,6 +16,7 @@ var dots: Array[Panel] = []
 var distance_label: Label
 var toast: Label
 var hint: Label
+var fps_label: Label
 var start_screen: Control
 var pause_screen: Control
 var end_screen: Control
@@ -73,11 +74,19 @@ func _ready() -> void:
 	_place(toast, 0.5, 0.5, Rect2(-500, -200, 1000, 50))
 	root.add_child(toast)
 
-	hint = _label("WASD chạy · Shift chạy nhanh · Space nhảy · Chuột xoay camera · Esc tạm dừng", 14, PAPER)
+	hint = _label("WASD chạy · Shift chạy nhanh · Space nhảy · Chuột xoay camera · Esc tạm dừng · F3 hiện FPS", 14, PAPER)
 	hint.add_theme_color_override("font_outline_color", INK)
 	hint.add_theme_constant_override("outline_size", 6)
 	_place(hint, 0.0, 1.0, Rect2(20, -36, 900, 24))
 	root.add_child(hint)
+
+	# Bộ đếm FPS góc phải, dưới 5 chấm. F3 để bật/tắt.
+	fps_label = _label("", 16, PAPER)
+	fps_label.add_theme_color_override("font_outline_color", INK)
+	fps_label.add_theme_constant_override("outline_size", 6)
+	fps_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_place(fps_label, 1.0, 0.0, Rect2(-224, 58, 200, 24))
+	root.add_child(fps_label)
 
 	start_screen = _overlay(
 		"Mèo Giao Bánh Mì",
@@ -98,6 +107,8 @@ func _ready() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_F3:
+		fps_label.visible = not fps_label.visible
 	# Lúc đang tạm dừng, main.gd bị dừng theo nên HUD tự bắt phím Esc để chơi tiếp
 	if get_tree().paused and event.is_action_pressed("pause"):
 		toggle_pause()
@@ -105,6 +116,10 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _process(delta: float) -> void:
+	if fps_label.visible:
+		var fps := Engine.get_frames_per_second()
+		fps_label.text = "%d FPS · %.1f ms" % [fps, 1000.0 / maxf(fps, 1.0)]
+		fps_label.add_theme_color_override("font_color", PAPER if fps >= 55 else (CRUST if fps >= 40 else RED))
 	if _toast_time > 0.0:
 		_toast_time -= delta
 		toast.modulate.a = clampf(_toast_time / 0.4, 0.0, 1.0)

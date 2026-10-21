@@ -34,6 +34,9 @@ var _buffer := 0.0
 var _stun := 0.0
 var _phase := 0.0
 var _was_on_floor := true
+# Vị trí ở hai nhịp vật lý gần nhất, để vẽ mèo nằm giữa hai nhịp cho mượt
+var _prev_pos := Vector3.ZERO
+var _curr_pos := Vector3.ZERO
 
 var visual: Node3D
 var _body: Node3D
@@ -62,6 +65,11 @@ func _ready() -> void:
 	shape.position.y = 0.35
 	add_child(shape)
 	_build_visual()
+	# Phần hình tách khỏi thân vật lý: thân di chuyển 60 lần/giây theo nhịp vật lý,
+	# còn hình được nội suy mỗi khung hình nên vẫn mượt trên màn 75, 120, 144 Hz.
+	visual.top_level = true
+	_prev_pos = global_position
+	_curr_pos = global_position
 
 
 ## Mèo dựng bằng khối hộp, mặt quay về -Z (hướng "trước" của Godot).
@@ -96,6 +104,8 @@ func _build_visual() -> void:
 	var loaf := CapsuleMesh.new()
 	loaf.radius = 0.06
 	loaf.height = 0.34
+	loaf.radial_segments = 8
+	loaf.rings = 2
 	var loaf_mi := Blocks.mesh(bread, loaf, Vector3(0.25, 0.46, 0.04), Color("#D98E2B"))
 	loaf_mi.rotation_degrees = Vector3(70, 0, 0)
 	bread.visible = false
@@ -116,6 +126,7 @@ func _build_visual() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	_prev_pos = _curr_pos
 	var on_floor := is_on_floor()
 	_coyote = coyote_time if on_floor else _coyote - delta
 	_buffer = jump_buffer if (can_move and Input.is_action_just_pressed("jump")) else _buffer - delta
@@ -164,11 +175,18 @@ func _physics_process(delta: float) -> void:
 	if global_position.y < -10.0:
 		global_position = Vector3(-33, 1, -2)
 		velocity = Vector3.ZERO
+	_curr_pos = global_position
 
 
 ## Animation tạm bằng code: vung chân, nhún người, vẫy đuôi.
 ## Tuần 2 sẽ thay bằng AnimationTree với animation làm trong Blender.
+## Vị trí mèo đã nội suy giữa hai nhịp vật lý: camera và mũi tên bám theo vị trí này.
+func smooth_position() -> Vector3:
+	return _prev_pos.lerp(_curr_pos, Engine.get_physics_interpolation_fraction())
+
+
 func _process(delta: float) -> void:
+	visual.global_position = smooth_position()
 	var hspeed := Vector2(velocity.x, velocity.z).length()
 	visual.scale = visual.scale.lerp(Vector3.ONE, 1.0 - exp(-12.0 * delta))
 	if is_on_floor():

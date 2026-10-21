@@ -25,3 +25,6 @@ common/physics_ticks_per_second=60
 [rendering]
 
 anti_aliasing/quality/msaa_3d=2
+anti_aliasing/quality/msaa_3d.web=0
+lights_and_shadows/directional_shadow/size.web=2048
+lights_and_shadows/directional_shadow/soft_shadow_filter_quality.web=0

@@ -23,6 +23,9 @@ var _legs: Array[Node3D] = []
 var _phase := 0.0
 var _zzz: Label3D
 var _bark: Label3D
+var _lie := 0.0
+var _prev_pos := Vector3.ZERO
+var _curr_pos := Vector3.ZERO
 
 const BLACK := Color("#2B2622")
 const EAR := Color("#4A3F37")
@@ -43,6 +46,9 @@ func _ready() -> void:
 	shape.position.y = 0.3
 	add_child(shape)
 	_build_visual()
+	_visual.top_level = true  # hình nội suy giữa hai nhịp vật lý, giống mèo
+	_prev_pos = global_position
+	_curr_pos = global_position
 	awake = false
 
 
@@ -75,6 +81,7 @@ func _build_visual() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	_prev_pos = _curr_pos
 	_cooldown = maxf(_cooldown - delta, 0.0)
 	if not is_on_floor():
 		velocity.y -= 28.0 * delta
@@ -106,6 +113,7 @@ func _physics_process(delta: float) -> void:
 		velocity.x = 0
 		velocity.z = 0
 	move_and_slide()
+	_curr_pos = global_position
 
 	# Animation tạm: nằm khi ngủ, vung chân khi chạy
 	var hspeed := Vector2(velocity.x, velocity.z).length()
@@ -115,4 +123,9 @@ func _physics_process(delta: float) -> void:
 		var s := 1.0 if i == 0 or i == 3 else -1.0
 		_legs[i].rotation.x = sin(_phase) * 0.8 * k * s
 	var lying := 0.0 if awake else -0.22
-	_visual.position.y = lerpf(_visual.position.y, lying, 1.0 - exp(-6.0 * delta))
+	_lie = lerpf(_lie, lying, 1.0 - exp(-6.0 * delta))
+
+
+func _process(_delta: float) -> void:
+	var smooth := _prev_pos.lerp(_curr_pos, Engine.get_physics_interpolation_fraction())
+	_visual.global_position = smooth + Vector3(0, _lie, 0)

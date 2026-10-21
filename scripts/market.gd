@@ -1,12 +1,14 @@
 class_name Market
 extends Node3D
 ## Chợ sáng Thứ Ba (gói T3-4): chợ tạm trên đường lớn giữa khối 2 và khối 5.
-## Đơn 1–3 chợ họp: 18 sạp có bạt (gầm 0,5 m, Bơ chui được), thúng hàng đổ được, người đi chợ chen nhau.
-## Đơn 4–5 chợ tan: sạp gập lại từng cái thành đống bạt và thúng, ba gác chở hàng về chắn giữa đường,
-## người đi chợ thưa dần. Xe chè chặn hẻm giữa khối 3 theo lịch (traffic.gd, ALLEY_BLOCKS).
+## Đơn 1–3 chợ họp: 18 sạp có bạt (gầm 0,5 m, Bơ chui được), thúng hàng đổ được, người đi chợ chen nhau,
+## Cô Bảy gánh hàng đi giữa chợ. Đơn 4–5 chợ tan: sạp dọn đi từng cái, để lại chồng thúng và rổ rau,
+## ba gác chở hàng về nằm giữa đường, người đi chợ thưa dần.
+## Xe bắp nướng của Chú Sáu chặn hẻm giữa khối 3 theo lịch (traffic.gd, ALLEY_BLOCKS).
 ## Va người đi chợ: Bơ khựng 0,4 s, phát player.bumped("person"). Xe máy chạy chậm qua vùng chợ.
 ## main.gd chỉ cần: add_child(preload("res://scripts/market.gd").new()) sau giao thông; ngày khác chợ tự gỡ.
-## Bản khối tạm: sạp, thúng, người đi chợ vẽ bằng MultiMesh. Model thật chờ trang "Phác thảo Thứ Ba" được duyệt.
+## Sạp, thúng, rổ, cân, gánh, xe đẩy là model đã duyệt (trang "Phác thảo Thứ Ba"), vẽ bằng MultiMesh.
+## Người bán và người đi chợ còn là khối tạm cho tới khi "Người dân vào game" rig xong 7 người chợ.
 
 signal person_bumped(pos: Vector3)   ## âm thanh: tiếng "ối", luồng giao bánh: nhiệm vụ phụ đơn 4
 signal basket_spilled(pos: Vector3)  ## âm thanh: rau quả lăn, luồng giao bánh: nhiệm vụ phụ đơn 5
@@ -31,10 +33,10 @@ const SPILL_DIST := 0.6
 const SPILL_SPEED := 3.0      ## Bơ chạy nhanh hơn mức này (không rón rén, không chui) mà đụng thúng là đổ
 const BASKET_Z := 3.15        ## thúng đặt trước khe giữa hai sạp, phía lòng đường
 
-const WOOD := Color("#9B6A3A")
-const TARPS := {"rau": Color("#3D7FB8"), "trai_cay": Color("#C8412F"), "ca": Color("#2E7C80"), "hoa": Color("#D7A9C4"), "kho": Color("#E8C98A")}
+const MODEL_DIR := "res://assets/models/cho/"
+const PILE_STACK := 3         ## sạp dọn xong để lại mấy thúng chồng lên nhau
+const GANH_REACH := 0.8       ## hai đầu gánh cách vai Cô Bảy bao xa (va vào thúng gánh cũng là va người)
 const SHIRTS := [Color("#E39C7A"), Color("#5E8FB8"), Color("#F2E3B8"), Color("#8DB36F"), Color("#D7A9C4"), Color("#C9C3B3"), Color("#B85C7A")]
-const PRODUCE := [Color("#5FA35A"), Color("#F2A33A"), Color("#D94F3D"), Color("#E8D06A"), Color("#8C5A9E")]
 var _hidden := Transform3D(Basis().scaled(Vector3.ZERO), Vector3(0, -50, 0))  ## giấu bản MultiMesh
 
 
@@ -50,8 +52,13 @@ class Shopper:
 	var face := Vector3.FORWARD
 	var stall := -1               ## sạp đang đứng trước (người lựa hàng)
 	var keep := true              ## còn ở lại khi chợ tan
+	var seller := false           ## người bán ngồi sau sạp: dọn sạp xong thì về
+	var ganh := false             ## Cô Bảy gánh hàng: gánh dài dọc hướng đi
 	var leaving := false
 	var gone := false
+	var box := -1                 ## chỗ trong MultiMesh khối tạm (-1 = đã có người có xương)
+	var person: Nguoi             ## người có xương (đã duyệt ở trang phác thảo Thứ Ba); null = khối tạm
+	var stand_anim := "dung_chon"
 	var pos := Vector3.ZERO
 	var prev_xf := Transform3D()
 	var xf := Transform3D()
@@ -71,15 +78,22 @@ var packing := false
 
 var _order := -1
 var _carrying := false
-var _stalls: Array = []           ## [{pos, side, kind, body, slab, pile, folded, anim, open_mm, open_i}]
+var _stalls: Array = []           ## [{pos, xf, kind, slab, poles, pile, folded, anim, seller}]
 var _fold_queue: Array[int] = []
 var _fold_timer := 0.0
 var _baskets: Array = []          ## [{pos, body, shape, spilled}]
 var _shoppers: Array[Shopper] = []
 var _open_mm := {}                ## loại sạp -> MultiMesh sạp đang bán
-var _pile_mm: MultiMesh
+var _pile_mm: MultiMesh           ## thúng chồng khi sạp đã dọn (PILE_STACK cái mỗi sạp)
+var _pile_ro_mm: MultiMesh
+var _scale_mm: MultiMesh          ## cân đĩa trên sạp đồ khô
 var _basket_mm: MultiMesh
-var _goods_mm: MultiMesh
+var _spill_mm: MultiMesh
+var _shade_mm: MultiMesh          ## bóng giả dưới bạt sạp (sạp không đổ bóng thật)
+var _slots := {}                  ## MultiMesh model chợ -> {of: key -> chỗ, keys: chỗ -> key}
+var _ganh_mi: MeshInstance3D
+var _seller_stool: MeshInstance3D
+var _ganh_shopper: Shopper
 var _shirt_mm: MultiMesh
 var _body_mm: MultiMesh
 var _hat_mm: MultiMesh
@@ -91,6 +105,8 @@ var _autotest := false
 var _in_market := false           ## Bơ đang trong vùng chợ (đổi tiếng nền)
 var _rattle_on := false
 var _cart_last := {}              ## xe chặn hẻm -> vị trí khung trước, để biết xe đang lăn
+
+static var _meshes := {}          ## model chợ đã nạp, dùng chung giữa các lần vào màn
 
 
 ## Hôm nay có chợ không: ngày Thứ Ba, hoặc thử bằng -- --ngay=thu_ba / -- --cho
@@ -126,38 +142,79 @@ func _ready() -> void:
 	_draw(1.0)
 
 
+# ---------------------------------------------------------------- model chợ
+
+## Model chợ dựng trong Blender theo trang "Phác thảo Thứ Ba" (Sang duyệt 21/10), thư mục assets/models/cho/:
+## mét thật, gốc ở giữa đáy, một vật liệu màu đỉnh. Dùng chung vật liệu PhoModels.material().
+## Bản web (Compatibility) không đổi màu đỉnh linear sang sRGB như Forward+ nên đổi sẵn ở đây.
+static func cho_mesh(model: String) -> ArrayMesh:
+	if _meshes.has(model):
+		return _meshes[model]
+	var root: Node = load(MODEL_DIR + model + ".glb").instantiate()
+	var src: Mesh = (root.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D).mesh
+	var to_srgb := RenderingServer.get_rendering_device() == null
+	var dst := ArrayMesh.new()
+	for i in src.get_surface_count():
+		var arrays := src.surface_get_arrays(i)
+		if to_srgb and arrays[Mesh.ARRAY_COLOR] != null:
+			var cols: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+			for k in cols.size():
+				cols[k] = cols[k].linear_to_srgb()
+			arrays[Mesh.ARRAY_COLOR] = cols
+		dst.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	root.free()
+	_meshes[model] = dst
+	return dst
+
+
+## Đặt một model chợ làm con của parent (để nhìn; va chạm đặt riêng).
+static func put(parent: Node, model: String, pos: Vector3, rot_y := 0.0) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.mesh = cho_mesh(model)
+	mi.material_override = PhoModels.material()
+	mi.position = pos
+	mi.rotation.y = rot_y
+	parent.add_child(mi)
+	return mi
+
+
 # ---------------------------------------------------------------- sạp chợ
 
 func _build_stalls() -> void:
 	var by_kind := {}
-	for i in CityProps.MARKET_STALLS.size():
-		var def: Dictionary = CityProps.MARKET_STALLS[i]
+	for def in CityProps.MARKET_STALLS:
 		by_kind[def.kind] = by_kind.get(def.kind, 0) + 1
 	for kind in by_kind:
-		_open_mm[kind] = _multimesh(_stall_mesh(kind), by_kind[kind], false)
-	_pile_mm = _multimesh(_pile_mesh(), CityProps.MARKET_STALLS.size(), false)
-	var used := {}
-	for i in CityProps.MARKET_STALLS.size():
+		_open_mm[kind] = _model_mm("sap_" + kind, by_kind[kind])
+	var n: int = CityProps.MARKET_STALLS.size()
+	_pile_mm = _model_mm("thung", n * PILE_STACK)
+	_pile_ro_mm = _model_mm("ro_rau", n)
+	_scale_mm = _model_mm("can_dia", by_kind.get("kho", 0))
+	_shade_mm = _shade(n)
+	for i in n:
 		var def: Dictionary = CityProps.MARKET_STALLS[i]
-		var yaw := 0.0 if def.side < 0 else PI  # mặt trước sạp quay ra lòng đường
+		var yaw := 0.0 if def.side < 0 else PI  # mặt trước sạp (bạt rủ) quay ra lòng đường
 		var xf := Transform3D(Basis(Vector3.UP, yaw), def.pos)
 		var body := StaticBody3D.new()
 		body.collision_layer = Blocks.LAYER_PROP
 		body.transform = xf
 		body.add_to_group("sap_cho")
+		body.set_meta("bump_kind", "stall")  # player.gd: chạy húc sạp thì phát bumped("stall")
 		add_child(body)
-		# Mặt sạp: đáy 0,5 m, đỉnh 0,62 m
-		var slab := _shape(body, Vector3(1.8, 0.12, 1.4), Vector3(0, 0.56, 0))
-		# Người bán ngồi (rồi đứng dọn hàng) phía vỉa hè
-		_shape(body, Vector3(0.45, 1.2, 0.35), Vector3(0, 0.6, -0.95))
-		var pile := _shape(body, Vector3(1.8, 0.62, 0.9), Vector3(0, 0.31, -0.25))
+		# Mặt sạp: bạt rủ tới 0,5 m, mặt bàn 0,72 m. Bốn cột tre dù ở góc (±0,78; ±0,45).
+		var slab := _shape(body, Vector3(1.6, 0.22, 0.86), Vector3(0, 0.61, 0))
+		var poles: Array[CollisionShape3D] = []
+		for c in [Vector2(-0.78, -0.45), Vector2(0.78, -0.45), Vector2(-0.78, 0.45), Vector2(0.78, 0.45)]:
+			poles.append(_shape(body, Vector3(0.06, 2.1, 0.06), Vector3(c.x, 1.05, c.y)))
+		# Dọn xong: chồng thúng và rổ rau phía vỉa hè, cao 0,6 m (nhảy lên được)
+		var pile := _shape(body, Vector3(0.62, 0.6, 0.62), Vector3(0, 0.3, -0.2))
 		pile.disabled = true
-		var oi: int = used.get(def.kind, 0)
-		used[def.kind] = oi + 1
-		_open_mm[def.kind].set_instance_transform(oi, xf)
-		_pile_mm.set_instance_transform(i, _hidden)
-		_stalls.append({"pos": def.pos, "xf": xf, "kind": def.kind, "slab": slab, "pile": pile,
-			"folded": false, "anim": -1.0, "open_i": oi})
+		_mm_show(_open_mm[def.kind], i, xf)
+		_mm_show(_shade_mm, i, xf)
+		if def.kind == "kho":
+			_mm_show(_scale_mm, i, xf * Transform3D(Basis(), Vector3(0.55, 0.72, 0.2)))
+		_stalls.append({"pos": def.pos, "xf": xf, "kind": def.kind, "slab": slab, "poles": poles, "pile": pile,
+			"folded": false, "anim": -1.0})
 
 
 func _shape(body: StaticBody3D, size: Vector3, pos: Vector3) -> CollisionShape3D:
@@ -170,103 +227,28 @@ func _shape(body: StaticBody3D, size: Vector3, pos: Vector3) -> CollisionShape3D
 	return s
 
 
-## Sạp đang bán (gốc ở tâm sạp trên mặt đất, mặt trước quay về +Z): chân gỗ, mặt sạp, bạt phủ rủ xuống
-## còn cách đất 0,5 m, hàng trên sạp theo loại, dù che nắng, người bán ngồi ghế đẩu phía sau.
-func _stall_mesh(kind: String) -> Mesh:
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var tarp: Color = TARPS[kind]
-	for c in [Vector2(-0.82, -0.62), Vector2(0.82, -0.62), Vector2(-0.82, 0.62), Vector2(0.82, 0.62)]:
-		_box(st, Vector3(0.06, 0.5, 0.06), Vector3(c.x, 0.25, c.y), WOOD.darkened(0.3))
-	_box(st, Vector3(1.8, 0.12, 1.4), Vector3(0, 0.56, 0), WOOD)
-	_box(st, Vector3(1.9, 0.03, 1.5), Vector3(0, 0.635, 0), tarp)
-	_box(st, Vector3(1.9, 0.14, 0.02), Vector3(0, 0.57, 0.75), tarp.darkened(0.15))   # bạt rủ phía trước
-	_box(st, Vector3(0.02, 0.14, 1.5), Vector3(-0.95, 0.57, 0), tarp.darkened(0.15))
-	_box(st, Vector3(0.02, 0.14, 1.5), Vector3(0.95, 0.57, 0), tarp.darkened(0.15))
-	var top := 0.65
-	match kind:
-		"rau":
-			for ix in 4:
-				for iz in 2:
-					var g := Color("#5FA35A") if (ix + iz) % 2 == 0 else Color("#8DB36F")
-					_box(st, Vector3(0.36, 0.12, 0.42), Vector3(-0.6 + ix * 0.4, top + 0.06, -0.2 + iz * 0.5), g)
-		"trai_cay":
-			for ix in 3:
-				_box(st, Vector3(0.5, 0.06, 0.5), Vector3(-0.58 + ix * 0.58, top + 0.03, 0.1), Color("#C79A5B"))  # rổ
-				var fruit: Color = [Color("#F2A33A"), Color("#E8D06A"), Color("#D94F3D")][ix]
-				for k in 4:
-					_box(st, Vector3(0.14, 0.14, 0.14), Vector3(-0.66 + ix * 0.58 + (k % 2) * 0.16, top + 0.13, 0.02 + (k / 2) * 0.16), fruit)
-			_box(st, Vector3(0.24, 0.1, 0.24), Vector3(0.0, top + 0.05, -0.45), Color("#C8412F"))   # cân đĩa
-			_box(st, Vector3(0.3, 0.02, 0.3), Vector3(0.0, top + 0.12, -0.45), Color("#C9C3B3"))
-		"ca":
-			for ix in 2:
-				_box(st, Vector3(0.7, 0.14, 0.55), Vector3(-0.42 + ix * 0.84, top + 0.07, 0.1), Color("#5E8FB8"))  # thau
-				for k in 3:
-					_box(st, Vector3(0.32, 0.04, 0.09), Vector3(-0.42 + ix * 0.84, top + 0.16, -0.05 + k * 0.14), Color("#C9D3D8"))
-		"hoa":
-			_box(st, Vector3(1.4, 0.2, 0.3), Vector3(0, top + 0.1, -0.2), Color("#3D4A4A"))  # xô cắm hoa
-			for k in 7:
-				var f: Color = [Color("#D94F3D"), Color("#F2E3B8"), Color("#E8D06A"), Color("#C8407E")][k % 4]
-				_box(st, Vector3(0.14, 0.4, 0.14), Vector3(-0.6 + k * 0.2, top + 0.4, -0.2), f)
-			_box(st, Vector3(1.2, 0.08, 0.4), Vector3(0, top + 0.04, 0.35), Color("#5FA35A"))  # lá
-		"kho":
-			for k in 3:
-				_box(st, Vector3(0.38, 0.32, 0.38), Vector3(-0.55 + k * 0.55, top + 0.16, 0.0), Color("#E7D8B8"))  # bao gạo, đậu
-				_box(st, Vector3(0.3, 0.04, 0.3), Vector3(-0.55 + k * 0.55, top + 0.34, 0.0), [Color("#F4F1EA"), Color("#C9A06A"), Color("#5FA35A")][k])
-			_box(st, Vector3(0.24, 0.1, 0.24), Vector3(0.0, top + 0.05, 0.45), Color("#C8412F"))  # cân đĩa
-	# Dù che nắng
-	_box(st, Vector3(0.05, 1.75, 0.05), Vector3(0, 1.5, -0.6), Color("#5E6F6C"))
-	_box(st, Vector3(1.0, 0.06, 1.8), Vector3(-0.5, 2.38, -0.05), tarp.lightened(0.25))
-	_box(st, Vector3(1.0, 0.06, 1.8), Vector3(0.5, 2.38, -0.05), Color("#F4F1EA"))
-	# Người bán ngồi ghế đẩu
-	_box(st, Vector3(0.3, 0.25, 0.3), Vector3(0, 0.125, -0.95), Color("#D94F3D"))
-	_box(st, Vector3(0.4, 0.5, 0.26), Vector3(0, 0.5, -0.95), Color("#A9C7E8"))
-	_box(st, Vector3(0.24, 0.26, 0.24), Vector3(0, 0.88, -0.95), Color("#D9A57E"))
-	_box(st, Vector3(0.52, 0.06, 0.52), Vector3(0, 1.04, -0.95), Color("#E8D9A8"))  # nón lá
-	_box(st, Vector3(0.32, 0.12, 0.32), Vector3(0, 0.3, -0.72), Color("#3B4252"))   # đùi
-	return st.commit()
-
-
-## Sạp đã dọn: ván gập, cuộn bạt, thúng chồng (cao 0,62 m, nhảy lên được), người bán đứng buộc hàng.
-func _pile_mesh() -> Mesh:
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	_box(st, Vector3(1.8, 0.2, 0.9), Vector3(0, 0.1, -0.25), WOOD)
-	_box(st, Vector3(1.7, 0.08, 0.85), Vector3(0, 0.24, -0.25), WOOD.darkened(0.2))
-	_box(st, Vector3(1.5, 0.2, 0.24), Vector3(-0.1, 0.38, -0.4), Color("#3D7FB8"))   # cuộn bạt
-	_box(st, Vector3(0.5, 0.3, 0.5), Vector3(0.55, 0.43, -0.15), Color("#B58A4C"))   # thúng chồng
-	_box(st, Vector3(0.44, 0.06, 0.44), Vector3(0.55, 0.6, -0.15), Color("#C79A5B"))
-	_box(st, Vector3(0.05, 0.05, 1.7), Vector3(-0.5, 0.52, -0.3), Color("#5E6F6C"))  # cán dù gập
-	_box(st, Vector3(0.4, 0.6, 0.24), Vector3(0, 1.15, -0.95), Color("#A9C7E8"))
-	_box(st, Vector3(0.24, 0.26, 0.24), Vector3(0, 1.62, -0.95), Color("#D9A57E"))
-	_box(st, Vector3(0.52, 0.06, 0.52), Vector3(0, 1.78, -0.95), Color("#E8D9A8"))
-	_box(st, Vector3(0.3, 0.85, 0.16), Vector3(0, 0.42, -0.95), Color("#3B4252"))
-	return st.commit()
+## Hiện chồng thúng của sạp i, cao theo h (0..1) để đống hàng nhô lên dần.
+func _show_pile(i: int, h: float) -> void:
+	var xf: Transform3D = _stalls[i].xf
+	var s := maxf(h, 0.02)
+	for k in PILE_STACK:
+		var local := Transform3D(Basis().scaled(Vector3(1.0, s, 1.0)).rotated(Vector3.UP, k * 0.7), Vector3(0, k * 0.19 * s, -0.2))
+		_mm_show(_pile_mm, i * PILE_STACK + k, xf * local)
+	_mm_show(_pile_ro_mm, i, xf * Transform3D(Basis().scaled(Vector3(1.0, s, 1.0)), Vector3(0.05, PILE_STACK * 0.19 * s, -0.2)))
 
 
 # ---------------------------------------------------------------- thúng hàng
 
 ## Thúng đặt trước khe giữa hai sạp liền nhau, phía lòng đường.
-func _build_baskets(rng: RandomNumberGenerator) -> void:
+func _build_baskets(_rng: RandomNumberGenerator) -> void:
 	var spots: Array[Vector3] = []
 	for i in range(1, CityProps.MARKET_STALLS.size()):
 		var p0: Vector3 = CityProps.MARKET_STALLS[i - 1].pos
 		var p1: Vector3 = CityProps.MARKET_STALLS[i].pos
 		if p0.z == p1.z and absf(p1.x - p0.x) < 2.5:
 			spots.append(Vector3((p0.x + p1.x) / 2.0, 0, signf(p0.z) * BASKET_Z))
-	var cyl := CylinderMesh.new()
-	cyl.top_radius = 0.26
-	cyl.bottom_radius = 0.2
-	cyl.height = 0.28
-	cyl.radial_segments = 10
-	cyl.rings = 1
-	_basket_mm = _multimesh(_offset(cyl, Vector3(0, 0.14, 0)), spots.size(), false, Color("#B58A4C"))
-	var dome := SphereMesh.new()
-	dome.radius = 0.22
-	dome.height = 0.2
-	dome.radial_segments = 8
-	dome.rings = 3
-	_goods_mm = _multimesh(_offset(dome, Vector3(0, 0.28, 0)), spots.size(), true)
+	_basket_mm = _model_mm("thung", spots.size())
+	_spill_mm = _model_mm("thung_do", spots.size())
 	for i in spots.size():
 		var body := StaticBody3D.new()
 		body.collision_layer = Blocks.LAYER_PROP
@@ -275,14 +257,12 @@ func _build_baskets(rng: RandomNumberGenerator) -> void:
 		add_child(body)
 		var s := CollisionShape3D.new()
 		var cs := CylinderShape3D.new()
-		cs.radius = 0.24
-		cs.height = 0.3
+		cs.radius = 0.28
+		cs.height = 0.2
 		s.shape = cs
-		s.position.y = 0.15
+		s.position.y = 0.1
 		body.add_child(s)
-		_basket_mm.set_instance_transform(i, Transform3D(Basis(), spots[i]))
-		_goods_mm.set_instance_transform(i, Transform3D(Basis(), spots[i]))
-		_goods_mm.set_instance_color(i, PRODUCE[rng.randi() % PRODUCE.size()])
+		_mm_show(_basket_mm, i, Transform3D(Basis(Vector3.UP, i * 1.3), spots[i]))
 		_baskets.append({"pos": spots[i], "shape": s, "spilled": false})
 
 
@@ -293,11 +273,9 @@ func _spill(i: int) -> void:
 	var away := Vector3(bk.pos.x - player.global_position.x, 0, bk.pos.z - player.global_position.z).normalized()
 	if away == Vector3.ZERO:
 		away = Vector3.RIGHT
-	# Thúng ngã nghiêng theo hướng Bơ húc, rau quả văng thành vệt trên đất
-	var axis := away.cross(Vector3.UP).normalized()
-	_basket_mm.set_instance_transform(i, Transform3D(Basis(axis, -1.75), bk.pos + away * 0.25 + Vector3.UP * 0.25))
-	var spread := Basis.looking_at(away).scaled(Vector3(2.2, 0.2, 3.2))
-	_goods_mm.set_instance_transform(i, Transform3D(spread, bk.pos + away * 0.75 - Vector3.UP * 0.27))
+	# Thúng lật nghiêng theo hướng Bơ húc, hàng văng ra đất (model thung_do: hàng đổ về phía -z của model)
+	_mm_hide(_basket_mm, i)
+	_mm_show(_spill_mm, i, Transform3D(Basis.looking_at(-away), bk.pos))
 	spills_this_order += 1
 	spills_total += 1
 	basket_spilled.emit(bk.pos)
@@ -305,7 +283,7 @@ func _spill(i: int) -> void:
 	if player.has_method("bump"):
 		player.bump("stall", bk.pos, 0.2)
 	if hud and hud.has_method("show_toast"):
-		hud.show_toast("Đổ thúng rau rồi! Qua chợ thì rón rén thôi.", 1.8)
+		hud.show_toast("Đổ thúng hàng rồi! Qua chợ thì rón rén thôi.", 1.8)
 
 
 func _check_baskets() -> void:
@@ -350,9 +328,38 @@ func _build_shoppers(rng: RandomNumberGenerator) -> void:
 		s.phase = rng.randf() * TAU
 		s.keep = z != 0.0  # chợ tan: người giữa đường (chỗ ba gác) về trước
 		_shoppers.append(s)
+	# Người bán ngồi sau mỗi sạp, nhìn ra đường; dọn sạp xong thì về
+	for i in CityProps.MARKET_STALLS.size():
+		var def: Dictionary = CityProps.MARKET_STALLS[i]
+		var side := signf(def.pos.z)
+		var s := Shopper.new()
+		s.browse = true
+		s.seller = true
+		s.stall = i
+		s.a = Vector3(def.pos.x + rng.randf_range(-0.3, 0.3), 0, side * 4.8)
+		s.b = s.a
+		s.face = Vector3(0, 0, -side)
+		s.phase = rng.randf() * TAU
+		_shoppers.append(s)
+	# Cô Bảy gánh hàng rong đi dọc chợ: hai thúng gánh trước sau cũng va được
+	var g := Shopper.new()
+	g.ganh = true
+	g.a = Vector3(zone.position.x + 1.0, 0, -1.2)
+	g.b = Vector3(zone.end.x - 1.0, 0, -1.2)
+	g.t = 0.3
+	g.speed = 0.9
+	_shoppers.append(g)
+	_ganh_shopper = g
+	_ganh_mi = put(self, "ganh", Vector3.ZERO)
+	_cast_people()
+	# Khối tạm chỉ cho người chưa có model: chỗ trong MultiMesh đánh số riêng
+	var boxes := 0
+	for sh in _shoppers:
+		sh.box = boxes if sh.person == null else -1
+		boxes += 1 if sh.person == null else 0
 	var torso := BoxMesh.new()
 	torso.size = Vector3(0.4, 0.6, 0.24)
-	_shirt_mm = _multimesh(_offset(torso, Vector3(0, 1.15, 0)), _shoppers.size(), true)
+	_shirt_mm = _multimesh(_offset(torso, Vector3(0, 1.15, 0)), boxes, true)
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var skin := Color("#D9A57E")
@@ -364,17 +371,16 @@ func _build_shoppers(rng: RandomNumberGenerator) -> void:
 	_box(st, Vector3(0.1, 0.55, 0.12), Vector3(0.26, 1.12, 0), skin)
 	_box(st, Vector3(0.3, 0.2, 0.22), Vector3(0.36, 0.78, 0.02), Color("#C79A5B"))  # giỏ đi chợ
 	_box(st, Vector3(0.02, 0.2, 0.02), Vector3(0.3, 0.95, 0.02), Color("#8C5A3A"))
-	_body_mm = _multimesh(st.commit(), _shoppers.size(), false)
+	_body_mm = _multimesh(st.commit(), boxes, false)
 	var hat := BoxMesh.new()
 	hat.size = Vector3(0.5, 0.06, 0.5)
-	_hat_mm = _multimesh(_offset(hat, Vector3(0, 1.8, 0)), _shoppers.size(), false, Color("#E8D9A8"))
-	for i in _shoppers.size():
+	_hat_mm = _multimesh(_offset(hat, Vector3(0, 1.8, 0)), boxes, false, Color("#E8D9A8"))
+	for i in boxes:
 		_shirt_mm.set_instance_color(i, SHIRTS[rng.randi() % SHIRTS.size()])
-		_step_shopper(_shoppers[i], 0.0)
-		_shoppers[i].prev_xf = _shoppers[i].xf
-	# Chỉ một nửa số người đội nón lá: người còn lại ẩn nón
-	for i in _shoppers.size():
 		_hat_mm.set_instance_transform(i, _hidden)
+	for sh in _shoppers:
+		_step_shopper(sh, 0.0)
+		sh.prev_xf = sh.xf
 
 
 func _step_shopper(s: Shopper, delta: float) -> void:
@@ -421,9 +427,18 @@ func _check_bumps() -> void:
 	for s in _shoppers:
 		if s.gone:
 			continue
-		if Vector2(p.x - s.pos.x, p.z - s.pos.z).length() < BUMP_DIST:
+		var near := Vector2(p.x - s.pos.x, p.z - s.pos.z).length() < BUMP_DIST
+		if s.ganh and not near:
+			# Hai thúng gánh trước và sau vai
+			var fwd := -s.xf.basis.z
+			for e in [-GANH_REACH, GANH_REACH]:
+				var q: Vector3 = s.pos + fwd * e
+				near = near or Vector2(p.x - q.x, p.z - q.z).length() < BUMP_DIST
+		if near:
 			_bump_cd = BUMP_COOLDOWN
 			s.pause = 0.8
+			if s.person:
+				s.person.play_once("va")
 			if player.has_method("bump"):
 				player.bump("person", s.pos, float(DoKho.v("market_bump_stun", BUMP_STUN)))
 			else:
@@ -484,13 +499,11 @@ func _sync_order(initial := false) -> void:
 
 
 func _thin_crowd(keep: float, instant: bool) -> void:
-	var walkers := 0
-	for s in _shoppers:
-		if not s.browse:
-			walkers += 1
-	var allowed := int(round(keep * _shoppers.size()))
+	var allowed := int(round(keep * _shoppers.filter(func(x: Shopper) -> bool: return not x.seller).size()))
 	var kept := 0
 	for s in _shoppers:
+		if s.seller:
+			continue  # người bán về khi sạp của mình dọn xong (_fold)
 		var stay := s.keep and kept < allowed
 		if stay:
 			kept += 1
@@ -506,15 +519,29 @@ func _fold(i: int, instant := false) -> void:
 	var st: Dictionary = _stalls[i]
 	st.folded = true
 	st.slab.disabled = true
+	for pole: CollisionShape3D in st.poles:
+		pole.disabled = true
 	st.pile.disabled = false
+	if st.kind == "kho":
+		_mm_hide(_scale_mm, i)
+	_mm_hide(_shade_mm, i)
+	for s in _shoppers:
+		if s.seller and s.stall == i and not s.gone:
+			s.seller = false
+			# Người ngồi bán (Cô Tư) không có dáng đi: dọn sạp xong thì cất thúng ghế và vắng mặt luôn
+			var seated: bool = s.person != null and Nguoi.SEAT.has(s.person.id)
+			s.gone = instant or seated
+			s.leaving = not s.gone
+			if seated and _seller_stool:
+				_seller_stool.visible = false
 	if instant:
-		_open_mm[st.kind].set_instance_transform(st.open_i, _hidden)
-		_pile_mm.set_instance_transform(i, st.xf)
+		_mm_hide(_open_mm[st.kind], i)
+		_show_pile(i, 1.0)
 	else:
 		st.anim = 0.0
 
 
-## Gập sạp: sạp xẹp xuống rồi đống hàng nhô lên. Không gập sạp Bơ đang chui bên dưới hoặc đứng cạnh.
+## Dọn sạp: sạp xẹp xuống rồi chồng thúng nhô lên. Không gập sạp Bơ đang chui bên dưới hoặc đứng cạnh.
 func _update_folding(delta: float) -> void:
 	for i in _stalls.size():
 		var st: Dictionary = _stalls[i]
@@ -524,10 +551,10 @@ func _update_folding(delta: float) -> void:
 		var a: float = minf(st.anim, 2.0)
 		var xf: Transform3D = st.xf
 		if a < 1.0:
-			_open_mm[st.kind].set_instance_transform(st.open_i, Transform3D(xf.basis.scaled(Vector3(1.0, maxf(1.0 - a, 0.02), 1.0)), xf.origin))
+			_mm_show(_open_mm[st.kind], i, Transform3D(xf.basis.scaled(Vector3(1.0, maxf(1.0 - a, 0.02), 1.0)), xf.origin))
 		else:
-			_open_mm[st.kind].set_instance_transform(st.open_i, _hidden)
-			_pile_mm.set_instance_transform(i, Transform3D(xf.basis.scaled(Vector3(1.0, maxf(a - 1.0, 0.02), 1.0)), xf.origin))
+			_mm_hide(_open_mm[st.kind], i)
+			_show_pile(i, a - 1.0)
 		if a >= 2.0:
 			st.anim = -1.0
 	if _fold_queue.is_empty():
@@ -550,18 +577,22 @@ func _far_from(p: Vector3, dist: float) -> bool:
 	return player == null or Vector2(player.global_position.x - p.x, player.global_position.z - p.z).length() > dist
 
 
-## Xe ba gác chất bạt, thúng chở hàng về: nằm giữa đường, gầm 0,4 m chui được, hàng chất cao 1,4 m.
+## Xe ba gác chở hàng về: nằm dọc giữa đường, gầm 0,4 m chui được. Trên sàn (cao 0,47 m) chất hai chồng thúng,
+## rổ rau và cân đĩa; hàng chất cao tới khoảng 1,1 m.
 func _place_ba_gac() -> void:
 	if _ba_gac:
 		return
 	_ba_gac = Node3D.new()
 	_ba_gac.name = "BaGacChoTan"
 	add_child(_ba_gac)
-	var b := CityProps._ba_gac(_ba_gac, CityProps.MARKET_BA_GAC, PI / 2.0)
-	Blocks.solid_box(b, Vector3(0.8, 0.35, 0.8), Vector3(0, 0.25, -0.4), Color("#B58A4C"), Blocks.LAYER_PROP)  # thúng chồng
-	Blocks.solid_box(b, Vector3(0.7, 0.3, 0.7), Vector3(0, 0.57, -0.4), Color("#C79A5B"), Blocks.LAYER_PROP)
-	Blocks.solid_box(b, Vector3(0.85, 0.25, 0.8), Vector3(0, 0.2, 0.45), Color("#3D7FB8"), Blocks.LAYER_PROP)  # bạt gấp
-	Blocks.box(b, Vector3(0.12, 0.4, 0.12), Vector3(0.3, 0.55, 0.45), Color("#5FA35A"))  # bó rau thừa
+	var b := CityProps._ba_gac(_ba_gac, CityProps.MARKET_BA_GAC, 0.0)
+	for x in [-0.95, -0.3]:
+		for k in 3:
+			put(b, "thung", Vector3(x, 0.47 + k * 0.19, 0.0), k * 0.8)
+		Blocks.collider(b, Vector3(0.6, 0.57, 0.6), Vector3(x, 0.47 + 0.285, 0.0), Blocks.LAYER_PROP)
+	put(b, "ro_rau", Vector3(-0.95, 1.04, 0.0))
+	put(b, "ro_rau", Vector3(0.3, 0.47, 0.3))
+	put(b, "can_dia", Vector3(0.3, 0.47, -0.3))
 	Blocks.merge_static(_ba_gac)
 
 
@@ -592,9 +623,79 @@ func _draw(f: float) -> void:
 	for i in _shoppers.size():
 		var s := _shoppers[i]
 		var xf := _hidden if s.gone else s.prev_xf.interpolate_with(s.xf, f)
-		_shirt_mm.set_instance_transform(i, xf)
-		_body_mm.set_instance_transform(i, xf)
-		_hat_mm.set_instance_transform(i, xf if i % 2 == 0 and not s.gone else _hidden)
+		if s.person:
+			_draw_person(s, xf)
+		else:
+			# Chỉ một nửa số người đội nón lá
+			_shirt_mm.set_instance_transform(s.box, xf)
+			_body_mm.set_instance_transform(s.box, xf)
+			_hat_mm.set_instance_transform(s.box, xf if i % 2 == 0 and not s.gone else _hidden)
+		if s.ganh:
+			# Gánh model dài theo trục X, đòn gánh trên vai cao ~1,3 m: xoay cho dọc hướng đi, nâng 0,3 m
+			_ganh_mi.visible = not s.gone
+			var gx := s.prev_xf.interpolate_with(s.xf, f)
+			_ganh_mi.transform = gx * Transform3D(Basis(Vector3.UP, PI / 2.0), Vector3(0, 0.3, 0))
+
+
+## Người có xương theo vị trí của Shopper; chọn động tác theo việc đang làm.
+func _draw_person(s: Shopper, xf: Transform3D) -> void:
+	var p := s.person
+	p.visible = not s.gone
+	if s.gone:
+		return
+	# Model người nhìn về +Z. Người đi (looking_at hướng đi, -Z) phải xoay nửa vòng; người đứng lựa hàng thì không.
+	if s.browse and not s.leaving:
+		# Đứng lựa hàng hay ngồi bán: đứng yên đúng chỗ, động tác do animation lo
+		p.transform = Transform3D(Basis.looking_at(-s.face), s.a)
+	else:
+		p.transform = Transform3D(xf.basis * Basis(Vector3.UP, PI), Vector3(xf.origin.x, 0, xf.origin.z))
+	if p.busy():
+		return
+	if s.leaving or (not s.browse and s.pause <= 0.0):
+		p.play("ganh_di" if s.ganh else "di_bo")
+	else:
+		p.play(s.stand_anim)
+
+
+## Sáu người chợ đã duyệt: Cô Tư bán rau (ngồi thúng úp), Cô Bảy gánh hàng, Bà Tư và Chị Hồng lựa hàng,
+## Anh Tâm đi dạo chợ. Những người còn lại vẫn là khối tạm cho tới khi có phác thảo.
+## (Chú Sáu đẩy xe bắp nướng nằm ở traffic.gd)
+func _cast_people() -> void:
+	var browsers: Array = []
+	var walkers: Array = []
+	var seller: Shopper
+	var best := INF
+	for s in _shoppers:
+		if s.ganh:
+			_give_person(s, "ganhhang", "ganh_di")
+		elif s.seller:
+			# Sạp rau gần giữa chợ dọn sau cùng: Cô Tư ngồi bán tới hết ngày
+			var st: Dictionary = _stalls[s.stall]
+			if st.kind == "rau" and absf(st.pos.x + 1.0) < best:
+				best = absf(st.pos.x + 1.0)
+				seller = s
+		elif s.browse:
+			browsers.append(s)
+		else:
+			walkers.append(s)
+	if seller:
+		_give_person(seller, "bancho", "ngoi_rao")
+		# Thúng úp làm ghế (cao 0,19 m, khớp mặt ghế 0,18 m của Cô Tư), đặt ngay dưới chỗ ngồi
+		_seller_stool = put(self, "thung", seller.a + Vector3(0, 0.19, 0))
+		_seller_stool.basis = Basis(Vector3.RIGHT, PI)
+	if browsers.size() >= 2:
+		_give_person(browsers[0], "dicho1", "dung_chon")
+		_give_person(browsers[1], "dicho3", "xem")
+	if not walkers.is_empty():
+		_give_person(walkers[0], "dicho2", "dung_chon")
+
+
+func _give_person(s: Shopper, id: String, stand: String) -> void:
+	var p := Nguoi.make(id, stand)
+	p.look_target = player
+	s.person = p
+	s.stand_anim = stand
+	add_child(p)
 
 
 # ---------------------------------------------------------------- âm thanh
@@ -658,6 +759,75 @@ func _offset(m: PrimitiveMesh, pos: Vector3) -> Mesh:
 	return st.commit()
 
 
+## MultiMesh một lệnh vẽ cho một model chợ.
+func _model_mm(model: String, count: int) -> MultiMesh:
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = cho_mesh(model)
+	mm.instance_count = count
+	mm.visible_instance_count = 0
+	_slots[mm] = {"of": {}, "keys": []}
+	var mmi := MultiMeshInstance3D.new()
+	mmi.multimesh = mm
+	mmi.material_override = PhoModels.material()
+	# Không đổ bóng thật cho đồ chợ (web chỉ còn chừng 7k tam giác dư ở góc ngã tư): đồ nhỏ sát đất
+	# không cần bóng, còn sạp có tấm bóng giả dưới bạt (_shade_mm)
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mmi)
+	return mm
+
+
+## Tấm bóng giả dưới bạt: mặt phẳng tối mờ sát đất, 2 tam giác mỗi sạp thay cho bóng thật của sạp.
+func _shade(count: int) -> MultiMesh:
+	var quad := PlaneMesh.new()
+	quad.size = Vector2(2.0, 1.3)
+	quad.center_offset = Vector3(0, 0.012, 0)
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(0.08, 0.06, 0.05, 0.38)
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = quad
+	mm.instance_count = count
+	mm.visible_instance_count = 0
+	_slots[mm] = {"of": {}, "keys": []}
+	var mmi := MultiMeshInstance3D.new()
+	mmi.multimesh = mm
+	mmi.material_override = mat
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mmi)
+	return mm
+
+
+## Hiện bản `key` của MultiMesh model chợ (cấp chỗ mới nếu chưa có). Chỉ vẽ visible_instance_count bản
+## đầu, nên bản ẩn không tốn tam giác như cách thu nhỏ về 0.
+func _mm_show(mm: MultiMesh, key: int, xf: Transform3D) -> void:
+	var p: Dictionary = _slots[mm]
+	if not p.of.has(key):
+		p.of[key] = p.keys.size()
+		p.keys.append(key)
+		mm.visible_instance_count = p.keys.size()
+	mm.set_instance_transform(p.of[key], xf)
+
+
+## Ẩn bản `key`: dời bản cuối vào chỗ trống rồi bớt một bản đang vẽ.
+func _mm_hide(mm: MultiMesh, key: int) -> void:
+	var p: Dictionary = _slots[mm]
+	if not p.of.has(key):
+		return
+	var slot: int = p.of[key]
+	var last: int = p.keys.size() - 1
+	if slot != last:
+		var moved: int = p.keys[last]
+		p.keys[slot] = moved
+		p.of[moved] = slot
+		mm.set_instance_transform(slot, mm.get_instance_transform(last))
+	p.keys.pop_back()
+	p.of.erase(key)
+	mm.visible_instance_count = p.keys.size()
+
+
 ## MultiMesh một lệnh vẽ. Có màu từng bản (instance_colors) hoặc một màu chung (color),
 ## không thì lấy màu theo đỉnh của mesh.
 func _multimesh(m: Mesh, count: int, instance_colors: bool, color := Color.WHITE) -> MultiMesh:
@@ -675,5 +845,6 @@ func _multimesh(m: Mesh, count: int, instance_colors: bool, color := Color.WHITE
 	var mmi := MultiMeshInstance3D.new()
 	mmi.multimesh = mm
 	mmi.material_override = mat
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF  # người khối tạm: bỏ bóng cho nhẹ web
 	add_child(mmi)
 	return mm

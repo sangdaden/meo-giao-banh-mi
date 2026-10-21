@@ -51,7 +51,7 @@ const CHECK_WINDOW := 2.0       ## sau chiếu tướng bấy nhiêu giây khôn
 const TABLE_SIZE := Vector3(0.72, 0.48, 0.72)  ## bàn đá mài ban_da
 const BOARD_TOP := 0.494        ## mặt bàn cờ gỗ (bàn đá 0,48 + bàn cờ 0,014)
 const GRID := 0.045             ## khoảng giao điểm bàn cờ (8 x 9 ô), như do3.py
-const SEAT_OFFSET := 0.04       ## người và ghế đá đặt cao hơn mặt cỏ chừng này (Nguoi.SEAT 0,28 + 0,04 = ghế 0,32)
+const STOOL_TOP := 0.32         ## mặt ghế đá; gốc model người ngồi = STOOL_TOP - Nguoi.SEAT[id]
 const TEA_TOP := 0.28           ## mặt ghế đẩu gỗ
 const MODELS := "../goc_co/"    ## PhoModels.mesh() đọc từ assets/models/pho/
 ## Thế cờ đang đánh dở trong phác thảo: (loại, cột 0–8, hàng 0–9). Đỏ phía Ông Tám (đông), đen phía Ông Bảy.
@@ -62,6 +62,10 @@ const POS_BLK := [["K", 4, 9], ["A", 3, 9], ["A", 5, 9], ["E", 2, 9], ["E", 6, 9
 	["R", 3, 5], ["C", 7, 7], ["C", 1, 5], ["P", 0, 6], ["P", 4, 6], ["P", 6, 6], ["P", 8, 6]]
 ## Animation Nguoi cho từng trạng thái của hai ông
 const MAN_ANIM := {"danh_co": "viec_rieng", "suyt": "noi", "mang": "sot_ruot", "reo": "vui"}
+## Clip một lần riêng của hai ông (suyt 1 s, mang 1,5 s, reo 2 s); model cũ chưa có thì mượn MAN_ANIM
+const ONE_SHOT_ANIM := ["suyt", "mang", "reo"]
+## Người xem có xương (idle "xem", reo khi chiếu tướng); chưa có file thì dựng khối tạm
+const SPECTATOR_IDS := ["xemco", "dicho1", "dicho2", "xemco", "dicho3"]
 const SKIN := Color("#E7B98F")
 const PANTS := Color("#3D4A4A")
 const PAVING := [Color("#A8A396"), Color("#97928A")]
@@ -169,12 +173,16 @@ func _ready() -> void:
 	_notice = DoKho.v("chess_notice", NOTICE_RADIUS)
 	var c := CENTER
 	# Hai ông: Ông Bảy phía tây nhìn sang đông, Ông Tám phía đông nhìn sang tây (model Nguoi nhìn về +Z)
-	_men.append(_man("ongbay", c + Vector3(-0.62, SEAT_OFFSET, 0), PI / 2))
-	_men.append(_man("ongtam", c + Vector3(0.62, SEAT_OFFSET, 0), -PI / 2))
+	_men.append(_man("ongbay", c + Vector3(-0.62, STOOL_TOP - float(Nguoi.SEAT.get("ongbay", 0.28)), 0), PI / 2))
+	_men.append(_man("ongtam", c + Vector3(0.62, STOOL_TOP - float(Nguoi.SEAT.get("ongtam", 0.28)), 0), -PI / 2))
 	# Người xem chen một phía (phía nam, quay mặt về bàn)
 	var spots := [Vector3(-0.85, 0, 1.0), Vector3(-0.35, 0, 1.15), Vector3(0.15, 0, 1.05), Vector3(0.65, 0, 1.2), Vector3(1.05, 0, 0.75)]
 	for k in spots.size():
-		_crowd.append(_spectator(c + spots[k], CROWD[k], 0.9 + 0.08 * (k % 3), k * 1.3))
+		var sid: String = SPECTATOR_IDS[k]
+		if ResourceLoader.exists("res://assets/models/nguoi/%s.glb" % sid):
+			_crowd.append(_rigged_spectator(sid, c + spots[k]))
+		else:
+			_crowd.append(_spectator(c + spots[k], CROWD[k], 0.9 + 0.08 * (k % 3), k * 1.3))
 	_crowd_label = Blocks.label(self, "", c + Vector3(0.3, 2.35, 1.3), 34, Color("#F2C14E"))
 	_crowd_label.visible = false
 	# 30 quân cờ theo thế cờ trong phác thảo; bàn cờ xoay 90° nên hàng chạy theo trục X
@@ -254,6 +262,17 @@ func _spectator(pos: Vector3, shirt: Color, height: float, phase: float) -> Dict
 	return {"node": node, "base": pos, "arm_l": arms[0], "arm_r": arms[1], "phase": phase}
 
 
+## Người xem model Nguoi đứng quay mặt vào bàn (model nhìn về +Z).
+func _rigged_spectator(id: String, pos: Vector3) -> Dictionary:
+	var person := Nguoi.make(id, "xem")
+	person.name = "Xem_%d" % _crowd.size()
+	person.position = pos
+	person.rotation.y = atan2(CENTER.x - pos.x, CENTER.z - pos.z)
+	add_child(person)
+	person.add_collision(Vector3(0.45, 1.6, 0.3), Vector3(0, 0.8, 0))
+	return {"person": person}
+
+
 ## Gọi sau add_child: nối Bơ để nghe tiếng động.
 func setup(p: Node3D, h: CanvasLayer = null) -> void:
 	player = p
@@ -308,6 +327,9 @@ func checkmate_now() -> void:
 	_checker = _turn
 	_set_state(_checker, "reo", float(DoKho.v("check_window", CHECK_WINDOW)))
 	_set_state(1 - _checker, "reo", float(DoKho.v("check_window", CHECK_WINDOW)))
+	for s in _crowd:
+		if s.has("person"):
+			(s.person as Nguoi).play_once("reo")
 	_say(_checker, "Chiếu tướng!", 1.6)
 	_crowd_label.text = "Hay! Hay quá!"
 	_crowd_label.visible = true
@@ -452,7 +474,11 @@ func _set_state(k: int, state: String, seconds: float) -> void:
 	var m: Dictionary = _men[k]
 	m.state = state
 	m.t = seconds
-	(m.person as Nguoi).play(MAN_ANIM[state], 0.2)
+	var person: Nguoi = m.person
+	if state in ONE_SHOT_ANIM and person.anim and person.anim.has_animation(state):
+		person.play_once(state)  # tự về viec_rieng khi hết clip
+	else:
+		person.play(MAN_ANIM[state], 0.2)
 
 
 func _say(k: int, text: String, seconds: float) -> void:
@@ -477,6 +503,8 @@ func _animate_crowd(delta: float) -> void:
 	var now := Time.get_ticks_msec() * 0.001
 	var w := 1.0 - exp(-12.0 * delta)
 	for s in _crowd:
+		if s.has("person"):
+			continue  # người có xương tự chơi animation
 		var n: Node3D = s.node
 		var hop := absf(sin(now * 9.0 + s.phase)) * 0.12 if distracted else 0.0
 		n.position.y = lerpf(n.position.y, s.base.y + hop, w)

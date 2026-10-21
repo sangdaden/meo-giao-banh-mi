@@ -45,6 +45,8 @@ const QUESTS := {
 
 const PAPER := Color("#E8E2D0")
 const SKIN := Color("#E7B98F")
+## Tên khách trong days.gd -> id người dân (scripts/nguoi.gd) cho các đơn dùng _build_generic.
+const WHO_ID := {"Chú Năm": "chunam", "Cô Hai": "cohai"}  # Cô Hai đơn ngược đứng trong tạp hóa (shop_tap_hoa.gd)
 const PANTS := Color("#3D4A4A")
 const WATER_TOP := Color("#8FB7C9")
 const OIL_TOP := Color("#2B2724")
@@ -87,8 +89,11 @@ var _kind: Array[String] = []
 var shop: ShopTapHoa
 
 # Vị trí từng phần, tính ở build_static để _ready dựng phần chuyển động
-var _arms: Array = []            # {"order", "pos", "yaw", "color"} → pivot vai
-var _arm_nodes := {}             # order -> Node3D
+var _specs: Array = []           # người dân cần dựng: {"order", "id", "pos", "yaw", "idle", "col_size", "col_center"}
+var _people := {}                # order -> Nguoi (người có xương, scripts/nguoi.gd)
+var _hand_fallback := {}         # order -> vị trí bàn tay khi người chưa dựng
+var _late := -1                  # đơn đang trễ giờ (khách sốt ruột)
+var _arm_nodes := {}             # order -> tay khối của người tạm (Chú Năm trên xe ôm)
 var _prompt: Label3D
 var _mouth: Node3D               # điểm miệng Bơ, bám theo xương đầu
 var _scenes := {}                # tên model -> PackedScene
@@ -207,8 +212,9 @@ func build_static(parent: Node3D, order_list: Array) -> void:
 ## Chú Tư: ngồi ghế nhựa xanh trên vỉa hè trước sạp báo, quay ra đường (hướng nam).
 func _build_tu(parent: Node3D, i: int, p: Vector3, shirt: Color, title: String) -> void:
 	var pos := p + Vector3(0, 0, -0.7)
-	_seated(parent, pos, PI, shirt, Color("#3D7FC1"))
-	_arms.append({"order": i, "pos": pos + Vector3(0.2, 1.05, 0.05), "yaw": PI, "color": shirt})
+	_chair(parent, pos, PI, Color("#3D7FC1"))
+	_person(i, "chutu", pos, PI, "viec_rieng", true)
+	_hand_fallback[i] = pos + Vector3(0.2, 0.75, 0.35)
 	_tu_paper_pos = pos + Vector3(-0.05, 1.15, 0.38)
 	# Sạp báo (model sap_bao): tủ báo sát mặt tiền bên cạnh ghế, bảng kẹp báo dựa tường (mặt tiền ở z = -7)
 	var stand := Blocks.collider(parent, Vector3(1.7, 0.95, 0.7), p + Vector3(1.4, 0.475, -0.6), Blocks.LAYER_PROP)
@@ -221,14 +227,16 @@ func _build_tu(parent: Node3D, i: int, p: Vector3, shirt: Color, title: String) 
 func _build_na(parent: Node3D, _i: int, _p: Vector3, shirt: Color, title: String) -> void:
 	_moto_na = CityProps.BE_NA_BIKE + Vector3(0, 0.9, 0)
 	_anchor = Vector3(CityProps.BE_NA_BIKE.x, CityProps.BE_NA_BALCONY.y + 1.0, CityProps.BE_NA_BIKE.z - 0.05)  # mép lan can
-	_standing(parent, CityProps.BE_NA_BALCONY + Vector3(0.45, 0.08, 0.1), PI, shirt, 0.8)
+	_person(_i, "bena", CityProps.BE_NA_BALCONY + Vector3(0.45, 0.075, 0.1), PI, "viec_rieng", false)
+	_hand_fallback[_i] = _anchor
 	Blocks.label(parent, title, CityProps.BE_NA_BALCONY + Vector3(0, 2.0, 0.3), 40)
 
 
 ## Chị Mây: đứng sau quầy Cà phê Mây (CityProps.CAFE_COUNTER); ly cà phê đặt trên bàn nhựa thấp của quán.
 func _build_may(parent: Node3D, _i: int, _p: Vector3, shirt: Color, title: String) -> void:
 	_counter_top = CityProps.CAFE_COUNTER + Vector3(0.25, 0.04, 0)
-	_standing(parent, Vector3(CityProps.CAFE_COUNTER.x - 0.2, 0, CityProps.CAFE_COUNTER.z + 0.5), 0.0, shirt)
+	_person(_i, "may", Vector3(CityProps.CAFE_COUNTER.x - 0.2, 0, CityProps.CAFE_COUNTER.z + 0.5), 0.0, "viec_rieng", false)
+	_hand_fallback[_i] = _counter_top
 	Blocks.label(parent, title, CityProps.CAFE_COUNTER + Vector3(0, 1.4, 0.3), 40)
 
 
@@ -241,12 +249,13 @@ func _build_hung(parent: Node3D, i: int, p: Vector3, shirt: Color, title: String
 	for wx in [-0.62, 0.62]:
 		Blocks.box(parent, Vector3(0.42, 0.42, 0.1), moto + Vector3(wx, 0.21, 0), Color("#2B2622"))
 	Blocks.box(parent, Vector3(0.06, 0.5, 0.06), moto + Vector3(0.75, 1.15, 0), Color("#5E6F6C"))
-	# Người nằm ngửa dọc theo xe: thân dưới gầm, quần jean thò ra phía đông
-	Blocks.box(parent, Vector3(0.7, 0.22, 0.4), moto + Vector3(-0.1, 0.11, 0), shirt)
-	Blocks.box(parent, Vector3(0.95, 0.18, 0.34), moto + Vector3(0.95, 0.09, 0), Color("#3D5A80"))
-	Blocks.box(parent, Vector3(0.16, 0.12, 0.3), moto + Vector3(1.48, 0.1, 0), Color("#2B2622"))  # dép
-	_hand_hung = moto + Vector3(-0.15, 0.1, 0.32)
-	_arms.append({"order": i, "pos": _hand_hung, "yaw": 0.0, "color": shirt, "lying": true})
+	# Anh Hùng ngồi ghế đẩu thấp ở đầu tây xe (phác thảo đã duyệt), mặt nhìn dọc thân xe, hơi xoay ra đường
+	var seat := moto + Vector3(-1.15, 0, 0.12)
+	var yaw := deg_to_rad(-110.0)  # hướng nhìn -Z cục bộ xoay về phía đông (đầu xe), hơi chếch ra đường
+	_stool(parent, seat, yaw, 0.28)
+	_person(i, "hung", seat, yaw, "viec_rieng", true)
+	_hand_hung = seat + Vector3(0.35, 0.15, 0.3)
+	_hand_fallback[i] = _hand_hung
 	Blocks.label(parent, title, moto + Vector3(0, 1.8, 0), 40)
 	# Vũng dầu trước tiệm, chừa lối vào ở giữa
 	for o in [{"off": Vector3(-1.6, 0, 0.5), "r": 0.55}, {"off": Vector3(1.5, 0, 0.6), "r": 0.6}, {"off": Vector3(0.1, 0, 1.7), "r": 0.5}]:
@@ -257,16 +266,21 @@ func _build_hung(parent: Node3D, i: int, p: Vector3, shirt: Color, title: String
 ## Bà Sáu: ngồi ghế mây dưới giàn bông giấy cuối hẻm 42 (ghế, giàn do CityProps dựng), quay về phía hẻm.
 func _build_sau(parent: Node3D, i: int, p: Vector3, shirt: Color, title: String) -> void:
 	var pos := Vector3(p.x, 0.06, 22.7)  # đúng ghế mây CityProps, mặt ghế cao hơn ghế nhựa 6 cm
-	_seated(parent, pos, 0.0, shirt)
-	_arms.append({"order": i, "pos": pos + Vector3(0.2, 1.05, -0.05), "yaw": 0.0, "color": shirt})
+	_person(i, "basau", Vector3(pos.x, 0.08, pos.z), 0.0, "viec_rieng", true)  # mặt ghế mây CityProps cao 0,5 m
+	_hand_fallback[i] = pos + Vector3(0.2, 0.75, -0.35)
 	Blocks.label(parent, title, pos + Vector3(0, 3.0, 0), 40)
 
 
-## Cách giao chưa làm (on_seat, beside_tea, hand_over... của Thứ Ba): người đứng chìa tay, bấm E đưa.
+## Cách giao chưa có cảnh riêng (on_seat, errand... của Thứ Ba): người dân đứng/ngồi chờ, bấm E đưa.
 ## Các gói ngày sau thay bằng cảnh riêng của mình.
-func _build_generic(parent: Node3D, i: int, p: Vector3, shirt: Color, title: String) -> void:
-	_standing(parent, p + Vector3(0, 0, -0.6), PI, shirt)
-	_arms.append({"order": i, "pos": p + Vector3(0.2, 1.05, -0.45), "yaw": PI, "color": shirt})
+func _build_generic(parent: Node3D, i: int, p: Vector3, _shirt: Color, title: String) -> void:
+	var id: String = WHO_ID.get(orders[i].who, "")
+	var pos := p + Vector3(0, 0, -0.6)
+	if id != "":
+		if Nguoi.SEAT.has(id):
+			_stool(parent, pos, PI, Nguoi.SEAT[id])
+		_person(i, id, pos, PI, "viec_rieng", Nguoi.SEAT.has(id))
+	_hand_fallback[i] = p + Vector3(0.2, 0.9, -0.45)
 	Blocks.label(parent, title, p + Vector3(0, 2.2, -0.6), 40)
 
 
@@ -327,48 +341,32 @@ func _build_xe_om() -> void:
 	_xe_om_state = "wait"
 
 
-## Người ngồi ghế, quay mặt về -Z cục bộ (yaw xoay cả người). Có màu ghế thì dựng ghế bên dưới.
-func _seated(parent: Node3D, pos: Vector3, yaw: float, shirt: Color, chair := Color.TRANSPARENT) -> void:
+## Ghế nhựa (chân, mặt ghế cao 0,45 m, lưng ghế), quay mặt về -Z cục bộ. Đứng yên nên gộp được.
+func _chair(parent: Node3D, pos: Vector3, yaw: float, color: Color) -> void:
 	var root := StaticBody3D.new()
 	root.collision_layer = Blocks.LAYER_PROP
 	root.position = pos
 	root.rotation.y = yaw
 	parent.add_child(root)
-	if chair.a > 0.0:
-		Blocks.box(root, Vector3(0.48, 0.4, 0.44), Vector3(0, 0.2, 0.02), chair.darkened(0.15))   # chân ghế
-		Blocks.box(root, Vector3(0.5, 0.05, 0.48), Vector3(0, 0.42, 0.02), chair)                # mặt ghế
-		Blocks.box(root, Vector3(0.5, 0.55, 0.05), Vector3(0, 0.72, 0.26), chair)                # lưng ghế
-	Blocks.box(root, Vector3(0.44, 0.15, 0.44), Vector3(0, 0.52, -0.12), PANTS)              # đùi
-	Blocks.box(root, Vector3(0.4, 0.42, 0.14), Vector3(0, 0.23, -0.34), PANTS)               # cẳng chân
-	Blocks.box(root, Vector3(0.48, 0.55, 0.3), Vector3(0, 0.86, 0.06), shirt)                # áo
-	Blocks.box(root, Vector3(0.1, 0.45, 0.1), Vector3(-0.3, 0.86, 0.06), shirt)              # tay trái thả
-	_head(root, Vector3(0, 1.3, 0.04))
-	var shape := CollisionShape3D.new()
-	var bs := BoxShape3D.new()
-	bs.size = Vector3(0.55, 1.2, 0.7)
-	shape.shape = bs
-	shape.position = Vector3(0, 0.6, -0.05)
-	root.add_child(shape)
+	Blocks.box(root, Vector3(0.48, 0.4, 0.44), Vector3(0, 0.2, 0.02), color.darkened(0.15))
+	Blocks.box(root, Vector3(0.5, 0.05, 0.48), Vector3(0, 0.42, 0.02), color)
+	Blocks.box(root, Vector3(0.5, 0.55, 0.05), Vector3(0, 0.72, 0.26), color)
 
 
-## Người đứng (như khối người trong main.gd), quay mặt về -Z cục bộ.
-func _standing(parent: Node3D, pos: Vector3, yaw: float, shirt: Color, height := 1.0) -> void:
-	var root := StaticBody3D.new()
-	root.collision_layer = Blocks.LAYER_PROP
-	root.set_meta("bump_kind", "person")
-	root.position = pos
-	root.rotation.y = yaw
-	root.scale = Vector3.ONE * height
-	parent.add_child(root)
-	Blocks.box(root, Vector3(0.45, 0.8, 0.3), Vector3(0, 0.4, 0), PANTS)
-	Blocks.box(root, Vector3(0.5, 0.6, 0.32), Vector3(0, 1.1, 0), shirt)
-	_head(root, Vector3(0, 1.58, 0))
-	var shape := CollisionShape3D.new()
-	var bs := BoxShape3D.new()
-	bs.size = Vector3(0.5, 1.6, 0.35)
-	shape.shape = bs
-	shape.position.y = 0.8
-	root.add_child(shape)
+## Ghế đẩu nhựa thấp (mặt ghế cao h).
+func _stool(parent: Node3D, pos: Vector3, yaw: float, h: float) -> void:
+	var st := Blocks.solid_box(parent, Vector3(0.3, h, 0.3), pos + Vector3(0, h / 2.0, 0), Color("#C8412F"), Blocks.LAYER_PROP)
+	st.rotation.y = yaw
+
+
+## Đầu cầu của người khối tạm (Chú Năm trên xe ôm và khách, chờ tư thế ngồi xe được duyệt).
+func _head(parent: Node3D, pos: Vector3) -> void:
+	var head := SphereMesh.new()
+	head.radius = 0.17
+	head.height = 0.34
+	head.radial_segments = 10
+	head.rings = 5
+	Blocks.mesh(parent, head, pos, SKIN)
 
 
 ## Vũng loang hình mây (như ảnh renders/vung_top): tam giác quạt, bán kính lượn theo vài sóng sin.
@@ -450,32 +448,50 @@ func _srgb(mi: MeshInstance3D, key: String) -> void:
 	mi.mesh = _srgb_meshes[key]
 
 
-func _head(parent: Node3D, pos: Vector3) -> void:
-	var head := SphereMesh.new()
-	head.radius = 0.17
-	head.height = 0.34
-	head.radial_segments = 10
-	head.rings = 5
-	Blocks.mesh(parent, head, pos, SKIN)
+## Ghi lại một người dân cần dựng (dựng ở _ready, sau Blocks.merge_static vì mesh có xương không gộp được).
+## yaw theo quy ước cũ của file này (mặt nhìn -Z cục bộ); model Nguoi nhìn +Z nên cộng PI.
+## Người ngồi: pos là tâm mặt ghế, model dịch lên trước 7 cm để mông nằm giữa ghế.
+func _person(i: int, id: String, pos: Vector3, yaw: float, idle: String, seated: bool) -> void:
+	var fwd := Vector3(0, 0, -1).rotated(Vector3.UP, yaw)
+	var spec := {"order": i, "id": id, "pos": pos + (fwd * 0.07 if seated else Vector3.ZERO), "yaw": yaw + PI, "idle": idle}
+	if seated:
+		spec.col_size = Vector3(0.5, 1.15, 0.65)
+		spec.col_center = Vector3(0, 0.58, 0.08)
+	else:
+		spec.col_size = Vector3(0.5, 1.6, 0.35)
+		spec.col_center = Vector3(0, 0.8, 0)
+	_specs.append(spec)
+
+
+## Bàn tay phải khách đơn i lúc nhận bánh (ổ bánh Bơ nhả ra bay tới đây).
+func hand_point(i: int) -> Vector3:
+	var n: Nguoi = _people.get(i)
+	if n and n.skeleton:
+		var b := n.skeleton.find_bone("hand.R")
+		var g := n.skeleton.global_transform * n.skeleton.get_bone_global_pose(b)
+		return g * Vector3(0, 0.07, 0)  # giữa lòng bàn tay
+	var arm: Node3D = _arm_nodes.get(i)
+	if arm:
+		return arm.global_transform * Vector3(0, -0.5, 0)
+	return _hand_fallback.get(i, orders[i].pos + Vector3(0, 0.9, 0))
+
+
+## Khách đơn i (null nếu chưa dựng).
+func person(i: int) -> Nguoi:
+	return _people.get(i)
 
 
 ## Phần chuyển động, dựng khi node vào cây cảnh (sau merge_static nên không bị gộp).
 func _ready() -> void:
 	if chess:
 		add_child(chess)
-	for a in _arms:
-		var pivot := Node3D.new()
-		pivot.position = a.pos
-		pivot.rotation.y = a.yaw
-		add_child(pivot)
-		if a.get("lying", false):
-			# Tay thò ra từ gầm xe, nằm sát đất, ngón tay dính dầu
-			Blocks.box(pivot, Vector3(0.09, 0.08, 0.3), Vector3(0, 0, 0.15), a.color)
-			Blocks.box(pivot, Vector3(0.11, 0.06, 0.1), Vector3(0, 0, 0.33), SKIN.darkened(0.45))
-		else:
-			Blocks.box(pivot, Vector3(0.1, 0.45, 0.1), Vector3(0, -0.22, 0), a.color)
-			Blocks.box(pivot, Vector3(0.1, 0.1, 0.1), Vector3(0, -0.48, 0), SKIN)
-		_arm_nodes[a.order] = pivot
+	for sp in _specs:
+		var n := Nguoi.make(sp.id, sp.idle)
+		n.position = sp.pos
+		n.rotation.y = sp.yaw
+		add_child(n)
+		n.add_collision(sp.col_size, sp.col_center)
+		_people[sp.order] = n
 
 	if _tu_paper_pos != Vector3.ZERO:
 		# Chú Tư cầm tờ báo mở (bao_mo, 60 x 42 cm) che mặt, mặt trước báo quay về phía đường
@@ -546,6 +562,8 @@ func setup(p: CharacterBody3D, d: Node, h: CanvasLayer, is_autotest := false) ->
 	hud = h
 	autotest = is_autotest
 	_main = get_parent()
+	for i in _people:
+		_people[i].look_target = p
 	if dog and dog.has_signal("bit_player"):
 		dog.bit_player.connect(func(): _bites += 1)
 	if player.has_signal("bumped"):
@@ -648,14 +666,6 @@ func side_pending() -> bool:
 ## Đơn i bị trừ 1 sao vì lý do riêng của cách giao (góc cờ: hai ông mắng vì chạy nhanh, đụng bàn).
 func star_lost(i: int) -> bool:
 	return _kind[i] == "beside_tea" and chess != null and chess.scolded
-
-
-## Bàn tay khách lúc nhận bánh (ổ bánh Bơ nhả ra bay tới đây).
-func hand_point(i: int) -> Vector3:
-	if _kind[i] == "under_car":
-		return _hand_hung + Vector3(0, 0.02, 0.33)
-	var arm: Node3D = _arm_nodes.get(i)
-	return arm.global_transform * Vector3(0, -0.5, 0) if arm else orders[i].pos + Vector3.UP
 
 
 func is_errand(i: int) -> bool:
@@ -764,6 +774,7 @@ func step(i: int, in_zone: bool, _delta: float) -> bool:
 			side_ok[i] = not _oiled and orders[i].get("side_quest", "") == "khong_dau"
 			_play_deliver(kind)
 			_hand_bread(hand_point(i))
+			_celebrate(i)
 		"chair":
 			_deliver_sau(i)
 		"beside_tea":
@@ -784,6 +795,7 @@ func step(i: int, in_zone: bool, _delta: float) -> bool:
 
 func _deliver_tu(i: int) -> void:
 	_play_deliver("hand")
+	_celebrate(i)
 	side_ok[i] = false  # chỉ thành công khi tờ báo về tới lò
 	_paper_state = "handing"  # Chú Tư đang gấp báo, chưa tới miệng Bơ
 	_hand_bread(hand_point(i), func():
@@ -799,6 +811,10 @@ func _deliver_tu(i: int) -> void:
 
 func _deliver_basket(i: int) -> void:
 	_play_deliver("basket")
+	var na: Nguoi = _people.get(i)
+	if na:
+		na.play_for("keo_day", 1.6)  # kéo giỏ lên rồi mới vui
+		get_tree().create_timer(1.6).timeout.connect(func(): na.play_for("vui", 2.5))
 	side_ok[i] = _misses == 0
 	_market_quest(i)
 	_basket_done = true
@@ -814,6 +830,7 @@ func _deliver_basket(i: int) -> void:
 
 func _deliver_may(i: int) -> void:
 	_play_deliver("counter")
+	_celebrate(i)
 	side_ok[i] = not _glass_broken
 	_hand_bread(_counter_top + Vector3(-0.3, 0, 0))
 	# Chị Mây đẩy lại cho Bơ một chén sữa nhỏ (chỉ để xem), lát sau Bơ liếm sạch
@@ -834,10 +851,11 @@ func _deliver_may(i: int) -> void:
 func _deliver_sau(i: int) -> void:
 	_play_deliver("chair")
 	side_ok[i] = not _dog_woke()
-	var arm: Node3D = _arm_nodes.get(i)
 	_hand_bread(hand_point(i))
+	_celebrate(i, "goi_muc")  # nhận bánh rồi quay ra hẻm gọi Mực
+	var sau: Nguoi = _people.get(i)
 	_speech.text = "\"Mực, đừng làm bé mèo sợ!\""
-	_speech.global_position = (arm.global_position if arm else orders[i].pos) + Vector3(0, 0.8, 0)
+	_speech.global_position = (sau.global_position + Vector3(0, 1.6, 0)) if sau else orders[i].pos + Vector3(0, 1.8, 0)
 	_speech.visible = true
 	get_tree().create_timer(3.5).timeout.connect(func(): _speech.visible = false)
 	_toast("Bà Sáu gọi với ra hẻm: \"Mực, đừng làm bé mèo sợ!\"", 3.0, 1.8)
@@ -881,7 +899,7 @@ func _physics_process(delta: float) -> void:
 	if player == null:
 		return
 	var hspeed := Vector2(player.velocity.x, player.velocity.z).length()
-	_update_arms(delta)
+	_update_people(delta)
 	_update_paper()
 	_update_basket(delta)
 	_update_glasses(delta)
@@ -891,22 +909,41 @@ func _physics_process(delta: float) -> void:
 	_hspeed_prev = hspeed
 
 
-## Khách chìa tay khi Bơ mang bánh của họ tới gần, rút tay sau khi nhận.
-func _update_arms(delta: float) -> void:
-	for i in _arm_nodes:
-		var arm: Node3D = _arm_nodes[i]
-		var near: bool = current == i and player.carrying and player.global_position.distance_to(arm.global_position) < 3.0
-		if _kind[i] == "under_car":
-			# Tay vẫy vẫy dưới gầm xe
-			var wave := sin(Time.get_ticks_msec() * 0.008) * 0.4 if near else 0.0
-			arm.rotation.y = lerp_angle(arm.rotation.y, wave, 1.0 - exp(-10.0 * delta))
-		else:
-			arm.rotation.x = lerpf(arm.rotation.x, 1.35 if near else 0.0, 1.0 - exp(-8.0 * delta))
+## Khách sống theo đơn: làm việc riêng khi rảnh; Bơ mang bánh của họ tới gần thì chìa tay chờ
+## (Bé Na thả dây giỏ); đơn trễ giờ thì sốt ruột; nhận bánh xong thì vui rồi quay lại việc riêng.
+func _update_people(delta: float) -> void:
+	for i in _people:
+		var n: Nguoi = _people[i]
+		var now := n.current()
+		if now in ["nhan_banh", "vui", "goi_muc"] or n.busy():
+			continue
+		var mine: bool = current == i and player.carrying
+		var near: bool = mine and player.global_position.distance_to(n.global_position) < (6.0 if _kind[i] == "basket" else 3.5)
+		if near:
+			n.play("keo_day" if _kind[i] == "basket" else "cho_banh")
+		elif mine and _late == i:
+			n.play("sot_ruot")
+		elif now != n.idle_anim:
+			n.back_to_idle()
 	# Chú Tư hạ tờ báo xuống khi Bơ tới
 	if _tu_paper and _tu_paper.visible:
 		var i0 := _kind.find("hand")
 		var near0: bool = current == i0 and player.carrying and player.global_position.distance_to(_tu_paper.global_position) < 4.0
 		_tu_paper.position.y = lerpf(_tu_paper.position.y, _tu_paper_pos.y - (0.4 if near0 else 0.0), 1.0 - exp(-6.0 * delta))
+
+
+## Khách đơn i nhận bánh: động tác nhận theo phác thảo đã duyệt rồi vui một lúc.
+func _celebrate(i: int, then_anim := "vui") -> void:
+	var n: Nguoi = _people.get(i)
+	if n:
+		n.play_once("nhan_banh", then_anim, 2.5)
+	if _late == i:
+		_late = -1
+
+
+## main gọi khi đồng hồ đơn i về 0: khách sốt ruột chờ.
+func on_late(i: int) -> void:
+	_late = i
 
 
 ## Tờ báo Bơ ngậm: rơi khi chạy nhanh qua vũng nước, tới lò thì Cô Ba nhận.

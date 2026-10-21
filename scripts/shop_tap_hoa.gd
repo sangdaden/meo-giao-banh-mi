@@ -47,7 +47,7 @@ var autotest := false
 var state := ""
 var _main: Node
 var _order := -1
-var _arm: Node3D
+var _co_hai: Nguoi
 var _bag_on_counter: Node3D
 var _delivered := 0               ## số trứng còn lại lúc về tới lò
 var _rustle_t := 0.0
@@ -114,14 +114,7 @@ static func build(parent: Node3D, x0: float, x1: float, z0: float, depth: float)
 	co_hai.position = CO_HAI
 	co_hai.set_meta("bump_kind", "person")
 	parent.add_child(co_hai)
-	Blocks.box(co_hai, Vector3(0.45, 0.8, 0.3), Vector3(0, 0.4, 0), Color("#3D4A4A"))
-	Blocks.box(co_hai, Vector3(0.5, 0.6, 0.32), Vector3(0, 1.1, 0), SHIRT)
-	var head := SphereMesh.new()
-	head.radius = 0.17
-	head.height = 0.34
-	head.radial_segments = 10
-	head.rings = 5
-	Blocks.mesh(co_hai, head, Vector3(0, 1.58, 0), Color("#E7B98F"))
+	# Thân Cô Hai (người có xương, scripts/nguoi.gd) dựng ở _ready, sau khi Blocks.merge_static gộp khối
 	var cs := CollisionShape3D.new()
 	var cb := BoxShape3D.new()
 	cb.size = Vector3(0.5, 1.6, 0.35)
@@ -184,6 +177,8 @@ func setup(p: CharacterBody3D, h: CanvasLayer, is_autotest := false) -> void:
 	player = p
 	hud = h
 	autotest = is_autotest
+	if _co_hai:
+		_co_hai.look_target = p
 	if player.has_signal("fragile_damaged"):
 		player.fragile_damaged.connect(_on_egg_broken)
 	var deliveries := get_parent()
@@ -194,11 +189,11 @@ func setup(p: CharacterBody3D, h: CanvasLayer, is_autotest := false) -> void:
 
 func _ready() -> void:
 	name = "TapHoaCoHai"
-	# Tay Cô Hai chìa túi trứng qua quầy (khối tạm, chờ animation đưa hàng)
-	_arm = Node3D.new()
-	_arm.position = CO_HAI + Vector3(0.22, 1.25, 0)
-	add_child(_arm)
-	Blocks.box(_arm, Vector3(0.09, 0.09, 0.5), Vector3(0, 0, -0.25), SHIRT)
+	# Cô Hai sau quầy, nhìn ra cửa tiệm (-Z); model Nguoi nhìn +Z nên quay nửa vòng
+	_co_hai = Nguoi.make("cohai", "viec_rieng")
+	_co_hai.position = CO_HAI
+	_co_hai.rotation.y = PI
+	add_child(_co_hai)
 	_bag_on_counter = Node3D.new()
 	add_child(_bag_on_counter)
 	_bag_on_counter.position = COUNTER_TOP + Vector3(0.3, 0.05, 0)
@@ -218,9 +213,11 @@ func begin(order_index: int) -> void:
 	_set_hud_eggs(EGGS)
 	_sfx("scale_clank", COUNTER_TOP)
 	_sfx("paper_slip", COUNTER_TOP)
-	var tw := create_tween()
-	tw.tween_property(_arm, "rotation:x", -0.5, 0.3)
-	tw.tween_property(_arm, "rotation:x", 0.0, 0.4)
+	# Chìa túi qua quầy rồi dặn dò (động tác đưa hàng riêng chờ phác thảo Thứ Ba được duyệt)
+	_co_hai.play_for("cho_banh", 0.9)
+	get_tree().create_timer(0.9).timeout.connect(func():
+		if is_instance_valid(_co_hai):
+			_co_hai.play_for("noi", 2.5))
 	_toast("Cô Hai: \"Trứng gà ta đó, cầm nhẹ tay nghen!\" Đừng nhảy từ trên cao, đừng va người.", 3.0, 1.8)
 
 

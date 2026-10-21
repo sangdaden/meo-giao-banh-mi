@@ -55,6 +55,7 @@ var stance := "walk"
 var crouch_amount := 0.0          ## 0 đứng, 1 chui hẳn (hình và camera hạ xuống theo)
 var _stand_shape: CollisionShape3D
 var _crouch_shape: CollisionShape3D
+var _low_probe: CollisionShape3D  ## khối dò gầm: rộng bằng dáng đứng, thấp bằng dáng chui
 var _forced_crouch := false       ## đang ở dưới gầm thấp: thả phím chui vẫn phải chui
 var _oil := 0                     ## số vũng dầu đang đứng lên (các vùng có thể chồng nhau)
 var _sliding := false
@@ -171,6 +172,14 @@ func _ready() -> void:
 	_crouch_shape.position.y = crouch_height * 0.5
 	_crouch_shape.disabled = true
 	add_child(_crouch_shape)
+	# Dò gầm thấp bằng khối rộng như dáng đứng: nếu dùng trụ chui (hẹp hơn) thì đi sát cạnh bàn,
+	# tường cũng bị tưởng là gầm và Bơ tự khụm xuống.
+	_low_probe = CollisionShape3D.new()
+	var probe := CylinderShape3D.new()
+	probe.radius = cap.radius
+	probe.height = crouch_height
+	_low_probe.shape = probe
+	_low_probe.position.y = crouch_height * 0.5
 	_build_visual()
 	# Phần hình tách khỏi thân vật lý: thân di chuyển 60 lần/giây theo nhịp vật lý,
 	# còn hình được nội suy mỗi khung hình nên vẫn mượt trên màn 75, 120, 144 Hz.
@@ -426,7 +435,7 @@ func _build_fp_paws() -> void:
 ## Chọn dáng đi: chui (giữ Ctrl/C, hoặc tự chui khi chạy vào gầm thấp và ở yên dưới đó),
 ## rón rén (giữ Alt), chạy nhanh (Shift), còn lại là đi.
 func _update_stance(dir: Vector3, on_floor: bool) -> void:
-	var want_crouch := can_move and Input.is_action_pressed("crouch")
+	var want_crouch := can_move and _pressed("crouch")
 	if not want_crouch and stance == "crouch" and _blocked_above():
 		want_crouch = true  # còn ở dưới gầm thì không đứng dậy được
 	if not want_crouch and on_floor and dir.length() > 0.1 and _low_gap_ahead(dir):
@@ -434,7 +443,7 @@ func _update_stance(dir: Vector3, on_floor: bool) -> void:
 	var s := "walk"
 	if want_crouch:
 		s = "crouch"
-	elif can_move and Input.is_action_pressed("sneak"):
+	elif can_move and _pressed("sneak"):
 		s = "sneak"
 	elif Input.is_action_pressed("sprint") and dir.length() > 0.1:
 		s = "sprint"
@@ -455,7 +464,12 @@ func _blocked_above() -> bool:
 ## Phía trước là gầm thấp: đứng thì đụng, chui thì lọt.
 func _low_gap_ahead(dir: Vector3) -> bool:
 	var xf := global_transform.translated(dir.normalized() * 0.3)
-	return _shape_hits(_stand_shape, xf) and not _shape_hits(_crouch_shape, xf)
+	return _shape_hits(_stand_shape, xf) and not _shape_hits(_low_probe, xf)
+
+
+## Phím chưa khai báo (vd màn bếp không có chui/rón rén) thì coi như không bấm, khỏi báo lỗi mỗi khung hình.
+func _pressed(action: String) -> bool:
+	return InputMap.has_action(action) and Input.is_action_pressed(action)
 
 
 func _shape_hits(cs: CollisionShape3D, xf: Transform3D) -> bool:

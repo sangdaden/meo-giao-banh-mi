@@ -9,6 +9,7 @@ const HudScript := preload("res://scripts/hud.gd")
 const DeliveriesScript := preload("res://scripts/deliveries.gd")
 const StampsScript := preload("res://scripts/stamps.gd")
 const GhostScript := preload("res://scripts/ghost.gd")
+const ResidentsScript := preload("res://scripts/residents.gd")
 
 ## Đơn của ngày đang chơi lấy từ scripts/days.gd (Days.get_day(PlayMode.day)), khóa của đơn ghi ở đó.
 ## "delivery": cách giao, "side_quest": nhiệm vụ phụ, cả hai xử lý trong scripts/deliveries.gd.
@@ -58,6 +59,7 @@ var beacon: MeshInstance3D
 var deliveries: Node3D
 var stamps: Node3D
 var ghost: Node3D
+var residents: Node3D  ## Cô Ba ở quầy và hàng xóm (scripts/residents.gd)
 
 ## Một đơn lẻ đã giao xong nhưng nhiệm vụ phụ còn dở (tờ báo Chú Tư chưa về lò): chờ về lò rồi mới tổng kết.
 var _finishing := false
@@ -83,7 +85,11 @@ func _ready() -> void:
 	deliveries.build_static(self, orders)  # người dân, ghế, xe, quầy... đứng yên nên được gộp
 	_build_customers()
 	Blocks.merge_static(self, 24.0)  # gộp khối tĩnh (model nhà theo ô 24 m) để giảm lệnh vẽ, phải gọi trước khi thêm mèo, chó
-	add_child(deliveries)  # phần chuyển động (giỏ, ly, tay, tờ báo) thêm sau khi gộp
+	add_child(deliveries)  # phần chuyển động (giỏ, ly, người dân có xương, tờ báo) thêm sau khi gộp
+	residents = ResidentsScript.new()
+	residents.name = "NguoiDan"
+	residents.set_orders(orders)
+	add_child(residents)
 
 	player = PlayerScript.new()
 	player.name = "Bo"
@@ -96,6 +102,7 @@ func _ready() -> void:
 	rig.yaw = 0.0  # camera phía nam nhìn lên, thấy mặt tiền lò bánh
 	add_child(rig)
 	player.camera_rig = rig
+	residents.setup(player)
 
 	dog = DogScript.new()
 	dog.name = "ChoMuc"
@@ -189,6 +196,7 @@ func start_game() -> void:
 			hud.show_toast(day.intro, 4.0)
 	else:
 		hud.show_toast("Chạy tới %s nhận đơn %d!" % [_pickup_name(orders[order_index]), order_index + 1])
+	residents.greet_shift(PlayMode.last_order(orders.size()) - order_index + 1)
 
 
 func _to_menu() -> void:
@@ -299,6 +307,7 @@ func _pick_up(order: Dictionary) -> void:
 	dog.awake = order.get("boss", false)
 	deliveries.on_pick_up(order_index)
 	order_picked_up.emit(order_index, order)
+	residents.hand_ticket(order, order_index)
 	if _is_errand(order):
 		hud.show_toast("%s đưa %s. Mang về lò cho Cô Ba!" % [order.who, order.item])
 	else:
@@ -326,6 +335,7 @@ func _deliver(order: Dictionary) -> void:
 	})
 	Scoring.set_ghost(order_index, _ghost_path)
 	score_rows.append(r)
+	residents.order_done(r.stars, late)
 	results.append(r.stars)
 	var note := "trễ giờ" if late else "dư %d giây" % int(ceil(time_left))
 	if order.get("boss", false):
@@ -348,6 +358,7 @@ func _deliver(order: Dictionary) -> void:
 ## Hết giờ: không thua, Bơ vẫn chạy tới khách để giao trễ.
 func _go_late(order: Dictionary) -> void:
 	late = true
+	deliveries.on_late(order_index)  # khách đứng sốt ruột chờ
 	var to: String = "lò cho Cô Ba" if _is_errand(order) else order.who
 	hud.show_toast("Hết giờ rồi! Vẫn mang tới %s nhé, giao trễ được 1 sao." % to, 2.5)
 
@@ -458,6 +469,7 @@ func _end_game() -> void:
 		summary.rows_title = "Đơn %d · %s" % [order_index, orders[order_index - 1].who]
 	else:
 		summary = Scoring.end_day(orders.size() * Scoring.STARS_PER_ORDER)
+	residents.day_summary(summary.stars, summary.get("stars_max", results.size() * Scoring.STARS_PER_ORDER), _money(summary.tip))
 	# Bảng kết quả mới (luồng Giao diện) nhận thêm summary; bản cũ chỉ nhận rows.
 	if hud.get_method_argument_count("show_results") >= 2:
 		hud.show_results(rows, summary)
@@ -563,8 +575,7 @@ func _build_bakery() -> void:
 	# Xe tủ kính bánh mì trước lò (model xe_banh_mi, kính cao 1,3 m nên hộp va chạm cao bằng)
 	var cart := Blocks.collider(self, Vector3(1.6, 1.3, 0.7), Vector3(p.x + 2.4, 0.65, p.z + 0.2), Blocks.LAYER_PROP)
 	PhoModels.put(cart, "xe_banh_mi", Vector3(0, -0.65, 0))
-	# Cô Ba đứng sau tủ, cách mặt tiền lò gần nửa mét (mặt tiền ở z = -7, trước đây lưng Cô Ba dính vào cửa cuốn)
-	_person(Vector3(p.x + 2.4, 0, p.z - 0.55), Color("#C8412F"), "Cô Ba")
+	# Cô Ba (người có xương) do scripts/residents.gd dựng sau khi gộp khối tĩnh
 	bakery_zone = _zone(p, 1.8)
 	# Vòng tròn đánh dấu chỗ nhận bánh
 	_ring(p, Color("#D98E2B"))
@@ -576,29 +587,6 @@ func _build_customers() -> void:
 		# Người dân và đồ giao bánh do deliveries.gd dựng theo từng cách giao
 		customer_zones.append(_zone(o.pos, 1.6))
 		_ring(o.pos, Color("#C8412F"))
-
-
-## Người khối tạm: thân hộp, đầu cầu, cao khoảng 1,6 m (to gần 3 lần mèo Bơ)
-func _person(pos: Vector3, shirt: Color, title: String) -> void:
-	var body := StaticBody3D.new()
-	body.collision_layer = Blocks.LAYER_PROP
-	body.position = pos
-	add_child(body)
-	Blocks.box(body, Vector3(0.45, 0.8, 0.3), Vector3(0, 0.4, 0), Color("#3D4A4A"))     # quần
-	Blocks.box(body, Vector3(0.5, 0.6, 0.32), Vector3(0, 1.1, 0), shirt)                # áo
-	var head := SphereMesh.new()
-	head.radius = 0.17
-	head.height = 0.34
-	head.radial_segments = 10
-	head.rings = 5
-	Blocks.mesh(body, head, Vector3(0, 1.58, 0), Color("#E7B98F"))
-	var shape := CollisionShape3D.new()
-	var bs := BoxShape3D.new()
-	bs.size = Vector3(0.5, 1.6, 0.35)
-	shape.shape = bs
-	shape.position.y = 0.8
-	body.add_child(shape)
-	Blocks.label(body, title, Vector3(0, 2.2, 0), 40)
 
 
 func _zone(pos: Vector3, radius: float) -> Area3D:

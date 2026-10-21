@@ -346,7 +346,7 @@ func checkmate_now() -> void:
 	_say(_checker, "Chiếu tướng!", 1.6)
 	_crowd_label.text = "Hay! Hay quá!"
 	_crowd_label.visible = true
-	_sfx("chieu_tuong")
+	_sfx("check_cheer")
 	chess_event.emit("chieu_tuong")
 
 
@@ -370,7 +370,7 @@ func _shush(from: Vector3) -> void:
 	_set_state(who, "suyt", 1.2)
 	_say(who, "Suỵt!", 1.2)
 	_stun_player(SHUSH_STUN)
-	_sfx("suyt")
+	_sfx("shush")
 	_toast("Suỵt! Rón rén thôi (giữ Alt), hai ông đang đánh cờ.", 2.0)
 	chess_event.emit("suyt")
 
@@ -392,7 +392,9 @@ func _scold() -> void:
 	_say(0, "Ê con mèo này!", 1.8)
 	_say(1, "Đổ bàn cờ bây giờ!", 1.8)
 	_stun_player(0.4)
-	_sfx("quan_co_do")
+	_sfx("chess_rattle")
+	_sfx("scold_%d" % _rng.randi_range(1, 2))  # 1–2 giọng Ông Bảy, 3–4 Ông Tám
+	get_tree().create_timer(0.5).timeout.connect(func(): _sfx("scold_%d" % _rng.randi_range(3, 4)))
 	_toast("Hai ông mắng rồi: đơn này mất 1 sao!", 2.2)
 	chess_event.emit("mang")
 
@@ -475,7 +477,9 @@ func _nudge_piece() -> void:
 	if absf(target.x - CENTER.x) > 0.24 or absf(target.z - CENTER.z) > 0.26:
 		return
 	pc.base = target
-	create_tween().tween_property(pc.node, "position", target, 0.25).set_delay(0.5)
+	var tw := create_tween()
+	tw.tween_property(pc.node, "position", target, 0.25).set_delay(0.5)
+	tw.tween_callback(_sfx.bind("chess_slap"))  # quân cờ đập xuống bàn
 
 
 func _set_state(k: int, state: String, seconds: float) -> void:

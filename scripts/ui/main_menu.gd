@@ -112,7 +112,7 @@ func _ready() -> void:
 			var covered: bool = wardrobe.visible or settings.visible or level_select.visible
 			showcase_cat.set_active(not covered)
 			if not wardrobe.visible and showcase_cat.cat:
-				showcase_cat.cat.apply_outfit())
+				showcase_cat.cat.set_breed(Outfit.breed()))
 
 	T.wire_clicks(self)
 	if PlayMode.back_to_select:

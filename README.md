@@ -138,6 +138,7 @@ Mọi con số chỉnh được đều nằm ở đầu file script, có chú th
 - `scripts/player.gd`: tốc độ chạy, tăng tốc, độ cao nhảy, trọng lực, coyote time (vẫn nhảy được ngay sau khi rời mép), jump buffer (bấm nhảy hơi sớm vẫn tính).
 - `scripts/camera_rig.gd`: độ nhạy chuột, khoảng cách camera, góc nhìn thứ ba/thứ nhất (phím V; menu cài đặt gán `first_person`, `invert_y`, `mouse_sensitivity`).
 - `scripts/dog.gd`: thời gian ngủ gật/hé mắt, tầm nhìn, tốc độ đuổi, độ rẽ, giới hạn 13 m của Chó Mực. Thử riêng: `godot --headless --path . --script res://tools/dog_test.gd` (in `DOG TEST OK`).
+- `scripts/shop_tap_hoa.gd`: tạp hóa Cô Hai và đơn mua trứng Thứ Ba (đơn 2). `player.gd` có `carry_fragile(item, count)`, tín hiệu `bumped(kind)` và `fragile_damaged(remaining)`: đáp đất từ trên 1 m (`fragile_fall`) hoặc va người, xe đẩy, sạp, xe máy nhanh hơn 2,2 m/s (`fragile_bump_speed`) là vỡ một quả. Thử riêng: `godot --headless --path . --script res://tools/egg_test.gd` (in `EGG TEST OK`).
 - `scripts/main.gd`: danh sách 5 đơn (vị trí, thời gian), phạt khi bị đớp, `time_multiplier` để nới giờ cho mọi đơn.
 
 ## Cấu trúc project

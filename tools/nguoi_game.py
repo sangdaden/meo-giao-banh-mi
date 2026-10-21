@@ -1169,6 +1169,75 @@ def anim_pillion_off(R, role, cid):
     return f
 
 
+# ---------------------------------------------------------------- Cô Ba đứng bếp (trang "Cô Ba đứng bếp" Sang duyệt 21/10)
+# Quầy cao 0,85 m, đồ đặt ~0,35 m trước mặt. Dao, khay, đũa game gắn vào hand.* bằng Nguoi.attach.
+BEP_LUNG = {'spine': {'fw': 7}, 'chest': {'fw': 8}, 'neck': {'fw': 6}, 'head': {'fw': 14}}
+
+
+def anim_knead(R, role):
+    """Nhào bột (2,4 s): khom lưng, hai tay ấn xuống thau, cổ tay gập, vai nhún; nửa sau kéo mép bột gập vào giữa."""
+    def f(t):
+        ph = (t % 1.2) / 1.2
+        push = math.sin(math.pi * min(ph / .55, 1.0))  # ấn xuống rồi nhả
+        pull = smooth((ph - .55) / .25) * (1 - smooth((ph - .85) / .15))  # kéo mép vào giữa
+        return add(base(t * .5, R, role), BEP_LUNG, {
+            'hips': {'pos': (0, -.012 * push, 0)},
+            'chest': {'fw': 4 * push},
+            'clav.L': {'up': -6 * push}, 'clav.R': {'up': -6 * push},
+            'upperarm.L': {'aim': (.2 + .12 * pull, -.72 - .1 * push, .55), 'aim_ref': 'world'},
+            'forearm.L': {'aim': (-.18 + .3 * pull, -.55 - .3 * push, .8 - .2 * pull), 'aim_ref': 'world'},
+            'upperarm.R': {'aim': (.2 + .12 * pull, -.72 - .1 * push, .55), 'aim_ref': 'world'},
+            'forearm.R': {'aim': (-.18 + .3 * pull, -.55 - .3 * push, .8 - .2 * pull), 'aim_ref': 'world'},
+            'hand.L': {'fw': 35 * push - 20 * pull}, 'hand.R': {'fw': 35 * push - 20 * pull},
+        })
+    return f
+
+
+def anim_chop(R, role):
+    """Thái chả (2,0 s, 4 nhát): tay trái đè khúc chả, tay phải cầm dao chặt lên xuống, mỗi nhát tay trái lùi chút."""
+    def f(t):
+        k = t % .5
+        lift = smooth(k / .3) * (1 - smooth((k - .32) / .1))  # nhấc dao chậm, chặt nhanh
+        back = (int(t / .5) + smooth((k - .4) / .1)) / 4.0   # tay trái lùi dần sau mỗi nhát
+        return add(base(t * .5, R, role), BEP_LUNG, {
+            'chest': {'tw': 6},
+            'upperarm.L': {'aim': (-.05, -.75, .6 - .12 * back), 'aim_ref': 'world'},
+            'forearm.L': {'aim': (-.45, -.3, .8), 'aim_ref': 'world'}, 'hand.L': {'fw': 10},
+            'upperarm.R': {'aim': (.22, -.6 + .25 * lift, .6), 'aim_ref': 'world'},
+            'forearm.R': {'aim': (-.1, -.45 + .9 * lift, .8), 'aim_ref': 'world'},
+            'hand.R': {'fw': -15 * lift},
+        })
+    return f
+
+
+def anim_pickle(R, role):
+    """Trộn đồ chua (4,8 s = 3 vòng 1,6 s): nghiêng trái, tay trái ôm hũ, tay phải khuấy vòng; cuối vòng 3 nhấc đũa lên nếm."""
+    def f(t):
+        a = 2 * math.pi * t / 1.6
+        taste = smooth((t - 3.9) / .3) * (1 - smooth((t - 4.5) / .25))
+        stir = {'upperarm.R': {'aim': (.15 + .08 * math.cos(a), -.8, .5 + .08 * math.sin(a)), 'aim_ref': 'world'},
+                'forearm.R': {'aim': (-.35 + .2 * math.cos(a), -.45, .8 + .2 * math.sin(a)), 'aim_ref': 'world'}}
+        sip = {'upperarm.R': {'aim': (.1, -.55, .6), 'aim_ref': 'world'},
+               'forearm.R': {'aim': (-.45, .85, .3), 'aim_ref': 'world'}, 'head': {'fw': -10}}
+        b = add(base(t * .5, R, role), BEP_LUNG, {
+            'spine': {'out': 5}, 'chest': {'out': 3},
+            'upperarm.L': {'aim': (.25, -.9, .3), 'aim_ref': 'world'},
+            'forearm.L': {'aim': (-.75, -.05, .65), 'aim_ref': 'world'}, 'hand.L': {'fw': 15},
+        })
+        return mix(add(b, stir), add(b, sip), taste)
+    return f
+
+
+def anim_tray(R, role):
+    """Bưng khay (theo nhịp di_bo): chân và thân như đi bộ, hai tay khóa ngang bụng, cẳng tay nằm ngang."""
+    walk = anim_walk(R, role)
+    hold = {'clav.L': {'up': 0}, 'clav.R': {'up': 0},
+            'upperarm.L': {'aim': (.12, -1, .15), 'aim_ref': 'chest'}, 'forearm.L': {'aim': (-.2, 0, 1), 'aim_ref': 'chest'},
+            'upperarm.R': {'aim': (.12, -1, .15), 'aim_ref': 'chest'}, 'forearm.R': {'aim': (-.2, 0, 1), 'aim_ref': 'chest'},
+            'hand.L': {'fw': 0}, 'hand.R': {'fw': 0}, 'head': {'fw': 6}}
+    return lambda t: add(walk(t), hold)
+
+
 def anim_watch(R, role, cid):
     """Đứng xem cờ (4 s lặp): chắp tay sau lưng (Ông Chín) hoặc khoanh tay, nghiêng người nhìn bàn, gật gù."""
     g = dp(R, cid, 'dang') if cid == 'xemco' else {
@@ -1324,6 +1393,11 @@ def build_anims(info, cid):
         clips.append(('va', .6, anim_startle(R, role, cid), False))
     for name, sec, fn, loop in clips:
         R.keyframe(name, L(sec), fn, loop=loop)
+    if cid == 'coba':  # đứng bếp
+        R.keyframe('nhao_bot', L(2.4), anim_knead(R, role))
+        R.keyframe('thai_cha', L(2.0), anim_chop(R, role))
+        R.keyframe('tron_do_chua', L(4.8), anim_pickle(R, role))
+        R.keyframe('bung_khay', L(1.05 / tp), anim_tray(R, role))
     if cid == 'bena':
         R.keyframe('keo_day', L(1.6 / tp), anim_rope(R, role))
     if cid == 'basau':

@@ -127,11 +127,14 @@ func _run() -> void:
 
 	print("Giao bánh:")
 	var got := []
+	var rel := []
 	bo.deliver_finished.connect(func(k): got.append(k))
+	bo.bread_released.connect(func(k): rel.append(k))
 	for kind in ["hand", "basket", "counter", "under_car", "chair"]:
 		bo.play_deliver(kind)
-		await _frames(80)
+		await _frames(100)
 	_check(got == ["hand", "basket", "counter", "under_car", "chair"], "đủ 5 kiểu giao: %s" % [got])
+	_check(rel == got, "nhả bánh đủ 5 lần")
 
 	print("Giật mình:")
 	var st := [false]

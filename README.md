@@ -20,25 +20,53 @@ Bản web tự cập nhật mỗi lần nhánh `main` thay đổi (GitHub Action
 
 Khi có bản mới, trang đang mở tự biết (mỗi phút hỏi file `version.json` một lần, và mỗi khi quay lại tab). Trang tải sẵn file mới rồi hiện thông báo "Có bản mới!" và tự tải lại sau 10 giây; bấm **Để sau** nếu đang chơi dở. Mã nằm ở `web/update-check.js`; GitHub Actions ghi mã commit vào file này và vào `version.json` mỗi lần đăng.
 
-## Tải bản Windows
+## Tải bản Windows và macOS
 
-**https://github.com/sangdaden/meo-giao-banh-mi/releases/download/ban-moi-nhat/MeoGiaoBanhMi-windows.zip**
+Hai link dưới đây luôn trỏ tới bản mới nhất của nhánh `main`, gửi cho bạn bè chơi thử được ngay.
 
-Link này luôn trỏ tới bản mới nhất của nhánh `main`, gửi cho bạn bè chơi thử được ngay. Chạy trên Windows 10/11 64-bit, card đồ họa hỗ trợ Vulkan (hầu hết máy từ 2016 trở lại đây).
+| Máy | Link tải | Cỡ |
+|---|---|---|
+| Windows 10/11 (64-bit) | **https://github.com/sangdaden/meo-giao-banh-mi/releases/download/ban-moi-nhat/MeoGiaoBanhMi-windows.zip** | ~30 MB |
+| macOS 10.12 trở lên (Intel và Apple M1/M2/M3/M4) | **https://github.com/sangdaden/meo-giao-banh-mi/releases/download/ban-moi-nhat/MeoGiaoBanhMi-macos.zip** | ~55 MB |
 
-1. Tải file zip (khoảng 30 MB), **giải nén** ra một thư mục.
+### Windows
+
+1. Tải file zip, **giải nén** ra một thư mục.
 2. Bấm đúp **MeoGiaoBanhMi.exe**.
 3. Nếu Windows hiện "Windows protected your PC", bấm **More info** rồi **Run anyway**. Game chưa ký số nên Windows cảnh báo vậy.
 
-Các bản đã đánh số nằm ở trang [Releases](https://github.com/sangdaden/meo-giao-banh-mi/releases).
+Cần card đồ họa hỗ trợ Vulkan (hầu hết máy từ 2016 trở lại đây).
 
-Cách bản Windows được làm ra (`.github/workflows/windows.yml`):
+### macOS
 
-- Mỗi lần nhánh `main` thay đổi, GitHub Actions xuất `.exe` bằng Godot 4.3, gắn icon `icon.ico` (qua rcedit chạy bằng wine), cho `.exe` tự chơi hết 5 đơn bằng `--autotest` để chắc nó chạy được, rồi thay file trong bản phát hành **Bản mới nhất** (tag `ban-moi-nhat`).
-- Muốn có một bản đánh số riêng: tạo tag `v` + số, ví dụ `git tag v0.1.0 && git push origin v0.1.0`. Actions tạo bản phát hành `v0.1.0`, số này cũng được ghi vào thông tin file `.exe`.
+1. Tải file zip. Safari thường tự giải nén; nếu chưa thì bấm đúp file zip. Kéo **Mèo Giao Bánh Mì.app** vào thư mục **Applications** (hoặc để đâu cũng được).
+2. Lần đầu mở, macOS sẽ chặn vì app chưa được Apple công chứng (notarize):
+   - **macOS 15 Sequoia trở lên**: bấm đúp app, gặp thông báo chặn thì bấm **Done**. Mở **System Settings → Privacy & Security**, kéo xuống mục Security, bấm **Open Anyway** cạnh dòng "Mèo Giao Bánh Mì was blocked", nhập mật khẩu máy, rồi bấm **Open Anyway** lần nữa.
+   - **macOS 14 trở xuống**: **chuột phải** (hoặc giữ Control rồi bấm) vào app, chọn **Open**, rồi bấm **Open** trong hộp thoại.
+3. Từ lần sau bấm đúp là mở bình thường.
+
+Nếu macOS báo app "is damaged and can't be opened", mở **Terminal** và chạy dòng dưới (sửa đường dẫn nếu để app chỗ khác), rồi mở lại:
+
+```
+xattr -dr com.apple.quarantine "/Applications/Mèo Giao Bánh Mì.app"
+```
+
+Bản Mac là bản universal (một app chạy được cả chip Intel lẫn chip Apple), chỉ ký ad-hoc. Muốn bỏ hẳn bước "Open Anyway" thì cần tài khoản Apple Developer (99 USD/năm) để ký và công chứng.
+
+### Cách các bản này được làm ra
+
+`.github/workflows/desktop.yml`:
+
+- Mỗi lần nhánh `main` thay đổi, GitHub Actions xuất bằng Godot 4.3:
+  - **Windows**: xuất `.exe`, gắn icon `icon.ico` (qua rcedit chạy bằng wine), rồi cho chính `.exe` tự chơi hết 5 đơn bằng `--autotest` để chắc nó chạy được.
+  - **macOS**: cho game tự chơi 5 đơn trên Linux, rồi xuất `.app` universal và ký ad-hoc.
+  - Hai file zip được thay vào bản phát hành **Bản mới nhất** (tag `ban-moi-nhat`).
+- Muốn có một bản đánh số riêng: tạo tag `v` + số, ví dụ `git tag v0.1.0 && git push origin v0.1.0`. Actions tạo bản phát hành `v0.1.0` có cả hai file, và số này được ghi vào thông tin của `.exe` và `.app`.
 - Mỗi pull request cũng được xuất và chạy thử; file zip nằm ở mục **Artifacts** của lượt chạy.
 
-Trong `export_presets.cfg` còn có sẵn preset **Android** (arm64, chưa ký) cho tuần làm bản điện thoại. Muốn xuất Android cần cài Android SDK và bật `rendering/textures/vram_compression/import_etc2_astc` trong Project Settings.
+Các bản đã đánh số nằm ở trang [Releases](https://github.com/sangdaden/meo-giao-banh-mi/releases).
+
+Trong `export_presets.cfg` còn có sẵn preset **Android** (arm64, chưa ký) cho tuần làm bản điện thoại. Muốn xuất Android cần cài Android SDK. Project đã bật sẵn `rendering/textures/vram_compression/import_etc2_astc` (bản Mac chip Apple và Android đều cần).
 
 ## Mở và chơi trong Godot 4
 

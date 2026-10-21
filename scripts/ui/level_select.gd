@@ -21,6 +21,8 @@ const DAYS := [
 	["chu_nhat", "Hội mèo", "Năm cuộc thi với mèo cả phố: đua sân thượng, nhảy thùng, trốn tìm, giao tiếp sức, thi trang phục."],
 ]
 const PLAYABLE := ["thu_hai"]
+## Ngày chưa làm xong nhưng đã có cảnh chơi thử riêng.
+const PREVIEW := ["thu_nam"]
 
 var _day := "thu_hai"
 var _day_buttons := {}  # mã ngày -> Button
@@ -104,6 +106,8 @@ func _select(day: String, grab := true) -> void:
 		c.queue_free()
 	if day in PLAYABLE:
 		_build_monday()
+	elif day == "thu_nam":
+		_build_thursday()
 	else:
 		_build_soon(day)
 	T.wire_clicks(self)
@@ -150,6 +154,8 @@ func _day_button(day: String, theme_name: String) -> Button:
 			h.add_child(_pill("%d/15 sao" % best, T.AMBER, T.ON_CRUST))
 		else:
 			h.add_child(_pill("Mới", T.LEAF, T.PAPER))
+	elif day in PREVIEW:
+		h.add_child(_pill("Chơi thử", T.LEAF, T.PAPER))
 	else:
 		h.add_child(_pill("Sắp có", T.SAND, T.MUTED))
 	b.pressed.connect(_select.bind(day))
@@ -224,7 +230,8 @@ func _record_line() -> Control:
 	return p
 
 
-func _mode_button(title: String, sub: String, style: String, mode: PlayMode.Mode) -> Button:
+## on_press: bấm thì làm việc khác thay cho PlayMode.start(mode) (vd. vào cảnh chung cư Thứ Năm).
+func _mode_button(title: String, sub: String, style: String, mode: PlayMode.Mode, on_press := Callable()) -> Button:
 	var b := T.button("", style, 72)
 	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var v := VBoxContainer.new()
@@ -241,7 +248,10 @@ func _mode_button(title: String, sub: String, style: String, mode: PlayMode.Mode
 	var sl := T.label(sub, 13, fg if style == "primary" else T.MUTED, "bold")
 	sl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	v.add_child(sl)
-	b.pressed.connect(func(): PlayMode.start(get_tree(), mode))
+	if on_press.is_valid():
+		b.pressed.connect(on_press)
+	else:
+		b.pressed.connect(func(): PlayMode.start(get_tree(), mode))
 	return b
 
 
@@ -292,6 +302,25 @@ func _order_button(i: int, o: Dictionary) -> Button:
 	b.tooltip_text = "Vào thẳng đơn %d: chạy tới lò nhận bánh rồi giao cho %s" % [i + 1, o.who]
 	b.pressed.connect(func(): PlayMode.start(get_tree(), PlayMode.Mode.ORDER, i))
 	return b
+
+
+# ---------------------------------------------------------------- Thứ Năm (chơi thử cảnh chung cư)
+
+func _build_thursday() -> void:
+	_detail.add_child(T.label("Thứ Năm · Lên tầng năm", 30, T.INK, "display"))
+	var desc := T.label("Mang 2 ổ trứng lên căn 5B-1 cho Bé Na. Đi cầu thang (chui giá phơi đồ, rón rén qua em bé ngủ), "
+		+ "đợi thang máy, hay leo ngoài tường: bật tường trong khe hẹp, bám mép (Space), leo ống nước.", 15, T.MUTED, "body")
+	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_detail.add_child(desc)
+	var best := Scoring.best_stars(0, "thu_nam")
+	var play := _mode_button("Leo chung cư", "Kỷ lục %d/3 sao" % best if best > 0 else "Bản khối tạm, chưa có model",
+		"primary", PlayMode.Mode.ORDER, func(): PlayMode.start_chung_cu(get_tree()))
+	play.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	_detail.add_child(play)
+	var note := T.label("Cả ngày Thứ Năm (đường từ lò tới chung cư, nhiều đơn) làm sau bản Thứ Hai.", 14, T.MUTED, "bold")
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_detail.add_child(note)
+	_first_focus = play
 
 
 # ---------------------------------------------------------------- ngày chưa làm

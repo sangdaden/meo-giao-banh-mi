@@ -24,6 +24,7 @@ const SIDE_QUEST_NAMES := {
 	"khong_do_ly": "Không đổ ly nào",
 	"khong_dau": "Không giẫm vũng dầu",
 	"muc_ngu_yen": "Để Chó Mực ngủ yên",
+	"em_be_ngu_yen": "Để em bé tầng 3 ngủ yên",
 }
 
 static var orders: Array = []  # kết quả từng đơn trong ngày, mỗi phần tử là Dictionary

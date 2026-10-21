@@ -404,8 +404,13 @@ func _end_game() -> void:
 		ok = ok and GameState.get_day("so_lan_choi", 0) == 1 and Scoring.best_time(0) > 0.0
 		# Autotest bị Chó Mực đớp ở đơn 5 nên nhiệm vụ phụ đơn đó trượt; 4 đơn đầu phải đạt cả
 		ok = ok and deliveries.side_ok.slice(0, 4).all(func(v): return v) and score_rows[0].side_ok
-		print("AUTOTEST ", "OK" if ok else "FAIL")
-		get_tree().quit(0 if ok else 1)
+		if not ok:
+			print("AUTOTEST FAIL")
+			get_tree().quit(1)
+			return
+		# Màn giao đạt: chạy tiếp cảnh leo chung cư (Thứ Năm), cảnh đó in "AUTOTEST OK" khi xong
+		print("AUTOTEST GIAO OK")
+		get_tree().change_scene_to_file.call_deferred(PlayMode.CHUNG_CU_SCENE)
 
 
 func _on_dog_bite() -> void:
@@ -585,7 +590,8 @@ func _build_arrow() -> void:
 
 ## Phím điều khiển được khai báo bằng code để mở project là chơi được ngay.
 ## Muốn đổi phím: sửa ở đây, hoặc vào Project > Project Settings > Input Map.
-func _setup_input() -> void:
+## Static để cảnh khác (chung cư) dùng chung bộ phím.
+static func _setup_input() -> void:
 	_action("move_forward", [KEY_W, KEY_UP], [], [[JOY_AXIS_LEFT_Y, -1.0]])
 	_action("move_back", [KEY_S, KEY_DOWN], [], [[JOY_AXIS_LEFT_Y, 1.0]])
 	_action("move_left", [KEY_A, KEY_LEFT], [], [[JOY_AXIS_LEFT_X, -1.0]])
@@ -603,7 +609,7 @@ func _setup_input() -> void:
 	_action("cam_down", [], [], [[JOY_AXIS_RIGHT_Y, 1.0]])
 
 
-func _action(action: String, keys: Array, buttons: Array, axes: Array) -> void:
+static func _action(action: String, keys: Array, buttons: Array, axes: Array) -> void:
 	if InputMap.has_action(action):
 		return
 	InputMap.add_action(action, 0.2)

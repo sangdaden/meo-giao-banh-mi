@@ -84,7 +84,7 @@ jobs:
           pck_gz=$(gzip -9 -c build/web/index.pck | wc -c)
           mb() { awk "BEGIN { printf \"%.1f\", $1 / 1048576 }"; }
           line="index.pck $(mb $pck) MB (nén $(mb $pck_gz) MB), index.wasm $(mb $wasm) MB (nén $(mb $wasm_gz) MB), ngân sách pck ${PCK_MAX_MB} MB"
-          echo "$line"
+          echo "::notice::$line"  # hiện trong mục Annotations của PR, khỏi phải mở log
           echo "**Dung lượng tải:** $line" >> "$GITHUB_STEP_SUMMARY"
           if [ "$pck" -gt $((PCK_MAX_MB * 1048576)) ]; then
             echo "::error::index.pck vượt ${PCK_MAX_MB} MB, xem docs/ngan-sach-hieu-nang.md"

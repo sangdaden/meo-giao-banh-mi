@@ -15,7 +15,7 @@ const BONE := {
 ## Mũ trùm kín đầu: cụp tai xuống cho khỏi đâm xuyên mũ (thêm vào cờ "ears" trong skin.json)
 const EARS_DOWN := ["mubaohiem", "munlen"]
 ## Đầu Bơ D cao hơn đầu mèo mẫu bên luồng skin: nâng vài món đội đầu lên (m, theo trục dọc của đầu)
-const LIFT := {"muphuthuy": 0.035}
+const LIFT := {"muphuthuy": 0.012}
 
 static var _meta := {}
 
@@ -71,7 +71,8 @@ static func _socket_xform(sock: String, breed: String, sex := "duc") -> Transfor
 			k = (_v(h.hr) / _v(bo_head.hr)).dot(Vector3.ONE) / 3.0  # đầu to/nhỏ hơn Bơ thì đồ đội đầu to/nhỏ theo
 		return Transform3D(basis * Basis.from_scale(Vector3.ONE * k), basis * (hc - piv) + piv)
 	var socks: Dictionary = g.get("sockets", m.get("bo_sockets", {}))
-	return Transform3D(Basis(), _v(socks.get(sock, [0, 0.3, 0])))
+	# Mèo cái nhỏ hơn 7%, Lân Tết to hơn 6%: đồ đeo thân (túi, khăn, tất...) co giãn theo cỡ model
+	return Transform3D(Basis.from_scale(Vector3.ONE * float(g.get("size", 1.0))), _v(socks.get(sock, [0, 0.3, 0])))
 
 
 static func _v(a: Array) -> Vector3:

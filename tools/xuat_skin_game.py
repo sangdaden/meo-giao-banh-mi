@@ -1,13 +1,13 @@
 """Xuất 35 phụ kiện và 19 giống mèo (phong cách D) sang .glb nhẹ cho tủ đồ trong game.
 
 Dùng mã dựng của luồng "Skin mèo và phụ kiện" (meo-3d/skins: catcore, acc, breeds, blend), không render.
-Chạy:  python3 tools/xuat_skin_game.py <thư_mục_skins> assets/models/skin [phu_kien|giong|all] [id,id..]
+Chạy:  python3 tools/xuat_skin_game.py <thư_mục_skins> assets/models/skin [phu_kien|giong|giong_cai|all] [id,id..]
 (Cần: pip install bpy scikit-image)
 
 Kết quả:
 - phu_kien/<id>.glb: mỗi bộ phận một object, toạ độ tính từ điểm gắn của nó.
   Đồ ở chân được tách thành 4 chiếc (tên kết thúc __FL, __FR, __BL, __BR), gốc ở tâm bàn chân.
-- giong/<id>_duc.glb: thân + mắt, có bộ xương chính thức 22 xương cùng tên với Bơ (root, hips, chest, head,
+- giong/<id>_duc.glb, giong/<id>_cai.glb: thân + mắt, có bộ xương chính thức 22 xương cùng tên với Bơ (root, hips, chest, head,
   3 xương mỗi chân, tail_1..4, ear_*; thêm eye_*, scarf)
   để player.gd chạy được động tác; xương đặt theo số đo của từng giống, không lấy cứng của Bơ.
 - skin.json: điểm gắn của từng giống (sockets, tâm đầu, ma trận xoay đầu) và điểm gắn của từng object phụ kiện.
@@ -81,6 +81,42 @@ def export(path, objs, skins=False):
 
 # ---------------------------------------------------------------- phụ kiện
 
+def budget(sock):
+    """Số tam giác tối đa mỗi bộ phận: đồ đội đầu nhìn gần nhất trong tủ đồ nên được nhiều hơn."""
+    return {'head': 2500, 'feet': 600}.get(sock, 1500)
+
+
+def mesh_part(pt, target):
+    """Dựng lưới từ SDF. Lưới mịn gấp nhiều lần ngân sách thì dựng lại với ô thưa hơn (tối đa 1,6 lần)
+    để giảm lưới nhẹ tay hơn: giảm 25–100 lần làm nón sinh nhật, mũ bảo hiểm... mất hình (Sang báo 21/10)."""
+    lo = np.asarray(pt.lo, np.float32); hi = np.asarray(pt.hi, np.float32)
+    P, o = cc.grid(lo, hi, pt.h); d = pt.sdf(P); r = cc.mesh(d, o, pt.h)
+    if r is None or len(r[1]) <= 4 * target:
+        return r
+    h2 = pt.h * min(1.6, math.sqrt(len(r[1]) / (4 * target)))   # thưa hơn nữa thì vành mỏng (mũ phù thủy) bị rách
+    P2, o2 = cc.grid(lo, hi, h2); r2 = cc.mesh(pt.sdf(P2), o2, h2)
+    # Ô thưa làm đứt chi tiết mảnh (quai, viền) thì giữ lưới mịn
+    if r2 is None or len(r2[1]) < .15 * len(r[1]) * (pt.h / h2) ** 2:
+        return r
+    return r2
+
+
+def recolor(o, colorfn, off):
+    """Giảm lưới làm nhoè màu đỉnh (sọc, hoa văn): tô lại theo hàm màu tại vị trí đỉnh mới."""
+    me = o.data
+    n = len(me.vertices)
+    co = np.zeros(n * 3, np.float32); me.vertices.foreach_get('co', co); co = co.reshape(-1, 3)
+    no = np.zeros(n * 3, np.float32); me.vertices.foreach_get('normal', no); no = no.reshape(-1, 3)
+    V = np.stack([co[:, 0], co[:, 2], -co[:, 1]], 1) + off   # Blender -> toạ độ dựng
+    N = np.stack([no[:, 0], no[:, 2], -no[:, 1]], 1)
+    C = np.clip(colorfn(V, N), 0, 1)
+    L = np.where(C <= .04045, C / 12.92, ((C + .055) / 1.055) ** 2.4)
+    ca = me.color_attributes.get('Col') or me.color_attributes.new('Col', 'FLOAT_COLOR', 'POINT')
+    if ca.domain != 'POINT':
+        return
+    ca.data.foreach_set('color', np.concatenate([L, np.ones((n, 1))], 1).astype(np.float32).ravel())
+
+
 def add_uvs(o, uv):
     """Gán UV theo đỉnh (mảng N×2 mỗi lớp) vào từng góc mặt."""
     me = o.data
@@ -107,8 +143,8 @@ def export_acc(ids):
             if getattr(pt, 'mesh', None) is not None:
                 V, F, C = pt.mesh
             else:
-                lo = np.asarray(pt.lo, np.float32); hi = np.asarray(pt.hi, np.float32)
-                P, o = cc.grid(lo, hi, pt.h); r = cc.mesh(pt.sdf(P), o, pt.h)
+                s = 'head' if pt.head else SOCK.get(aid, 'back')
+                r = mesh_part(pt, budget(s))
                 if r is None:
                     print('EMPTY', aid, pt.name); continue
                 V, F, N = r; C = pt.colorfn(V, N) if pt.colorfn else None
@@ -127,11 +163,11 @@ def export_acc(ids):
                         continue
                     used = np.unique(Fk); remap = -np.ones(len(V), np.int64); remap[used] = np.arange(len(used))
                     pieces.append((f'{pt.name}__{paw}', V[used] - cen[k], remap[Fk].astype(np.int32),
-                                   None if C is None else C[used], 'paw' + paw))
+                                   None if C is None else C[used], 'paw' + paw, cen[k]))
             else:
                 org = np.asarray(socks[s], np.float32)
-                pieces.append((pt.name, V - org, F, C, s))
-            for name, Vp, Fp, Cp, sk in pieces:
+                pieces.append((pt.name, V - org, F, C, s, org))
+            for name, Vp, Fp, Cp, sk, off in pieces:
                 ob = bl.make_mesh(name, Vp, Fp, Cp, smooth=pt.smooth, coll=coll)
                 ob.data.materials.append(mat)
                 select_only([ob])
@@ -139,7 +175,9 @@ def export_acc(ids):
                     bpy.ops.object.modifier_apply(modifier=md.name)
                 uv = getattr(pt, 'uv', None)
                 if uv is None:
-                    decimate(ob, 1500 if s != 'feet' else 600)
+                    decimate(ob, min(budget(s), max(800, len(Fp) // 5)))   # bộ phận nhỏ (quai, viền) không cần đủ ngân sách
+                    if pt.colorfn and Cp is not None:
+                        recolor(ob, pt.colorfn, off)
                 else:
                     add_uvs(ob, uv)  # đồ vải (áo choàng): giữ nguyên lưới để shader uốn theo UV
                 bake_color(ob)
@@ -374,6 +412,8 @@ def export_breeds(ids, gender='duc'):
         arm = rig(cat, S, k)
         export(f'{OUT}/giong/{bid}_{gender}.glb', [cat, arm], skins=True)
         info = head_info()
+        for key in ('hc', 'hr', 'pivot'):  # model đã nhân cỡ k (mèo cái nhỏ hơn 7%, Lân Tết to hơn 6%)
+            info[key] = [a * k for a in info[key]]
         info['sockets'] = {kk: [float(a) * k for a in vv] for kk, vv in cc.sockets().items()}
         info['size'] = k
         info['tris'] = len(cat.data.polygons)
@@ -386,4 +426,6 @@ if WHAT in ('phu_kien', 'all'):
     export_acc(ONLY or list(acc.ACC))
 if WHAT in ('giong', 'all'):
     export_breeds(ONLY or ORDER)
+if WHAT in ('giong_cai', 'all'):
+    export_breeds(ONLY or ORDER, 'cai')
 json.dump(META, open(meta_path, 'w'), ensure_ascii=False, indent=1)

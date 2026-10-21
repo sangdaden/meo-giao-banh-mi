@@ -656,6 +656,40 @@ def oven_fire_loop():
     return loopify(x, dur)
 
 
+def burn():
+    """Bánh cháy: tiếng xèo gắt, lách tách dày rồi phì khói."""
+    dur = 1.4
+    x = filt(noise(dur), "band", (2500, 9000)) * 0.3 * adsr(int(dur * SR), 0.05, 0.2, 0.7, 0.6)
+    for _ in range(120):
+        st = rng.uniform(0, dur - 0.05)
+        d = rng.uniform(0.003, 0.015)
+        mix_at(x, filt(noise(d), "high", 2000) * np.exp(-t_of(d) * 350), st, rng.uniform(0.3, 1.0) * np.exp(-st * 1.2))
+    hiss = filt(noise(0.7), "band", (800, 4000)) * np.sin(np.pi * t_of(0.7) / 0.7) ** 2
+    mix_at(x, hiss, 0.6, 0.5)
+    return fade(x, 0.005, 0.1)
+
+
+def water():
+    """Rửa rau / rót nước: dòng chảy rì rào có bọt lục bục."""
+    dur = 0.9
+    x = filt(noise(dur), "band", (400, 3500)) * 0.35 * adsr(int(dur * SR), 0.05, 0.1, 0.8, 0.25)
+    for _ in range(40):
+        st = rng.uniform(0, dur - 0.08)
+        d = rng.uniform(0.02, 0.05)
+        t = t_of(d)
+        f = rng.uniform(500, 1400) * (1 + 1.5 * t / d)  # bọt nước: tiếng 'blup' vút lên
+        mix_at(x, np.sin(phase_of(f)) * np.sin(np.pi * t / d) ** 2, st, rng.uniform(0.15, 0.4))
+    return fade(x, 0.01, 0.1)
+
+
+def spray():
+    """Bình xịt / phun hơi nước: 'xì' ngắn."""
+    dur = 0.35
+    t = t_of(dur)
+    x = filt(noise(dur), "band", (3000, 12000)) * np.minimum(t / 0.01, 1) * np.exp(-np.maximum(t - 0.15, 0) * 20)
+    return fade(x, 0.002, 0.03)
+
+
 # ---------------------------------------------------------------- tiếng nền
 
 def motorbike(dur, f_engine, direction):
@@ -808,6 +842,9 @@ def build():
         "oven_open": (oven_open, "wav"),
         "oven_ding": (oven_ding, "wav"),
         "wrap": (wrap, "wav"),
+        "burn": (burn, "wav"),
+        "water": (water, "wav"),
+        "spray": (spray, "wav"),
         "sizzle": (sizzle_loop, "ogg"),
         "oven_fire": (oven_fire_loop, "ogg"),
     }

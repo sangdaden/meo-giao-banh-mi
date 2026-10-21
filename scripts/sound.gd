@@ -24,6 +24,7 @@ const LEVEL := {
 	"bark": -2.0, "bark_single": -2.0, "growl": -4.0, "bite": -2.0,
 	"ui_click": -10.0, "ui_start": -5.0,
 	"knead": -6.0, "chop": -6.0, "crunch": -4.0, "sauce": -6.0, "wrap": -8.0,
+	"burn": -5.0, "water": -7.0, "spray": -9.0,
 	"oven_open": -5.0, "oven_ding": -6.0, "sizzle": -10.0, "oven_fire": -10.0,
 	"jingle_win": -3.0, "jingle_lose": -3.0,
 }

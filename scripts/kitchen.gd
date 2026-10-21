@@ -477,7 +477,7 @@ func _end(success: bool) -> void:
 		per_bread.append(loaf_stars[i] if i < loaf_stars.size() else stars)
 	GameState.kitchen_stars_per_bread = per_bread
 	GameState.kitchen_bonus = stars * STAR_SECONDS
-	lines += "\n%d/3 sao · mỗi đơn giao được cộng thêm %d giây" % [stars, int(GameState.kitchen_bonus)]
+	lines += "\n%d/3 sao · ổ bánh 3 sao giúp đơn đó được cộng thêm %d giây" % [stars, int(Scoring.KITCHEN_BONUS_SECONDS)]
 	hud.show_end(lines)
 	_sound("stop_loop", "oven_fire")
 	_sound("music", "jingle_win" if success else "jingle_lose")

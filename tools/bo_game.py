@@ -1,17 +1,22 @@
-"""Chuyển model phác thảo Bơ kiểu D (chung2.glb) thành bản tạm cho game.
+"""Chuyển model chuẩn Bơ kiểu D (chung2.glb) thành bản game có rig chính thức 22 xương.
 
 Chạy:  python3 tools/bo_game.py <chung2.glb> assets/models/bo.glb
 (Cần: pip install bpy)
 
 Việc script làm:
-1. Giảm số tam giác từ ~115k xuống ~6k cho nhẹ (style guide: Bơ 4–6k), giữ chi tiết quanh mắt.
+1. Giảm số tam giác từ ~115k xuống ~15k cho nhẹ, giữ chi tiết quanh mắt (tròng mắt giữ đồng tử dọc).
 2. Dồn màu lông, khăn, mắt vào một lớp màu đỉnh (COLOR_0) để Godot đọc được.
-3. Gắn bộ xương 16 xương: root, spine, head, 4 chân, 4 đốt đuôi, 2 tai, 2 mắt, khăn.
+3. Gắn bộ xương chính thức Sang duyệt 21/10 (trang "Bơ đi giao Thứ Hai", mục Bộ xương), 22 xương:
+   root, hips, chest, head, ear_L/R, tail_1..4, và mỗi chân 3 xương có khuỷu/gối:
+   chân trước upperarm/forearm/paw, chân sau thigh/shin/paw.
+   Thêm 3 xương phụ cho biểu cảm: eye_L/R (chớp mắt) và scarf (khăn đung đưa).
    Trọng số (weight) tính theo vị trí từng đỉnh, không cần vẽ tay.
-4. Xuất .glb có xương (chưa có animation; game tự xoay xương bằng code).
+4. Xuất .glb có xương (chưa có animation; game tự xoay xương bằng code trong scripts/player.gd).
 
-Đây là bản tạm: tuần 2 sẽ dựng tay model chính thức 22 xương theo style guide.
+Mọi xương nằm trong mặt phẳng dọc thân đều có trục X cục bộ trùng trục X của model,
+nên trong Godot xoay quanh Vector3.RIGHT là gập trước/sau và các góc cộng dồn được dọc theo chân.
 """
+import math
 import sys
 import bpy
 from mathutils import Vector
@@ -38,11 +43,11 @@ for o in meshes:
 
 def target_tris(name):
     if name.startswith('Bo_Than'):
-        return 4700
+        return 9000
     if name.startswith('Bo_Khan'):
-        return 700
+        return 1200
     if name.startswith('Mat'):
-        return 350     # tròng mắt: đủ mịn để giữ màu hổ phách và đồng tử dọc
+        return 2400    # tròng mắt: đồng tử dọc nằm trong màu đỉnh, ít tam giác quá thì mắt thành màu nâu đục
     return 40          # đốm sáng trong mắt
 
 
@@ -88,30 +93,65 @@ cat.name = 'Bo'
 cat.data.color_attributes.active_color = cat.data.color_attributes['Color']
 print('tris', sum(len(p.vertices) - 2 for p in cat.data.polygons))
 
+
 def ramp(v, a, b):
     """0 khi v ở a, 1 khi v ở b, mượt ở giữa."""
     t = max(0.0, min(1.0, (v - a) / (b - a)))
     return t * t * (3 - 2 * t)
 
 
+def ik(a, e, l1, l2, hint):
+    """Điểm khớp giữa (khuỷu/gối) của chân 2 đoạn dài l1, l2 nối a tới e, gập về phía hint."""
+    d = e - a
+    dist = d.length
+    u = d / dist
+    if dist >= l1 + l2 - 1e-4:
+        return a + u * l1 * dist / (l1 + l2)
+    k = (l1 * l1 - l2 * l2 + dist * dist) / (2 * dist)
+    h = hint - u * hint.dot(u)
+    h.normalize()
+    return a + u * k + h * math.sqrt(max(l1 * l1 - k * k, 0.0))
+
+
 # Toạ độ Blender: X phải, -Y là phía trước mặt mèo, Z lên trên.
 BONES = {
     # tên: (đầu, đuôi, cha)
-    'root':   ((0, 0, 0), (0, 0, .08), None),
-    'spine':  ((0, .16, .25), (0, -.08, .29), 'root'),
-    'head':   ((0, -.1, .34), (0, -.17, .5), 'spine'),
-    'leg_FL': ((-.056, -.1, .27), (-.056, -.1, .01), 'spine'),
-    'leg_FR': ((.056, -.1, .27), (.056, -.1, .01), 'spine'),
-    'leg_BL': ((-.064, .15, .23), (-.064, .15, .01), 'spine'),
-    'leg_BR': ((.064, .15, .23), (.064, .15, .01), 'spine'),
-    # Đuôi 4 đốt (~7,5 cm mỗi đốt, tổng ~0,30 m) theo đường cong của đuôi phác thảo:
+    'root':  ((0, 0, 0), (0, 0, .08), None),
+    # hips mọc ở khớp háng sau, chĩa về giữa lưng: xoay hips là ngồi dậy/chúi người quanh hông
+    'hips':  ((0, .15, .22), (0, .02, .26), 'root'),
+    # chest nối tiếp tới gốc cổ: xoay chest là cong lưng, ngửa ngực
+    'chest': ((0, .02, .26), (0, -.12, .31), 'hips'),
+    'head':  ((0, -.1, .34), (0, -.17, .5), 'chest'),
+    # Đuôi 4 đốt (~7,5 cm mỗi đốt, tổng ~0,30 m) theo đường cong của đuôi chuẩn:
     # mọc ở mông, rủ xuống ra sau, rồi cong lên ở chóp
-    'tail_1': ((0, .2, .27), (0, .28, .25), 'spine'),
+    'tail_1': ((0, .2, .27), (0, .28, .25), 'hips'),
     'tail_2': ((0, .28, .25), (0, .35, .28), 'tail_1'),
     'tail_3': ((0, .35, .28), (.01, .38, .35), 'tail_2'),
     'tail_4': ((.01, .38, .35), (.02, .375, .42), 'tail_3'),
 }
-TAIL = [n for n in BONES if n.startswith('tail')]
+TAIL = ['tail_1', 'tail_2', 'tail_3', 'tail_4']
+
+# Chân: số đo của Bơ chuẩn (poses.py, S['fl'], S['hl']). Vai/háng ở trong thân, cổ chân cao 4 cm,
+# điểm cổ chân lấy theo tâm lát cắt lưới chân ở dáng đứng của chung2 (chân trước trái bước trước).
+# Khuỷu trước gập ra sau, gối sau gập ra trước như mèo thật.
+LEGS = {
+    # tên: (vai/háng, cổ chân, (dài đoạn trên, dài đoạn dưới), hướng gập, cha, tên 3 xương)
+    'FL': ((-.056, -.10, .27), (-.056, -.135, .04), (.12, .116), (0, 1, 0), 'chest', ('upperarm', 'forearm', 'paw')),
+    'FR': ((.056, -.10, .27), (.056, -.10, .04), (.12, .116), (0, 1, 0), 'chest', ('upperarm', 'forearm', 'paw')),
+    'BL': ((-.064, .15, .22), (-.064, .148, .04), (.096, .09), (0, -1, 0), 'hips', ('thigh', 'shin', 'paw')),
+    'BR': ((.064, .15, .22), (.064, .12, .04), (.096, .09), (0, -1, 0), 'hips', ('thigh', 'shin', 'paw')),
+}
+LEG_SEGS = {}   # chân -> 3 đoạn (tên xương, đầu, đuôi)
+for leg, (a, e, (l1, l2), hint, parent, names) in LEGS.items():
+    a, e = Vector(a), Vector(e)
+    j = ik(a, e, l1, l2, Vector(hint))
+    toe = Vector((e.x, e.y - .045, .012))   # bàn chân nằm trên đất, chĩa về trước
+    segs = [(f'{names[0]}_{leg}', a, j), (f'{names[1]}_{leg}', j, e), (f'{names[2]}_{leg}', e, toe)]
+    LEG_SEGS[leg] = segs
+    prev = parent
+    for n, h, t in segs:
+        BONES[n] = (tuple(h), tuple(t), prev)
+        prev = n
 
 # Vật liệu của từng đỉnh (sau khi gộp mesh), để tìm mắt, khăn
 mat_of = {}
@@ -147,7 +187,7 @@ for n, side in (('ear_L', -1), ('ear_R', 1)):
 # Khăn: phần nút và hai mép rủ trước ngực đung đưa theo quán tính
 knot = [v.co.copy() for v in cat.data.vertices if mat_of.get(v.index) == 'Khan' and v.co.z < .32]
 kc = center(knot)
-BONES['scarf'] = ((kc.x, kc.y, .32), (kc.x, kc.y - .01, min(p.z for p in knot)), 'spine')
+BONES['scarf'] = ((kc.x, kc.y, .32), (kc.x, kc.y - .01, min(p.z for p in knot)), 'chest')
 print('eyes', [tuple(round(c, 3) for c in BONES[n][0]) for n in ('eye_L', 'eye_R')],
       'ears', [tuple(round(c, 3) for c in BONES[n][1]) for n in ('ear_L', 'ear_R')],
       'scarf', tuple(round(c, 3) for c in BONES['scarf'][0]))
@@ -160,21 +200,58 @@ bpy.ops.object.mode_set(mode='EDIT')
 for name, (h, t, parent) in BONES.items():
     b = arm_data.edit_bones.new(name)
     b.head, b.tail = Vector(h), Vector(t)
-    b.roll = 0
+    d = b.tail - b.head
+    if abs(d.x) < 1e-3:
+        # Xương nằm trong mặt phẳng dọc thân: đặt trục Z cục bộ vuông góc trong mặt phẳng đó
+        # để trục X cục bộ đúng bằng +X của model (gập trước/sau = xoay quanh X, cộng dồn được)
+        b.align_roll(Vector((0, -d.z, d.y)))
+    else:
+        b.roll = 0
     if parent:
         b.parent = arm_data.edit_bones[parent]
 bpy.ops.object.mode_set(mode='OBJECT')
+bad = [b.name for b in arm_data.bones if abs(b.tail_local.x - b.head_local.x) < 1e-3
+       and (b.matrix_local.to_3x3().col[0] - Vector((1, 0, 0))).length > 1e-3]
+assert not bad, f'trục X của các xương này lệch khỏi +X: {bad}'
+print('bones', len(arm_data.bones), [b.name for b in arm_data.bones])
+
+
+def nearest_segments(p, segs):
+    """Các đoạn xương sắp theo khoảng cách từ p: (khoảng cách, tên)."""
+    d = []
+    for n, h, t in segs:
+        seg = t - h
+        k = max(0.0, min(1.0, (p - h).dot(seg) / seg.length_squared))
+        d.append(((p - (h + seg * k)).length, n))
+    d.sort()
+    return d
+
+
+def split2(d, w, total):
+    """Chia trọng số total cho đoạn gần nhất và đoạn kề nó để chỗ gập mềm."""
+    inv = [1.0 / (dist + .004) ** 3 for dist, _ in d[:2]]
+    for (dist, n), iv in zip(d[:2], inv):
+        w[n] = w.get(n, 0) + total * iv / sum(inv)
 
 
 groups = {n: cat.vertex_groups.new(name=n) for n in BONES if n != 'root'}
+TAIL_SEGS = [(n, Vector(BONES[n][0]), Vector(BONES[n][1])) for n in TAIL]
 for v in cat.data.vertices:
     x, y, z = v.co
+    p = Vector((x, y, z))
     w = {}
-    # Chân: cột thẳng đứng dưới thân
-    for n, (lx, ly, top) in {'leg_FL': (-.056, -.1, .2), 'leg_FR': (.056, -.1, .2),
-                             'leg_BL': (-.064, .15, .17), 'leg_BR': (.064, .15, .17)}.items():
-        if abs(x - lx) < .05 and abs(y - ly) < .075 and z < top + .04:
-            w[n] = ramp(z, top + .04, top - .06)
+    # Chân: cột dưới thân. Phần thấp theo hẳn chân, lên gần thân thì chuyển dần sang chest/hips.
+    # Trong chân, mỗi đỉnh chia cho 2 đoạn gần nhất (vai-khuỷu, khuỷu-cổ chân, bàn chân).
+    for leg, segs in LEG_SEGS.items():
+        a, e = segs[0][1], segs[1][2]
+        top = .2 if leg[0] == 'F' else .17
+        ly = (a.y + e.y) / 2
+        if abs(x - a.x) < .05 and abs(y - ly) < .085 and z < top + .04:
+            # Chỉ lấy đỉnh nằm quanh ống chân (bán kính chân ~3–4 cm): ức và bụng sát chân vẫn theo thân,
+            # nếu không khi chân co lên ngực, da ức bị kéo thành mảng
+            d = nearest_segments(p, segs)
+            r_in, r_out = (.042, .062) if leg[0] == 'F' else (.05, .075)
+            split2(d, w, ramp(z, top + .04, top - .06) * ramp(d[0][0], r_out, r_in))
     # Đầu: phía trước và cao hơn cổ
     if y < -.05 and z > .3:
         w['head'] = ramp(z, .31, .37) * ramp(y, -.05, -.11)
@@ -194,24 +271,29 @@ for v in cat.data.vertices:
         w['scarf'] = k
     # Đuôi: mỗi đỉnh chia trọng số cho đốt gần nhất và đốt kề nó, để chỗ gập mềm
     if y > .17 and z > .18:
-        p = Vector((x, y, z))
-        d = []
-        for n in TAIL:
-            h, t = Vector(BONES[n][0]), Vector(BONES[n][1])
-            seg = t - h
-            k = max(0.0, min(1.0, (p - h).dot(seg) / seg.length_squared))
-            d.append(((p - (h + seg * k)).length, n, k))
-        d.sort()
+        d = nearest_segments(p, TAIL_SEGS)
         if d[0][0] < (.08 if d[0][1] in ('tail_1', 'tail_2') else .09):
-            inv = [1.0 / (dist + .004) ** 3 for dist, _, _ in d[:2]]
-            base = ramp(y, .17, .21) if d[0][1] == 'tail_1' else 1.0
-            for (dist, n, _), iv in zip(d[:2], inv):
-                w[n] = w.get(n, 0) + base * iv / sum(inv)
+            split2(d, w, ramp(y, .17, .21) if d[0][1] == 'tail_1' else 1.0)
+    # Còn lại thuộc thân: nửa trước theo chest, nửa sau theo hips, chuyển mượt ở giữa lưng
     rest = max(0.0, 1.0 - sum(w.values()))
-    w['spine'] = w.get('spine', 0) + rest
+    if rest > 0:
+        k = ramp(y, .08, -.04)
+        w['chest'] = w.get('chest', 0) + rest * k
+        w['hips'] = w.get('hips', 0) + rest * (1 - k)
     for n, val in w.items():
         if val > 0.001:
             groups[n].add([v.index], val, 'REPLACE')
+
+# Kiểm tra theo quy trình duyệt mèo: đỉnh ở đuôi phải theo đuôi gần trọn (≥ 0,9),
+# nếu không lông bị kéo thành mảng khi đuôi cử động
+gi = {g.index: g.name for g in cat.vertex_groups}
+weak = 0
+for v in cat.data.vertices:
+    if v.co.y > .24 and v.co.z > .2:   # khúc đuôi đã ra khỏi mông
+        tw = sum(g.weight for g in v.groups if gi[g.group].startswith('tail'))
+        weak += tw < .9
+print('tail verts with tail weight < 0.9:', weak)
+assert weak == 0
 
 cat.parent = arm
 md = cat.modifiers.new('Armature', 'ARMATURE')

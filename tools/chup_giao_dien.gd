@@ -19,6 +19,10 @@ func _wait(frames := 10) -> void:
 		await process_frame
 
 
+func _wait_s(sec: float) -> void:
+	await create_timer(sec).timeout
+
+
 func _shot(name: String) -> void:
 	await _wait(6)
 	var img := root.get_viewport().get_texture().get_image()
@@ -31,6 +35,13 @@ func _run() -> void:
 	await _wait(30)
 	await _shot("1_man_hinh_chinh")
 	var menu := current_scene
+	var show: BoPreview = menu.showcase_cat
+	show.cat.play_idle_action("lick", 4.0)
+	await _wait_s(1.6)
+	await _shot("1b_bo_liem_chan")
+	show.cat.play_idle_action("sit", 5.0)
+	await _wait_s(2.0)
+	await _shot("1c_bo_ngoi")
 	menu.settings.open()
 	await _shot("2_cai_dat")
 	menu.settings.close()
@@ -50,7 +61,24 @@ func _run() -> void:
 	Outfit.toggle("khando")
 	wd.show_tab(2)
 	await _shot("3e_bo_do")
+	# Mặc thử món khoá (chỉ xem trên bục)
+	wd.show_tab(1)
+	wd.preview.yaw = wd.preview.start_yaw
+	wd.preview.cat.play_idle_action("", 30.0)
+	for id in ["munlen", "kinhram", "tatsoc", "noduoi"]:
+		wd._try[Outfit.acc(id)[3]] = id
+	wd._refresh()
+	await _wait(10)
+	await _shot("3f_mac_thu")
+	wd.preview.yaw += PI * 0.7
+	await _shot("3g_mac_thu_xoay")
+	wd.preview.yaw -= PI * 0.7
 	wd.show_tab(0)
+	wd._try_breed = "muop"
+	wd._refresh()
+	wd.preview.cat.play_idle_action("", 30.0)
+	await _wait_s(1.0)
+	await _shot("3h_thu_giong")
 	wd.close()
 
 	change_scene_to_file("res://scenes/main.tscn")

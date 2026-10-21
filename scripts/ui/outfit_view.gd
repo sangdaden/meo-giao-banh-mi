@@ -5,10 +5,11 @@ extends RefCounted
 ## của từng giống, nên cùng một món đeo được lên giống khác: đồ đầu theo tâm và cỡ đầu, đồ khác theo điểm gắn.
 
 const DIR := "res://assets/models/skin/"
-## Điểm gắn -> xương mang nó
+## Điểm gắn -> xương mang nó (bộ 22 xương; tên sau là của bộ 16 xương cũ, dùng nếu model chưa đổi)
 const BONE := {
-	"head": "head", "neck": "spine", "back": "spine", "tail_mid": "tail_2", "tail_tip": "tail_4",
-	"pawFL": "leg_FL", "pawFR": "leg_FR", "pawBL": "leg_BL", "pawBR": "leg_BR",
+	"head": ["head"], "neck": ["chest", "spine"], "back": ["chest", "spine"],
+	"tail_mid": ["tail_2"], "tail_tip": ["tail_4"],
+	"pawFL": ["paw_FL", "leg_FL"], "pawFR": ["paw_FR", "leg_FR"], "pawBL": ["paw_BL", "leg_BL"], "pawBR": ["paw_BR", "leg_BR"],
 }
 
 ## Mũ trùm kín đầu: cụp tai xuống cho khỏi đâm xuyên mũ (thêm vào cờ "ears" trong skin.json)
@@ -77,7 +78,9 @@ static func attach(skel: Skeleton3D, id: String, breed := "bo") -> Array:
 	for mi: MeshInstance3D in scene.find_children("*", "MeshInstance3D", true, false):
 		var oi: Dictionary = info.get(str(mi.name), info.get(str(mi.get_parent().name), {}))
 		var sock: String = oi.get("sock", "back")
-		var bone := skel.find_bone(BONE.get(sock, "spine"))
+		var bone := -1
+		for n in BONE.get(sock, BONE.back):
+			bone = skel.find_bone(n) if bone < 0 else bone
 		if bone < 0:
 			continue
 		var att := BoneAttachment3D.new()

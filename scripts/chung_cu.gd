@@ -66,6 +66,7 @@ var rig: Node3D
 var hud: CanvasLayer
 var playing := false
 var time_left := TIME_LIMIT
+var time_limit: float = TIME_LIMIT  ## Thong thả: 90 s (DoKho), Thử thách: 30 s
 var late := false
 var intact := true
 var delivered := false
@@ -154,7 +155,8 @@ func _start() -> void:
 		GameState.use_test_save("user://luu_game_autotest.cfg")
 	Scoring.begin_day("thu_nam")
 	playing = true
-	time_left = TIME_LIMIT
+	time_limit = DoKho.v("apartment_time", TIME_LIMIT)
+	time_left = time_limit
 	player.carrying = true
 	player.can_move = true
 	if not _autotest:
@@ -191,13 +193,13 @@ func _physics_process(delta: float) -> void:
 	if time_left <= 0.0 and not late:
 		late = true
 		hud.show_toast("Trễ rồi! Bé Na vẫn nhận bánh nhưng chỉ được 1 sao.", 2.5)
-	hud.set_timer(time_left, TIME_LIMIT, true)
+	hud.set_timer(time_left, time_limit, true)
 	hud.set_distance(player.global_position.distance_to(DOOR), "Căn 5B-1")
 	hud.set_bread(true, ORDER.item, clampf(1.0 - _clock / 60.0, 0.0, 1.0))
 	# Rơi từ cao hơn 3 m thì bánh bẹp (mất sao nguyên vẹn), như màn giao Thứ Hai
 	var on_floor: bool = player.is_on_floor() or player.climb != ""
 	if on_floor and not _was_on_floor:
-		if _air_top - player.global_position.y > FALL_BREAK_HEIGHT and intact:
+		if _air_top - player.global_position.y > float(DoKho.v("fall_break_height", FALL_BREAK_HEIGHT)) and intact:
 			intact = false
 			hud.show_toast("Rơi cao quá, bánh bẹp mất rồi!", 2.0)
 	if on_floor:
@@ -229,8 +231,8 @@ func _on_delivered(_kind: String) -> void:
 	playing = false
 	player.carrying = false
 	player.can_move = false
-	hud.set_timer(time_left, TIME_LIMIT, false)
-	var ratio := clampf(time_left / TIME_LIMIT, 0.0, 1.0)
+	hud.set_timer(time_left, time_limit, false)
+	var ratio := clampf(time_left / time_limit, 0.0, 1.0)
 	var r := Scoring.order_done(0, {"time_ratio": ratio, "late": late, "intact": intact, "kitchen_star": -1,
 		"side_quest": ORDER.side_quest, "side_quest_ok": not baby_woke, "time": _clock})
 	r.erase("kitchen_stars")  # cảnh riêng, không có ổ bánh từ bếp
@@ -786,7 +788,8 @@ func _autotest_run() -> void:
 
 	# 6. Giao: chạy đồng hồ, tới cửa 5B-1 gõ cửa
 	playing = true
-	time_left = TIME_LIMIT
+	time_limit = DoKho.v("apartment_time", TIME_LIMIT)
+	time_left = time_limit
 	_clock = 0.0
 	await _put(DOOR + Vector3(0, 0.05, 0), 0.0)
 	await _frames(30)

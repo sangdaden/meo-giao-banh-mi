@@ -67,7 +67,13 @@ static func bonus_seconds(i: int) -> float:
 static func stars_for(info: Dictionary) -> int:
 	if info.get("late", false) or float(info.get("time_ratio", 0.0)) <= 0.0:
 		return LATE_STARS
-	if float(info.get("time_ratio", 0.0)) < TWO_STAR_RATIO:
+	var ratio := float(info.get("time_ratio", 0.0))
+	if not DoKho.hard():
+		# Thong thả: ★ giao xong, ★★ kịp giờ, ★★★ còn từ 25% giờ và bánh nguyên vẹn (sao bếp không bắt buộc)
+		if ratio >= float(DoKho.EASY.three_star_ratio) and info.get("intact", true):
+			return 3
+		return 2
+	if ratio < TWO_STAR_RATIO:
 		return 1
 	var ks: int = int(info.get("kitchen_star", -1))
 	var kitchen_ok := ks < 0 or ks >= KITCHEN_STARS_FOR_THREE
@@ -76,7 +82,7 @@ static func stars_for(info: Dictionary) -> int:
 
 static func tip_for(stars: int, late: bool, side_ok: bool) -> int:
 	if late:
-		return 0
+		return int(DoKho.v("late_tip", 0))
 	return stars * TIP_PER_STAR + (TIP_SIDE_QUEST if side_ok else 0)
 
 
@@ -288,6 +294,8 @@ static func _rank_value(rank: String) -> int:
 
 ## Kiểm tra nhanh luật chấm điểm (autotest gọi). Không đụng file lưu.
 static func self_test() -> bool:
+	var saved := DoKho.force
+	DoKho.force = 1  # các ca dưới đây là luật Thử thách (số cũ)
 	var cases := [
 		[{"time_ratio": 0.6, "intact": true, "kitchen_star": 3}, 3],
 		[{"time_ratio": 0.6, "intact": true, "kitchen_star": 1}, 2],
@@ -308,4 +316,21 @@ static func self_test() -> bool:
 	ok = ok and rank_of(7) == "thuong" and rank_of(8) == "gion" and rank_of(12) == "gion" and rank_of(13) == "vang"
 	if not ok:
 		push_error("Scoring: tiền boa hoặc hạng sai")
+	# Thong thả: ★ trễ giờ (vẫn có 5.000đ), ★★ kịp giờ, ★★★ còn từ 25% giờ và nguyên vẹn, sao bếp không bắt buộc
+	DoKho.force = -1
+	var easy := [
+		[{"time_ratio": 0.6, "intact": true, "kitchen_star": 1}, 3],
+		[{"time_ratio": 0.3, "intact": true, "kitchen_star": -1}, 3],
+		[{"time_ratio": 0.2, "intact": true, "kitchen_star": 3}, 2],
+		[{"time_ratio": 0.9, "intact": false, "kitchen_star": 3}, 2],
+		[{"time_ratio": 0.0, "late": true, "intact": true, "kitchen_star": 3}, 1],
+	]
+	for c in easy:
+		if stars_for(c[0]) != c[1]:
+			push_error("Scoring (thong thả): %s ra %d sao, cần %d" % [c[0], stars_for(c[0]), c[1]])
+			ok = false
+	if tip_for(1, true, false) != 5000:
+		push_error("Scoring (thong thả): trễ giờ phải được 5.000đ")
+		ok = false
+	DoKho.force = saved
 	return ok

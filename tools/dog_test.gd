@@ -29,6 +29,7 @@ const HOME := Vector3(0, 0, 0)
 
 
 func _initialize() -> void:
+	DoKho.force = 1  # các bài thử này kiểm tra số của Chế độ thử thách (số gốc)
 	_run.call_deferred()
 
 

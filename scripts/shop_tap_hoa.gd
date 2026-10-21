@@ -263,7 +263,7 @@ func _on_egg_broken(remaining: int) -> void:
 	var deliveries := get_parent()
 	if deliveries and "side_ok" in deliveries:
 		deliveries.side_ok[_order] = false
-	if remaining <= EGGS_OK and _main and "intact" in _main:
+	if remaining <= int(DoKho.v("eggs_lose_at", EGGS_OK)) and _main and "intact" in _main:
 		_main.intact = false
 	_set_hud_eggs(remaining)
 	# Vệt trứng vỡ trên đất (decal tạm: lòng trắng, lòng đỏ)
@@ -287,7 +287,7 @@ func _on_egg_broken(remaining: int) -> void:
 	get_tree().create_timer(12.0).timeout.connect(splat.queue_free)
 	if remaining == 0:
 		_toast("Bể hết trứng rồi! Vẫn mang túi về cho Cô Ba nhé.", 2.5)
-	elif remaining == EGGS_OK:
+	elif remaining == int(DoKho.v("eggs_lose_at", EGGS_OK)):
 		_toast("Bể một quả! Còn %d/%d. Ổ trứng sẽ mất sao bếp." % [remaining, EGGS], 2.5)
 	else:
 		_toast("Bể một quả! Còn %d/%d." % [remaining, EGGS], 2.0)

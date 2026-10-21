@@ -12,13 +12,13 @@ extends Node3D
 ##   Phụ: qua hẻm mà Chó Mực không hề thức.
 ##
 ## Cách dùng trong main.gd:
-##   build_static(self, ORDERS) trước Blocks.merge_static (phần đứng yên được gộp lệnh vẽ),
+##   build_static(self, orders) trước Blocks.merge_static (phần đứng yên được gộp lệnh vẽ),
 ##   add_child sau merge_static (phần chuyển động: giỏ, ly, tay, tờ báo...), rồi setup().
 ##   Mỗi nhịp vật lý lúc đang mang bánh: step(order_index, in_zone) trả true là đã giao xong.
 ##   Bố cục lấy theo CityProps (xe máy, ban công Bé Na, quầy và bàn cà phê, ghế mây Bà Sáu).
 ## Toàn bộ là khối tạm; model giỏ, tờ báo, ly, chén sữa và tư thế 5 người dân chờ Sang duyệt phác thảo.
 
-## Tên nhiệm vụ phụ theo khóa "side_quest" trong ORDERS
+## Tên nhiệm vụ phụ theo khóa "side_quest" của đơn (scripts/days.gd)
 const QUESTS := {
 	"bao_co_ba": "Ngậm tờ báo về cho Cô Ba",
 	"gio_nhip_dau": "Bỏ bánh vào giỏ ngay nhịp đầu",
@@ -127,6 +127,8 @@ func build_static(parent: Node3D, order_list: Array) -> void:
 				_build_hung(parent, i, p, o.color, title)
 			"chair":
 				_build_sau(parent, i, p, o.color, title)
+			_:
+				_build_generic(parent, i, p, o.color, title)
 	for pd in PUDDLES:
 		var m := Blocks.box(parent, Vector3(pd.size.x, 0.02, pd.size.y), pd.pos + Vector3(0, 0.055, 0), WATER)  # trên mặt vỉa hè 0,04 m
 		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -195,6 +197,14 @@ func _build_sau(parent: Node3D, i: int, p: Vector3, shirt: Color, title: String)
 	_seated(parent, pos, 0.0, shirt)
 	_arms.append({"order": i, "pos": pos + Vector3(0.2, 1.05, -0.05), "yaw": 0.0, "color": shirt})
 	Blocks.label(parent, title, pos + Vector3(0, 3.0, 0), 40)
+
+
+## Cách giao chưa làm (on_seat, beside_tea, hand_over... của Thứ Ba): người đứng chìa tay, bấm E đưa.
+## Các gói ngày sau thay bằng cảnh riêng của mình.
+func _build_generic(parent: Node3D, i: int, p: Vector3, shirt: Color, title: String) -> void:
+	_standing(parent, p + Vector3(0, 0, -0.6), PI, shirt)
+	_arms.append({"order": i, "pos": p + Vector3(0.2, 1.05, -0.45), "yaw": PI, "color": shirt})
+	Blocks.label(parent, title, p + Vector3(0, 2.2, -0.6), 40)
 
 
 ## Người ngồi ghế, quay mặt về -Z cục bộ (yaw xoay cả người). Có màu ghế thì dựng ghế bên dưới.
@@ -362,6 +372,11 @@ func stand_point(i: int) -> Vector3:
 	return orders[i].pos
 
 
+## Còn nhiệm vụ phụ đang làm dở sau khi giao (tờ báo Chú Tư đang ngậm về lò).
+func side_pending() -> bool:
+	return _paper_state == "carry"
+
+
 ## Tên nhiệm vụ phụ của đơn i.
 func quest_title(i: int) -> String:
 	return QUESTS.get(orders[i].get("side_quest", ""), "")
@@ -433,7 +448,8 @@ func step(i: int, in_zone: bool, _delta: float) -> bool:
 		"counter":
 			_deliver_may(i)
 		"under_car":
-			side_ok[i] = not _oiled
+			# Vũng dầu chỉ tính khi đơn có nhiệm vụ "khong_dau" (Thứ Ba đơn này có nhiệm vụ khác)
+			side_ok[i] = not _oiled and orders[i].get("side_quest", "") == "khong_dau"
 			_play_deliver(kind)
 		"chair":
 			_deliver_sau(i)

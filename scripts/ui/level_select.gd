@@ -2,25 +2,14 @@ class_name LevelSelectPanel
 extends Control
 ## Màn Chọn màn: mở từ nút "Bắt đầu ca" ở màn hình chính.
 ## Bên trái là bảy ngày trong tuần (theo trang thiết kế màn chơi), bên phải là các cách chơi của ngày đang chọn.
-## Thứ Hai chơi được: cả ca, chỉ bếp, chỉ giao 5 đơn, hoặc giao một đơn. Các ngày khác hiện "Sắp có".
-## Bản chơi thử nên không khóa phần nào của Thứ Hai. Sao và kỷ lục đọc từ file lưu (GameState).
+## Ngày đã làm (Days.playable) có: cả ca, chỉ bếp, chỉ giao 5 đơn, hoặc giao một đơn. Ngày chưa làm hiện "Sắp có".
+## Dữ liệu ngày và đơn lấy từ scripts/days.gd. Bản chơi thử mở sẵn mọi ngày đã làm (Days.PLAYTEST_UNLOCK_ALL).
+## Sao và kỷ lục đọc từ file lưu (GameState), mỗi ngày một mục.
 
 signal closed
 
 const T = preload("res://scripts/ui/ui_theme.gd")
 const Main = preload("res://scripts/main.gd")
-
-## [mã ngày, tên chủ đề, mô tả]. Chỉ Thứ Hai đã làm xong.
-const DAYS := [
-	["thu_hai", "Mẻ bánh đầu tiên", "Làm bánh trong bếp Cô Ba rồi giao 5 đơn. Đơn cuối phải lách qua Chó Mực ở hẻm 42."],
-	["thu_ba", "Chợ đông", "Sáng chợ đông nghẹt: góc đánh cờ và tiệm tạp hóa chắn lối, phải tìm đường vòng."],
-	["thu_tu", "Trời mưa", "Mưa trơn trượt, đi đường sân thượng và giữ thăng bằng trên mép tường."],
-	["thu_nam", "Chung cư", "Giao lên các tầng chung cư: bám mép và bật tường để leo."],
-	["thu_sau", "Đám giỗ Bà Sáu", "Ngày đông khách nhất: tiệm sửa xe và nhà Bà Sáu đặt bánh cho đám giỗ."],
-	["thu_bay", "Dạo phố", "Không có đồng hồ: đi giúp hàng xóm, chụp ảnh, và làm bạn với Chó Mực."],
-	["chu_nhat", "Hội mèo", "Năm cuộc thi với mèo cả phố: đua sân thượng, nhảy thùng, trốn tìm, giao tiếp sức, thi trang phục."],
-]
-const PLAYABLE := ["thu_hai"]
 
 var _day := "thu_hai"
 var _day_buttons := {}  # mã ngày -> Button
@@ -51,7 +40,7 @@ func _ready() -> void:
 	back.pressed.connect(close)
 	head.add_child(back)
 	head.add_child(T.label("Chọn màn chơi", 42, T.INK, "display"))
-	var note := T.label("Bản chơi thử: mở hết phần của Thứ Hai · Esc để quay lại", 15, T.MUTED, "bold")
+	var note := T.label("Bản chơi thử: mở hết các ngày đã làm · Esc để quay lại", 15, T.MUTED, "bold")
 	note.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	note.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -76,7 +65,7 @@ func _ready() -> void:
 	visibility_changed.connect(func():
 		if visible:
 			_build_week()
-			_select("thu_hai"))
+			_select(PlayMode.day if Days.unlocked(PlayMode.day) else "thu_hai"))
 
 
 func open() -> void:
@@ -102,8 +91,8 @@ func _select(day: String, grab := true) -> void:
 	for c in _detail.get_children():
 		_detail.remove_child(c)
 		c.queue_free()
-	if day in PLAYABLE:
-		_build_monday()
+	if Days.unlocked(day):
+		_build_day(day)
 	else:
 		_build_soon(day)
 	T.wire_clicks(self)
@@ -120,10 +109,10 @@ func _build_week() -> void:
 		c.queue_free()
 	_day_buttons.clear()
 	_day = ""
-	for d in DAYS:
-		var b := _day_button(d[0], d[1])
+	for id in Days.ORDER:
+		var b := _day_button(id, Days.get_day(id).title)
 		_week.add_child(b)
-		_day_buttons[d[0]] = b
+		_day_buttons[id] = b
 
 
 func _day_button(day: String, theme_name: String) -> Button:
@@ -141,7 +130,7 @@ func _day_button(day: String, theme_name: String) -> Button:
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	h.add_child(v)
-	var playable := day in PLAYABLE
+	var playable := Days.unlocked(day)
 	v.add_child(T.label(GameState.DAY_NAMES[day], 22, T.INK if playable else T.MUTED, "display"))
 	v.add_child(T.label(theme_name, 14, T.MUTED, "bold"))
 	if playable:
@@ -150,6 +139,8 @@ func _day_button(day: String, theme_name: String) -> Button:
 			h.add_child(_pill("%d/15 sao" % best, T.AMBER, T.ON_CRUST))
 		else:
 			h.add_child(_pill("Mới", T.LEAF, T.PAPER))
+	elif Days.playable(day):
+		h.add_child(_pill("Chưa mở", T.SAND, T.MUTED))
 	else:
 		h.add_child(_pill("Sắp có", T.SAND, T.MUTED))
 	b.pressed.connect(_select.bind(day))
@@ -178,22 +169,22 @@ func _pill(text: String, bg: Color, fg: Color) -> PanelContainer:
 
 # ---------------------------------------------------------------- Thứ Hai
 
-func _build_monday() -> void:
-	var d: Array = DAYS[0]
-	_detail.add_child(T.label("Thứ Hai · %s" % d[1], 30, T.INK, "display"))
-	var desc := T.label(d[2], 15, T.MUTED, "body")
+func _build_day(id: String) -> void:
+	var d := Days.get_day(id)
+	_detail.add_child(T.label("%s · %s" % [d.name, d.title], 30, T.INK, "display"))
+	var desc := T.label(d.blurb, 15, T.MUTED, "body")
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_detail.add_child(desc)
-	_detail.add_child(_record_line())
+	_detail.add_child(_record_line(id))
 
 	var modes := HBoxContainer.new()
 	modes.add_theme_constant_override("separation", 14)
 	_detail.add_child(modes)
-	var kitchen_best := int(GameState.get_day("sao_bep", -1, "thu_hai"))
-	var full := _mode_button("Cả ca", "Làm bếp rồi giao 5 đơn", "primary", PlayMode.Mode.FULL)
+	var kitchen_best := int(GameState.get_day("sao_bep", -1, id))
+	var full := _mode_button(id, "Cả ca", "Làm bếp rồi giao 5 đơn", "primary", PlayMode.Mode.FULL)
 	modes.add_child(full)
-	modes.add_child(_mode_button("Chỉ làm bếp", "Kỷ lục bếp %d/3 sao" % kitchen_best if kitchen_best >= 0 else "Chưa làm bếp lần nào", "secondary", PlayMode.Mode.KITCHEN))
-	modes.add_child(_mode_button("Chỉ giao 5 đơn", "Bỏ qua phần bếp", "secondary", PlayMode.Mode.DELIVERY))
+	modes.add_child(_mode_button(id, "Chỉ làm bếp", "Kỷ lục bếp %d/3 sao" % kitchen_best if kitchen_best >= 0 else "Chưa làm bếp lần nào", "secondary", PlayMode.Mode.KITCHEN))
+	modes.add_child(_mode_button(id, "Chỉ giao 5 đơn", "Bỏ qua phần bếp", "secondary", PlayMode.Mode.DELIVERY))
 	_first_focus = full
 
 	var h := T.label("Giao một đơn · vào thẳng đơn đó, không tính kỷ lục ca", 20, T.INK, "display")
@@ -201,22 +192,23 @@ func _build_monday() -> void:
 	var list := VBoxContainer.new()
 	list.add_theme_constant_override("separation", 6)
 	_detail.add_child(list)
-	for i in Main.ORDERS.size():
-		list.add_child(_order_button(i, Main.ORDERS[i]))
+	var orders := Days.orders(id)
+	for i in orders.size():
+		list.add_child(_order_button(id, i, orders[i]))
 
 
-func _record_line() -> Control:
-	var best := int(GameState.get_day("sao_cao_nhat", -1, "thu_hai"))
+func _record_line(id: String) -> Control:
+	var best := int(GameState.get_day("sao_cao_nhat", -1, id))
 	var text := "Chưa chơi ca nào · chơi cả ca để lập kỷ lục"
 	if best >= 0:
 		var parts := ["Kỷ lục ca %d/15 sao" % best]
-		var rank := str(GameState.get_day("hang_cao_nhat", "", "thu_hai"))
+		var rank := str(GameState.get_day("hang_cao_nhat", "", id))
 		if rank != "":
 			parts.append(Scoring.rank_name(rank))
-		var tip := int(GameState.get_day("boa_cao_nhat", 0, "thu_hai"))
+		var tip := int(GameState.get_day("boa_cao_nhat", 0, id))
 		if tip > 0:
 			parts.append("boa cao nhất %s" % Main._money(tip))
-		parts.append("đã chơi %d lần" % int(GameState.get_day("so_lan_choi", 0, "thu_hai")))
+		parts.append("đã chơi %d lần" % int(GameState.get_day("so_lan_choi", 0, id)))
 		text = " · ".join(parts)
 	var p := PanelContainer.new()
 	p.add_theme_stylebox_override("panel", T.box(T.CREAM, 14, 14, Color(0, 0, 0, 0), 0))
@@ -224,7 +216,7 @@ func _record_line() -> Control:
 	return p
 
 
-func _mode_button(title: String, sub: String, style: String, mode: PlayMode.Mode) -> Button:
+func _mode_button(id: String, title: String, sub: String, style: String, mode: PlayMode.Mode) -> Button:
 	var b := T.button("", style, 72)
 	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var v := VBoxContainer.new()
@@ -241,11 +233,11 @@ func _mode_button(title: String, sub: String, style: String, mode: PlayMode.Mode
 	var sl := T.label(sub, 13, fg if style == "primary" else T.MUTED, "bold")
 	sl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	v.add_child(sl)
-	b.pressed.connect(func(): PlayMode.start(get_tree(), mode))
+	b.pressed.connect(func(): PlayMode.start(get_tree(), mode, 0, id))
 	return b
 
 
-func _order_button(i: int, o: Dictionary) -> Button:
+func _order_button(id: String, i: int, o: Dictionary) -> Button:
 	var b := T.button("", "secondary", 48)
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 12)
@@ -270,39 +262,39 @@ func _order_button(i: int, o: Dictionary) -> Button:
 	var who := T.label("%s · %s" % [o.who, o.place], 18, T.INK, "bold")
 	who.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	h.add_child(who)
-	var item := T.label(o.item, 14, T.MUTED, "body")
+	var item := T.label(Main._item_text(o), 14, T.MUTED, "body")
 	item.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	item.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(item)
 	if o.get("boss", false):
 		h.add_child(_pill("Chó Mực", T.RED, T.PAPER))
+	elif Main._is_errand(o):
+		h.add_child(_pill("Mua về lò", T.TEAL, T.PAPER))
 
-	var t := Scoring.best_time(i)
+	var times: Array = GameState.get_day("ky_luc_don", [], id)
+	var t: float = times[i] if i < times.size() else -1.0
 	var tl := T.label("%.1f giây" % t if t > 0.0 else "chưa giao", 14, T.MUTED, "bold")
 	tl.custom_minimum_size.x = 80
 	tl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	tl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	h.add_child(tl)
 	var stars := T.StarRow.new()
-	stars.filled = Scoring.best_stars(i)
+	stars.filled = Scoring.best_stars(i, id)
 	stars.empty_color = T.SAND
 	stars.custom_minimum_size = Vector2(3 * 24 + 8, 24)
 	stars.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	h.add_child(stars)
-	b.tooltip_text = "Vào thẳng đơn %d: chạy tới lò nhận bánh rồi giao cho %s" % [i + 1, o.who]
-	b.pressed.connect(func(): PlayMode.start(get_tree(), PlayMode.Mode.ORDER, i))
+	b.tooltip_text = "Vào thẳng đơn %d của %s" % [i + 1, GameState.DAY_NAMES.get(id, id)]
+	b.pressed.connect(func(): PlayMode.start(get_tree(), PlayMode.Mode.ORDER, i, id))
 	return b
 
 
 # ---------------------------------------------------------------- ngày chưa làm
 
 func _build_soon(day: String) -> void:
-	var d: Array = DAYS[0]
-	for x in DAYS:
-		if x[0] == day:
-			d = x
-	_detail.add_child(T.label("%s · %s" % [GameState.DAY_NAMES[day], d[1]], 34, T.MUTED, "display"))
-	var desc := T.label(d[2], 18, T.INK, "body")
+	var d := Days.get_day(day)
+	_detail.add_child(T.label("%s · %s" % [d.name, d.title], 34, T.MUTED, "display"))
+	var desc := T.label(d.blurb, 18, T.INK, "body")
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_detail.add_child(desc)
 	var card := PanelContainer.new()
@@ -312,10 +304,11 @@ func _build_soon(day: String) -> void:
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
 	v.add_theme_constant_override("separation", 6)
 	card.add_child(v)
-	var big := T.label("Sắp có", 52, T.MUTED, "display")
+	var big := T.label("Chưa mở" if Days.playable(day) else "Sắp có", 52, T.MUTED, "display")
 	big.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(big)
-	var sub := T.label("Ngày này đang được làm. Bản chơi thử hiện có Thứ Hai.", 17, T.MUTED, "bold")
+	var prev: String = Days.ORDER[maxi(Days.ORDER.find(day) - 1, 0)]
+	var sub := T.label("Chơi xong %s để mở ngày này." % GameState.DAY_NAMES[prev] if Days.playable(day) else "Ngày này đang được làm.", 17, T.MUTED, "bold")
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(sub)
 	_detail.add_child(card)

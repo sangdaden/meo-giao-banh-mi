@@ -46,6 +46,9 @@ Khi thêm tiếng lấy từ nơi khác, ghi thêm một dòng vào bảng cuố
 | sauce.wav | bếp: bóp chai sốt | tự tổng hợp, CC0 |
 | oven_open.wav, oven_ding.wav | bếp: mở cửa lò, chuông lò xong | tự tổng hợp, CC0 |
 | wrap.wav | bếp: gói bánh vào giấy | tự tổng hợp, CC0 |
+| burn.wav | bếp: bánh cháy, xèo gắt rồi phì khói | tự tổng hợp, CC0 |
+| water.wav | bếp: rửa rau, rót nước | tự tổng hợp, CC0 |
+| spray.wav | bếp: phun hơi nước, bình xịt | tự tổng hợp, CC0 |
 | sizzle.ogg, oven_fire.ogg | bếp: tiếng xèo chảo, lửa lò (lặp 4 giây) | tự tổng hợp, CC0 |
 
 ## Tiếng lấy từ nguồn ngoài

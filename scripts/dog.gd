@@ -53,27 +53,28 @@ var _fake_cd := 0.0
 var _air_peak := 0.0
 
 var _visual: Node3D
-var _head: Node3D
-var _ears: Array[Node3D] = []
-var _eyes: Array[Node3D] = []
-var _tongue: Node3D
-var _legs: Array[Node3D] = []
+var _body: Node3D                      # nghiêng, nhún theo trạng thái; chứa các tư thế
+var _poses := {}                       # tên tư thế -> model
+var _pose := ""
 var _phase := 0.0
 var _zzz: Label3D
 var _what: Label3D
 var _bark: Label3D
-var _lie := 0.0
-var _rise := 0.0
 var _prev_pos := Vector3.ZERO
 var _curr_pos := Vector3.ZERO
 
-const BLACK := Color("#2B2622")
-const EAR := Color("#4A3F37")
-const MUZZLE := Color("#8A6A4F")
-const BROW := Color("#C9A06A")
-const COLLAR := Color("#C8412F")
-const TAG := Color("#F2C14E")
-const TONGUE := Color("#D9677A")
+## Model phong cách D, mỗi trạng thái một tư thế (Sang duyệt 21/10). Chưa có xương nên đổi mesh theo trạng thái.
+const POSE_MODELS := {
+	"dung": preload("res://assets/models/cho_muc/cho_muc_dung.glb"),
+	"ngu_gat": preload("res://assets/models/cho_muc/cho_muc_ngu_gat.glb"),
+	"he_mat": preload("res://assets/models/cho_muc/cho_muc_he_mat.glb"),
+	"ngui": preload("res://assets/models/cho_muc/cho_muc_ngui.glb"),
+	"nghi_ngo": preload("res://assets/models/cho_muc/cho_muc_nghi_ngo.glb"),
+	"duoi": preload("res://assets/models/cho_muc/cho_muc_duoi.glb"),
+	"sua": preload("res://assets/models/cho_muc/cho_muc_sua.glb"),
+	"dop": preload("res://assets/models/cho_muc/cho_muc_dop.glb"),
+	"met": preload("res://assets/models/cho_muc/cho_muc_met.glb"),
+}
 
 
 func _ready() -> void:
@@ -145,7 +146,6 @@ func _set_state(s: State) -> void:
 		_what.visible = s == State.SUSPICIOUS
 		_bark.visible = s == State.CHASE or s == State.BARK or s == State.BITE
 		_bark.text = "!" if s == State.CHASE else "GÂU!"
-		_tongue.visible = s == State.TIRED
 	if changed:
 		state_changed.emit(s)
 
@@ -289,83 +289,95 @@ func _turn_visual(dir: Vector3, delta: float, rate: float) -> void:
 func _build_visual() -> void:
 	_visual = Node3D.new()
 	add_child(_visual)
-	Blocks.box(_visual, Vector3(0.42, 0.36, 0.80), Vector3(0, 0.46, 0.05), BLACK)       # thân
-	Blocks.box(_visual, Vector3(0.30, 0.16, 0.36), Vector3(0, 0.36, -0.12), MUZZLE)     # ngực
-	Blocks.box(_visual, Vector3(0.44, 0.07, 0.10), Vector3(0, 0.60, -0.28), COLLAR)     # vòng cổ
-	Blocks.box(_visual, Vector3(0.07, 0.08, 0.02), Vector3(0, 0.54, -0.34), TAG)        # thẻ tên
-	# Đầu xoay quanh cổ: ngủ thì gục, nghi ngờ thì ngóc, ngửi thì cúi
-	_head = Node3D.new()
-	_head.position = Vector3(0, 0.62, -0.30)
-	_visual.add_child(_head)
-	Blocks.box(_head, Vector3(0.38, 0.34, 0.34), Vector3(0, 0.12, -0.12), BLACK)
-	Blocks.box(_head, Vector3(0.22, 0.16, 0.20), Vector3(0, 0.04, -0.36), MUZZLE)      # mõm
-	Blocks.box(_head, Vector3(0.08, 0.06, 0.04), Vector3(0, 0.10, -0.47), BLACK)       # mũi
-	_tongue = Blocks.box(_head, Vector3(0.08, 0.10, 0.03), Vector3(0, -0.06, -0.42), TONGUE)
-	for side in [-1.0, 1.0]:
-		Blocks.box(_head, Vector3(0.08, 0.04, 0.03), Vector3(0.09 * side, 0.22, -0.29), BROW)   # mày vàng
-		_eyes.append(Blocks.box(_head, Vector3(0.05, 0.05, 0.02), Vector3(0.09 * side, 0.17, -0.295), Color.WHITE))
-		var ear := Node3D.new()
-		ear.position = Vector3(0.14 * side, 0.27, -0.08)
-		_head.add_child(ear)
-		Blocks.box(ear, Vector3(0.08, 0.20, 0.12), Vector3(0, 0.09, 0), EAR)
-		_ears.append(ear)
-	var tail := Blocks.box(_visual, Vector3(0.07, 0.07, 0.30), Vector3(0, 0.66, 0.55), BLACK)
-	tail.rotation.x = 0.8
-	for p in [Vector3(-0.13, 0.30, -0.22), Vector3(0.13, 0.30, -0.22), Vector3(-0.13, 0.30, 0.30), Vector3(0.13, 0.30, 0.30)]:
-		var pivot := Node3D.new()
-		pivot.position = p
-		_visual.add_child(pivot)
-		Blocks.box(pivot, Vector3(0.12, 0.30, 0.12), Vector3(0, -0.15, 0), BLACK)
-		_legs.append(pivot)
-	_zzz = Blocks.label(self, "z z z", Vector3(0, 1.2, 0), 40, Color("#9FD3D6"))
+	_body = Node3D.new()
+	_visual.add_child(_body)
+	for pose_name in POSE_MODELS:
+		var model: Node3D = POSE_MODELS[pose_name].instantiate()
+		model.rotation.y = PI  # model quay mũi về +Z (glTF), Godot coi -Z là phía trước
+		model.visible = false
+		_body.add_child(model)
+		for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
+			_apply_style(mi)
+		_poses[pose_name] = model
+	_show_pose("ngu_gat")
+	_zzz = Blocks.label(self, "z z z", Vector3(0, 1.0, 0), 40, Color("#9FD3D6"))
 	_what = Blocks.label(self, "?", Vector3(0, 1.3, 0), 72, Color("#F2C14E"))
 	_bark = Blocks.label(self, "GÂU!", Vector3(0, 1.4, 0), 64, Color("#C8412F"))
 
 
-## Animation tạm bằng khối, để người chơi đọc được trạng thái từ xa.
-func _animate(delta: float) -> void:
-	var k := 1.0 - exp(-8.0 * delta)
-	var hspeed := _flat(velocity).length()
-	_phase += delta * (3.0 + hspeed * 2.0)
-	var run := clampf(hspeed / chase_speed, 0.0, 1.0)
-	for i in _legs.size():
-		var s := 1.0 if i == 0 or i == 3 else -1.0
-		_legs[i].rotation.x = sin(_phase) * 0.8 * run * s
+## Lông mờ, màu nằm ở màu đỉnh như Bơ. Bản web (Compatibility) không tự đổi màu đỉnh
+## từ linear sang sRGB nên đổi sẵn một lần, để hai bản trông giống nhau.
+func _apply_style(mi: MeshInstance3D) -> void:
+	if RenderingServer.get_rendering_device() == null:
+		var src: ArrayMesh = mi.mesh
+		var dst := ArrayMesh.new()
+		for i in src.get_surface_count():
+			var arrays := src.surface_get_arrays(i)
+			var cols: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+			for k in cols.size():
+				cols[k] = cols[k].linear_to_srgb()
+			arrays[Mesh.ARRAY_COLOR] = cols
+			dst.add_surface_from_arrays(src.surface_get_primitive_type(i), arrays)
+		mi.mesh = dst
+	var m := StandardMaterial3D.new()
+	m.vertex_color_use_as_albedo = true
+	m.roughness = 0.85
+	m.rim_enabled = true
+	m.rim = 0.3
+	for i in mi.mesh.get_surface_count():
+		mi.set_surface_override_material(i, m)
 
-	var lying := state == State.SLEEP or state == State.PEEK or (state == State.TIRED and _resting)
-	_lie = lerpf(_lie, -0.22 if lying else 0.0, k)
-	# Đầu: gục khi ngủ, ngóc khi nghi ngờ (thỉnh thoảng cúi ngửi), chúi tới khi đớp
-	var head_pitch := 0.0
+
+func _show_pose(pose_name: String) -> void:
+	if pose_name == _pose:
+		return
+	if _poses.has(_pose):
+		_poses[_pose].visible = false
+	_pose = pose_name
+	_poses[_pose].visible = true
+
+
+## Tư thế theo trạng thái, cộng chút chuyển động phụ (thở, nhún khi chạy, giật đầu khi sủa)
+## để người chơi đọc được trạng thái từ xa.
+func _animate(delta: float) -> void:
+	var k := 1.0 - exp(-10.0 * delta)
+	var hspeed := _flat(velocity).length()
+	_phase += delta * (2.0 + hspeed * 2.2)
+	var pose := "dung"
+	var bob := 0.0
+	var pitch := 0.0
+	var squash := 1.0
 	match state:
-		State.SLEEP: head_pitch = -0.35
-		State.PEEK: head_pitch = -0.1
-		State.SUSPICIOUS: head_pitch = 0.25 if fmod(_t, 1.6) < 1.0 else -0.45
-		State.BITE: head_pitch = -0.3
-		State.BARK: head_pitch = 0.35 + sin(_t * 18.0) * 0.12
-		State.TIRED: head_pitch = -0.15
-	_head.rotation.x = lerpf(_head.rotation.x, head_pitch, k)
-	# Tai cụp khi ngủ, mệt; dựng khi hé mắt trở đi
-	var ears_up := state in [State.PEEK, State.SUSPICIOUS, State.CHASE, State.BITE, State.BARK]
-	for i in _ears.size():
-		var side := -1.0 if i == 0 else 1.0
-		var target := Vector3(0, 0, 0.15 * side) if ears_up else Vector3(-0.9, 0, 0.7 * side)
-		_ears[i].rotation = _ears[i].rotation.lerp(target, k)
-	# Mắt: nhắm khi ngủ, mở một mắt khi hé, mở cả hai khi thức
-	for i in _eyes.size():
-		var open := 1.0
-		if state == State.SLEEP or (state == State.TIRED and _resting):
-			open = 0.15
-		elif state == State.PEEK and i == 0:
-			open = 0.15
-		_eyes[i].scale.y = lerpf(_eyes[i].scale.y, open, k)
-	if _tongue.visible:
-		_tongue.scale.y = 1.0 + sin(_t * 12.0) * 0.25
-	if state == State.BITE:
-		_visual.scale = Vector3.ONE * (1.0 + sin(_t / bite_time * PI) * 0.12)
-	else:
-		_visual.scale = _visual.scale.lerp(Vector3.ONE, k)
+		State.SLEEP:
+			pose = "ngu_gat" if hspeed < 0.5 else "dung"
+			squash = 1.0 + sin(_t * 2.2) * 0.015  # thở chậm
+		State.PEEK:
+			pose = "he_mat"
+		State.SUSPICIOUS:
+			# Ngóc đầu nhìn về phía tiếng động, thỉnh thoảng cúi ngửi đất
+			pose = "nghi_ngo" if fmod(_t, 1.6) < 1.0 else "ngui"
+		State.CHASE:
+			pose = "duoi"
+			bob = absf(sin(_phase)) * 0.08
+			pitch = sin(_phase * 2.0) * 0.06
+		State.BITE:
+			pose = "dop"
+			squash = 1.0 + sin(minf(_t / bite_time, 1.0) * PI) * 0.1
+		State.BARK:
+			pose = "sua"
+			pitch = -absf(sin(_t * 9.0)) * 0.12
+		State.TIRED:
+			pose = "met"
+			if hspeed > 0.5:
+				bob = absf(sin(_phase)) * 0.03
+			else:
+				squash = 1.0 + sin(_t * 6.0) * 0.02  # thở dốc
+	_show_pose(pose)
+	_body.position.y = lerpf(_body.position.y, bob, k)
+	_body.rotation.x = lerpf(_body.rotation.x, pitch, k)
+	_body.scale = _body.scale.lerp(Vector3(1.0, squash, 1.0), k)
 
 
 func _process(_delta: float) -> void:
 	var smooth := _prev_pos.lerp(_curr_pos, Engine.get_physics_interpolation_fraction())
-	_visual.global_position = smooth + Vector3(0, _lie, 0)
+	_visual.global_position = smooth

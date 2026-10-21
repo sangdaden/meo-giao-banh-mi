@@ -12,6 +12,8 @@ extends RefCounted
 ##   pick         chọn đúng thứ tự trong các ô (phím số, ←/→ rồi E, hoặc bấm chuột) (lặt rau, xếp nhân)
 ## Màn bếp gọi update(delta) mỗi nhịp vật lý và handle(event) cho phím. Mỗi nhịp xong phát hit(i, last);
 ## màn bếp khoá (locked = true) trong lúc chân Bơ diễn nhịp đó rồi mở lại.
+## Kiểu Thong thả (mặc định) màn bếp đổi bước sang tap/hold/pick: bước có "per" thì một lần bấm E chạy
+## liền "per" nhịp; pick có "guide" thì ô đúng kế tiếp tự sáng, bấm E là chọn.
 
 signal hit(index: int, last: bool)
 signal progress(value: float)
@@ -35,6 +37,9 @@ var options: Array = []      ## pick: các ô theo thứ tự hiện trên màn 
 var order: Array = []        ## pick: thứ tự đúng
 var cursor := 0
 var bot := false
+var per := 1                 ## tap: một lần bấm chạy liền bấy nhiêu nhịp
+var guide := false           ## pick: con trỏ tự nằm ở ô đúng kế tiếp
+var miss_lock := MISS_LOCK   ## bấm sai khoá phím bao lâu (Thong thả: 0)
 var screen_center := Vector2(640, 360)  ## tâm màn hình, để vẽ vòng bằng chuột
 
 var _dir := 0                ## alt/dip: hướng vừa bấm (-1, 1), 0 = chưa bấm
@@ -45,6 +50,7 @@ var _last_angle := INF
 var _mouse_drag := false
 var _bot_t := 0.0
 var _bot_hold := false
+var _queued := 0             ## nhịp còn chờ chạy của lần bấm vừa rồi (per > 1)
 
 
 func start(s: Dictionary) -> void:
@@ -61,6 +67,9 @@ func start(s: Dictionary) -> void:
 	options.append_array(s.get("wrong", []))
 	options.shuffle()
 	cursor = 0
+	per = maxi(int(s.get("per", 1)), 1)
+	guide = bool(s.get("guide", false))
+	_queued = 0
 	_dir = 0
 	_need_release = false
 	_lock_t = 0.0
@@ -71,6 +80,8 @@ func start(s: Dictionary) -> void:
 	_bot_hold = false
 	if kind == "pick":
 		n = order.size()
+		if guide:
+			cursor = options.find(order[0])
 	picked_changed.emit()
 
 
@@ -96,7 +107,7 @@ func handle(event: InputEvent) -> void:
 	match kind:
 		"tap":
 			if event.is_action_pressed("interact"):
-				_hit()
+				_press()
 		"timing":
 			if event.is_action_pressed("interact"):
 				_try_timing()
@@ -150,6 +161,8 @@ func choose(i: int) -> void:
 		return
 	if options[i] == order[count]:
 		_hit()
+		if guide and count < n:
+			cursor = options.find(order[count])
 	else:
 		var why := "Không cần %s" % options[i].to_lower() if not options[i] in order else "Chưa tới lượt %s" % options[i].to_lower()
 		_miss(why)
@@ -168,6 +181,10 @@ func update(delta: float) -> void:
 	if bot:
 		_bot(delta)
 	if locked or count >= n:
+		return
+	if _queued > 0:
+		_queued -= 1
+		_hit()
 		return
 	match kind:
 		"hold":
@@ -241,13 +258,22 @@ func _try_timing() -> void:
 		_miss("Trượt rồi, canh lúc kim vào vùng xanh!")
 
 
+## Một lần bấm E ở bước tap: per = 1 thì một nhịp, không thì xếp hàng per nhịp cho chân diễn liền.
+func _press() -> void:
+	if per <= 1:
+		_hit()
+		return
+	_queued = mini(per, n - count) - 1
+	_hit()
+
+
 func _hit() -> void:
 	count += 1
 	hit.emit(count - 1, count >= n)
 
 
 func _miss(text: String) -> void:
-	_lock_t = MISS_LOCK
+	_lock_t = miss_lock
 	miss.emit(text)
 
 
@@ -289,9 +315,12 @@ func hint() -> Array:
 	var left := n - count
 	match kind:
 		"tap":
-			return [["E"], "bấm" if left <= 1 else "bấm %d lần" % left]
+			var presses := ceili(float(left - _queued) / float(per))
+			if _queued > 0 or presses <= 0:
+				return ["Bơ đang làm…"]
+			return [["E"], "bấm" if presses <= 1 else "bấm %d lần" % presses]
 		"hold":
-			return [["E"], "giữ tới khi đầy thước"]
+			return [["E"], "giữ tới khi đầy thước" if left <= 1 else "giữ · còn %d lượt" % left]
 		"hold_release":
 			return [["E"], "giữ, thả khi vào vùng xanh"]
 		"alt":
@@ -305,5 +334,7 @@ func hint() -> Array:
 		"rotate":
 			return [["W", "D", "S", "A"], "hoặc", ["chuột"], "xoay vòng · còn %d" % left]
 		"pick":
+			if guide:
+				return [["E"], "chọn món đang sáng"]
 			return [["1", "2", "3"], "hoặc", ["←", "→", "E"], "chọn đúng thứ tự"]
 	return []

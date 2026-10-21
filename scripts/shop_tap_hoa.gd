@@ -246,11 +246,8 @@ func begin(order_index: int) -> void:
 	_set_hud_eggs(EGGS)
 	_sfx("scale_clank", COUNTER_TOP)
 	_sfx("paper_slip", COUNTER_TOP)
-	# Chìa túi qua quầy rồi dặn dò (động tác đưa hàng riêng chờ phác thảo Thứ Ba được duyệt)
-	_co_hai.play_for("cho_banh", 0.9)
-	get_tree().create_timer(0.9).timeout.connect(func():
-		if is_instance_valid(_co_hai):
-			_co_hai.play_for("noi", 2.5))
+	# Chìa túi trứng qua quầy (dua_tui, trang phác thảo Thứ Ba) rồi dặn dò
+	_co_hai.play_once("dua_tui", "noi", 2.5)
 	_toast("Cô Hai: \"Trứng gà ta đó, cầm nhẹ tay nghen!\" Đừng nhảy từ trên cao, đừng va người.", 3.0, 1.8)
 
 
@@ -296,7 +293,7 @@ func _on_egg_broken(remaining: int) -> void:
 	var deliveries := get_parent()
 	if deliveries and "side_ok" in deliveries:
 		deliveries.side_ok[_order] = false
-	if remaining <= EGGS_OK and _main and "intact" in _main:
+	if remaining <= int(DoKho.v("eggs_lose_at", EGGS_OK)) and _main and "intact" in _main:
 		_main.intact = false
 	_set_hud_eggs(remaining)
 	# Quả trứng rơi khỏi túi, vỡ ngay trước mũi Bơ (trung_vo_dat: vũng lòng trắng, lòng đỏ, mảnh vỏ)
@@ -308,7 +305,7 @@ func _on_egg_broken(remaining: int) -> void:
 	get_tree().create_timer(12.0).timeout.connect(splat.queue_free)
 	if remaining == 0:
 		_toast("Bể hết trứng rồi! Vẫn mang túi về cho Cô Ba nhé.", 2.5)
-	elif remaining == EGGS_OK:
+	elif remaining == int(DoKho.v("eggs_lose_at", EGGS_OK)):
 		_toast("Bể một quả! Còn %d/%d. Ổ trứng sẽ mất sao bếp." % [remaining, EGGS], 2.5)
 	else:
 		_toast("Bể một quả! Còn %d/%d." % [remaining, EGGS], 2.0)

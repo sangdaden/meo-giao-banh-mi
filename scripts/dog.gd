@@ -78,6 +78,13 @@ const POSE_MODELS := {
 
 
 func _ready() -> void:
+	sleep_time = DoKho.v("dog_sleep", sleep_time)
+	peek_time = DoKho.v("dog_peek", peek_time)
+	see_radius = DoKho.v("dog_see", see_radius)
+	confirm_time = DoKho.v("dog_confirm", confirm_time)
+	calm_time = DoKho.v("dog_calm", calm_time)
+	chase_speed = DoKho.v("dog_chase_speed", chase_speed)
+	leash_radius = DoKho.v("dog_leash", leash_radius)
 	collision_layer = 4
 	collision_mask = Blocks.LAYER_WORLD | Blocks.LAYER_PROP
 	home = global_position

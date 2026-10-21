@@ -1,0 +1,74 @@
+{
+	"bingo": {
+		"paw_FL": "#262222",
+		"paw_FR": "#262222"
+	},
+	"bosua": {
+		"paw_FL": "#ffffff",
+		"paw_FR": "#ffffff"
+	},
+	"caphesua": {
+		"paw_FL": "#9f7655",
+		"paw_FR": "#9f7655"
+	},
+	"chalua": {
+		"paw_FL": "#f1c9bb",
+		"paw_FR": "#f1c8ba"
+	},
+	"hocon": {
+		"paw_FL": "#fbead0",
+		"paw_FR": "#fbead0"
+	},
+	"khoaimon": {
+		"paw_FL": "#ac9cbc",
+		"paw_FR": "#ac9cbc"
+	},
+	"lantet": {
+		"paw_FL": "#f7d469",
+		"paw_FR": "#f7d469"
+	},
+	"mun": {
+		"paw_FL": "#383232",
+		"paw_FR": "#383232"
+	},
+	"muop": {
+		"paw_FL": "#ece6da",
+		"paw_FR": "#ece6da"
+	},
+	"que": {
+		"paw_FL": "#dda56f",
+		"paw_FR": "#dda56f"
+	},
+	"suadac": {
+		"paw_FL": "#ffffff",
+		"paw_FR": "#ffffff"
+	},
+	"tamthe": {
+		"paw_FL": "#ffffff",
+		"paw_FR": "#ffffff"
+	},
+	"thantai": {
+		"paw_FL": "#ffe89f",
+		"paw_FR": "#ffe89f"
+	},
+	"thongoc": {
+		"paw_FL": "#ffffff",
+		"paw_FR": "#ffffff"
+	},
+	"tuyet": {
+		"paw_FL": "#ffffff",
+		"paw_FR": "#ffffff"
+	},
+	"vobanh": {
+		"paw_FL": "#ffe9be",
+		"paw_FR": "#ffe9be"
+	},
+	"xiem": {
+		"paw_FL": "#564236",
+		"paw_FR": "#807164"
+	},
+	"xoigac": {
+		"paw_FL": "#fff8f0",
+		"paw_FR": "#fff8f0"
+	}
+}

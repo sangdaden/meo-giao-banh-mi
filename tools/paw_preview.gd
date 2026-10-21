@@ -1,6 +1,6 @@
 extends SceneTree
 ## Chụp ảnh model chân trước Bơ (scripts/bo_paw.gd) từ nhiều góc để làm bản phác duyệt.
-## Chạy: godot --path . --rendering-driver opengl3 -s tools/paw_preview.gd -- <thư mục ra> [bep|dung]
+## Chạy: godot --path . --rendering-driver opengl3 -s tools/paw_preview.gd -- <thư mục ra> [bep|dung] [giống, vd mun]
 
 var views := {
 	"tren": [Vector3(0, 0.35, 0.25), Vector3(0, 0.0, 0.02)],
@@ -35,7 +35,7 @@ func _initialize() -> void:
 	root3.add_child(fill)
 	var pose: String = OS.get_cmdline_user_args()[1] if OS.get_cmdline_user_args().size() > 1 else "bep"
 	for s in [-1.0, 1.0]:
-		var p := BoPaw.create(s, 1.0, pose)
+		var p := BoPaw.create(s, 1.0, pose, OS.get_cmdline_user_args()[2] if OS.get_cmdline_user_args().size() > 2 else "bo")
 		p.position = Vector3(s * 0.1, 0, 0)
 		root3.add_child(p)
 	if pose == "dung":

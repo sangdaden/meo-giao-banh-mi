@@ -248,6 +248,8 @@ const PINK := Color("#F6B8A0")
 
 
 func _ready() -> void:
+	fragile_fall = DoKho.v("fragile_fall", fragile_fall)
+	fragile_bump_speed = DoKho.v("fragile_bump_speed", fragile_bump_speed)
 	collision_layer = 2
 	collision_mask = Blocks.LAYER_WORLD | Blocks.LAYER_PROP
 	floor_snap_length = 0.3
@@ -791,7 +793,7 @@ func _build_fp_paws() -> void:
 	for side in [-1.0, 1.0]:
 		var pivot := Node3D.new()
 		visual.add_child(pivot)
-		var paw := BoPaw.create(side, FP_PAW_SIZE, "dung")
+		var paw := BoPaw.create(side, FP_PAW_SIZE, "dung", breed)
 		pivot.add_child(paw)
 		var shoulder := paw.top_point() * FP_PAW_SIZE  # điểm vai do BoPaw báo, đổi dáng chân không phải sửa ở đây
 		pivot.position = Vector3(side * 0.056, shoulder.y, 0.03)

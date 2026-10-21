@@ -105,10 +105,13 @@ func _ready() -> void:
 	add_child(level_select)
 	for p in [wardrobe, settings, level_select]:
 		p.closed.connect(func(): start_btn.grab_focus())
-	wardrobe.visibility_changed.connect(func():
-		showcase_cat.set_active(not wardrobe.visible)
-		if not wardrobe.visible and showcase_cat.cat:
-			showcase_cat.cat.apply_outfit())
+	# Bảng nào che trang chủ thì Bơ trong tủ kính thôi chạy và thôi vẽ; đóng tủ đồ thì mặc lại đồ vừa chọn
+	for p in [wardrobe, settings, level_select]:
+		p.visibility_changed.connect(func():
+			var covered: bool = wardrobe.visible or settings.visible or level_select.visible
+			showcase_cat.set_active(not covered)
+			if not wardrobe.visible and showcase_cat.cat:
+				showcase_cat.cat.apply_outfit())
 
 	T.wire_clicks(self)
 	if PlayMode.back_to_select:

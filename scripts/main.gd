@@ -85,6 +85,7 @@ func _ready() -> void:
 	dog.player = player
 	add_child(dog)
 	dog.bit_player.connect(_on_dog_bite)
+	add_child(preload("res://scripts/traffic.gd").new())  # xe máy, đèn giao thông, người đi bộ
 
 	stamps = StampsScript.new()
 	stamps.name = "TemCoBa"

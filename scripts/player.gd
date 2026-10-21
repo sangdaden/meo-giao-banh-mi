@@ -416,15 +416,14 @@ func set_first_person(v: bool, cam: Camera3D = null) -> void:
 ## Vai đặt ngay dưới camera, chân chống chéo ra trước nên đầu ống ở vai nằm ngoài tầm nhìn,
 ## bàn chân xoay ngược lại để vẫn đặt phẳng trên đất. Mỗi chân vung theo nhịp chân của thân Bơ.
 func _build_fp_paws() -> void:
-	var shoulder_y := 0.27 * FP_PAW_SIZE
 	for side in [-1.0, 1.0]:
-		var shoulder := Vector3(side * 0.015, 0.27, -0.005) * FP_PAW_SIZE
 		var pivot := Node3D.new()
-		pivot.position = Vector3(side * 0.056, shoulder_y, 0.03)
 		visual.add_child(pivot)
 		var paw := BoPaw.create(side, FP_PAW_SIZE, "dung")
-		paw.position = -shoulder
 		pivot.add_child(paw)
+		var shoulder := paw.top_point() * FP_PAW_SIZE  # điểm vai do BoPaw báo, đổi dáng chân không phải sửa ở đây
+		pivot.position = Vector3(side * 0.056, shoulder.y, 0.03)
+		paw.position = -shoulder
 		paw.foot.rotation.x = -FP_PAW_LEAN
 		for mi: MeshInstance3D in paw.find_children("*", "MeshInstance3D", true, false):
 			mi.layers = LAYER_FP_PAWS

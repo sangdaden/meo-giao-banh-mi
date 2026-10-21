@@ -29,6 +29,7 @@ var dough_started := false
 var oven_state := "trong"  ## trong, nuong, chin, chay
 var oven_t := 0.0
 var bread_burnt := false
+var loaf_stars: Array[int] = []   ## sao từng ổ, ghi lúc bỏ ổ vào tủ kính
 var taken := {"rau": false, "cha": false, "thit": false}
 var on_rap := {"rau": false, "cha": false, "thit": false}
 var loaves_on_rap := 0
@@ -84,10 +85,11 @@ var sauce: Node3D
 var case_slots: Array[Node3D] = []
 var paper: MeshInstance3D
 
-const PAW_L_REST := Vector3(-0.11, 0.08, 0.26)
-const PAW_R_REST := Vector3(0.11, 0.08, 0.26)
-const CLOSE_DIST := 1.1   ## camera cận cảnh lùi xa điểm làm việc bao nhiêu lần so với cam_off
-const CLOSE_YAW := 0.75   ## camera cận cảnh lệch sang bên bao nhiêu (radian) so với hướng Bơ đứng
+const PAW_L_REST := Vector3(-0.09, 0.06, 0.15)
+const PAW_R_REST := Vector3(0.09, 0.06, 0.15)
+const CLOSE_BACK := 0.42   ## camera cận cảnh lùi về phía Bơ đứng bao nhiêu mét so với điểm làm việc
+const CLOSE_UP := 0.34     ## và cao hơn điểm làm việc bao nhiêu mét (ngang tầm mắt Bơ)
+const CLOSE_AHEAD := 0.08  ## camera nhìn hơi vượt qua điểm làm việc để chân nằm ở nửa dưới khung
 
 # Tự chơi: --autotest-bep (kiểm tra, thoát khi xong) hoặc --demo-bep (để quay clip)
 var _bot := false
@@ -316,7 +318,7 @@ func _begin(id: String, steps: Array) -> void:
 	var st: Dictionary = stations[id]
 	var to: Vector3 = st.work - player.global_position
 	player.visual.rotation.y = atan2(-to.x, -to.z)
-	cam.close_up(st.cam, st.work)
+	cam.close_up(st.cam, st.look)
 	_place_paws(st)
 	player.visual.visible = false  # cận cảnh chỉ thấy hai chân trước, thân Bơ không che camera
 	_on_begin(id)
@@ -405,6 +407,8 @@ func _finish(id: String) -> void:
 			case_slots[made].visible = true
 			paper.visible = false
 			made += 1
+			# Sao của ổ này: 1 vì làm xong, +1 nếu không cháy, +1 nếu bỏ tủ khi còn dư đủ giờ
+			loaf_stars.append(1 + int(not bread_burnt) + int(time_left >= spare_for_star))
 			if made >= LOAVES:
 				_end(true)
 			else:
@@ -467,6 +471,11 @@ func _end(success: bool) -> void:
 	else:
 		lines += "Hết giờ! Mới xong %d/%d ổ.\n" % [made, LOAVES]
 	GameState.kitchen_stars = stars
+	# Sao từng ổ cho 5 đơn giao. Bếp mới làm LOAVES ổ: các đơn sau dùng số sao chung của ca.
+	var per_bread: Array[int] = []
+	for i in GameState.ORDERS_PER_DAY:
+		per_bread.append(loaf_stars[i] if i < loaf_stars.size() else stars)
+	GameState.kitchen_stars_per_bread = per_bread
 	GameState.kitchen_bonus = stars * STAR_SECONDS
 	lines += "\n%d/3 sao · mỗi đơn giao được cộng thêm %d giây" % [stars, int(GameState.kitchen_bonus)]
 	hud.show_end(lines)
@@ -474,7 +483,7 @@ func _end(success: bool) -> void:
 	_sound("music", "jingle_win" if success else "jingle_lose")
 	for i in stars:
 		get_tree().create_timer(0.5 + 0.45 * i).timeout.connect(_sound.bind("play", "star_%d" % (i + 1)))
-	print("[bep] xong=%d/%d sao=%d con_lai=%.1fs chay=%s" % [made, LOAVES, stars, time_left, bread_burnt])
+	print("[bep] xong=%d/%d sao=%d tung_o=%s con_lai=%.1fs chay=%s" % [made, LOAVES, stars, per_bread, time_left, bread_burnt])
 	if _bot_quit:
 		print("AUTOTEST BEP ", "OK" if success else "FAIL")
 		get_tree().quit(0 if success else 1)
@@ -1030,12 +1039,12 @@ func _station(id: String, title: String, use: Vector3, work: Vector3, cam_off: V
 	ring.material_override = m
 	ring.position = use + Vector3(0, 0.02, 0)
 	add_child(ring)
-	# Camera cận cảnh đứng chéo một bên phía Bơ (không ngay sau lưng) để thấy chân trước nghiêng
-	# như chân mèo thật, không bị nhìn dọc thành hai ống.
+	# Camera cận cảnh đặt ngay trên đầu Bơ nhìn xuống bàn, như Bơ nhìn chân mình:
+	# chỉ thấy một đoạn cẳng tay ngắn và bàn chân ở gần mép dưới khung hình.
 	var back := Vector3(use.x - work.x, 0, use.z - work.z).normalized()
-	var horiz := Vector2(cam_off.x, cam_off.z).length() * CLOSE_DIST
-	var cam := work + back.rotated(Vector3.UP, CLOSE_YAW) * horiz + Vector3.UP * cam_off.y * CLOSE_DIST
-	stations[id] = {"name": title, "use": use, "work": work, "cam": cam, "ring": ring}
+	var cam := work + back * CLOSE_BACK + Vector3.UP * CLOSE_UP
+	var look := work - back * CLOSE_AHEAD
+	stations[id] = {"name": title, "use": use, "work": work, "cam": cam, "look": look, "ring": ring}
 
 
 func _build_stations(room: Node3D) -> void:

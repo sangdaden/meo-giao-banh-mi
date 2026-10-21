@@ -6,19 +6,25 @@ extends Node3D
 ##
 ## Gốc node ở giữa bàn chân, ngón chỉ về -Z. Cẳng tay chạy về +Z (phía người nhìn), gập ở khuỷu,
 ## rồi cánh tay trên đi xuống, như mèo nhoài người chống chân lên bàn.
-## Kích thước (size 1): bàn chân rộng ~9 cm, cẳng tay ~12 cm, cánh tay trên ~24 cm; to hơn chân Bơ
+## Kích thước (size 1): bàn chân rộng ~9 cm, cẳng tay ~7 cm, cánh tay trên ~16 cm; to hơn chân Bơ
 ## thật một chút cho dễ nhìn ở cận cảnh, giống tay nhân vật ở góc nhìn thứ nhất.
 ## Dùng: var p := BoPaw.create(-1.0) (trái) hoặc BoPaw.create(1.0) (phải), rồi add_child(p).
 ## Góc nhìn thứ nhất: BoPaw.create(side, size, "dung"): gốc node ở mặt đất dưới bàn chân, vai ở trên.
 
 const FUR_SHADER := preload("res://shaders/bo_fur.gdshader")
 const BEAN := Color("#EFAFAA")
+## Màu lông Bơ D. Phải đặt từ GDScript: giá trị mặc định của uniform source_color trong shader
+## không được đổi sRGB → linear ở Forward+ (bản PC), làm lông bản PC nhạt hẳn so với bản web.
+const FUR := Color(0.91, 0.57, 0.23)
+const STRIPE := Color(0.70, 0.36, 0.15)
+const CREAM := Color(0.98, 0.90, 0.78)
 
 @export var side := 1.0           ## -1 chân trái, 1 chân phải (khuỷu chĩa ra ngoài)
 @export var size := 1.0           ## tỉ lệ so với số đo gốc
 @export_enum("bep", "dung") var pose := "bep"  ## bep: chống lên bàn (cận cảnh); dung: cẳng chân dựng thẳng xuống đất
 
 var arm: MeshInstance3D           ## ống cẳng tay + cánh tay
+var _top := Vector3.ZERO          ## điểm vai (đầu trên của ống), trong hệ toạ độ node trước khi nhân size
 var foot: Node3D                  ## bàn chân (có thể xoay riêng để gập cổ chân)
 
 
@@ -31,9 +37,9 @@ static func create(paw_side: float, paw_size := 1.0, paw_pose := "bep") -> BoPaw
 
 
 func _ready() -> void:
-	var wrist := Vector3(0, 0.014, 0.04)
-	var elbow := wrist + Vector3(side * 0.25, -0.2, 1.0).normalized() * 0.12
-	var shoulder := elbow + Vector3(side * 0.25, -1.0, 0.35).normalized() * 0.24
+	var wrist := Vector3(0, 0.014, 0.035)
+	var elbow := wrist + Vector3(side * 0.15, -0.35, 1.0).normalized() * 0.07
+	var shoulder := elbow + Vector3(side * 0.1, -1.0, 0.6).normalized() * 0.16
 	if pose == "dung":
 		# Đứng: bàn chân chạm đất (y = 0 là đáy đệm chân), cẳng chân dựng đứng, vai cao ~0,27 m (size 1)
 		wrist = Vector3(0, 0.05, 0.012)
@@ -46,9 +52,29 @@ func _ready() -> void:
 	if pose == "dung":
 		start = Vector3(0, 0.03, 0.0)
 		up_ref = Vector3.FORWARD  # chân dựng đứng: vằn ở mặt trước (phía mèo nhìn)
-	arm.mesh = tube([start, wrist, elbow, shoulder], [0.033, 0.034, 0.047, 0.062], 18, 8, up_ref)
+	var radii := [0.032, 0.032, 0.04, 0.05]
+	if pose == "dung":
+		radii = [0.033, 0.034, 0.047, 0.062]
+	arm.mesh = tube([start, wrist, elbow, shoulder], radii, 18, 8, up_ref)
 	arm.material_override = fur_mat(0.0)
+	if pose != "dung":
+		(arm.material_override as ShaderMaterial).set_shader_parameter("stripe_count", 3.5)
+		(arm.material_override as ShaderMaterial).set_shader_parameter("sock", 0.22)
 	add_child(arm)
+	_top = shoulder
+	if pose == "dung":
+		# Bịt miệng ống ở vai cho khỏi hở khi nhìn từ trên xuống
+		var cap := MeshInstance3D.new()
+		cap.name = "NapVai"
+		var cs := SphereMesh.new()
+		cs.radius = radii[-1]
+		cs.height = radii[-1] * 2.0
+		cs.radial_segments = 18
+		cs.rings = 9
+		cap.mesh = cs
+		cap.material_override = arm.material_override
+		cap.position = shoulder
+		add_child(cap)
 
 	foot = Node3D.new()
 	foot.name = "BanChan"
@@ -71,6 +97,12 @@ func _ready() -> void:
 	scale = Vector3.ONE * size
 
 
+## Điểm vai (đầu trên của chân) trong hệ toạ độ của node, chưa nhân size.
+## Góc nhìn thứ nhất dùng điểm này để gắn chân vào thân. Gọi sau khi node đã add_child (_ready đã chạy).
+func top_point() -> Vector3:
+	return _top
+
+
 func _ball(parent: Node3D, r: float, pos: Vector3, squash: Vector3, mat: Material) -> void:
 	var s := SphereMesh.new()
 	s.radius = r
@@ -89,6 +121,9 @@ func _ball(parent: Node3D, r: float, pos: Vector3, squash: Vector3, mat: Materia
 static func fur_mat(all_cream: float) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = FUR_SHADER
+	m.set_shader_parameter("fur", FUR)
+	m.set_shader_parameter("stripe", STRIPE)
+	m.set_shader_parameter("cream", CREAM)
 	m.set_shader_parameter("all_cream", all_cream)
 	return m
 

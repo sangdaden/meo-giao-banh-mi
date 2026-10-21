@@ -19,6 +19,10 @@ func _wait(frames := 10) -> void:
 		await process_frame
 
 
+func _wait_s(sec: float) -> void:
+	await create_timer(sec).timeout
+
+
 func _shot(name: String) -> void:
 	await _wait(6)
 	var img := root.get_viewport().get_texture().get_image()
@@ -31,6 +35,13 @@ func _run() -> void:
 	await _wait(30)
 	await _shot("1_man_hinh_chinh")
 	var menu := current_scene
+	var show: BoPreview = menu.showcase_cat
+	show.cat.play_idle_action("lick", 4.0)
+	await _wait_s(1.6)
+	await _shot("1b_bo_liem_chan")
+	show.cat.play_idle_action("sit", 5.0)
+	await _wait_s(2.0)
+	await _shot("1c_bo_ngoi")
 	menu.settings.open()
 	await _shot("2_cai_dat")
 	menu.settings.close()
@@ -50,7 +61,24 @@ func _run() -> void:
 	Outfit.toggle("khando")
 	wd.show_tab(2)
 	await _shot("3e_bo_do")
+	# Mặc thử món khoá (chỉ xem trên bục)
+	wd.show_tab(1)
+	wd.preview.yaw = wd.preview.start_yaw
+	wd.preview.cat.play_idle_action("", 30.0)
+	for id in ["munlen", "kinhram", "tatsoc", "noduoi"]:
+		wd._try[Outfit.acc(id)[3]] = id
+	wd._refresh()
+	await _wait(10)
+	await _shot("3f_mac_thu")
+	wd.preview.yaw += PI * 0.7
+	await _shot("3g_mac_thu_xoay")
+	wd.preview.yaw -= PI * 0.7
 	wd.show_tab(0)
+	wd._try_breed = "muop"
+	wd._refresh()
+	wd.preview.cat.play_idle_action("", 30.0)
+	await _wait_s(1.0)
+	await _shot("3h_thu_giong")
 	wd.close()
 
 	change_scene_to_file("res://scenes/main.tscn")
@@ -75,6 +103,25 @@ func _run() -> void:
 	main.rig.yaw += PI * 0.8
 	await _wait(20)
 	await _shot("5b_mui_ten_mep")
+	main.hud.show_tip("Chó Mực đang ngủ", "Chạy nhanh hay va đồ là Mực thức dậy đuổi theo. Rón rén thì bước êm, đi ngang được.",
+		[["Z", "giữ để rón rén"], ["Shift", "đừng chạy nhanh"]])
+	await _wait(5)
+	await _shot("5c_meo_lan_dau")
+	main.hud.show_tip("", "", [], 0.0)
+	# Thứ Ba: ghi chú món trên phiếu, số trứng còn lại, thẻ mở đầu ngày
+	main.hud.set_order_note("thêm pate")
+	main.hud.set_eggs(4)
+	await _wait(5)
+	await _shot("5d_thu_ba_phieu_trung")
+	main.hud.set_order_note("không ớt", false)
+	main.hud.set_eggs(1)
+	main.hud.show_day_card("Thứ Ba", "Chợ tạm họp trên đường lớn, lò Cô Ba hết trứng.",
+		["Đơn 2: mua túi 6 trứng ở tạp hóa Cô Hai, đáp đất mạnh là vỡ", "Góc cờ công viên: đặt bánh lúc cả đám reo \"chiếu tướng\"", "Phiếu có ghi chú món: ráp đúng ý khách"])
+	await _wait(5)
+	await _shot("5e_the_mo_dau_ngay")
+	main.hud.show_day_card("", "", [], 0.0)
+	main.hud.set_order_note("")
+	main.hud.set_eggs(-1)
 	main.hud.set_pause_info(main._pause_info())
 	main.hud.toggle_pause()
 	await _shot("6_tam_dung")

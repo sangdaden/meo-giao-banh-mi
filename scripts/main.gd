@@ -73,7 +73,7 @@ func _ready() -> void:
 	deliveries.name = "Deliveries"
 	deliveries.build_static(self, ORDERS)  # người dân, ghế, xe, quầy... đứng yên nên được gộp
 	_build_customers()
-	Blocks.merge_static(self)  # gộp khối tĩnh để giảm lệnh vẽ, phải gọi trước khi thêm mèo, chó
+	Blocks.merge_static(self, 24.0)  # gộp khối tĩnh (model nhà theo ô 24 m) để giảm lệnh vẽ, phải gọi trước khi thêm mèo, chó
 	add_child(deliveries)  # phần chuyển động (giỏ, ly, tay, tờ báo) thêm sau khi gộp
 
 	player = PlayerScript.new()
@@ -96,6 +96,7 @@ func _ready() -> void:
 	dog.bit_player.connect(_on_dog_bite)
 	dog.state_changed.connect(_on_dog_state)
 	add_child(preload("res://scripts/traffic.gd").new())  # xe máy, đèn giao thông, người đi bộ
+	add_child(preload("res://scripts/market.gd").new())  # chợ sáng Thứ Ba (ngày khác tự gỡ)
 
 	stamps = StampsScript.new()
 	stamps.name = "TemCoBa"
@@ -113,6 +114,7 @@ func _ready() -> void:
 	hud.start_pressed.connect(start_game)
 	hud.restart_pressed.connect(restart)
 	add_child(preload("res://scripts/sound_director.gd").new())  # nhạc và tiếng động
+	add_child(FirstHints.new())  # mẹo lần đầu: gầm thấp, gần Chó Mực, tới khách
 	hud.menu_pressed.connect(_to_menu)
 	deliveries.setup(player, dog, hud, "--autotest" in OS.get_cmdline_user_args())
 
@@ -262,7 +264,7 @@ func _deliver(order: Dictionary) -> void:
 	var r := Scoring.order_done(order_index, {
 		"time_ratio": 0.0 if late else time_left / _time_limit(order),
 		"late": late,
-		"intact": intact,
+		"intact": intact and not deliveries.star_lost(order_index),  # góc cờ: bị mắng thì mất 1 sao
 		"kitchen_star": Scoring.kitchen_star_for(order_index),
 		"side_quest": order.get("side_quest", ""),
 		"side_quest_ok": side_quest_ok,
@@ -276,6 +278,8 @@ func _deliver(order: Dictionary) -> void:
 		note = "qua mặt Chó Mực" + (", bị đớp %d lần" % bites if bites > 0 else "")
 	elif not intact:
 		note += ", bánh bị dập"
+	if deliveries.star_lost(order_index):
+		note += ", bị hai ông mắng"
 	result_notes.append(note)
 	if late:
 		hud.show_toast("Giao trễ cho %s: 1 sao, không có tiền boa." % order.who, 2.5)
@@ -450,57 +454,16 @@ func _update_hud() -> void:
 # ---------------------------------------------------------------- dựng cảnh
 
 func _setup_environment() -> void:
-	var env := Environment.new()
-	env.background_mode = Environment.BG_SKY
-	var sky := Sky.new()
-	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Color("#6FAFD0")
-	sky_mat.sky_horizon_color = Color("#F2D9A6")
-	sky_mat.ground_horizon_color = Color("#F2D9A6")
-	sky_mat.ground_bottom_color = Color("#8F8B80")
-	sky.sky_material = sky_mat
-	env.sky = sky
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color("#BFD3DA")
-	# Bản web chạy renderer Compatibility (WebGL), cùng thông số thì sáng chói hơn hẳn Forward+,
-	# nên giảm sáng và bỏ filmic để hai bản nhìn gần giống nhau.
-	var compat := RenderingServer.get_rendering_device() == null
-	env.ambient_light_energy = 0.3 if compat else 0.45
-	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR if compat else Environment.TONE_MAPPER_FILMIC
-	env.ssao_enabled = true
-	env.fog_enabled = false
-	env.fog_light_color = Color("#F2D9A6")
-	env.fog_density = 0.006
-	var world := WorldEnvironment.new()
-	world.environment = env
-	add_child(world)
-
-	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-48, -35, 0)  # nắng sáng sớm, bóng dài
-	sun.light_color = Color("#FFE8C4")
-	sun.light_energy = 0.55 if compat else 0.9
-	sun.shadow_enabled = true
-	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
-	sun.directional_shadow_max_distance = 35.0  # bóng ở xa không cần, đỡ tốn
-	add_child(sun)
+	AnhSang.build(self, "pho_sang")  # nắng sớm, trời, sương, bóng đổ: scripts/anh_sang.gd
 
 
 func _build_bakery() -> void:
 	var p := City.BAKERY_POINT
-	# Xe/tủ kính bánh mì trước lò
-	var cart := Blocks.solid_box(self, Vector3(1.6, 0.9, 0.7), Vector3(p.x + 2.4, 0.45, p.z + 0.2), Color("#2E7C80"), Blocks.LAYER_PROP)
-	Blocks.box(cart, Vector3(1.5, 0.5, 0.6), Vector3(0, 0.7, 0), Color(0.75, 0.9, 0.91, 0.5))
-	var loaf := CapsuleMesh.new()
-	loaf.radius = 0.07
-	loaf.height = 0.4
-	for i in 3:
-		loaf.radial_segments = 8
-		loaf.rings = 2
-		var m := Blocks.mesh(cart, loaf, Vector3(-0.45 + i * 0.45, 0.55, 0), Color("#D98E2B"))
-		m.rotation_degrees.z = 90
+	# Xe tủ kính bánh mì trước lò (model xe_banh_mi, kính cao 1,3 m nên hộp va chạm cao bằng)
+	var cart := Blocks.collider(self, Vector3(1.6, 1.3, 0.7), Vector3(p.x + 2.4, 0.65, p.z + 0.2), Blocks.LAYER_PROP)
+	PhoModels.put(cart, "xe_banh_mi", Vector3(0, -0.65, 0))
 	# Cô Ba đứng sau tủ, cách mặt tiền lò gần nửa mét (mặt tiền ở z = -7, trước đây lưng Cô Ba dính vào cửa cuốn)
 	_person(Vector3(p.x + 2.4, 0, p.z - 0.55), Color("#C8412F"), "Cô Ba")
-	Blocks.label(self, "LÒ BÁNH CÔ BA", Vector3(p.x, 4.2, p.z - 1.0), 96, Color("#D98E2B"))
 	bakery_zone = _zone(p, 1.8)
 	# Vòng tròn đánh dấu chỗ nhận bánh
 	_ring(p, Color("#D98E2B"))

@@ -240,8 +240,11 @@ func _setup_environment() -> void:
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color("#BFD3DA")
-	env.ambient_light_energy = 0.45
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	# Bản web chạy renderer Compatibility (WebGL), cùng thông số thì sáng chói hơn hẳn Forward+,
+	# nên giảm sáng và bỏ filmic để hai bản nhìn gần giống nhau.
+	var compat := RenderingServer.get_rendering_device() == null
+	env.ambient_light_energy = 0.3 if compat else 0.45
+	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR if compat else Environment.TONE_MAPPER_FILMIC
 	env.ssao_enabled = true
 	env.fog_enabled = false
 	env.fog_light_color = Color("#F2D9A6")
@@ -253,7 +256,7 @@ func _setup_environment() -> void:
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-48, -35, 0)  # nắng sáng sớm, bóng dài
 	sun.light_color = Color("#FFE8C4")
-	sun.light_energy = 0.9
+	sun.light_energy = 0.55 if compat else 0.9
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 60.0
 	add_child(sun)

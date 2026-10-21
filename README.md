@@ -10,6 +10,14 @@ Game 3D góc nhìn thứ ba làm bằng **Godot 4** (ráp game) và **Blender** 
 |---|---|
 | ![Lò bánh](docs/lo-banh.png) | ![Chó Mực](docs/cho-muc.png) |
 
+## Chơi ngay trên trình duyệt
+
+**https://sangdaden.github.io/meo-giao-banh-mi/**
+
+Mở bằng Chrome, Edge hoặc Firefox trên máy tính. Lần đầu tải khoảng 35 MB. Bấm vào khung game để camera bắt chuột; Esc trả chuột lại.
+
+Bản web tự cập nhật mỗi lần nhánh `main` thay đổi (GitHub Actions trong `.github/workflows/pages.yml` xuất bản web rồi đăng lên GitHub Pages). Bản web dùng renderer Compatibility (WebGL 2) nên ánh sáng hơi khác bản chạy trong Godot.
+
 ## Mở và chơi trong Godot 4
 
 1. Tải **Godot 4.3** trở lên (bản Standard, không cần bản .NET) ở [godotengine.org/download](https://godotengine.org/download). Giải nén là chạy được, không cần cài.

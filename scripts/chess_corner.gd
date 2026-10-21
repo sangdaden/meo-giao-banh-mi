@@ -25,7 +25,7 @@ const CENTER := CityProps.CHESS_CORNER
 ## Ấm trà trên ghế đẩu phía bắc bàn; Bơ đứng ở DROP để đặt túi (đây là "pos" của đơn).
 const TEA := Vector3(-28.8, 0, 7.75)
 const DROP := Vector3(-28.8, 0, 7.15)
-## Đơn 3 Thứ Ba theo hợp đồng Days (gói T3-1 chép vào days.gd, "time" trước khi nhân 0,92).
+## Đơn 3 Thứ Ba theo hợp đồng Days (days.gd ở PR #41 dùng cùng các khóa; "time" là số giây cuối cùng).
 const ORDER := {
 	"who": "Ông Bảy, Ông Tám", "place": "Góc cờ công viên", "item": "1 ổ pate, 1 ổ trứng",
 	"pos": DROP, "time": 22.0, "color": Color("#8C6D4F"), "kind": "deliver",

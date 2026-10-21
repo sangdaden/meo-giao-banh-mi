@@ -98,7 +98,8 @@ func _case_ganh() -> void:
 	market._bump_cd = 0.0
 	var g = market._ganh_shopper
 	var rigged: Array = market._shoppers.filter(func(s) -> bool: return s.person != null).map(func(s) -> String: return s.person.id)
-	_check(rigged.size() == 5 and "ganhhang" in rigged and "bancho" in rigged, "người chợ có xương: %s" % ", ".join(rigged))
+	_check(rigged.size() == market._shoppers.size() and "ganhhang" in rigged and "bancho" in rigged and "cho8" in rigged,
+		"mọi người chợ đều có xương (%d người, hết khối tạm)" % rigged.size())
 	var front: Vector3 = g.pos - g.xf.basis.z * market.GANH_REACH
 	player.global_position = front + Vector3(0, 0.05, 0)
 	player.velocity = Vector3.ZERO

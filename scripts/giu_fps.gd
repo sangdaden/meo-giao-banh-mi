@@ -49,6 +49,8 @@ func _step_down(fps: float) -> void:
 	match level:
 		1, 2:
 			vp.scaling_3d_scale = maxf(0.6, vp.scaling_3d_scale - 0.15)
+			if level == 1:
+				get_tree().call_group("giam_hat", "giam")  # buổi mưa: bớt một nửa hạt mưa (ThoiTiet)
 		3:
 			if _sun:
 				_sun.directional_shadow_max_distance = minf(_sun.directional_shadow_max_distance, 14.0)

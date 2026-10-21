@@ -96,6 +96,7 @@ func _ready() -> void:
 	dog.bit_player.connect(_on_dog_bite)
 	dog.state_changed.connect(_on_dog_state)
 	add_child(preload("res://scripts/traffic.gd").new())  # xe máy, đèn giao thông, người đi bộ
+	add_child(preload("res://scripts/market.gd").new())  # chợ sáng Thứ Ba (ngày khác tự gỡ)
 
 	stamps = StampsScript.new()
 	stamps.name = "TemCoBa"

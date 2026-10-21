@@ -39,7 +39,11 @@ var _prev_pos := Vector3.ZERO
 var _curr_pos := Vector3.ZERO
 
 const LAYER_BO_BODY := 1 << 10   ## lớp hình thân Bơ: camera góc thứ nhất bỏ qua lớp này
+const LAYER_FP_PAWS := 1 << 11   ## lớp chân trước riêng, chỉ camera góc thứ nhất vẽ
+const FP_PAW_SIZE := 0.8         ## cỡ BoPaw ở góc thứ nhất (bàn chân ~8 cm)
+const FP_PAW_LEAN := 0.85        ## chân trước chống chéo ra trước bao nhiêu (radian)
 var visual: Node3D
+var _fp_paws := []               ## khớp vai của hai chân trước BoPaw (trái, phải) ở góc thứ nhất
 var first_person := false        ## camera_rig gán: góc nhìn thứ nhất thì người quay theo camera
 var _body: Node3D
 var bread: Node3D
@@ -142,9 +146,12 @@ func _build_visual() -> void:
 		_bone_rest[bone_name] = _skel.get_bone_rest(idx).basis.get_rotation_quaternion()
 	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
 		_apply_style(mi)
-		mi.layers = LAYER_BO_BODY
 
 	_build_bag()
+	# Thân, khăn, túi và quai: góc nhìn thứ nhất không vẽ (vẫn đổ bóng), thay bằng hai chân trước riêng
+	for mi: MeshInstance3D in _body.find_children("*", "MeshInstance3D", true, false):
+		mi.layers = LAYER_BO_BODY
+	_build_fp_paws()
 
 
 ## Túi bánh đeo sát hông phải, quai vắt chéo qua lưng ôm theo thân.
@@ -297,7 +304,27 @@ func _physics_process(delta: float) -> void:
 func set_first_person(v: bool, cam: Camera3D = null) -> void:
 	first_person = v
 	if cam:
-		cam.cull_mask = (0xFFFFF & ~LAYER_BO_BODY) if v else 0xFFFFF
+		cam.cull_mask = (0xFFFFF & ~LAYER_BO_BODY) if v else (0xFFFFF & ~LAYER_FP_PAWS)
+
+
+## Hai chân trước dùng chung (BoPaw, tư thế đứng) cho góc thứ nhất: cúi xuống là thấy chân Bơ bước.
+## Vai đặt ngay dưới camera, chân chống chéo ra trước nên đầu ống ở vai nằm ngoài tầm nhìn,
+## bàn chân xoay ngược lại để vẫn đặt phẳng trên đất. Mỗi chân vung theo nhịp chân của thân Bơ.
+func _build_fp_paws() -> void:
+	var shoulder_y := 0.27 * FP_PAW_SIZE
+	for side in [-1.0, 1.0]:
+		var shoulder := Vector3(side * 0.015, 0.27, -0.005) * FP_PAW_SIZE
+		var pivot := Node3D.new()
+		pivot.position = Vector3(side * 0.056, shoulder_y, 0.03)
+		visual.add_child(pivot)
+		var paw := BoPaw.create(side, FP_PAW_SIZE, "dung")
+		paw.position = -shoulder
+		pivot.add_child(paw)
+		paw.foot.rotation.x = -FP_PAW_LEAN
+		for mi: MeshInstance3D in paw.find_children("*", "MeshInstance3D", true, false):
+			mi.layers = LAYER_FP_PAWS
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_fp_paws.append(pivot)
 
 
 ## Vị trí mèo đã nội suy giữa hai nhịp vật lý: camera và mũi tên bám theo vị trí này.
@@ -405,6 +432,9 @@ func _animate(delta: float, hspeed: float, vy: float, on_floor: bool) -> void:
 func _apply_bones() -> void:
 	for i in 4:
 		_pose(LEG_BONES[i], Vector3.RIGHT, _legs[i] * LEG_SWING_SIGN)
+	for i in _fp_paws.size():
+		# Thân Bơ quay ngược 180° trong visual nên trục X đổi chiều
+		_fp_paws[i].rotation.x = FP_PAW_LEAN - _legs[i] * LEG_SWING_SIGN
 	_pose_q("head", Quaternion(Vector3.UP, _head_yaw.x) * Quaternion(Vector3.RIGHT, _head_pitch.x))
 	for i in 2:
 		var side := -1.0 if i == 0 else 1.0

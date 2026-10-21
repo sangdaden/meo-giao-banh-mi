@@ -29,8 +29,33 @@ static func font(kind := "body") -> Font:
 			"bold": "res://assets/fonts/BeVietnamPro-Bold.ttf",
 			"body": "res://assets/fonts/BeVietnamPro-Medium.ttf",
 		}[kind]
-		_fonts[kind] = load(path)
+		var f: Font = load(path)
+		_add_symbols(f)
+		_fonts[kind] = f
 	return _fonts[kind]
+
+
+## Baloo 2 và Be Vietnam Pro thiếu ★ ✓ ✗ ▲ ▼ ◀ ← → ○ •: thiếu là hiện ô số (2605, 2713).
+## Gắn một font ký hiệu nhỏ (cắt từ DejaVu Sans Bold) làm font dự phòng, gồm cả font mặc định
+## của Godot mà Label3D dùng. Gọi một lần lúc khởi động (Sound gọi trong _ready).
+const SYMBOL_FONT := "res://assets/fonts/KyHieu-DejaVuSansBold.ttf"
+
+
+static func install_symbol_fallback() -> void:
+	_add_symbols(ThemeDB.fallback_font)
+	for k in ["display", "bold", "body"]:
+		font(k)
+
+
+static func _add_symbols(f: Font) -> void:
+	if f == null:
+		return
+	var sym: Font = load(SYMBOL_FONT)
+	if sym in f.fallbacks:
+		return
+	var fb := f.fallbacks.duplicate()
+	fb.append(sym)
+	f.fallbacks = fb
 
 
 ## Theme gốc gán cho Control ngoài cùng: mọi chữ con dùng Be Vietnam Pro.

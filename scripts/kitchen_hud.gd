@@ -21,6 +21,8 @@ var task_label: Label          # dòng việc bây giờ
 var say_panel: PanelContainer  # thẻ lời Cô Ba
 var say_label: Label
 var _say_t := 0.0
+var clock_note: Label          # viên nhỏ dưới đồng hồ: sao thứ ba, đồng hồ dừng, ca đầu không tính giờ
+var _untimed := false
 var status_label: Label
 var prompt_label: Label
 var prompt_key: Control
@@ -137,6 +139,15 @@ func _ready() -> void:
 	_place(timer_ring, 0.5, 0.0, Rect2(-48, 16, 96, 96))
 	timer_ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	play_root.add_child(timer_ring)
+	var note := PanelContainer.new()
+	note.add_theme_stylebox_override("panel", T.box(PAPER, 999, 10, INK, 2))
+	note.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_place(note, 0.5, 0.0, Rect2(0, 118, 0, 0))
+	note.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	play_root.add_child(note)
+	clock_note = T.label("", 14, INK, "bold")
+	note.add_child(clock_note)
+	note.visible = false
 
 	var right := _paper(10)
 	_place(right, 1.0, 0.0, Rect2(-24, 22, 0, 0))
@@ -278,6 +289,8 @@ func _ready() -> void:
 func show_playing_ui(on: bool) -> void:
 	for n in [task_label.get_parent().get_parent(), timer_ring, status_label.get_parent(), prompt_label.get_parent().get_parent(), hint]:
 		n.visible = on
+	timer_ring.visible = on and not _untimed
+	clock_note.get_parent().visible = on and clock_note.text != ""
 	if not on:
 		step_panel.visible = false
 		say_panel.visible = false
@@ -349,6 +362,19 @@ func set_task(head: String, task: String, held: String) -> void:
 	held_label.get_parent().visible = held != ""
 
 
+## Đồng hồ bếp. untimed = ca không tính giờ (ẩn vòng đồng hồ); note = dòng nhỏ dưới đồng hồ ("" = ẩn).
+func set_clock(untimed: bool, note: String) -> void:
+	if untimed == _untimed and note == clock_note.text:
+		return
+	_untimed = untimed
+	var playing: bool = task_label.get_parent().get_parent().visible
+	timer_ring.visible = playing and not untimed
+	clock_note.text = note
+	clock_note.get_parent().visible = playing and note != ""
+	clock_note.get_parent().reset_size()
+	_place(clock_note.get_parent(), 0.5, 0.0, Rect2(0, 22 if untimed else 118, 0, 0))
+
+
 ## Cô Ba nói một câu, hiện secs giây ở thẻ giữa trên.
 func say(text: String, secs := 3.5) -> void:
 	say_label.text = text
@@ -405,7 +431,7 @@ func show_step(title: String, index: int, count: int, hint_parts: Array) -> void
 func hide_step() -> void:
 	step_panel.visible = false
 	prompt_label.get_parent().get_parent().visible = prompt_label.text != ""
-	hint.visible = timer_ring.visible
+	hint.visible = task_label.get_parent().get_parent().visible
 
 
 ## Thước: fill < 0 thì ẩn thước. needle < 0 thì không có kim.

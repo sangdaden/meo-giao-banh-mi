@@ -28,18 +28,23 @@ const PRESETS := {
 		"exposure": [1.0, 1.0],
 	},
 	# Bếp Cô Ba buổi sáng: nắng xiên qua cửa sổ sau, đèn bàn vàng, lò lửa cam.
+	# Tường vàng, sàn kem nên bếp rất dễ lóa: giữ nắng và ánh môi trường thấp, ánh môi trường
+	# trung tính (không vàng) để đồ trên bàn tách khỏi tường, giảm bóng loáng mặt bàn.
 	"bep_sang": {
 		"sun_rot": Vector3(-50, 25, 0),
-		"sun_color": Color("#FFD9A6"),
-		"sun_energy": [1.0, 0.6],
+		"sun_color": Color("#FFE6C8"),
+		"sun_energy": [0.62, 0.34],
+		"sun_specular": 0.25,
 		"fill_rot": Vector3(-25, -160, 0),
-		"fill_color": Color("#BFE0DA"),
-		"fill_energy": [0.22, 0.16],
-		"ambient": Color("#FFE3C2"),
-		"ambient_energy": [0.5, 0.3],
+		"fill_color": Color("#C4DCE6"),
+		"fill_energy": [0.3, 0.16],
+		"ambient": Color("#D8DCDC"),
+		"ambient_energy": [0.38, 0.2],
 		"background": Color("#2A2620"),
 		"shadow_distance": [14.0, 10.0],
-		"exposure": [1.0, 1.0],
+		"exposure": [0.92, 1.0],
+		"contrast": 1.08,
+		"saturation": 1.1,
 	},
 }
 
@@ -86,7 +91,8 @@ static func build(parent: Node, preset: String) -> DirectionalLight3D:
 		env.ssao_intensity = 1.2
 		env.ssao_light_affect = 0.1
 		env.adjustment_enabled = true
-		env.adjustment_saturation = 1.06
+		env.adjustment_saturation = p.get("saturation", 1.06)
+		env.adjustment_contrast = p.get("contrast", 1.0)
 	if p.has("fog"):
 		env.fog_enabled = true
 		env.fog_light_color = p.fog
@@ -104,6 +110,7 @@ static func build(parent: Node, preset: String) -> DirectionalLight3D:
 	sun.rotation_degrees = p.sun_rot
 	sun.light_color = p.sun_color
 	sun.light_energy = p.sun_energy[q]
+	sun.light_specular = p.get("sun_specular", 0.5)
 	sun.shadow_enabled = true
 	sun.shadow_blur = 1.5        # bóng mềm, không viền gắt
 	# WebGL cần lệch bóng nhiều hơn, không thì mặt đường lớn bị sọc (shadow acne)

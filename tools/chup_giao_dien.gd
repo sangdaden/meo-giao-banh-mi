@@ -65,8 +65,13 @@ func _run() -> void:
 	main.hud.set_progress(main.results)
 	main.carry_time = 14.0
 	main.time_left = 9.0
+	main.hud.set_kitchen_stars(2)
+	main.hud._playing = true
+	main.hud.set_stance("sneak")
 	await _wait(20)
 	await _shot("5_hud_giao")
+	main.hud.set_kitchen_stars(-1)
+	main.hud.set_stance("walk")
 	main.rig.yaw += PI * 0.8
 	await _wait(20)
 	await _shot("5b_mui_ten_mep")
@@ -83,6 +88,22 @@ func _run() -> void:
 	main._deliver(main.ORDERS[4])
 	await _wait(10)
 	await _shot("8_ket_qua")
+	# Bảng kết quả Thứ Hai với dữ liệu mẫu của luồng chấm điểm
+	var rows := []
+	var sample := [
+		["Chú Tư", "Sạp báo", "Bánh mì thịt", "#2E7C80", 3, 2, "Ngậm báo về cho Cô Ba", true, false, "dư 6 giây"],
+		["Bé Na", "Ban công lầu 2", "Bánh mì trứng", "#E8913A", 3, 3, "Bỏ giỏ trúng nhịp đầu", true, false, "dư 4 giây"],
+		["Chị Mây", "Quán cà phê", "Bánh mì xíu mại", "#C8412F", 2, 2, "Không đổ ly nào", false, false, "dư 2 giây · đụng bàn"],
+		["Anh Hùng", "Tiệm sửa xe", "Bánh mì pate", "#3F8A5C", 1, 1, "Không giẫm dầu", false, true, "hết giờ"],
+		["Bà Sáu", "Hẻm 42", "Bánh mì chả", "#7A5236", 3, 3, "Chó Mực không thức", true, false, "qua mặt Chó Mực"],
+	]
+	for x in sample:
+		rows.append({"who": x[0], "place": x[1], "item": x[2], "color": Color(x[3]), "stars": x[4], "kitchen_stars": x[5],
+			"side_quest": x[6], "side_ok": x[7], "late": x[8], "note": x[9], "tip": 0 if x[8] else x[4] * 5000 + (3000 if x[7] else 0)})
+	main.hud.show_results(rows, {"stars": 12, "stars_max": 15, "tip": 64000, "bonus": 0, "rank": "gion",
+		"stamps": 3, "stamps_total": 5, "stamps_all": 3, "new_record": true, "day": "Thứ Hai", "wallet": 64000})
+	await _wait(10)
+	await _shot("8b_ket_qua_thu_hai")
 
 	var kh := KitchenHud.new()
 	root.add_child(kh)

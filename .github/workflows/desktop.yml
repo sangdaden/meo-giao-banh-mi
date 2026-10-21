@@ -1,9 +1,10 @@
-# Xuất bản Windows (.exe) bằng Godot rồi đăng lên GitHub Releases.
+# Xuất bản máy tính (Windows .exe và macOS .app) bằng Godot rồi đăng lên GitHub Releases.
 # - Mỗi lần cập nhật main: thay file trong bản phát hành "ban-moi-nhat" (link tải cố định).
 # - Mỗi lần tạo tag v* (ví dụ v0.2.0): tạo bản phát hành riêng mang số phiên bản đó.
 # - Pull request: chỉ xuất và chạy thử, file .zip nằm ở mục Artifacts của lượt chạy.
 # Godot 4.3 cần rcedit (chạy qua wine) để gắn icon và thông tin phiên bản vào .exe.
-name: Bản Windows (Releases)
+# Bản macOS là universal (Intel + Apple Silicon), chỉ ký ad-hoc, chưa notarize.
+name: Bản Windows và macOS (Releases)
 
 on:
   push:
@@ -16,13 +17,12 @@ permissions:
   contents: write
 
 concurrency:
-  group: windows-${{ github.ref }}
+  group: desktop-${{ github.ref }}
   cancel-in-progress: true
 
 env:
   GODOT_VERSION: "4.3"
   RCEDIT_VERSION: "2.0.0"
-  ZIP_NAME: MeoGiaoBanhMi-windows.zip
   LANG: C.UTF-8
   LC_ALL: C.UTF-8
   WINEDEBUG: -all
@@ -30,6 +30,8 @@ env:
 jobs:
   windows:
     runs-on: ubuntu-24.04
+    env:
+      ZIP_NAME: MeoGiaoBanhMi-windows.zip
     steps:
       - uses: actions/checkout@v4
 
@@ -116,25 +118,95 @@ jobs:
           path: ${{ env.ZIP_NAME }}
           retention-days: 14
 
+  macos:
+    runs-on: ubuntu-24.04
+    env:
+      ZIP_NAME: MeoGiaoBanhMi-macos.zip
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot và template macOS
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}-macos
+
+      - name: Tải Godot và template macOS
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          base=https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable
+          mkdir -p ~/godot
+          curl -sSL -o godot.zip "$base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip -d ~/godot
+          mv ~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64 ~/godot/godot
+          curl -sSL -o templates.tpz "$base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          dest=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          mkdir -p "$dest"
+          unzip -q -j templates.tpz 'templates/macos.zip' 'templates/version.txt' -d "$dest"
+          rm godot.zip templates.tpz
+
+      - name: Ghi số phiên bản theo tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          v=$(echo "${GITHUB_REF_NAME#v}" | sed 's/[^0-9.].*//')
+          sed -i "s|^application/short_version=.*|application/short_version=\"$v\"|" export_presets.cfg
+          grep short_version= export_presets.cfg
+
+      - name: Xuất bản macOS (universal, ký ad-hoc)
+        run: |
+          ~/godot/godot --headless --path . --import || true
+          # Chạy thử logic game trước (bản macOS không chạy được trên máy Linux)
+          timeout 600 ~/godot/godot --headless --path . -- --autotest 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee autotest.log
+          grep -q "AUTOTEST OK" autotest.log
+          mkdir -p export
+          ~/godot/godot --headless --path . --export-release "macOS" "export/$ZIP_NAME"
+          unzip -l "export/$ZIP_NAME" | grep -q "_CodeSignature/CodeResources"
+          unzip -l "export/$ZIP_NAME" | grep -q ".app/Contents/MacOS/"
+          mv "export/$ZIP_NAME" .
+          ls -la "$ZIP_NAME"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MeoGiaoBanhMi-macos
+          path: ${{ env.ZIP_NAME }}
+          retention-days: 14
+
+  release:
+    needs: [windows, macos]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
       - name: Đăng lên "Bản mới nhất" (main)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag=ban-moi-nhat
           git tag -f "$tag"
           git push -f origin "refs/tags/$tag"
-          notes="Bản Windows tự build từ nhánh main, commit ${GITHUB_SHA::7} ($(date -u +'%d/%m/%Y %H:%M') UTC). Tải $ZIP_NAME, giải nén, bấm đúp MeoGiaoBanhMi.exe."
+          notes="Bản tự build từ nhánh main, commit ${GITHUB_SHA::7} ($(date -u +'%d/%m/%Y %H:%M') UTC).
+          Windows: tải MeoGiaoBanhMi-windows.zip, giải nén, bấm đúp MeoGiaoBanhMi.exe.
+          macOS: tải MeoGiaoBanhMi-macos.zip, giải nén, xem cách mở lần đầu trong README."
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release edit "$tag" --notes "$notes"
           else
             gh release create "$tag" --prerelease --title "Bản mới nhất (tự động)" --notes "$notes"
           fi
-          gh release upload "$tag" "$ZIP_NAME" --clobber
+          gh release upload "$tag" dist/*.zip --clobber
 
       - name: Tạo bản phát hành theo tag
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" "$ZIP_NAME" --title "Mèo Giao Bánh Mì $GITHUB_REF_NAME" --generate-notes
+          gh release create "$GITHUB_REF_NAME" dist/*.zip --title "Mèo Giao Bánh Mì $GITHUB_REF_NAME" --generate-notes

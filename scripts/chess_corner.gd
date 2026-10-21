@@ -14,7 +14,8 @@ extends Node3D
 ## Cách dùng (deliveries.gd làm sẵn khi một đơn có "delivery": "beside_tea"):
 ##   ChessCorner.build_static(parent) trước Blocks.merge_static (cây, ghế, ghế đẩu trà đứng yên),
 ##   add_child(ChessCorner.new()) sau khi gộp, rồi setup(player).
-##   begin_order() lúc nhận bánh, deliver() lúc đặt túi, end_order() khi đơn xong.
+##   begin_order() lúc nhận bánh, deliver() lúc đặt túi (ổ bánh bay tới bag_point() rồi show_bag()),
+##   end_order() khi đơn xong.
 ## Toàn bộ là khối tạm; model bàn cờ (ban_co.glb của luồng đồ phố), hai ông, người xem và
 ## animation suỵt / mắng / reo / đi nước cờ chờ trang "Phác thảo Thứ Ba" được Sang duyệt.
 
@@ -325,9 +326,17 @@ func deliver() -> bool:
 	var on_check := distracted
 	delivered = true
 	active = false
-	_bag.visible = true
 	_say(0 if _checker == 1 else 1, "Ừ, để đó đi con." if on_check else "Cảm ơn con, để cạnh ấm trà.", 2.5)
 	return on_check
+
+
+## Chỗ ổ bánh Bơ nhả ra (cạnh ấm trà); show_bag() hiện túi nằm lại đó.
+func bag_point() -> Vector3:
+	return _bag.global_position + Vector3(0, 0.06, 0)
+
+
+func show_bag() -> void:
+	_bag.visible = true
 
 
 func end_order() -> void:

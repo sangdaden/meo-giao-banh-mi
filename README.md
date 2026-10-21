@@ -2,7 +2,7 @@
 
 Game 3D góc nhìn thứ ba làm bằng **Godot 4** (ráp game) và **Blender** (model, rig, animation). Mèo cam Bơ phụ Cô Ba làm bánh mì trong bếp, rồi chạy nhảy khắp khu phố để giao kịp giờ cho 5 khách.
 
-Đây là **bản chơi thử**: mèo Bơ đã dùng model kiểu D "Chững chạc" (bản tạm rút gọn từ model phác thảo), còn phố, khách và Chó Mực vẫn là khối hộp tạm. Mục tiêu là thử cảm giác chạy nhảy và vòng giao đơn trước khi làm đồ họa thật.
+Đây là **bản chơi thử**: mèo Bơ đã dùng model kiểu D "Chững chạc" (bản tạm rút gọn từ model phác thảo), Chó Mực dùng 8 tư thế kiểu D đã duyệt, còn phố và khách vẫn là khối hộp tạm. Mục tiêu là thử cảm giác chạy nhảy và vòng giao đơn trước khi làm đồ họa thật.
 
 ![Toàn cảnh khu phố](docs/toan-canh.png)
 
@@ -158,7 +158,7 @@ scripts/
   main.gd              vòng chơi: nhận bánh, giao đơn, đồng hồ, mũi tên, phím điều khiển
   player.gd            mèo Bơ: chạy, nhảy, animation tạm bằng code
   camera_rig.gd        camera sau lưng mèo (SpringArm3D tránh xuyên tường)
-  dog.gd               Chó Mực: 7 trạng thái (ngủ gật, hé mắt, nghi ngờ, đuổi, đớp, sủa, mệt), nghe tiếng động
+  dog.gd               Chó Mực: 7 trạng thái (ngủ gật, hé mắt, nghi ngờ, đuổi, đớp, sủa, mệt), nghe tiếng động, đổi model tư thế theo trạng thái (assets/models/cho_muc/)
   city.gd              dựng khu phố 6 khối theo bản đồ trong sổ phác thảo
   hud.gd               thẻ đơn, đồng hồ, 5 chấm tiến độ, màn bắt đầu, tạm dừng, kết thúc
   timer_ring.gd        đồng hồ vòng tròn
@@ -183,10 +183,11 @@ Bản khối thô dựng mọi thứ bằng code để dễ đọc từ trên xu
 
 ## Âm thanh
 
-Toàn bộ nhạc và tiếng động do `tools/sound/synth.py` tự tổng hợp, không dùng mẫu của ai nên không vướng giấy phép (CC0, chi tiết ở `assets/audio/NGUON.md`). Có 4 bài nhạc nền lặp (menu, giao bánh, bị Chó Mực đuổi, bếp), 2 nhạc kết, tiếng nền phố và bếp, cùng khoảng 35 hiệu ứng.
+Toàn bộ nhạc và tiếng động do `tools/sound/synth.py` tự tổng hợp, không dùng mẫu của ai nên không vướng giấy phép (CC0, chi tiết ở `assets/audio/NGUON.md`). Có 4 bài nhạc nền lặp (menu, giao bánh, bị Chó Mực đuổi, bếp), 2 nhạc kết, tiếng nền phố, phố buổi sáng, chợ sáng và bếp, cùng hơn 80 hiệu ứng. Giọng người (Cô Ba, khách, hai ông đánh cờ, người bán) cũng tự tổng hợp từ chữ quốc ngữ bằng `tools/sound/voice.py`: muốn đổi lời thì sửa câu trong `build_voice_jobs()` của `synth.py`.
 
 - Gọi từ code: `Sound.play("jump")`, `Sound.play_at("bark", vi_tri_3d)` (nhỏ dần theo khoảng cách tới camera), `Sound.music("chase")`, `Sound.ambience("street")`, `Sound.loop("sizzle")` / `Sound.stop_loop("sizzle")`. Tên không có file thì bỏ qua.
 - Âm lượng: menu **Cài đặt** (màn hình chính và màn tạm dừng); phím **M** tắt/bật tiếng bất cứ lúc nào. Lưu vào `user://am_thanh.cfg`.
+- Bước chân tự đổi theo mặt đất dưới chân Bơ (mái tôn, đồ gỗ, cỏ công viên, mặt đường) và theo dáng đi (rón rén, chui).
 - Cân to nhỏ giữa các tiếng: bảng `LEVEL` đầu file `scripts/sound.gd`. Nhịp bước chân, mấy giây cuối kêu tích tắc, tầm sủa của chó: hằng số đầu `scripts/sound_director.gd`.
 - Bản web: trình duyệt chặn âm thanh cho tới cú bấm hoặc phím đầu tiên; Godot tự mở lại khi người chơi bấm, nên nhạc menu bắt đầu ngay khi chạm vào trang.
 - In tên từng tiếng ra console khi chạy thử: thêm `--sound-log`, ví dụ `godot --path . -- --sound-log`.

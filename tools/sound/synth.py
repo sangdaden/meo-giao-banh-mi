@@ -19,6 +19,7 @@ from scipy.signal import butter, lfilter, sosfilt
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from bark import bark_v2  # noqa: E402
+from voice import say  # noqa: E402
 
 SR = 44100
 OUT = os.path.join(os.path.dirname(__file__), "..", "..", "assets", "audio")
@@ -933,6 +934,395 @@ def oil_slip():
     return fade(x, 0.002, 0.08)
 
 
+# ---------------------------------------------------------------- Thứ Hai lượt 2: mặt đất, Cô Ba, khách, sự kiện còn thiếu
+
+def _voice(text, speaker, mood="", wet=0.12, f0_mult=1.0):
+    """Một câu nói, có chút vang phòng/phố cho khỏi khô."""
+    return reverb(fade(np.concatenate([say(text, speaker, mood, f0_mult), silence(0.25)]), 0.002, 0.05), wet, 0.8)
+
+
+def step_metal(i):
+    """Chân mèo trên mái tôn: chạm nhẹ nhưng tôn rung 'boong' trầm, vài họa âm lệch."""
+    dur = 0.32
+    t = t_of(dur)
+    y = np.sin(2 * np.pi * (75 + 10 * i) * t) * np.exp(-t * 55)
+    for f, a, d in [(190, 0.5, 18), (430, 0.35, 22), (760, 0.25, 28), (1240, 0.15, 35), (2050, 0.08, 45)]:
+        y += a * np.sin(2 * np.pi * f * (1 + 0.03 * i) * t + rng.uniform(0, 6)) * np.exp(-t * d)
+    y += 0.25 * filt(noise(dur), "band", (1500, 6000)) * np.exp(-t * 120)
+    return fade(y, 0.001, 0.05)
+
+
+def step_wood(i):
+    """Trên thùng gỗ, ghế, ổ chó: tiếng 'cộc' rỗng."""
+    dur = 0.15
+    t = t_of(dur)
+    y = np.sin(2 * np.pi * (150 + 20 * i) * t) * np.exp(-t * 40) + 0.5 * np.sin(2 * np.pi * (390 + 35 * i) * t) * np.exp(-t * 60)
+    y += 0.3 * filt(noise(dur), "band", (800, 4000)) * np.exp(-t * 150)
+    return fade(y, 0.001, 0.02)
+
+
+def step_grass(i):
+    """Trên cỏ công viên: sột nhẹ, gần như không có tiếng chạm."""
+    dur = 0.16
+    t = t_of(dur)
+    sw = filt(noise(dur), "band", (2200 + 300 * i, 8000)) * np.sin(np.pi * t / dur) ** 2
+    y = 0.6 * sw + 0.3 * np.sin(2 * np.pi * 60 * t) * np.exp(-t * 70)
+    return fade(y, 0.002, 0.03)
+
+
+def splash():
+    """Tờ báo rơi tõm xuống vũng nước: tạt nước + vài bọt nổi lên."""
+    x = silence(0.8)
+    t = t_of(0.3)
+    mix_at(x, filt(noise(0.3), "band", (400, 5000)) * np.exp(-t * 14), 0, 0.8)
+    mix_at(x, np.sin(2 * np.pi * 90 * t) * np.exp(-t * 30), 0, 0.5)
+    for _ in range(9):
+        d = rng.uniform(0.02, 0.05)
+        tt = t_of(d)
+        f = rng.uniform(500, 1300) * (1 + 1.5 * tt / d)
+        mix_at(x, np.sin(phase_of(f)) * np.sin(np.pi * tt / d), rng.uniform(0.05, 0.5), rng.uniform(0.1, 0.3))
+    return reverb(fade(x), 0.15)
+
+
+def stamp():
+    """Tem Cô Ba: con dấu đóng 'cộp' lên giấy rồi lấp lánh hai nốt."""
+    x = silence(1.1)
+    t = t_of(0.2)
+    mix_at(x, np.sin(phase_of(110 + 80 * np.exp(-t * 40))) * np.exp(-t * 25), 0, 0.9)
+    mix_at(x, filt(noise(0.2), "band", (600, 4000)) * np.exp(-t * 60), 0, 0.4)
+    mix_at(x, bell(note("G6"), 0.7, 4), 0.12, 0.35)
+    mix_at(x, bell(note("D7"), 0.8, 4), 0.2, 0.3)
+    for k in range(5):
+        mix_at(x, bell(note("G7") * rng.uniform(0.97, 1.2), 0.25, 8), 0.26 + k * 0.04, 0.06)
+    return reverb(fade(x, 0, 0.2), 0.25)
+
+
+def coin():
+    """Tiền boa: hai đồng xu chạm nhau 'keng keng'."""
+    x = silence(0.8)
+    for st, g in [(0, 1.0), (0.09, 0.7), (0.16, 0.35)]:
+        t = t_of(0.5)
+        y = sum(a * np.sin(2 * np.pi * f * rng.uniform(0.99, 1.01) * t) * np.exp(-t * d)
+                for f, a, d in [(2350, 1, 9), (5900, 0.6, 14), (8200, 0.35, 20), (3700, 0.4, 12)])
+        mix_at(x, y, st, g)
+    return reverb(fade(x, 0, 0.1), 0.15)
+
+
+def record():
+    """Kỷ lục mới: bốn nốt marimba đi lên + chuông."""
+    x = silence(1.4)
+    for k, n in enumerate(["C6", "E6", "G6", "C7"]):
+        mix_at(x, marimba(note(n), 0.5), k * 0.08, 0.6)
+    mix_at(x, bell(note("C7"), 1.0), 0.32, 0.4)
+    return reverb(fade(x, 0, 0.2), 0.3)
+
+
+def bike_hit():
+    """Xe máy thắng gấp rít lên rồi chạm Bơ 'bịch', đồ nhựa trên xe khua lạch cạch."""
+    x = silence(0.9)
+    d = 0.45
+    t = t_of(d)
+    f = 2300 * (1 + 0.04 * np.sin(2 * np.pi * 37 * t)) * (1 - 0.15 * t / d)
+    sq = np.sin(phase_of(f)) + 0.4 * np.sin(phase_of(f * 2.01))
+    mix_at(x, (sq * 0.35 + filt(noise(d), "band", (1500, 5000)) * 0.5) * adsr(len(t), 0.02, 0.05, 0.8, 0.12), 0, 0.6)
+    tt = t_of(0.25)
+    mix_at(x, np.sin(phase_of(70 + 60 * np.exp(-tt * 30))) * np.exp(-tt * 18), 0.36, 0.9)
+    for k in range(5):
+        mix_at(x, filt(noise(0.02), "band", (1500, 6000)) * np.exp(-t_of(0.02) * 200), 0.4 + k * rng.uniform(0.03, 0.07), 0.3)
+    return fade(x, 0, 0.1)
+
+
+def meow_startle():
+    """Bơ giật mình: 'mééo!' cao, gắt, ngắn."""
+    dur = 0.32
+    t = t_of(dur)
+    u = t / dur
+    f0 = 820 * (1 + 0.5 * np.sin(np.pi * np.clip(u * 1.6, 0, 1))) * (1 + 0.03 * rng.standard_normal(len(t)).cumsum() / 300)
+    ph = phase_of(f0)
+    src = sum(np.sin(k * ph) / k ** 0.8 for k in range(1, 14))
+    y = filt(src, "band", (1300, 3600), 2) + 0.5 * filt(src, "band", (600, 1000))
+    y += 0.15 * filt(noise(dur), "band", (2000, 6000))  # chút khàn
+    y *= adsr(len(t), 0.015, 0.05, 0.8, 0.1)
+    return fade(y, 0.003, 0.03)
+
+
+def squish():
+    """Bánh bị dập khi rơi cao: giấy bẹp + vỏ bánh vỡ vụn, nghe hơi buồn."""
+    x = silence(0.6)
+    t = t_of(0.25)
+    mix_at(x, filt(noise(0.25), "low", 900) * np.exp(-t * 15), 0, 0.6)
+    for _ in range(50):
+        st = rng.uniform(0, 0.25)
+        dd = rng.uniform(0.004, 0.015)
+        mix_at(x, filt(noise(dd), "band", (1200, 6000)) * np.exp(-t_of(dd) * 300), st, rng.uniform(0.1, 0.5) * np.exp(-st * 8))
+    tt = t_of(0.3)
+    mix_at(x, np.sin(phase_of(330 - 120 * tt / 0.3)) * np.exp(-tt * 8) * 0.25, 0.2)
+    return fade(x)
+
+
+def paper_slip():
+    """Cô Ba đưa phiếu đơn: tờ giấy phẩy 'soạt'."""
+    d = 0.22
+    t = t_of(d)
+    y = filt(noise(d), "band", (1800, 9000)) * np.sin(np.pi * t / d) ** 1.5
+    mix_at(y, bag_crinkle(0.12, 150), 0.08, 0.4)
+    return fade(y)
+
+
+def street_morning():
+    """Phố buổi sáng Thứ Hai: chim sẻ ríu rít nhiều hơn, chổi tre quét vỉa hè, gà gáy xa,
+    ít xe hơn buổi trưa, xa xa có tiếng rao bánh mì."""
+    dur = 40.0
+    total = dur + 6
+    hum = filt(brown(total), "low", 220) * 0.16
+    murmur = filt(noise(total), "band", (300, 2500)) * 0.04
+    buf = stereo(hum + murmur, hum + np.roll(murmur, 4000))
+
+    def add(st, y, g):
+        if y.ndim == 1:
+            y = stereo(y, y)
+        i = int(st * SR)
+        n = min(len(y), len(buf) - i)
+        buf[i:i + n] += y[:n] * g
+
+    for st, d, f, dr, g in [(4, 5, 40, 1, 0.35), (18, 4, 47, -1, 0.25), (31, 5, 36, 1, 0.3)]:
+        add(st, motorbike(d, f, dr), g)
+    # chim sẻ: từng đàn nhỏ ríu rít
+    for _ in range(26):
+        st = rng.uniform(0, dur)
+        p = rng.uniform(-0.9, 0.9)
+        for k in range(rng.integers(1, 4)):
+            add(st + k * rng.uniform(0.2, 0.5), pan(bird(), p), rng.uniform(0.04, 0.08))
+    # chổi tre quét: hai đợt, mỗi nhát 'xoẹt' dài
+    for st0, p in [(2.0, -0.5), (22.0, 0.6)]:
+        for k in range(9):
+            d = rng.uniform(0.45, 0.6)
+            t = t_of(d)
+            sw = filt(noise(d), "band", (1500, 7000)) * np.sin(np.pi * t / d) ** 2
+            add(st0 + k * 0.85, pan(sw, p), 0.06)
+    # gà gáy xa: một tiếng 'ò ó o' luyến
+    t = t_of(1.4)
+    f = np.interp(t, [0, 0.2, 0.5, 0.9, 1.4], [500, 700, 650, 780, 520])
+    ph = phase_of(f)
+    src = sum(np.sin(k * ph) / k for k in range(1, 18))
+    rooster = (filt(src, "band", (800, 1800)) + 0.5 * filt(src, "band", (2000, 3000))) * adsr(len(t), 0.05, 0.1, 0.8, 0.3)
+    add(12.0, pan(filt(reverb(rooster, 0.6, 1.4), "low", 2200), 0.7), 0.05)
+    # rao bánh mì xa
+    call = filt(reverb(say("Bánh mì nóng giòn đây!", "ban_hang"), 0.7, 1.4), "low", 2400)
+    add(27.0, pan(call, -0.4), 0.07)
+    add(8.5, pan(horn(), 0.5), 0.07)
+    return np.stack([loopify(buf[:, 0], dur), loopify(buf[:, 1], dur)], axis=1)
+
+
+# ---------------------------------------------------------------- Thứ Ba: chợ sáng, góc cờ tướng, tạp hóa
+
+def scale_clank():
+    """Cân đĩa ở sạp chợ: đĩa nhôm 'keng' rồi lò xo rung 'boing' nhỏ."""
+    x = silence(0.9)
+    t = t_of(0.6)
+    y = sum(a * np.sin(2 * np.pi * f * t) * np.exp(-t * d) for f, a, d in [(620, 1, 8), (1530, 0.6, 12), (2810, 0.4, 16), (4100, 0.2, 22)])
+    mix_at(x, y, 0, 0.7)
+    mix_at(x, filt(noise(0.05), "band", (1000, 5000)) * np.exp(-t_of(0.05) * 80), 0, 0.4)
+    tt = t_of(0.5)
+    mix_at(x, np.sin(phase_of(140 + 30 * np.sin(2 * np.pi * 9 * tt))) * np.exp(-tt * 9) * 0.3, 0.05)
+    return reverb(fade(x, 0, 0.1), 0.15)
+
+
+def chess_slap(i):
+    """Quân cờ tướng gỗ đập xuống bàn đá: 'cạch' sắc, gọn, có tiếng bàn dội."""
+    dur = 0.25
+    t = t_of(dur)
+    click = filt(noise(dur), "high", 2500) * np.exp(-t * 400)
+    body = np.sin(2 * np.pi * (1050 + 90 * i) * t) * np.exp(-t * 90) + 0.5 * np.sin(2 * np.pi * (2400 + 150 * i) * t) * np.exp(-t * 140)
+    table = np.sin(2 * np.pi * (210 + 15 * i) * t) * np.exp(-t * 35)
+    return reverb(fade(click * 0.9 + body * 0.6 + table * 0.5, 0.0005, 0.03), 0.12)
+
+
+def chess_rattle():
+    """Bàn bị đụng: quân cờ nảy lộp cộp, vài quân lăn, một quân rớt xuống đất."""
+    x = silence(1.3)
+    t = t_of(0.2)
+    mix_at(x, np.sin(2 * np.pi * 120 * t) * np.exp(-t * 30), 0, 0.8)  # cú đụng bàn
+    for _ in range(26):
+        st = rng.uniform(0.01, 0.55) ** 1.3
+        d = 0.04
+        tt = t_of(d)
+        c = np.sin(2 * np.pi * rng.uniform(900, 1600) * tt) * np.exp(-tt * 120) + filt(noise(d), "high", 3000) * np.exp(-tt * 400)
+        mix_at(x, c, st, rng.uniform(0.15, 0.5))
+    for k, st in enumerate((0.75, 0.9, 0.98)):  # quân rớt nảy trên nền gạch
+        mix_at(x, chess_slap(k) * 0.5 * 0.6 ** k, st)
+    return fade(x, 0, 0.1)
+
+
+def shush():
+    """'Suỵt!': hơi xì qua môi tròn, kết bằng 't' bật nhẹ."""
+    d = 0.6
+    t = t_of(d)
+    s = filt(noise(d), "band", (2200, 7000)) * adsr(len(t), 0.06, 0.1, 0.85, 0.12)
+    s += 0.5 * filt(noise(d), "band", (1500, 3000)) * adsr(len(t), 0.15, 0.1, 0.6, 0.1)  # môi chúm lại
+    x = np.concatenate([s, silence(0.04), filt(noise(0.015), "band", (3000, 8000)) * np.exp(-t_of(0.015) * 300) * 0.5, silence(0.2)])
+    return reverb(fade(x), 0.1)
+
+
+def check_cheer():
+    """'Chiếu tướng!': ông đánh cờ hô to, người đứng xem 'ồ' lên rồi vỗ tay."""
+    x = silence(2.6)
+    mix_at(x, say("Chiếu tướng!", "ong_tam", "gat"), 0, 0.9)
+    for k, spk in enumerate(["khach_nam", "chu_tu", "khach_nu", "anh_hung", "khach_nam"]):
+        mix_at(x, say("Ồ!", spk, "vui", f0_mult=rng.uniform(0.95, 1.1)), 0.55 + k * rng.uniform(0.02, 0.06), 0.35)
+    for _ in range(70):  # vỗ tay
+        st = rng.uniform(0.9, 2.2)
+        d = 0.03
+        c = filt(noise(d), "band", (700, rng.uniform(2500, 5000))) * np.exp(-t_of(d) * 160)
+        mix_at(x, c, st, rng.uniform(0.15, 0.4) * (1 - (st - 0.9) / 1.6))
+    return reverb(fade(x, 0, 0.3), 0.25, 1.1)
+
+
+def egg_crack():
+    """Một quả trứng vỡ trong túi: vỏ nứt 'rắc' rồi lòng trứng 'bẹp' ướt."""
+    x = silence(0.7)
+    for _ in range(14):
+        st = rng.uniform(0, 0.06)
+        d = rng.uniform(0.003, 0.01)
+        mix_at(x, filt(noise(d), "band", (2500, 9000)) * np.exp(-t_of(d) * 500), st, rng.uniform(0.4, 1))
+    t = t_of(0.3)
+    wet = filt(noise(0.3), "band", (300, 1800)) * np.exp(-t * 18) * (1 + 0.5 * np.sin(2 * np.pi * 25 * t))
+    mix_at(x, wet, 0.05, 0.6)
+    tt = t_of(0.2)
+    mix_at(x, np.sin(phase_of(260 - 120 * tt / 0.2)) * np.exp(-tt * 20), 0.07, 0.3)
+    mix_at(x, bag_crinkle(0.2, 160), 0.02, 0.25)
+    return fade(x)
+
+
+def nylon(i):
+    """Túi nilon sột soạt khi Bơ ngậm túi chạy: lạo xạo mỏng, sáng hơn túi giấy."""
+    d = 0.25 + 0.06 * i
+    x = silence(d)
+    for _ in range(int(d * 320)):
+        st = rng.uniform(0, d - 0.015)
+        c = filt(noise(0.008), "band", (3500, 12000)) * np.exp(-t_of(0.008) * 450)
+        mix_at(x, c, st, rng.uniform(0.2, 1.0) * np.sin(np.pi * st / d) ** 0.8)
+    x += 0.15 * filt(noise(d), "band", (4000, 10000)) * np.sin(np.pi * t_of(d) / d)
+    return fade(x)
+
+
+def cart_rattle():
+    """Xe đẩy hàng rong lăn trên đường: bánh sắt lộc cộc theo vòng, đồ trên xe khua lạch cạch. Lặp 2 s."""
+    dur = 2.0
+    x = silence(dur + 0.3)
+    t = t_of(dur + 0.3)
+    x += filt(noise(dur + 0.3), "low", 300) * 0.35 * (1 + 0.3 * np.sin(2 * np.pi * 3 * t))  # lăn ù ù
+    period = 0.25  # một vòng bánh có chỗ móp
+    k = 0.0
+    while k < dur + 0.2:
+        tt = t_of(0.08)
+        mix_at(x, np.sin(2 * np.pi * rng.uniform(160, 220) * tt) * np.exp(-tt * 50), k, 0.5)
+        k += period * rng.uniform(0.95, 1.05)
+    for _ in range(36):  # nồi, rổ, chai lọ trên xe
+        st = rng.uniform(0, dur + 0.2)
+        d = 0.06
+        tt = t_of(d)
+        f = rng.uniform(700, 2600)
+        c = np.sin(2 * np.pi * f * tt) * np.exp(-tt * 70) + 0.4 * np.sin(2 * np.pi * f * 2.7 * tt) * np.exp(-tt * 110)
+        mix_at(x, c, st, rng.uniform(0.08, 0.3))
+    return loopify(x, dur)
+
+
+def cart_bump():
+    """Bơ (hoặc người) đụng xe đẩy: 'cộp' + đồ trên xe khua."""
+    x = silence(0.8)
+    t = t_of(0.25)
+    mix_at(x, np.sin(phase_of(95 + 50 * np.exp(-t * 30))) * np.exp(-t * 20), 0, 0.9)
+    for _ in range(14):
+        st = rng.uniform(0.01, 0.45)
+        d = 0.06
+        tt = t_of(d)
+        f = rng.uniform(700, 2600)
+        mix_at(x, np.sin(2 * np.pi * f * tt) * np.exp(-tt * 70), st, rng.uniform(0.1, 0.4) * np.exp(-st * 4))
+    return fade(x)
+
+
+def basket_topple():
+    """Thúng tre đổ: nan tre răng rắc, thúng 'bộp' xuống đất, rau củ lăn lộp bộp."""
+    x = silence(1.4)
+    for _ in range(40):
+        st = rng.uniform(0, 0.25)
+        d = rng.uniform(0.005, 0.02)
+        mix_at(x, filt(noise(d), "band", (1200, 5000)) * np.exp(-t_of(d) * 250), st, rng.uniform(0.2, 0.6))
+    t = t_of(0.3)
+    mix_at(x, np.sin(phase_of(80 + 40 * np.exp(-t * 25))) * np.exp(-t * 14) + 0.3 * filt(noise(0.3), "low", 1200) * np.exp(-t * 20), 0.22, 0.9)
+    for _ in range(9):
+        st = rng.uniform(0.3, 1.1)
+        tt = t_of(0.1)
+        mix_at(x, np.sin(2 * np.pi * rng.uniform(140, 260) * tt) * np.exp(-tt * 40), st, rng.uniform(0.15, 0.4) * (1.2 - st))
+    return fade(x, 0, 0.15)
+
+
+def build_voice_jobs():
+    """Mọi câu nói trong game. Muốn đổi lời: sửa chữ ở đây rồi chạy lại file đó."""
+    lines = {
+        # Cô Ba ở quầy lò
+        "coba_hello": ("Bơ ơi, đi giao bánh nè!", "coba", "vui"),
+        "coba_order_1": ("Đơn nè, đi lẹ nha con!", "coba", "vui"),
+        "coba_order_2": ("Giao cho kịp nha!", "coba", ""),
+        "coba_order_3": ("Nè, cầm lấy!", "coba", "vui"),
+        "coba_good": ("Giỏi quá, Bơ ơi!", "coba", "vui"),
+        "coba_ok": ("Được rồi, mai cố nha!", "coba", ""),
+        # khách nhận bánh
+        "thanks_chu_tu": ("Cảm ơn con nha!", "chu_tu", ""),
+        "thanks_be_na": ("Cảm ơn Bơ!", "be_na", "vui"),
+        "thanks_chi_may": ("Cảm ơn em nha!", "chi_may", "vui"),
+        "thanks_anh_hung": ("Ngon lành, cảm ơn nha!", "anh_hung", ""),
+        "thanks_ba_sau": ("Ngoan quá, cảm ơn con.", "ba_sau", ""),
+        # Thứ Ba: hai ông đánh cờ, người đi chợ bị đụng
+        "scold_1": ("Ê! Đi chỗ khác chơi!", "ong_bay", "gat"),
+        "scold_2": ("Trời đất, rớt quân rồi!", "ong_bay", "gat"),
+        "scold_3": ("Con mèo này, phá quá!", "ong_tam", "gat"),
+        "scold_4": ("Đừng có chạy ở đây!", "ong_tam", "gat"),
+        "oops_1": ("Ối!", "khach_nu", "gat"),
+        "oops_2": ("Ui cha!", "khach_nam", "gat"),
+    }
+    return {name: ((lambda t=t, s=s, m=m: _voice(t, s, m)), "ogg") for name, (t, s, m) in lines.items()}  # câu nói dài, .ogg cho nhẹ
+
+
+def market_ambience():
+    """Chợ sáng Thứ Ba: rì rầm người mua bán (nhiều giọng nói khẽ chồng lên nhau), rao hàng,
+    cân đĩa, túi nilon, dao chặt thớt, xe máy xa. 40 s lặp liền."""
+    dur = 40.0
+    total = dur + 6
+    hum = filt(brown(total), "low", 220) * 0.12
+    buf = stereo(hum, hum)
+
+    def add(st, y, g):
+        if y.ndim == 1:
+            y = stereo(y, y)
+        i = int(st * SR)
+        n = min(len(y), len(buf) - i)
+        buf[i:i + n] += y[:n] * g
+
+    chatter = ["Bao nhiêu một ký?", "Bớt chút đi chị.", "Lấy thêm bó rau nha.", "Hôm nay cá tươi lắm.",
+               "Mua gì đi cô ơi.", "Trứng gà ta đó.", "Thôi được, lấy đi.", "Cho xin cọng hành.",
+               "Mai ghé nữa nha.", "Ừ, để đó đi.", "Ủa, sao mắc vậy?", "Chừng nhiêu tiền?"]
+    speakers = ["khach_nu", "khach_nam", "ban_hang", "coba", "chi_may", "chu_tu", "ba_sau"]
+    for k in range(48):  # rì rầm: câu ngắn, nhỏ, xa, đủ hướng
+        line = say(chatter[k % len(chatter)], speakers[rng.integers(len(speakers))], "", rng.uniform(0.92, 1.1))
+        line = filt(line, "low", rng.uniform(1800, 3200))
+        add(rng.uniform(0, dur), pan(line, rng.uniform(-0.9, 0.9)), rng.uniform(0.03, 0.07))
+    for st, text, p in [(3.0, "Rau tươi đây!", -0.6), (14.0, "Cá tươi nè, cá tươi!", 0.5),
+                        (24.5, "Bánh bao nóng đây!", -0.2), (34.0, "Mua gì đi cô ơi!", 0.7)]:
+        add(st, pan(reverb(say(text, "ban_hang", "vui", rng.uniform(0.95, 1.1)), 0.5, 1.2), p), 0.13)
+    for st in rng.uniform(0, dur, 7):
+        add(st, pan(scale_clank(), rng.uniform(-0.7, 0.7)), 0.12)
+    for st in rng.uniform(0, dur, 9):
+        add(st, pan(nylon(rng.integers(3)), rng.uniform(-0.8, 0.8)), 0.06)
+    for st0 in (9.0, 29.0):  # sạp thịt chặt thớt
+        for k in range(6):
+            add(st0 + k * 0.35, pan(chop(k % 3), 0.35), 0.12)
+    for st, d, f, dr, g in [(6, 5, 38, 1, 0.18), (20, 4, 46, -1, 0.14), (36, 4, 40, 1, 0.16)]:
+        add(st, motorbike(d, f, dr), g)
+    return np.stack([loopify(buf[:, 0], dur), loopify(buf[:, 1], dur)], axis=1)
+
+
 def build():
     jobs = {
         # nhạc nền (lặp)
@@ -1004,7 +1394,43 @@ def build():
         "oil_slip": (oil_slip, "wav"),
         "sizzle": (sizzle_loop, "ogg"),
         "oven_fire": (oven_fire_loop, "ogg"),
+        # Thứ Hai lượt 2
+        "amb_morning": (street_morning, "ogg"),
+        "step_metal_1": (lambda: step_metal(0), "wav"),
+        "step_metal_2": (lambda: step_metal(1), "wav"),
+        "step_metal_3": (lambda: step_metal(2), "wav"),
+        "step_wood_1": (lambda: step_wood(0), "wav"),
+        "step_wood_2": (lambda: step_wood(1), "wav"),
+        "step_wood_3": (lambda: step_wood(2), "wav"),
+        "step_grass_1": (lambda: step_grass(0), "wav"),
+        "step_grass_2": (lambda: step_grass(1), "wav"),
+        "step_grass_3": (lambda: step_grass(2), "wav"),
+        "splash": (splash, "wav"),
+        "stamp": (stamp, "wav"),
+        "coin": (coin, "wav"),
+        "record": (record, "wav"),
+        "bike_hit": (bike_hit, "wav"),
+        "meow_startle": (meow_startle, "wav"),
+        "squish": (squish, "wav"),
+        "paper_slip": (paper_slip, "wav"),
+        # Thứ Ba
+        "amb_market": (market_ambience, "ogg"),
+        "scale_clank": (scale_clank, "wav"),
+        "chess_slap_1": (lambda: chess_slap(0), "wav"),
+        "chess_slap_2": (lambda: chess_slap(1), "wav"),
+        "chess_slap_3": (lambda: chess_slap(2), "wav"),
+        "chess_rattle": (chess_rattle, "wav"),
+        "shush": (shush, "wav"),
+        "check_cheer": (check_cheer, "ogg"),
+        "egg_crack": (egg_crack, "wav"),
+        "nylon_1": (lambda: nylon(0), "wav"),
+        "nylon_2": (lambda: nylon(1), "wav"),
+        "nylon_3": (lambda: nylon(2), "wav"),
+        "cart_rattle": (cart_rattle, "ogg"),
+        "cart_bump": (cart_bump, "wav"),
+        "basket_topple": (basket_topple, "wav"),
     }
+    jobs.update(build_voice_jobs())  # Cô Ba, khách, hai ông đánh cờ
     global rng
     only = sys.argv[1:]
     for name, (fn, kind) in jobs.items():

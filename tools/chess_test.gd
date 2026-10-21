@@ -12,7 +12,10 @@ signal noise_made(pos: Vector3, radius: float)
 var _stun := 0.0
 var stance := "walk"
 var walk_speed := 5.0
+var carrying := true
+var visual := Node3D.new()
 func _ready() -> void:
+	add_child(visual)
 	var s := CollisionShape3D.new()
 	var b := BoxShape3D.new()
 	b.size = Vector3(0.3, 0.3, 0.5)

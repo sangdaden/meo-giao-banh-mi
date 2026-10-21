@@ -432,6 +432,7 @@ func _update_oven(delta: float) -> void:
 				if oven_state != "chay":
 					oven_state = "chay"
 					smoke.emitting = true
+					_sound("play", "burn")
 					hud.show_toast("Khói kìa! Bánh cháy rồi!", 2.0)
 				c = P.BURNT
 				oven_label.text = "CHÁY!"
@@ -662,7 +663,7 @@ func _beat(id: String, step: String, beat: int) -> Tween:
 			tw.tween_property(jug, "position", over, 0.3).set_trans(Tween.TRANS_SINE)
 			tw.parallel().tween_property(paw_r, "position", _at_world(heap.global_position + Vector3(0.14, 0.18, 0.02)), 0.3)
 			tw.tween_property(jug, "rotation:z", 1.2, 0.25)
-			tw.tween_callback(func(): stream.visible = true)
+			tw.tween_callback(func(): stream.visible = true; _sound("play", "water"))
 			tw.tween_property(heap, "scale", Vector3(1.1, 0.85, 1.1), 0.5)
 			tw.tween_callback(func(): stream.visible = false)
 			tw.tween_property(jug, "rotation:z", 0.0, 0.2)
@@ -748,7 +749,7 @@ func _beat(id: String, step: String, beat: int) -> Tween:
 			tw.tween_property(spray, "rotation:x", 0.0, 0.1)
 			tw.tween_property(spray, "position", s0, 0.25)
 			tw.parallel().tween_property(paw_r, "position", PAW_R_REST, 0.25)
-			_sound("play", "sauce")
+			_sound("play", "spray")
 		"day_khay":  # hai chân đẩy khay vào sâu trong lò
 			var front := _at(oven_tray, 0.03)
 			tw.tween_property(paw_l, "position", front + Vector3(-0.12, 0, 0.12), 0.2)
@@ -793,7 +794,7 @@ func _beat(id: String, step: String, beat: int) -> Tween:
 				tw.tween_property(paw_l, "position", _at(board_item, 0.07) + Vector3(0.04, 0, 0), 0.12)
 			tw.tween_property(board_item, "rotation:y", 0.0, 0.1)
 			tw.parallel().tween_property(paw_l, "position", PAW_L_REST, 0.2)
-			_sound("play", "sauce")
+			_sound("play", "water")
 		"nhat":  # nhặt một lá úa vứt đi
 			var leaf := P.sphere(board_item, 0.025, Vector3(0.04, 0.04, 0.02), Color("#B9A23A"))
 			tw.tween_property(paw_r, "position", _at(leaf, 0.04), 0.2)

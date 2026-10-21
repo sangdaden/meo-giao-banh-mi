@@ -9,21 +9,24 @@ extends Node3D
 ## Kích thước (size 1): bàn chân rộng ~9 cm, cẳng tay ~12 cm, cánh tay trên ~24 cm; to hơn chân Bơ
 ## thật một chút cho dễ nhìn ở cận cảnh, giống tay nhân vật ở góc nhìn thứ nhất.
 ## Dùng: var p := BoPaw.create(-1.0) (trái) hoặc BoPaw.create(1.0) (phải), rồi add_child(p).
+## Góc nhìn thứ nhất: BoPaw.create(side, size, "dung"): gốc node ở mặt đất dưới bàn chân, vai ở trên.
 
 const FUR_SHADER := preload("res://shaders/bo_fur.gdshader")
 const BEAN := Color("#EFAFAA")
 
 @export var side := 1.0           ## -1 chân trái, 1 chân phải (khuỷu chĩa ra ngoài)
 @export var size := 1.0           ## tỉ lệ so với số đo gốc
+@export_enum("bep", "dung") var pose := "bep"  ## bep: chống lên bàn (cận cảnh); dung: cẳng chân dựng thẳng xuống đất
 
 var arm: MeshInstance3D           ## ống cẳng tay + cánh tay
 var foot: Node3D                  ## bàn chân (có thể xoay riêng để gập cổ chân)
 
 
-static func create(paw_side: float, paw_size := 1.0) -> BoPaw:
+static func create(paw_side: float, paw_size := 1.0, paw_pose := "bep") -> BoPaw:
 	var p := BoPaw.new()
 	p.side = paw_side
 	p.size = paw_size
+	p.pose = paw_pose
 	return p
 
 
@@ -31,14 +34,26 @@ func _ready() -> void:
 	var wrist := Vector3(0, 0.014, 0.04)
 	var elbow := wrist + Vector3(side * 0.25, -0.2, 1.0).normalized() * 0.12
 	var shoulder := elbow + Vector3(side * 0.25, -1.0, 0.35).normalized() * 0.24
+	if pose == "dung":
+		# Đứng: bàn chân chạm đất (y = 0 là đáy đệm chân), cẳng chân dựng đứng, vai cao ~0,27 m (size 1)
+		wrist = Vector3(0, 0.05, 0.012)
+		elbow = Vector3(side * 0.008, 0.15, 0.022)
+		shoulder = Vector3(side * 0.015, 0.27, -0.005)
 	arm = MeshInstance3D.new()
 	arm.name = "CanhTay"
-	arm.mesh = tube([Vector3(0, 0.004, 0.0), wrist, elbow, shoulder], [0.033, 0.034, 0.047, 0.062], 18)
+	var start := Vector3(0, 0.004, 0.0)
+	var up_ref := Vector3.UP
+	if pose == "dung":
+		start = Vector3(0, 0.03, 0.0)
+		up_ref = Vector3.FORWARD  # chân dựng đứng: vằn ở mặt trước (phía mèo nhìn)
+	arm.mesh = tube([start, wrist, elbow, shoulder], [0.033, 0.034, 0.047, 0.062], 18, 8, up_ref)
 	arm.material_override = fur_mat(0.0)
 	add_child(arm)
 
 	foot = Node3D.new()
 	foot.name = "BanChan"
+	if pose == "dung":
+		foot.position.y = 0.028  # nhấc bàn chân lên để đệm chân vừa chạm đất (y = 0)
 	add_child(foot)
 	var cream := fur_mat(1.0)
 	var pink := StandardMaterial3D.new()
@@ -79,8 +94,8 @@ static func fur_mat(all_cream: float) -> ShaderMaterial:
 
 
 ## Ống trơn chạy qua các điểm (đường cong Catmull-Rom), bán kính nội suy theo từng điểm.
-## UV.y = 0 ở điểm đầu, 1 ở điểm cuối; UV.x = 0 ở phía trên (+Y) của ống.
-static func tube(points: Array, radii: Array, sides := 14, sub := 8) -> ArrayMesh:
+## UV.y = 0 ở điểm đầu, 1 ở điểm cuối; UV.x = 0 ở phía `up_ref` của ống (mặc định phía trên).
+static func tube(points: Array, radii: Array, sides := 14, sub := 8, up_ref := Vector3.UP) -> ArrayMesh:
 	var path: Array[Vector3] = []
 	var rad: Array[float] = []
 	for i in points.size() - 1:
@@ -103,7 +118,7 @@ static func tube(points: Array, radii: Array, sides := 14, sub := 8) -> ArrayMes
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for i in path.size():
 		var tan := (path[mini(i + 1, path.size() - 1)] - path[maxi(i - 1, 0)]).normalized()
-		var nrm := (Vector3.UP - tan * tan.dot(Vector3.UP)).normalized()
+		var nrm := (up_ref - tan * tan.dot(up_ref)).normalized()
 		var bin := tan.cross(nrm)
 		for j in sides + 1:
 			var a := TAU * j / sides

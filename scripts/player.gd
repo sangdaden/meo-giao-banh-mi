@@ -263,7 +263,7 @@ func _apply_bones(hspeed: float) -> void:
 
 
 ## Đuôi mèo thật đổi dáng theo việc mèo đang làm:
-## - Đứng yên: đuôi dựng, chóp móc nhẹ, đung đưa chậm.
+## - Đứng yên: đuôi rủ xuống rồi cong lên, chóp đung đưa chậm.
 ## - Đi: đuôi hạ xuống ngang lưng rồi cong lên; chạy nhanh: duỗi thẳng ra sau để giữ thăng bằng.
 ## - Nhảy lên: đuôi cụp xuống; rơi xuống: đuôi vểnh lên như bánh lái.
 ## - Quẹo: đuôi văng ra phía ngoài vòng quẹo.
@@ -277,8 +277,8 @@ func _update_tail(delta: float, hspeed: float, vy: float, on_floor: bool) -> voi
 	_yaw_rate = lerpf(_yaw_rate, rate, 1.0 - exp(-8.0 * delta))
 
 	# Góc đích (radian, dương là cụp xuống/ra sau). Đứng yên thì gần dáng gốc của model.
-	var idle := [0.05, 0.1, 0.15 + sin(t * 1.3) * 0.12, 0.2 + sin(t * 1.3 - 0.8) * 0.25]
-	var walk := [0.35, 0.3, 0.0, -0.2]     # hạ thấp hơn, chóp vẫn móc nhẹ
+	var idle := [0.3, 0.2, 0.05 + sin(t * 1.3) * 0.12, sin(t * 1.3 - 0.8) * 0.25]
+	var walk := [0.45, 0.35, 0.05, -0.15]  # hạ thấp hơn, chóp vẫn móc nhẹ
 	var run := [0.75, 0.6, 0.3, 0.1]       # duỗi ra sau
 	var targets := []
 	for i in 4:

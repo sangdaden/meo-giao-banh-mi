@@ -55,6 +55,12 @@ cat.name = 'Bo'
 cat.data.color_attributes.active_color = cat.data.color_attributes['Color']
 print('tris', sum(len(p.vertices) - 2 for p in cat.data.polygons))
 
+def ramp(v, a, b):
+    """0 khi v ở a, 1 khi v ở b, mượt ở giữa."""
+    t = max(0.0, min(1.0, (v - a) / (b - a)))
+    return t * t * (3 - 2 * t)
+
+
 # Toạ độ Blender: X phải, -Y là phía trước mặt mèo, Z lên trên.
 BONES = {
     # tên: (đầu, đuôi, cha)
@@ -72,6 +78,39 @@ BONES = {
     'tail_4': ((.02, .40, .51), (.035, .30, .58), 'tail_3'),
 }
 TAIL = [n for n in BONES if n.startswith('tail')]
+
+# Đuôi phác thảo dài gấp rưỡi thân, mèo thật đuôi chỉ cỡ 2/3 thân (Sang góp ý).
+# Thu nhỏ cả khúc đuôi về phía gốc đuôi; gần mông thu ít dần để chỗ nối không gãy.
+TAIL_SCALE = 0.57  # đuôi ~0,30 m dọc đường cong, khớp với style guide D
+TAIL_BASE = Vector(BONES['tail_1'][0])
+ORIG_BONES = dict(BONES)
+
+
+def shrink(p, w=1.0):
+    p = Vector(p)
+    return tuple(p.lerp(TAIL_BASE + (p - TAIL_BASE) * TAIL_SCALE, w))
+
+
+for n in TAIL:
+    h, t, parent = BONES[n]
+    BONES[n] = (shrink(h), shrink(t), parent)
+# Trục đuôi gốc (trước khi thu) để biết mỗi đỉnh nằm ở đâu dọc đuôi.
+# Đường trục co lại theo TAIL_SCALE, còn độ dày chỉ co theo TAIL_THICK để đuôi không mảnh quá.
+TAIL_THICK = 0.9
+axis = [Vector(ORIG_BONES['tail_1'][0])] + [Vector(ORIG_BONES[n][1]) for n in TAIL]
+for v in cat.data.vertices:
+    x, y, z = v.co
+    if y > .17 and z > .18 and abs(x) < .09:
+        p = Vector((x, y, z))
+        best = None
+        for a, b in zip(axis, axis[1:]):
+            k = max(0.0, min(1.0, (p - a).dot(b - a) / (b - a).length_squared))
+            c = a + (b - a) * k
+            if best is None or (p - c).length < (p - best).length:
+                best = c
+        target = TAIL_BASE + (best - TAIL_BASE) * TAIL_SCALE + (p - best) * TAIL_THICK
+        v.co = p.lerp(target, ramp(y, .18, .27))
+
 arm_data = bpy.data.armatures.new('BoRig')
 arm = bpy.data.objects.new('BoRig', arm_data)
 bpy.context.scene.collection.objects.link(arm)
@@ -84,12 +123,6 @@ for name, (h, t, parent) in BONES.items():
     if parent:
         b.parent = arm_data.edit_bones[parent]
 bpy.ops.object.mode_set(mode='OBJECT')
-
-
-def ramp(v, a, b):
-    """0 khi v ở a, 1 khi v ở b, mượt ở giữa."""
-    t = max(0.0, min(1.0, (v - a) / (b - a)))
-    return t * t * (3 - 2 * t)
 
 
 groups = {n: cat.vertex_groups.new(name=n) for n in BONES if n != 'root'}

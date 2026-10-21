@@ -11,6 +11,7 @@ signal deliver_finished(kind: String)   ## xong động tác giao bánh
 signal bread_released(kind: String)     ## lúc nhả ổ bánh khỏi miệng (0,8 s khi giao cao, 0,7 s khi giao thấp)
 signal startled                         ## giật mình (bị đớp, xe tông)
 signal slipped                          ## bắt đầu trượt trên vũng dầu
+signal bumped(kind: String)              ## va "person" | "cart" | "stall" (chợ Thứ Ba); đồ dễ vỡ nghe để vỡ
 
 @export_group("Chạy")
 @export var walk_speed := 5.0
@@ -942,6 +943,19 @@ func _pose(bone_name: String, axis: Vector3, angle: float) -> void:
 
 
 ## Bị Chó Mực đớp: văng ra và khựng lại một chút.
+## Va vào người đi chợ, xe đẩy, sạp: khựng lại một chút, lùi nhẹ ra, không hất văng như xe tông.
+func bump(kind: String, from: Vector3, stun := 0.4) -> void:
+	var away := global_position - from
+	away.y = 0
+	away = away.normalized() if away.length() > 0.01 else Vector3.BACK
+	velocity.x = away.x * 2.5
+	velocity.z = away.z * 2.5
+	_stun = maxf(_stun, stun)
+	visual.scale = Vector3(1.12, 0.88, 1.12)
+	noise_made.emit(global_position, noise_bump)
+	bumped.emit(kind)
+
+
 func knockback(from: Vector3, strength := 9.0, stun := 0.45) -> void:
 	var away := global_position - from
 	away.y = 0

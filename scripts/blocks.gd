@@ -53,6 +53,20 @@ static func solid_box(parent: Node, size: Vector3, pos: Vector3, color: Color, l
 	return body
 
 
+## Chỉ có hộp va chạm, không có hình (hình là model .glb đặt riêng, xem PhoModels).
+static func collider(parent: Node, size: Vector3, pos: Vector3, layer := LAYER_WORLD) -> StaticBody3D:
+	var body := StaticBody3D.new()
+	body.collision_layer = layer
+	body.position = pos
+	parent.add_child(body)
+	var shape := CollisionShape3D.new()
+	var bs := BoxShape3D.new()
+	bs.size = size
+	shape.shape = bs
+	body.add_child(shape)
+	return body
+
+
 ## Tường vô hình chặn mép bản đồ.
 static func invisible_wall(parent: Node, size: Vector3, pos: Vector3) -> void:
 	var body := StaticBody3D.new()
@@ -94,25 +108,59 @@ static func label(parent: Node, text: String, pos: Vector3, size := 48, color :=
 ## Mỗi MeshInstance3D là một lệnh vẽ (draw call); khu phố có khoảng 700 khối nên
 ## trình duyệt vẽ không kịp 60 FPS. Gộp lại chỉ còn vài chục lệnh vẽ.
 ## Va chạm (StaticBody3D) vẫn giữ nguyên, chỉ phần hình được gộp.
-static func merge_static(root: Node3D) -> void:
+## Model nhà và đồ phố (vật liệu PhoModels) nặng hơn khối nhiều nên gộp theo ô cell x cell mét:
+## ô nằm ngoài camera thì không vẽ. Đồ nhỏ (dưới 1,5 m) gộp riêng và tắt khi xa hơn 45 m.
+## Model gộp được sinh LOD (ImporterMesh) để nhà ở xa vẽ ít tam giác hơn, cả ở lượt bóng.
+## Khối mỏng sát đất (vạch kẻ, vỉa hè, vũng nước) và đồ dưới 0,6 m không đổ bóng.
+static func merge_static(root: Node3D, cell := 0.0) -> void:
 	var tools := {}
 	var mats := {}
+	var info := {}
 	var to_root := root.global_transform.affine_inverse()
+	var model_mat: Material = PhoModels.material() if cell > 0.0 else null
 	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
+		if mi.mesh == null or mi.mesh.get_surface_count() == 0:
+			continue
 		var m: Material = mi.material_override
-		var key := m.get_instance_id()
+		if m == null:
+			continue  # mesh tự mang vật liệu (vd. model góc cờ): để nguyên, không gộp
+		var xf := to_root * mi.global_transform
+		var aabb := xf * mi.mesh.get_aabb()
+		var key := str(m.get_instance_id())
+		var small := false
+		var no_shadow := mi.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF or aabb.size.y < 0.06
+		if m == model_mat:
+			var c := aabb.get_center()
+			small = aabb.size.x < 1.5 and aabb.size.y < 1.5 and aabb.size.z < 1.5
+			no_shadow = no_shadow or (aabb.size.x < 0.6 and aabb.size.y < 0.6 and aabb.size.z < 0.6)
+			key += ":%d:%d:%s" % [floori(c.x / cell), floori(c.z / cell), small]
+		if no_shadow:
+			key += ":flat"
 		if not tools.has(key):
 			var st := SurfaceTool.new()
 			st.begin(Mesh.PRIMITIVE_TRIANGLES)
 			tools[key] = st
 			mats[key] = m
-		tools[key].append_from(mi.mesh, 0, to_root * mi.global_transform)
+			info[key] = [small, no_shadow, m == model_mat]
+		tools[key].append_from(mi.mesh, 0, xf)
 		mi.mesh = null  # bỏ mesh trước khi xoá node, nếu không bản headless báo 'Parameter "m" is null'
 		mi.get_parent().remove_child(mi)
 		mi.free()
 	for key in tools:
 		var out := MeshInstance3D.new()
 		out.name = "Merged"
-		out.mesh = tools[key].commit()
+		if info[key][2]:
+			var im := ImporterMesh.new()
+			im.add_surface(Mesh.PRIMITIVE_TRIANGLES, tools[key].commit_to_arrays(), [], {}, mats[key])
+			im.generate_lods(25, 60, [])
+			out.mesh = im.get_mesh()
+		else:
+			out.mesh = tools[key].commit()
 		out.material_override = mats[key]
+		if info[key][0]:
+			out.visibility_range_end = 45.0
+			out.visibility_range_end_margin = 5.0
+			out.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+		if info[key][1]:
+			out.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		root.add_child(out)

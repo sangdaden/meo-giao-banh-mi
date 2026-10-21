@@ -161,6 +161,9 @@ jobs:
           # Chạy thử logic game trước (bản macOS không chạy được trên máy Linux)
           timeout 600 ~/godot/godot --headless --path . -- --autotest 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee autotest.log
           grep -q "AUTOTEST OK" autotest.log
+          # Góc cờ tướng Thứ Ba: suỵt, mắng, chiếu tướng, giao cạnh ấm trà
+          timeout 300 ~/godot/godot --headless --path . --script res://tools/chess_test.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee chess.log
+          grep -q "CHESS TEST OK" chess.log
           mkdir -p export
           ~/godot/godot --headless --path . --export-release "macOS" "export/$ZIP_NAME"
           unzip -l "export/$ZIP_NAME" | grep -q "_CodeSignature/CodeResources"

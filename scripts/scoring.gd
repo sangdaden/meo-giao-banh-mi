@@ -27,7 +27,7 @@ const SIDE_QUEST_NAMES := {
 	# Thứ Ba (gói việc thiet-ke-man/goi-viec-thu-ba.md)
 	"kip_xe_om": "Giao trước khi khách xe ôm tới",
 	"du_6_trung": "Về lò còn đủ 6 quả trứng",
-	"dat_luc_chieu": "Đặt túi đúng lúc chiếu tướng",
+	"dat_luc_chieu": "Đặt túi lúc chiếu tướng",
 	"khong_dung_nguoi": "Không đụng người đi chợ nào",
 	"khong_do_thung": "Không làm đổ thúng nào",
 }

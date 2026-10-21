@@ -15,6 +15,7 @@ extends Node3D
 ##   build_static(self, ORDERS) trước Blocks.merge_static (phần đứng yên được gộp lệnh vẽ),
 ##   add_child sau merge_static (phần chuyển động: giỏ, ly, tay, tờ báo...), rồi setup().
 ##   Mỗi nhịp vật lý lúc đang mang bánh: step(order_index, in_zone) trả true là đã giao xong.
+##   Bố cục lấy theo CityProps (xe máy, ban công Bé Na, quầy và bàn cà phê, ghế mây Bà Sáu).
 ## Toàn bộ là khối tạm; model giỏ, tờ báo, ly, chén sữa và tư thế 5 người dân chờ Sang duyệt phác thảo.
 
 ## Tên nhiệm vụ phụ theo khóa "side_quest" trong ORDERS
@@ -45,7 +46,7 @@ const BASKET_PERIOD := 2.8      ## giây cho một lượt đưa qua đưa lại
 const BASKET_SWING := 0.6       ## giỏ lệch xa nhất bao nhiêu mét so với chỗ đứng trên xe
 const BASKET_REACH := 0.42      ## giỏ cách Bơ dưới mức này thì bỏ bánh vào được
 const BASKET_RETRY := 1.5       ## trật thì phải đợi
-const BASKET_HANG_Y := 1.0      ## đáy giỏ khi thòng xuống hẳn (yên xe 0,62 m)
+const BASKET_HANG_Y := 1.25     ## đáy giỏ khi thòng xuống hẳn (yên xe 0,9 m)
 
 var orders: Array = []
 var player: CharacterBody3D
@@ -85,7 +86,7 @@ var _misses := 0
 var _basket_done := false
 
 # Đơn 3: ly cà phê
-var _tables: Array = []          # {"pos", "size", "touching"}
+var _tables: Array = []          # bàn cà phê CityProps (nhóm "ban_ca_phe"): {"pos", "size", "touching"}
 var _glasses: Array = []         # {"node", "table", "base", "wobble", "fallen"}
 var _glass_broken := false
 var _counter_top := Vector3.ZERO
@@ -144,41 +145,24 @@ func _build_tu(parent: Node3D, i: int, p: Vector3, shirt: Color, title: String) 
 	Blocks.label(parent, title, pos + Vector3(0, 1.9, 0), 40)
 
 
-## Bé Na: đứng trên ban công tầng 3 ở đầu hẻm giữa khối 3, xe máy đậu ngay dưới.
-func _build_na(parent: Node3D, i: int, p: Vector3, shirt: Color, title: String) -> void:
-	_moto_na = p + Vector3(1.6, 0.62, 0.0)
-	_anchor = Vector3(_moto_na.x, 5.2, _moto_na.z)
-	# Xe máy (khối tạm, gói 3 thay bằng xe thật): yên cao 0,62 m để Bơ nhảy lên
-	Blocks.solid_box(parent, Vector3(1.6, 0.62, 0.42), Vector3(_moto_na.x, 0.31, _moto_na.z), Color("#3D5A80"), Blocks.LAYER_PROP)
-	Blocks.box(parent, Vector3(0.7, 0.06, 0.34), Vector3(_moto_na.x - 0.1, 0.65, _moto_na.z), Color("#2B2622"))  # yên
-	Blocks.box(parent, Vector3(0.06, 0.5, 0.06), Vector3(_moto_na.x + 0.72, 0.85, _moto_na.z), Color("#5E6F6C"))  # cổ lái
-	Blocks.box(parent, Vector3(0.06, 0.06, 0.6), Vector3(_moto_na.x + 0.72, 1.1, _moto_na.z), Color("#5E6F6C"))
-	# Ban công: sàn và lan can nhô ra hẻm từ tường phía bắc
-	var deck := Vector3(_anchor.x, _anchor.y - 0.35, _anchor.z - 0.35)
-	Blocks.box(parent, Vector3(1.6, 0.12, 0.9), deck, Color("#BFD8D2"))
-	Blocks.box(parent, Vector3(1.6, 0.6, 0.05), deck + Vector3(0, 0.36, 0.43), Color("#5E6F6C"))
-	_standing(parent, deck + Vector3(-0.35, 0.06, -0.05), PI, shirt, 0.8)
-	Blocks.label(parent, title, deck + Vector3(0, 1.9, 0), 40)
+## Bé Na: đứng trên ban công tầng 3 chung cư (CityProps), xe máy đậu ngay dưới, yên cao 0,9 m.
+func _build_na(parent: Node3D, _i: int, _p: Vector3, shirt: Color, title: String) -> void:
+	_moto_na = CityProps.BE_NA_BIKE + Vector3(0, 0.9, 0)
+	_anchor = Vector3(CityProps.BE_NA_BIKE.x, CityProps.BE_NA_BALCONY.y + 1.0, CityProps.BE_NA_BIKE.z - 0.05)  # mép lan can
+	_standing(parent, CityProps.BE_NA_BALCONY + Vector3(0.45, 0.08, 0.1), PI, shirt, 0.8)
+	Blocks.label(parent, title, CityProps.BE_NA_BALCONY + Vector3(0, 2.0, 0.3), 40)
 
 
-## Chị Mây: đứng sau quầy Cà phê Mây, bàn nhựa thấp có ly cà phê hai bên.
-func _build_may(parent: Node3D, i: int, p: Vector3, shirt: Color, title: String) -> void:
-	var counter := p + Vector3(0, 0, 0.5)
-	Blocks.solid_box(parent, Vector3(1.4, 0.75, 0.4), counter + Vector3(0, 0.375, 0), Color("#7A5235"), Blocks.LAYER_PROP)
-	Blocks.box(parent, Vector3(1.5, 0.05, 0.48), counter + Vector3(0, 0.77, 0), Color("#F2E3B8"))
-	_counter_top = counter + Vector3(0.25, 0.8, 0)
-	_standing(parent, counter + Vector3(-0.2, 0, 0.42), 0.0, shirt)
-	Blocks.label(parent, title, counter + Vector3(0, 2.2, 0.3), 40)
-	for off in [Vector3(-1.9, 0, -0.1), Vector3(1.9, 0, -0.1), Vector3(-3.3, 0, 0.2), Vector3(3.3, 0, -0.2)]:
-		var tp: Vector3 = p + off
-		var size := Vector3(0.55, 0.42, 0.55)
-		Blocks.solid_box(parent, size, tp + Vector3(0, size.y / 2.0, 0), Color("#C8412F"), Blocks.LAYER_PROP)
-		_tables.append({"pos": tp, "size": size, "touching": false})
+## Chị Mây: đứng sau quầy Cà phê Mây (CityProps.CAFE_COUNTER); ly cà phê đặt trên bàn nhựa thấp của quán.
+func _build_may(parent: Node3D, _i: int, _p: Vector3, shirt: Color, title: String) -> void:
+	_counter_top = CityProps.CAFE_COUNTER + Vector3(0.25, 0.04, 0)
+	_standing(parent, Vector3(CityProps.CAFE_COUNTER.x - 0.2, 0, CityProps.CAFE_COUNTER.z + 0.5), 0.0, shirt)
+	Blocks.label(parent, title, CityProps.CAFE_COUNTER + Vector3(0, 1.4, 0.3), 40)
 
 
 ## Anh Hùng: nằm dưới gầm xe máy dựng trước tiệm sửa xe, chân thò ra, tay thò ra phía đường.
 func _build_hung(parent: Node3D, i: int, p: Vector3, shirt: Color, title: String) -> void:
-	var moto := p + Vector3(-0.2, 0, -0.5)
+	var moto := p + Vector3(-0.1, 0, -0.8)  # trên vỉa hè trước nửa tây tiệm, chừa lối đi giữa x 31,4..33,2
 	# Thân xe đặt trên chân chống, gầm cao 0,32 m
 	var body := Blocks.solid_box(parent, Vector3(1.6, 0.6, 0.42), moto + Vector3(0, 0.64, 0), Color("#C8412F"), Blocks.LAYER_PROP)
 	body.name = "XeAnhHung"
@@ -205,29 +189,25 @@ func _build_hung(parent: Node3D, i: int, p: Vector3, shirt: Color, title: String
 		_oils.append({"pos": p + o.off, "r": o.r, "inside": false})
 
 
-## Bà Sáu: ghế mây dưới giàn bông giấy cuối hẻm 42, quay về phía hẻm (hướng bắc).
+## Bà Sáu: ngồi ghế mây dưới giàn bông giấy cuối hẻm 42 (ghế, giàn do CityProps dựng), quay về phía hẻm.
 func _build_sau(parent: Node3D, i: int, p: Vector3, shirt: Color, title: String) -> void:
-	var pos := p + Vector3(-0.5, 0, 0.6)
-	_seated(parent, pos, 0.0, shirt, Color("#B88A4A"))
+	var pos := Vector3(p.x, 0.06, 22.7)  # đúng ghế mây CityProps, mặt ghế cao hơn ghế nhựa 6 cm
+	_seated(parent, pos, 0.0, shirt)
 	_arms.append({"order": i, "pos": pos + Vector3(0.2, 1.05, -0.05), "yaw": 0.0, "color": shirt})
-	# Giàn bông giấy: 4 cột mảnh, mái hoa hồng tím (chỉ để nhìn)
-	for c in [Vector3(-1.0, 0, -0.6), Vector3(1.0, 0, -0.6), Vector3(-1.0, 0, 1.2), Vector3(1.0, 0, 1.2)]:
-		Blocks.box(parent, Vector3(0.08, 2.4, 0.08), pos + c + Vector3(0, 1.2, 0), Color("#7A5235"))
-	Blocks.box(parent, Vector3(2.4, 0.25, 2.2), pos + Vector3(0, 2.5, 0.3), Color("#C2457E"))
-	Blocks.box(parent, Vector3(1.6, 0.2, 1.4), pos + Vector3(0.2, 2.72, 0.2), Color("#4E8F4A"))
-	Blocks.label(parent, title, pos + Vector3(0, 3.2, 0), 40)
+	Blocks.label(parent, title, pos + Vector3(0, 3.0, 0), 40)
 
 
-## Người ngồi ghế, quay mặt về -Z cục bộ (yaw xoay cả người). Ghế nằm sẵn bên dưới.
-func _seated(parent: Node3D, pos: Vector3, yaw: float, shirt: Color, chair: Color) -> void:
+## Người ngồi ghế, quay mặt về -Z cục bộ (yaw xoay cả người). Có màu ghế thì dựng ghế bên dưới.
+func _seated(parent: Node3D, pos: Vector3, yaw: float, shirt: Color, chair := Color.TRANSPARENT) -> void:
 	var root := StaticBody3D.new()
 	root.collision_layer = Blocks.LAYER_PROP
 	root.position = pos
 	root.rotation.y = yaw
 	parent.add_child(root)
-	Blocks.box(root, Vector3(0.48, 0.4, 0.44), Vector3(0, 0.2, 0.02), chair.darkened(0.15))   # chân ghế
-	Blocks.box(root, Vector3(0.5, 0.05, 0.48), Vector3(0, 0.42, 0.02), chair)                # mặt ghế
-	Blocks.box(root, Vector3(0.5, 0.55, 0.05), Vector3(0, 0.72, 0.26), chair)                # lưng ghế
+	if chair.a > 0.0:
+		Blocks.box(root, Vector3(0.48, 0.4, 0.44), Vector3(0, 0.2, 0.02), chair.darkened(0.15))   # chân ghế
+		Blocks.box(root, Vector3(0.5, 0.05, 0.48), Vector3(0, 0.42, 0.02), chair)                # mặt ghế
+		Blocks.box(root, Vector3(0.5, 0.55, 0.05), Vector3(0, 0.72, 0.26), chair)                # lưng ghế
 	Blocks.box(root, Vector3(0.44, 0.15, 0.44), Vector3(0, 0.52, -0.12), PANTS)              # đùi
 	Blocks.box(root, Vector3(0.4, 0.42, 0.14), Vector3(0, 0.23, -0.34), PANTS)               # cẳng chân
 	Blocks.box(root, Vector3(0.48, 0.55, 0.3), Vector3(0, 0.86, 0.06), shirt)                # áo
@@ -311,6 +291,10 @@ func _ready() -> void:
 		_basket_loaf.visible = false
 		_set_rope(0.0)
 
+	for table: Node3D in get_tree().get_nodes_in_group("ban_ca_phe"):
+		# Mặt bàn CityProps: tâm ở 0,43 m, dày 4 cm, rộng 0,7 m
+		var tp := table.global_position
+		_tables.append({"pos": Vector3(tp.x, 0, tp.z), "size": Vector3(0.7, tp.y + 0.02, 0.7), "touching": false})
 	for t in _tables.size():
 		var tb: Dictionary = _tables[t]
 		for g in 2:
@@ -402,13 +386,6 @@ func on_pick_up(i: int) -> void:
 			_oiled = false
 	if _kind[i] == "chair" and _speech:
 		_speech.visible = false
-
-
-## Hết giờ đơn i: nhiệm vụ phụ tính là trượt, giỏ kéo lên lại.
-func on_fail(i: int) -> void:
-	side_ok[i] = false
-	current = -1
-	_prompt.visible = false
 
 
 ## Gọi mỗi nhịp vật lý khi đang mang bánh đơn i. Trả true khi khách đã nhận bánh.
@@ -616,7 +593,7 @@ func _basket_hittable() -> bool:
 
 func _on_moto_na() -> bool:
 	var p := player.global_position
-	return p.y > 0.45 and absf(p.x - _moto_na.x) < 0.85 and absf(p.z - _moto_na.z) < 0.35
+	return p.y > 0.75 and absf(p.x - _moto_na.x) < 0.85 and absf(p.z - _moto_na.z) < 0.35
 
 
 ## Bàn cà phê: đụng là ly rung, đụng mạnh hay đứng lên bàn là đổ một ly.
@@ -629,7 +606,8 @@ func _update_glasses(delta: float) -> void:
 		var dz := absf(p.z - tb.pos.z)
 		var touching: bool = dx < half.x + 0.3 and dz < half.z + 0.3 and p.y < tb.size.y + 0.4
 		var on_top: bool = dx < half.x and dz < half.z and p.y > tb.size.y - 0.08 and p.y < tb.size.y + 0.4
-		if touching and not tb.touching:
+		var crawling: bool = "stance" in player and player.stance == "crouch" and p.y < 0.2  # chui gầm bàn thì không đụng
+		if touching and not tb.touching and not crawling:
 			var hard: bool = on_top or _hspeed_prev > player.walk_speed + 0.6
 			var knocked := false
 			for g in _glasses:

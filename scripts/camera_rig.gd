@@ -93,9 +93,10 @@ func _process(delta: float) -> void:
 
 func _goal() -> Vector3:
 	var at: Vector3 = target.smooth_position() if target.has_method("smooth_position") else target.global_position
+	var low: float = target.get("crouch_amount") if "crouch_amount" in target else 0.0  # Bơ chui thì camera hạ theo
 	if first_person:
-		return at + Vector3.UP * fp_height + Basis(Vector3.UP, yaw) * (Vector3.FORWARD * fp_forward)
-	return at + Vector3.UP * look_height
+		return at + Vector3.UP * fp_height * lerpf(1.0, 0.5, low) + Basis(Vector3.UP, yaw) * (Vector3.FORWARD * fp_forward)
+	return at + Vector3.UP * look_height * lerpf(1.0, 0.6, low)
 
 
 func _snap() -> void:

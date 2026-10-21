@@ -6,16 +6,19 @@ const PlayerScript := preload("res://scripts/player.gd")
 const CameraRigScript := preload("res://scripts/camera_rig.gd")
 const DogScript := preload("res://scripts/dog.gd")
 const HudScript := preload("res://scripts/hud.gd")
+const DeliveriesScript := preload("res://scripts/deliveries.gd")
 const StampsScript := preload("res://scripts/stamps.gd")
 const GhostScript := preload("res://scripts/ghost.gd")
 
 ## 5 đơn theo bản đồ trong sổ phác thảo. "time" là số giây được phép sau khi nhận bánh.
+## "delivery": cách giao (hand | basket | counter | under_car | chair), "side_quest": nhiệm vụ phụ,
+## cả hai xử lý trong scripts/deliveries.gd.
 const ORDERS := [
-	{"who": "Chú Tư", "place": "Sạp báo", "item": "1 ổ pate", "pos": Vector3(-1, 0, -6), "time": 18.0, "color": Color("#3D5A80")},
-	{"who": "Bé Na", "place": "Chung cư", "item": "2 ổ trứng", "pos": Vector3(21, 0, -16), "time": 24.0, "color": Color("#D7A9C4")},
-	{"who": "Chị Mây", "place": "Cà phê Mây", "item": "2 ổ thịt nguội", "pos": Vector3(4, 0, 6), "time": 20.0, "color": Color("#7FB7A4")},
-	{"who": "Anh Hùng", "place": "Sửa xe", "item": "3 ổ xíu mại", "pos": Vector3(32, 0, 25), "time": 30.0, "color": Color("#5E6F6C")},
-	{"who": "Bà Sáu", "place": "Nhà bông giấy", "item": "1 ổ chả cá", "pos": Vector3(-19.5, 0, 22), "time": 24.0, "color": Color("#C8412F"), "boss": true},
+	{"who": "Chú Tư", "place": "Sạp báo", "item": "1 ổ pate", "pos": Vector3(-1, 0, -6), "time": 18.0, "color": Color("#3D5A80"), "delivery": "hand", "side_quest": "bao_co_ba"},
+	{"who": "Bé Na", "place": "Chung cư", "item": "2 ổ trứng", "pos": Vector3(24.0, 0, -15.6), "time": 24.0, "color": Color("#D7A9C4"), "delivery": "basket", "side_quest": "gio_nhip_dau"},
+	{"who": "Chị Mây", "place": "Cà phê Mây", "item": "2 ổ thịt nguội", "pos": Vector3(5.4, 0, 5.4), "time": 20.0, "color": Color("#7FB7A4"), "delivery": "counter", "side_quest": "khong_do_ly"},
+	{"who": "Anh Hùng", "place": "Sửa xe", "item": "3 ổ xíu mại", "pos": Vector3(30.6, 0, 25.3), "time": 30.0, "color": Color("#5E6F6C"), "delivery": "under_car", "side_quest": "khong_dau"},
+	{"who": "Bà Sáu", "place": "Nhà bông giấy", "item": "1 ổ chả cá", "pos": Vector3(-19.5, 0, 22), "time": 24.0, "color": Color("#C8412F"), "delivery": "chair", "side_quest": "muc_ngu_yen", "boss": true},
 ]
 const DOG_HOME := Vector3(-18, 0, 15)
 const BITE_PENALTY := 3.0
@@ -51,6 +54,7 @@ var bakery_zone: Area3D
 var customer_zones: Array[Area3D] = []
 var arrow: Node3D
 var beacon: MeshInstance3D
+var deliveries: Node3D
 var stamps: Node3D
 var ghost: Node3D
 
@@ -65,8 +69,12 @@ func _ready() -> void:
 	_setup_environment()
 	City.build(self)
 	_build_bakery()
+	deliveries = DeliveriesScript.new()
+	deliveries.name = "Deliveries"
+	deliveries.build_static(self, ORDERS)  # người dân, ghế, xe, quầy... đứng yên nên được gộp
 	_build_customers()
 	Blocks.merge_static(self)  # gộp khối tĩnh để giảm lệnh vẽ, phải gọi trước khi thêm mèo, chó
+	add_child(deliveries)  # phần chuyển động (giỏ, ly, tay, tờ báo) thêm sau khi gộp
 
 	player = PlayerScript.new()
 	player.name = "Bo"
@@ -106,6 +114,7 @@ func _ready() -> void:
 	hud.restart_pressed.connect(restart)
 	add_child(preload("res://scripts/sound_director.gd").new())  # nhạc và tiếng động
 	hud.menu_pressed.connect(_to_menu)
+	deliveries.setup(player, dog, hud, "--autotest" in OS.get_cmdline_user_args())
 
 	GameSettings.apply_graphics(get_tree())
 	GameSettings.apply_camera(get_tree())
@@ -191,7 +200,7 @@ func _physics_process(delta: float) -> void:
 		carry_time += delta
 		_track_fall()
 		_record_ghost(delta)
-		if customer_zones[order_index].overlaps_body(player):
+		if deliveries.step(order_index, customer_zones[order_index].overlaps_body(player), delta):
 			_deliver(order)
 		elif time_left <= 0.0 and not late:
 			_go_late(order)
@@ -233,6 +242,7 @@ func _pick_up(order: Dictionary) -> void:
 	_ghost_clock = 0.0
 	ghost.play(Scoring.best_ghost(order_index))
 	dog.awake = order.get("boss", false)
+	deliveries.on_pick_up(order_index)
 	hud.show_toast("Nhận %s! Giao cho %s ở %s" % [order.item, order.who, order.place])
 	if dog.awake:
 		hud.show_toast("Nhận %s! Coi chừng Chó Mực canh hẻm!" % order.item, 2.5)
@@ -245,6 +255,7 @@ func _time_limit(order: Dictionary) -> float:
 
 func _deliver(order: Dictionary) -> void:
 	_ghost_path.append(player.global_position)
+	side_quest_ok = deliveries.side_ok[order_index]
 	var r := Scoring.order_done(order_index, {
 		"time_ratio": 0.0 if late else time_left / _time_limit(order),
 		"late": late,
@@ -323,16 +334,28 @@ func _next_order() -> void:
 		_end_game()
 
 
+## Nhiệm vụ phụ xong sau lúc giao (tờ báo Chú Tư về tới lò ở đơn sau): ghi lại vào kết quả và tiền boa.
+func _settle_side_quests() -> void:
+	for i in score_rows.size():
+		var r: Dictionary = score_rows[i]  # cùng một Dictionary với Scoring.orders[i]
+		var ok: bool = deliveries.side_ok[i] and str(r.side_quest) != ""
+		if ok != r.side_ok:
+			r.side_ok = ok
+			r.tip = Scoring.tip_for(r.stars, r.late, ok)
+
+
 func _end_game() -> void:
 	state = State.END
 	player.can_move = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	_settle_side_quests()
 	var rows := []
 	for i in ORDERS.size():
 		var row := {"who": ORDERS[i].who, "place": ORDERS[i].place, "item": ORDERS[i].item,
 			"color": ORDERS[i].color, "stars": results[i], "note": result_notes[i]}
 		row.merge(score_rows[i])
 		rows.append(row)
+	print("[nhiem vu phu] ", deliveries.side_ok)
 	var summary := Scoring.end_day(ORDERS.size() * Scoring.STARS_PER_ORDER)
 	# Bảng kết quả mới (luồng Giao diện) nhận thêm summary; bản cũ chỉ nhận rows.
 	if hud.get_method_argument_count("show_results") >= 2:
@@ -348,6 +371,8 @@ func _end_game() -> void:
 		var ok := results.size() == 5 and results.all(func(s): return s > 0) and _bitten and dog_ok
 		ok = ok and summary.tip > 0 and summary.stamps >= 1 and Scoring.self_test()
 		ok = ok and GameState.get_day("so_lan_choi", 0) == 1 and Scoring.best_time(0) > 0.0
+		# Autotest bị Chó Mực đớp ở đơn 5 nên nhiệm vụ phụ đơn đó trượt; 4 đơn đầu phải đạt cả
+		ok = ok and deliveries.side_ok.slice(0, 4).all(func(v): return v) and score_rows[0].side_ok
 		print("AUTOTEST ", "OK" if ok else "FAIL")
 		get_tree().quit(0 if ok else 1)
 
@@ -453,7 +478,7 @@ func _build_bakery() -> void:
 func _build_customers() -> void:
 	for i in ORDERS.size():
 		var o: Dictionary = ORDERS[i]
-		_person(o.pos + Vector3(0, 0, 0), o.color, "%d. %s\n%s" % [i + 1, o.who, o.place])
+		# Người dân và đồ giao bánh do deliveries.gd dựng theo từng cách giao
 		customer_zones.append(_zone(o.pos, 1.6))
 		_ring(o.pos, Color("#C8412F"))
 
@@ -576,6 +601,8 @@ func _autotest_step() -> void:
 		return
 	rig.first_person = not rig.first_person  # thử đổi góc nhìn liên tục
 	var goal := _current_goal()
+	if player.carrying:
+		goal = deliveries.stand_point(order_index)
 	if player.carrying and ORDERS[order_index].get("boss", false) and not _bitten:
 		goal = dog.global_position + Vector3(0.3, 0, 0.3)
 		dog.hear(goal, 10.0)  # giả tiếng chạy nhanh sát ổ: Mực nghi ngờ rồi đuổi

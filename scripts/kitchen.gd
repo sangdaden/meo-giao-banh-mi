@@ -2152,6 +2152,7 @@ func _build_stations(room: Node3D) -> void:
 	# 5. Bồn rửa sát tường phải, vòi quay vào bếp
 	KM.solid(room, "bon_rua", RUA, -90)
 	_build_co_ba_counter(room)
+	_build_tiem(room)
 	_station("rua", "Bồn rửa", Vector3(1.95, 0, RUA.z), RUA + Vector3(-0.02, 0.17, 0))
 	n.wash_cuke = KM.place(self, "dua_leo", RUA + Vector3(-0.02, 0.16, 0.06), 90)
 	n.wash_herb = KM.place(self, "ngo_bo", RUA + Vector3(-0.02, 0.22, -0.07), 90, 0.8)
@@ -2401,11 +2402,48 @@ func _build_co_ba_counter(room: Node3D) -> void:
 		return
 	KM.solid(room, "quay_ba", QUAY_BA, -90)
 	var x := QUAY_BA.x - 0.02
-	KM.place(room, "thau", Vector3(x, QUAY_TOP, QUAY_BA.z - 0.16))
-	KM.place(room, "bot_khoi_nhao", Vector3(x, QUAY_TOP + 0.03, QUAY_BA.z - 0.16))
-	KM.place(room, "thot", Vector3(x, QUAY_TOP, QUAY_BA.z + 0.13), 0, 0.85)
-	KM.place(room, "cha_cay", Vector3(x, QUAY_TOP + 0.04, QUAY_BA.z + 0.13), 90, 0.75)
+	# Đang bày mèo vẫy tay ở góc trước quầy: thớt nhỏ lại, thớt và thau lùi vào trong chừa chỗ
+	var cat := Tiem.shown("meo_vay_tay")
+	var dz := -0.06 if cat else 0.0
+	KM.place(room, "thau", Vector3(x, QUAY_TOP, QUAY_BA.z - 0.16 + dz * 0.5))
+	KM.place(room, "bot_khoi_nhao", Vector3(x, QUAY_TOP + 0.03, QUAY_BA.z - 0.16 + dz * 0.5))
+	KM.place(room, "thot", Vector3(x, QUAY_TOP, QUAY_BA.z + 0.13 + dz), 0, 0.72 if cat else 0.85)
+	KM.place(room, "cha_cay", Vector3(x, QUAY_TOP + 0.04, QUAY_BA.z + 0.13 + dz), 90, 0.7 if cat else 0.75)
 	KM.place(room, "hu_do_chua", Vector3(x + 0.08, QUAY_TOP, QUAY_BA.z - 0.33), 0, 0.7)
+
+
+## Đồ trang trí tiệm người chơi đã mua và đang bày (scripts/tiem.gd). Chỉ để ngắm, không đổi luật bếp.
+func _build_tiem(room: Node3D) -> void:
+	if Tiem.shown("meo_vay_tay"):
+		var cat := Tiem.make("meo_vay_tay")
+		room.add_child(cat)
+		cat.position = Vector3(QUAY_BA.x - 0.15, QUAY_TOP, QUAY_BA.z + 0.24)
+		cat.rotation_degrees.y = -20
+	if Tiem.shown("chau_mai"):
+		var body := StaticBody3D.new()
+		body.name = "chau_mai"
+		body.collision_layer = Blocks.LAYER_PROP
+		room.add_child(body)
+		body.position = Vector3(-2.35, 0, 1.45)
+		body.add_child(Tiem.make("chau_mai"))
+		var cs := CollisionShape3D.new()
+		var cyl := CylinderShape3D.new()
+		cyl.radius = 0.13
+		cyl.height = 0.19
+		cs.shape = cyl
+		cs.position.y = 0.095
+		body.add_child(cs)
+	if Tiem.shown("den_long_tiem"):
+		# Treo trước tường sau, cạnh cửa sổ và giữa lò với bàn nguyên liệu: máy quay cố định thấy cả hai, không che trạm nào
+		var spots := [Vector3(-1.6, 1.5, -1.5), Vector3(1.15, 1.5, -1.5)]
+		for i in 2:
+			var lamp := Tiem.make("den_long_tiem", 1.4 * i)
+			room.add_child(lamp)
+			lamp.position = spots[i]
+	if Tiem.shown("bang_hieu_go"):
+		var sign := Tiem.make("bang_hieu_go")
+		room.add_child(sign)
+		sign.position = Vector3(-2.2, 1.2, -1.745)  # tường sau phía trên bao bột (giữa tường bị chụp lò che)
 
 
 ## Việc tay hợp với lúc Bơ đang làm: nhào bột lúc làm bột và nướng, thái chả lúc Bơ rửa rau

@@ -76,7 +76,7 @@ def lo_banh():
         box((.6, .05, .8), (.55, -.25, .5), M('#2A3A30', .8), .02, rot=(-.15, 0, 0))   # bảng phấn sát tường
         for i, t in enumerate(('pate 15k', 'thịt 20k', 'chả cá 20k')):
             text(t, .08, (.55, -.29, .75 - i * .14), M(C['white'], .8), extrude=.002, rot=(math.pi / 2 - .15, 0, 0))
-        den_long((.6, -.25, 2.45)); den_long((w - .6, -.25, 2.45))
+        # Hai đèn lồng không dính vào nhà: city_props.gd đặt den_long (hoặc đèn lồng tiệm người chơi mua) ở (.6, -.25, 2.45) và (w - .6, -.25, 2.45)
     return g
 
 

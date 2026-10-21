@@ -417,6 +417,20 @@ static func _lo_banh(parent: Node3D, x0: float, x1: float, z0: float, depth: flo
 	PhoModels.put_house(parent, "lo_banh", x0, w, 5.2, face_z, true)
 	Blocks.collider(parent, Vector3(w - 0.15, 7.0, depth), Vector3((x0 + x1) / 2.0, 3.5, z0 + depth / 2.0))
 	awning(parent, w, Vector3((x0 + x1) / 2.0, 2.9, face_z + 0.5), "mai_hien_do", 1.0)
+	# Hai đèn lồng dưới mái hiên (tách khỏi model nhà): đèn lồng tiệm nếu người chơi đã mua và đang bày
+	var tiem_den := Tiem.shown("den_long_tiem")
+	for i in 2:
+		var lx := x0 + 0.6 * w / 5.2 if i == 0 else x1 - 0.6 * w / 5.2
+		if tiem_den:
+			var lamp := Tiem.make("den_long_tiem", 1.4 * i)
+			parent.add_child(lamp)
+			lamp.position = Vector3(lx, 2.85, face_z + 0.25)
+		else:
+			PhoModels.put(parent, "den_long", Vector3(lx, 2.45, face_z + 0.25))
+	if Tiem.shown("bang_hieu_go"):
+		var sign := Tiem.make("bang_hieu_go")
+		parent.add_child(sign)
+		sign.position = Vector3(x1 - 1.3, 2.3, face_z + 0.02)  # cạnh cửa, dưới bảng lớn và mái hiên
 
 
 ## Cà phê Mây (khối 5, dãy bắc). Quầy ngoài vỉa hè và bàn ghế do cafe() đặt.

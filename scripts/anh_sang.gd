@@ -142,3 +142,52 @@ static func build(parent: Node, preset: String) -> DirectionalLight3D:
 		guard.setup(sun)
 		parent.add_child(guard)
 	return sun
+
+
+## Bếp: khi camera lướt vào cận cảnh một trạm, khung hình chỉ còn mặt bàn trong vài chục cm nên
+## nắng và đèn bàn chiếu thẳng làm khay, bột, sàn kem cháy trắng, còn bóng (bản đồ bóng phủ cả bếp)
+## bị răng cưa. Lúc cận cảnh: bóng chỉ phủ 2,5 m quanh camera (nét gấp ~5 lần), nắng và độ phơi
+## sáng giảm. Ra toàn cảnh thì trả lại như cũ, chuyển mượt.
+## `cam` cần hàm is_close() (scripts/kitchen_camera.gd).
+static func watch_close_up(parent: Node, cam: Node) -> void:
+	var w := CanCanh.new()
+	w.name = "AnhSangCanCanh"
+	w.cam = cam
+	w.sun = parent.get_node_or_null("MatTroi")
+	var world: WorldEnvironment = parent.get_node_or_null("MoiTruong")
+	w.env = world.environment if world else null
+	parent.add_child(w)
+
+
+class CanCanh extends Node:
+	const SHADOW_CLOSE := 2.5
+	const SUN_CLOSE := 0.85      ## nhân với độ sáng nắng khi cận cảnh
+	const EXPOSURE_CLOSE := 0.88 ## nhân với độ phơi sáng khi cận cảnh
+	var cam: Node
+	var sun: DirectionalLight3D
+	var env: Environment
+	var _shadow := 0.0
+	var _energy := 0.0
+	var _exposure := 1.0
+	var _k := 0.0  ## 0 = toàn cảnh, 1 = cận cảnh
+
+	func _ready() -> void:
+		if sun:
+			_shadow = sun.directional_shadow_max_distance
+			_energy = sun.light_energy
+		if env:
+			_exposure = env.tonemap_exposure
+
+	func _process(delta: float) -> void:
+		if cam == null or sun == null or not cam.has_method("is_close"):
+			return
+		var goal := 1.0 if cam.is_close() else 0.0
+		if is_equal_approx(goal, _k):
+			return
+		_k = move_toward(_k, goal, delta * 4.0)
+		# Tầm bóng đổi ngay để khỏi thấy bóng co giãn; giữ phần GiuFps đã rút ngắn (nếu có)
+		sun.directional_shadow_max_distance = minf(_shadow, SHADOW_CLOSE) if goal > 0.5 else _shadow
+		sun.light_energy = _energy * lerpf(1.0, SUN_CLOSE, _k)
+		if env:
+			env.tonemap_exposure = _exposure * lerpf(1.0, EXPOSURE_CLOSE, _k)
+

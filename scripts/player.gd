@@ -89,6 +89,10 @@ var _fragile_cd := 0.0            ## vừa vỡ một quả thì chờ chút, m�
 var _hit_cd := 0.0                ## đứng ép vào người thì chỉ tính một lần va
 var _fragile_bag: BoneAttachment3D
 var _fragile_eggs: Array[Node3D] = []
+## Nút quai túi trứng (chỗ Bơ ngậm) cao hơn đáy túi bấy nhiêu mét (KNOT_Z trong bàn giao Thứ Ba)
+const FRAGILE_KNOT := 0.19
+## Miệng Bơ trong hệ CatVisual (mặt nhìn -Z): chỗ nút quai túi trứng
+const FRAGILE_MOUTH := Vector3(0, 0.31, -0.23)
 var _step_side := 1.0             ## dấu của nhịp bước trước, đổi dấu là một bước chân
 var _act := ""                    ## động tác đang diễn: "" | "deliver" | "startle"
 var _act_kind := ""
@@ -1289,7 +1293,7 @@ func _pose(bone_name: String, axis: Vector3, angle: float) -> void:
 
 
 ## Ngậm đồ dễ vỡ: item_id "trung6" là túi nilon 6 trứng. count 0 hoặc item "" là nhả ra.
-## Bơ vẫn đeo túi bánh bên hông; túi trứng ngậm ở miệng (khối tạm, chờ phác thảo Thứ Ba).
+## Bơ vẫn đeo túi bánh bên hông; túi trứng ngậm ở miệng (model tui_trung, trang "Phác thảo Thứ Ba").
 func carry_fragile(item_id: String, count: int) -> void:
 	fragile_item = item_id if count > 0 else ""
 	fragile_count = count if item_id != "" else 0
@@ -1308,18 +1312,16 @@ func carry_fragile(item_id: String, count: int) -> void:
 	_fragile_bag.global_transform = _skel.global_transform * _skel.get_bone_global_pose(_skel.find_bone("head"))
 	var hang := Node3D.new()
 	_fragile_bag.add_child(hang)
-	hang.global_transform = Transform3D(visual.global_basis.orthonormalized(), visual.global_transform.orthonormalized() * Vector3(0, 0.29, -0.33))
-	var bag_root := hang
-	# Quai túi trong miệng, túi nilon trong lủng lẳng bên dưới, 6 quả xếp 2 hàng 3
-	Blocks.box(bag_root, Vector3(0.012, 0.06, 0.012), Vector3(0, 0.05, 0), Color("#F4F1EA"))
-	Blocks.box(bag_root, Vector3(0.11, 0.07, 0.075), Vector3(0, -0.01, 0), Color(0.96, 0.95, 0.92, 0.45))
-	var egg := SphereMesh.new()
-	egg.radius = 0.016
-	egg.height = 0.042
-	egg.radial_segments = 8
-	egg.rings = 4
+	hang.global_transform = Transform3D(visual.global_basis.orthonormalized(), visual.global_transform.orthonormalized() * FRAGILE_MOUTH)
+	# Túi nilon hồng (model tui_trung, gốc ở đáy) thòng dưới miệng: nút quai cao 0,19 m trên đáy túi.
+	# 6 quả trứng là node riêng đứng trong vỉ 2 × 3 để ẩn từng quả khi vỡ.
+	var bag_root := Node3D.new()
+	hang.add_child(bag_root)
+	bag_root.position = Vector3(0, -FRAGILE_KNOT, 0)
+	bag_root.rotation.y = PI
+	PhoModels.put(bag_root, "tui_trung", Vector3.ZERO)
 	for k in count:
-		var e := Blocks.mesh(bag_root, egg, Vector3(-0.034 + (k % 3) * 0.034, -0.022, -0.016 + int(k / 3.0) * 0.032), Color("#F2E3C8"))
+		var e := PhoModels.put(bag_root, "trung", Vector3(-0.045 + (k % 3) * 0.045, 0.034, -0.024 + int(k / 3.0) * 0.048))
 		_fragile_eggs.append(e)
 	for mi: MeshInstance3D in _fragile_bag.find_children("*", "MeshInstance3D", true, false):
 		mi.layers = LAYER_BO_BODY

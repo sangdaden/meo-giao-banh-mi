@@ -44,10 +44,8 @@ const QUESTS := {
 }
 
 const PAPER := Color("#E8E2D0")
-const SKIN := Color("#E7B98F")
 ## Tên khách trong days.gd -> id người dân (scripts/nguoi.gd) cho các đơn dùng _build_generic.
 const WHO_ID := {"Chú Năm": "chunam", "Cô Hai": "cohai"}  # Cô Hai đơn ngược đứng trong tạp hóa (shop_tap_hoa.gd)
-const PANTS := Color("#3D4A4A")
 const WATER_TOP := Color("#8FB7C9")
 const OIL_TOP := Color("#2B2724")
 
@@ -93,7 +91,7 @@ var _specs: Array = []           # người dân cần dựng: {"order", "id", "
 var _people := {}                # order -> Nguoi (người có xương, scripts/nguoi.gd)
 var _hand_fallback := {}         # order -> vị trí bàn tay khi người chưa dựng
 var _late := -1                  # đơn đang trễ giờ (khách sốt ruột)
-var _arm_nodes := {}             # order -> tay khối của người tạm (Chú Năm trên xe ôm)
+var _chu_nam: Nguoi              # Chú Năm trên xe ôm (con của _xe_om)
 var _prompt: Label3D
 var _mouth: Node3D               # điểm miệng Bơ, bám theo xương đầu
 var _scenes := {}                # tên model -> PackedScene
@@ -152,7 +150,7 @@ var _xe_om_home := Vector3.ZERO  # chỗ đậu đầu hẻm 42
 var _xe_om_color := Color.WHITE
 var _xe_om_title := ""
 var _xe_om: AnimatableBody3D     # xe + Chú Năm, chạy đi chở khách khi hết giờ
-var _passenger: Node3D
+var _passenger: Nguoi            # Chị Thảo, khách xe ôm (chỉ hiện khi chú chở khách)
 var _xe_om_state := ""           # "wait" | "away" (đang chở khách) | "back" (đang quay về)
 var _xe_om_left := false         # đơn này chú đã chở khách đi một lần rồi (về thì đợi Bơ)
 var _start_time := 0.0           # đồng hồ lúc nhận bánh
@@ -306,28 +304,18 @@ func _build_xe_om() -> void:
 	Blocks.box(_xe_om, Vector3(0.7, 0.04, 0.04), Vector3(0, y + 0.32, -0.66), Color("#5E6F6C"))    # tay lái
 	for wz in [-0.6, 0.62]:
 		Blocks.box(_xe_om, Vector3(0.1, 0.46, 0.46), Vector3(0, 0.23, wz), Color("#2B2622"))        # bánh xe
-	# Chú Năm ngồi yên trước: đùi trên yên, chân thả xuống gác chân, áo, nón bảo hiểm
-	Blocks.box(_xe_om, Vector3(0.44, 0.15, 0.42), Vector3(0, y + 0.07, -0.18), PANTS)
-	for sx in [-0.24, 0.24]:
-		Blocks.box(_xe_om, Vector3(0.12, 0.5, 0.14), Vector3(sx, y - 0.2, -0.36), PANTS)
-	Blocks.box(_xe_om, Vector3(0.48, 0.55, 0.3), Vector3(0, y + 0.42, -0.1), _xe_om_color)
-	_head(_xe_om, Vector3(0, y + 0.86, -0.12))
-	Blocks.box(_xe_om, Vector3(0.38, 0.18, 0.4), Vector3(0, y + 0.98, -0.12), Color("#F2C14E"))   # nón bảo hiểm
-	Blocks.box(_xe_om, Vector3(0.1, 0.45, 0.1), Vector3(0.3, y + 0.4, -0.3), _xe_om_color)        # tay phải cầm lái
-	# Tay trái chìa ra sau nhận bánh (quay ra phía yên sau)
-	var arm := Node3D.new()
-	arm.position = Vector3(-0.3, y + 0.62, -0.05)
-	arm.rotation.y = PI
-	_xe_om.add_child(arm)
-	Blocks.box(arm, Vector3(0.1, 0.45, 0.1), Vector3(0, -0.22, 0), _xe_om_color)
-	Blocks.box(arm, Vector3(0.1, 0.1, 0.1), Vector3(0, -0.48, 0), SKIN)
-	_arm_nodes[i] = arm
+	# Chú Năm (model người dân) tựa yên trước, quay mặt ra lề (+X), yên sau và baga ở bên phải chú
+	_chu_nam = Nguoi.make("chunam", "cho_khach")
+	_chu_nam.position = Vector3(0, 0, -0.18)
+	_chu_nam.rotation.y = PI / 2
+	_xe_om.add_child(_chu_nam)
 	# Khách xe ôm: chỉ hiện khi chú chở khách đi
-	_passenger = Node3D.new()
+	# Chị Thảo ngồi yên sau quay mặt về đầu xe (-Z); khớp hông dáng ngoi_sau cao 0,95 m, cao hơn mặt yên ~9 cm
+	var thao := Nguoi.make("khachxeom", "ngoi_sau")
+	thao.position = Vector3(0, y + 0.09 - 0.95, 0.38)
+	thao.rotation.y = PI
+	_passenger = thao
 	_xe_om.add_child(_passenger)
-	Blocks.box(_passenger, Vector3(0.44, 0.15, 0.42), Vector3(0, y + 0.07, 0.35), Color("#5E4A3A"))
-	Blocks.box(_passenger, Vector3(0.46, 0.55, 0.3), Vector3(0, y + 0.42, 0.4), Color("#E39C7A"))
-	_head(_passenger, Vector3(0, y + 0.86, 0.42))
 	_passenger.visible = false
 	var shape := CollisionShape3D.new()
 	var bs := BoxShape3D.new()
@@ -361,16 +349,6 @@ func _chair(parent: Node3D, pos: Vector3, yaw: float, color: Color) -> void:
 func _stool(parent: Node3D, pos: Vector3, yaw: float, h: float) -> void:
 	var st := Blocks.solid_box(parent, Vector3(0.3, h, 0.3), pos + Vector3(0, h / 2.0, 0), Color("#C8412F"), Blocks.LAYER_PROP)
 	st.rotation.y = yaw
-
-
-## Đầu cầu của người khối tạm (Chú Năm trên xe ôm và khách, chờ tư thế ngồi xe được duyệt).
-func _head(parent: Node3D, pos: Vector3) -> void:
-	var head := SphereMesh.new()
-	head.radius = 0.17
-	head.height = 0.34
-	head.radial_segments = 10
-	head.rings = 5
-	Blocks.mesh(parent, head, pos, SKIN)
 
 
 ## Vũng loang hình mây (như ảnh renders/vung_top): tam giác quạt, bán kính lượn theo vài sóng sin.
@@ -470,13 +448,12 @@ func _person(i: int, id: String, pos: Vector3, yaw: float, idle: String, seated:
 ## Bàn tay phải khách đơn i lúc nhận bánh (ổ bánh Bơ nhả ra bay tới đây).
 func hand_point(i: int) -> Vector3:
 	var n: Nguoi = _people.get(i)
+	if n == null and i == _kind.find("on_seat"):
+		n = _chu_nam
 	if n and n.skeleton:
 		var b := n.skeleton.find_bone("hand.R")
 		var g := n.skeleton.global_transform * n.skeleton.get_bone_global_pose(b)
 		return g * Vector3(0, 0.07, 0)  # giữa lòng bàn tay
-	var arm: Node3D = _arm_nodes.get(i)
-	if arm:
-		return arm.global_transform * Vector3(0, -0.5, 0)
 	return _hand_fallback.get(i, orders[i].pos + Vector3(0, 0.9, 0))
 
 
@@ -871,6 +848,7 @@ func _deliver_nam(i: int) -> void:
 	var left: float = float(_main.get("time_left")) if _main and _main.get("time_left") != null else 0.0
 	side_ok[i] = not late and _start_time > 0.0 and left >= _start_time * XE_OM_HALF
 	_hand_bread(hand_point(i))
+	_celebrate(i)
 	if side_ok[i]:
 		_toast("Kịp rồi! Chú Năm ăn xong mới có khách.", 2.0, 1.8)
 
@@ -941,6 +919,8 @@ func _celebrate(i: int, then_anim := "vui") -> void:
 	var n: Nguoi = _people.get(i)
 	if n:
 		n.play_once("nhan_banh", then_anim, 2.5)
+	elif _chu_nam and i == _kind.find("on_seat"):
+		_chu_nam.play_once("nhan_xe")  # xoay sang baga nhận bánh, xong về chờ khách
 	if _late == i:
 		_late = -1
 
@@ -999,6 +979,7 @@ func _update_xe_om() -> void:
 	_xe_om_state = "away"
 	_xe_om_left = true
 	_passenger.visible = true
+	_chu_nam.play("cho_di")
 	_prompt.visible = false
 	_sfx("moto_pass", _xe_om.global_position)
 	var road := Vector3(_xe_om_home.x, 0, XE_OM_ROAD_Z)
@@ -1023,6 +1004,7 @@ func _update_xe_om() -> void:
 	tw.tween_property(_xe_om, "position", _xe_om_home, 1.0).set_ease(Tween.EASE_OUT)
 	tw.tween_callback(func():
 		_xe_om_state = "wait"
+		_chu_nam.play("cho_khach")
 		if current == i:
 			_toast("Chú Năm về rồi, đưa bánh đi!", 2.0)
 	)

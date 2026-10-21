@@ -74,7 +74,7 @@ def setup(c, posed):
     hb = h - hh                                # tới cằm
     s = hb / 1.31                              # hệ số so với người mẫu 1,6 m
     B = c['build']
-    G = dict(h=h, hh=hh, hb=hb, s=s, kid=kid)
+    G = dict(h=h, hh=hh, hb=hb, s=s, kid=kid, posed=posed)
     G['head_c'] = v(0, hb + hh * .37, .014 * s); G['head_r'] = v(hh * .415, hh * .48, hh * .44)
     if kid: G['head_r'] = v(hh * .43, hh * .5, hh * .45)
     sc = lambda *a: v(*a) * s
@@ -99,8 +99,12 @@ def setup(c, posed):
         hip = sc(side * .088 * B['hip'], .77, 0); kn = sc(side * .096, .43, .012); an = sc(side * .094, .08, -.01)
         if posed and P.get('sit'):
             hw = hip + G['T']; kn = v(side * .12 * s, P['sit'] + .16 * s, .36 * s); an = v(side * .12 * s, .075 * s, .34 * s)
+            if P.get('knee'):  # ghế cao (yên xe): gối, cổ chân theo mét (y, z)
+                kx = P.get('kx', .12) * s; kn = v(side * kx, *P['knee']); an = v(side * kx * 1.05, *P['ankle'])
             legs[side] = (hw, kn, an)
         else:
+            LG = P.get('legs', {}).get('L' if side == 1 else 'R') if posed else None
+            if LG: kn = sc(side * .096, *LG[0]); an = sc(side * .094, *LG[1])   # bước đi: (y, z) gối, cổ chân
             legs[side] = (hip + G['T'], kn + G['T'], an + G['T'])
     G['legs'] = legs
     return G
@@ -153,7 +157,8 @@ def build(c, posed):
     add('head', head_sdf, 'skin', 'head', k=.04 * s)
     # lông mày
     for sd in (-1, 1):
-        pts = [v(sd * hr[0] * f, ey + er[1] * (1.85 + a), 0) for f, a in ((.15, .2), (.34, .42), (.55, .12))]
+        bro = c['pose'].get('brow', 0) if posed else 0   # 1: cau mày (mắng), -1: nhướng lo
+        pts = [v(sd * hr[0] * f, ey + er[1] * (1.85 + a), 0) for f, a in ((.15, .2 - .6 * bro), (.34, .42 - .12 * bro), (.55, .12 + .28 * bro))]
         pts = [p + v(0, 0, surfz(p[0], p[1]) + .002) for p in pts]
         rr = [.006 * s * (1.3 if c.get('old') else 1), .0068 * s, .0045 * s]
         add('brow', (lambda pts, rr: lambda p: chain(p, pts, rr, .004))(pts, rr), 'brow', 'head', k=.004)
@@ -219,6 +224,16 @@ def build(c, posed):
             return smin(dome, vis, .01)
         add('helmet', helm, 'hat', 'head', k=.006)
 
+    if hcol.get('nonla'):  # nón lá: vỏ nón mỏng, đường kính 0,42 m, cao 0,16 m, có quai
+        nb = hc + v(0, hr[1] * .55, -hr[2] * .04); NR, NH = .21 * max(s, .9), .15 * max(s, .9)
+        def nonla_sdf(p, nb=nb):
+            q = p - nb; r = np.linalg.norm(q[..., [0, 2]], axis=-1); y = q[..., 1]
+            ca_ = NR / math.hypot(NR, NH)
+            d = np.abs(y - NH * (1 - r / NR)) * ca_ - .004
+            return smax(d, r - NR, .004)
+        add('nonla', nonla_sdf, 'nonla', 'head', k=.002)
+        for sd in (-1, 1):
+            add('quai', (lambda sd: lambda p: chain(p, [nb + v(sd * hr[0] * .95, .0, 0), hc + v(sd * hr[0] * .8, -hr[1] * .7, hr[2] * .2), hc + v(0, -hr[1] * 1.05, hr[2] * .45)], [.003 * s] * 3, .002))(sd), 'nonla2', 'head', k=.001)
     # ---- thân
     bw, bel, hip = B['bw'], B['belly'], B['hip']
     def chest_mat(V):
@@ -288,7 +303,7 @@ def build(c, posed):
                 k2 = hp + (kn - hp) * .82
                 add('pant', (lambda hp, k2: lambda p: roundcone(p, hp, k2, .094 * lr * s, .078 * lr * s))(hp, k2), 'bottom', 'world', k=.01)
         # bàn chân + dép
-        fdir = nrm(v(0, 0, 1) + v(side * .12, 0, 0)); fc = an + v(0, -an[1] + .034 * s, 0) + fdir * .05 * s
+        fdir = nrm(v(0, 0, 1) + v(side * .12, 0, 0)); fc = an + v(0, (-an[1] + .034 * s) if an[1] < .2 * s else -.04 * s, 0) + fdir * .05 * s   # chân gác lên gác chân xe: theo cổ chân
         add('foot', (lambda fc: lambda p: ellipsoid(p, fc, v(.05 * s, .036 * s, .105 * s)))(fc), 'skin' if c.get('sandal', True) else 'shoe', 'world', k=.025 * s)
         add('sole', (lambda fc: lambda p: ellipsoid(p, fc + v(0, -.02 * s, .004 * s), v(.06 * s, .016 * s, .118 * s)))(fc), 'shoe', 'world', k=.004)
         add('strap', (lambda fc: lambda p: smax(ellipsoid(p, fc + v(0, -.004 * s, .03 * s), v(.05 * s, .036 * s, .028 * s)), -(p[..., 1] - (fc[1] - .01 * s)), .004))(fc), 'shoe', 'world', k=.004)
@@ -394,8 +409,10 @@ def palette(c):
     P = dict(skin=c['skin'], hair=c['hair']['col'], brow=c['hair']['col'] if c['hair']['style'] != 'bald' else '#9C958E', top=c['top']['col'], bottom=c['bottom']['col'], skirt=c['bottom']['col'],
              shoe=c['shoe'], apron=c.get('apron', '#7A5236'), apron2=c.get('apron2', '#A93424' if c.get('apron') == '#C8412F' else '#5E3E28'), tie=c['hair'].get('tie', '#F2B33D'), hat=c['hair'].get('cap') or c['hair'].get('helmet') or '#333333',
              towel='#E9E2D2', pack='#3A2C26', gold='#E0B040', paper='#EDE6D3', wicker='#C99A5A', bread='#D98E2B', tray='#B8BEC0', glass='#D8E6E4', coffee='#9A6A44',
-             metal='#9AA3A6', can='#3F8A5C', chesspiece='#E8D9B5', fan='#D8B47A', wood='#8A5A30', calc='#3D3F40', stool='#C8412F')
+             metal='#9AA3A6', can='#3F8A5C', chesspiece='#E8D9B5', fan='#D8B47A', wood='#8A5A30', calc='#3D3F40', stool='#C8412F', nonla='#E2CC94', nonla2='#8A6A40')
+    P.update(EXTRA_PAL)
     return P
+EXTRA_PAL = {}
 def lin(c): return np.where(c <= .04045, c / 12.92, ((c + .055) / 1.055) ** 2.4)
 
 # ---------------------------------------------------------------- dựng lưới
@@ -491,12 +508,26 @@ def colorize(c, parts, G, FR, V, N, sep):
         Vh = FR['head'](V); hc, hr = G['head_c'], G['head_r']; s = G['s']
         Rt = G['Ru'] @ G['Rh']; Nh = N @ Rt
         front = (Nh[:, 2] > .25) & (Vh[:, 2] > hc[2] + hr[2] * .45) & (mats == 'skin')
+        hi_ = [i for i, p in enumerate(sel) if p['name'] == 'head']
+        if hi_: front &= (idx == hi_[0])   # chỉ tô lên đầu, không lem sang bàn tay đưa lên miệng
         my = hc[1] - hr[1] * .55
         mx = hr[0] * .3
-        pts = [v(-mx, my + .012 * s), v(-mx * .5, my - .006 * s), v(0, my - .01 * s), v(mx * .5, my - .006 * s), v(mx, my + .012 * s)]
-        P2 = Vh[:, :2]
-        dl = np.minimum.reduce([seg2(P2, pts[i], pts[i + 1]) for i in range(4)])
-        col = mix(col, sstep(.0045 * s, .0025 * s, dl) * front, '#6A2E26')
+        P2 = Vh[:, :2]; mo = c['pose'].get('mouth', 'smile') if G.get('posed') else 'smile'
+        if mo in ('smile', 'frown'):
+            sg = 1 if mo == 'smile' else -.8
+            pts = [v(-mx, my + .012 * s * sg), v(-mx * .5, my - .006 * s * sg), v(0, my - .01 * s * sg), v(mx * .5, my - .006 * s * sg), v(mx, my + .012 * s * sg)]
+            if mo == 'frown': pts = [p + v(0, -.012 * s) for p in pts]
+            dl = np.minimum.reduce([seg2(P2, pts[i], pts[i + 1]) for i in range(4)])
+            col = mix(col, sstep(.0045 * s, .0025 * s, dl) * front, '#6A2E26')
+        else:  # miệng mở: o (suỵt, chu môi), open (reo, cười há), shout (mắng)
+            rx, ry, cy_ = dict(o=(mx * .22, .011 * s, my - .008 * s), open=(mx * .8, .026 * s, my - .01 * s), shout=(mx * .55, .03 * s, my - .014 * s))[mo]
+            q2 = (P2 - v(0, cy_)) / v(rx, ry); r2 = np.linalg.norm(q2, axis=1)
+            inside = sstep(1.0, .85, r2)
+            if mo == 'open': inside = inside * (q2[:, 1] < .35)   # hình chữ D: mép trên phẳng
+            col = mix(col, sstep(1.25, 1.05, r2) * front * .5, '#B85A50')
+            col = mix(col, inside * front, '#5A1E1C')
+            col = mix(col, inside * sstep(-.2, -.6, q2[:, 1]) * front * (0 if mo == 'o' else .9), '#C9645A')   # lưỡi
+            if mo != 'o': col = mix(col, inside * sstep(.55, .75, q2[:, 1]) * front, '#F4EFE6')   # răng trên
         lip = sstep(.012 * s, .004 * s, np.linalg.norm((P2 - v(0, my - .016 * s)) * v(.55, 1), axis=1)) * front
         col = mix(col, lip * .35, '#C46A60')
         for sd in (-1, 1):
@@ -525,6 +556,8 @@ GIAO = {
  'basau': dict(sit=.42, yaw=.08, nod=.18, tilt=-.05, bend=.14, armR=dict(e=(-.2, 1.0, .2), w=(-.1, .98, .4), n=(0, 1, 0)), armL=dict(e=(.2, 1.0, .2), w=(.1, .98, .4), n=(0, 1, 0)), prop='loaf2'),
 }
 
+POSE_ONLY = [False]; SUF = ['']
+HOOKS = []   # hàm(scn, coll, G, headw, B) gắn thêm vật vào dáng nhân vật
 def run(cid, out, glb=False):
     c = CHARS[cid]; H = .003 * (.8 if c.get('kid') else 1.0)
     import bpy
@@ -547,7 +580,7 @@ def run(cid, out, glb=False):
     KINDS = ['skin', 'cloth', 'hair', 'hard', 'metal', 'glass']
     MATS = {k: mat_group('M_' + k, k) for k in KINDS}
     objs = {}
-    for posed in (False, True):
+    for posed in ((True,) if POSE_ONLY[0] else (False, True)):
         parts, G, FR, headw = build(c, posed)
         coll = bpy.data.collections.new('Pose' if posed else 'Apose'); scn.collection.children.link(coll)
         for sep in (False, True):
@@ -626,7 +659,9 @@ def run(cid, out, glb=False):
             br = bpy.context.active_object; br.rotation_euler = (B(b_) - B(a_)).to_track_quat('Z', 'Y').to_euler(); br.data.materials.append(gm)
             for cl in br.users_collection: cl.objects.unlink(br)
             coll.objects.link(br)
-        if posed: Gp = G
+        if posed:
+            Gp = G
+            for hk in HOOKS: hk(scn, coll, G, headw, B)
         else: Ga = G
     # ---------- bối cảnh render
     bpy.ops.mesh.primitive_plane_add(size=60); fl = bpy.context.active_object
@@ -662,37 +697,39 @@ def run(cid, out, glb=False):
     for o in bo_coll.objects:
         if o.parent is None: o.parent = bo_root
     meta = dict(id=cid, name=c['name'], role=c['role'], h=c['h'])
+    if POSE_ONLY[0]: bpy.data.collections.new('Apose'); Ga = Gp
     ca_, cp_ = bpy.data.collections['Apose'], bpy.data.collections['Pose']
     def show(coll, on):
         linked = coll.name in scn.collection.children
         if on and not linked: scn.collection.children.link(coll)
         if not on and linked: scn.collection.children.unlink(coll)
-    # 1) xoay vòng: trước, ngang, sau (ortho) + Bơ
-    show(cp_, False); show(ca_, True); show(bo_coll, True)
-    gap = .62 * hh / 1.6 + .25
-    inst = []
-    show(ca_, False)
-    for i, ang in enumerate((0, math.pi / 2, math.pi)):
-        e = bpy.data.objects.new(f'I{i}', None); e.instance_type = 'COLLECTION'; e.instance_collection = ca_
-        e.location = ((i - 1) * gap * 1.25, 0, 0); e.rotation_euler = (0, 0, ang); scn.collection.objects.link(e); inst.append(e)
-    bo_root.location = (1.9 * gap * 1.25, 0, 0); bo_root.rotation_euler = (0, 0, .5)
-    W = 3 * gap * 1.25 + 1.0; Hh = hh + .3
-    cd.type = 'ORTHO'; cd.ortho_scale = max(W, Hh * 1.9); cx = (gap * 1.25 * .45)
-    scn.render.resolution_x = 1500; scn.render.resolution_y = int(1500 * Hh / max(W, Hh * 1.9) * 1.0) + 2
-    cd.ortho_scale = max(W, Hh * 1.9)
-    scn.render.resolution_y = int(scn.render.resolution_x * Hh / cd.ortho_scale)
-    cam.location = (cx, -6, Hh / 2 - .05); cam.rotation_euler = (math.pi / 2, 0, 0)
-    scn.render.filepath = f'{out}/{cid}_xoay.png'; bpy.ops.render.render(write_still=True)
-    meta['turn'] = dict(ortho=cd.ortho_scale, cx=cx, cy=Hh / 2 - .05, w=scn.render.resolution_x, h=scn.render.resolution_y, xs=[(i - 1) * gap * 1.25 for i in range(3)], bo=1.9 * gap * 1.25)
-    # khớp xương (dáng A) để vẽ sơ đồ
-    G = Ga; J = {}
-    J['hips'] = G['Pu'] * v(1, .86, 1); J['spine'] = G['Pu'] + v(0, .08, 0) * G['s']; J['chest'] = v(0, 1.12, 0) * G['s']; J['neck'] = v(0, 1.22, -.01) * G['s']; J['head'] = G['head_c']; J['head_top'] = G['head_c'] + v(0, G['head_r'][1], 0)
-    for sd, nm in ((1, 'L'), (-1, 'R')):
-        sh, el, wr, _ = G['arms'][sd]; J['clav.' + nm] = v(sd * .06, 1.2, .01) * G['s']; J['upperarm.' + nm] = sh; J['forearm.' + nm] = el; J['hand.' + nm] = wr
-        J['fingers.' + nm] = wr + nrm(wr - el) * .09 * G['s']
-        hp, kn, an = G['legs'][sd]; J['thigh.' + nm] = hp; J['shin.' + nm] = kn; J['foot.' + nm] = an; J['toe.' + nm] = an + v(sd * .01, -.06, .1) * G['s']
-    meta['joints'] = {k: [round(float(x), 4) for x in val] for k, val in J.items()}
-    for e in inst: bpy.data.objects.remove(e)
+    if not POSE_ONLY[0]:
+        # 1) xoay vòng: trước, ngang, sau (ortho) + Bơ
+        show(cp_, False); show(ca_, True); show(bo_coll, True)
+        gap = .62 * hh / 1.6 + .25
+        inst = []
+        show(ca_, False)
+        for i, ang in enumerate((0, math.pi / 2, math.pi)):
+            e = bpy.data.objects.new(f'I{i}', None); e.instance_type = 'COLLECTION'; e.instance_collection = ca_
+            e.location = ((i - 1) * gap * 1.25, 0, 0); e.rotation_euler = (0, 0, ang); scn.collection.objects.link(e); inst.append(e)
+        bo_root.location = (1.9 * gap * 1.25, 0, 0); bo_root.rotation_euler = (0, 0, .5)
+        W = 3 * gap * 1.25 + 1.0; Hh = hh + .3
+        cd.type = 'ORTHO'; cd.ortho_scale = max(W, Hh * 1.9); cx = (gap * 1.25 * .45)
+        scn.render.resolution_x = 1500; scn.render.resolution_y = int(1500 * Hh / max(W, Hh * 1.9) * 1.0) + 2
+        cd.ortho_scale = max(W, Hh * 1.9)
+        scn.render.resolution_y = int(scn.render.resolution_x * Hh / cd.ortho_scale)
+        cam.location = (cx, -6, Hh / 2 - .05); cam.rotation_euler = (math.pi / 2, 0, 0)
+        scn.render.filepath = f'{out}/{cid}_xoay.png'; bpy.ops.render.render(write_still=True)
+        meta['turn'] = dict(ortho=cd.ortho_scale, cx=cx, cy=Hh / 2 - .05, w=scn.render.resolution_x, h=scn.render.resolution_y, xs=[(i - 1) * gap * 1.25 for i in range(3)], bo=1.9 * gap * 1.25)
+        # khớp xương (dáng A) để vẽ sơ đồ
+        G = Ga; J = {}
+        J['hips'] = G['Pu'] * v(1, .86, 1); J['spine'] = G['Pu'] + v(0, .08, 0) * G['s']; J['chest'] = v(0, 1.12, 0) * G['s']; J['neck'] = v(0, 1.22, -.01) * G['s']; J['head'] = G['head_c']; J['head_top'] = G['head_c'] + v(0, G['head_r'][1], 0)
+        for sd, nm in ((1, 'L'), (-1, 'R')):
+            sh, el, wr, _ = G['arms'][sd]; J['clav.' + nm] = v(sd * .06, 1.2, .01) * G['s']; J['upperarm.' + nm] = sh; J['forearm.' + nm] = el; J['hand.' + nm] = wr
+            J['fingers.' + nm] = wr + nrm(wr - el) * .09 * G['s']
+            hp, kn, an = G['legs'][sd]; J['thigh.' + nm] = hp; J['shin.' + nm] = kn; J['foot.' + nm] = an; J['toe.' + nm] = an + v(sd * .01, -.06, .1) * G['s']
+        meta['joints'] = {k: [round(float(x), 4) for x in val] for k, val in J.items()}
+        for e in inst: bpy.data.objects.remove(e)
     # 2) dáng nhân vật 3/4 + Bơ
     show(ca_, False); show(cp_, True)
     bo_root.location = (.55 * hh / 1.6 + .25, .25, 0); bo_root.rotation_euler = (0, 0, .35)
@@ -700,16 +737,18 @@ def run(cid, out, glb=False):
     scn.render.resolution_x = 1000; scn.render.resolution_y = 1100
     tgt = Vector((.12, 0, hh * .5)); cam.location = tgt + Vector((.42, -1, .14)).normalized() * 2.4 * max(hh, 1.25)
     cam.rotation_euler = (tgt - cam.location).to_track_quat('-Z', 'Y').to_euler()
-    scn.render.filepath = f'{out}/{cid}_dang.png'; bpy.ops.render.render(write_still=True)
+    scn.render.filepath = f'{out}/{cid}{SUF[0]}_dang.png'; bpy.ops.render.render(write_still=True)
     # 3) cận mặt
     show(bo_coll, False)
     Gh = Gp; FRp, upw, hw = frames(Gh); hcw = B(hw(Gh['head_c']))
     cam.location = hcw + Vector((.32, -.95, .08)) * Gh['hh'] / .29; cd.lens = 85
     cam.rotation_euler = (hcw + Vector((0, 0, -.01)) - cam.location).to_track_quat('-Z', 'Y').to_euler()
     scn.render.resolution_x = 800; scn.render.resolution_y = 800
-    scn.render.filepath = f'{out}/{cid}_mat.png'; bpy.ops.render.render(write_still=True)
-    with open(f'{out}/{cid}.json', 'w') as f: json.dump(meta, f, ensure_ascii=False)
+    scn.render.filepath = f'{out}/{cid}{SUF[0]}_mat.png'; bpy.ops.render.render(write_still=True)
+    with open(f'{out}/{cid}{SUF[0]}.json', 'w') as f: json.dump(meta, f, ensure_ascii=False)
     if glb:
+      fl.hide_set(True)
+      if not POSE_ONLY[0]:
         show(bo_coll, False); show(cp_, False); show(ca_, True); fl.hide_set(True)
         for o in scn.objects: o.select_set(False)
         for o in ca_.objects:
@@ -717,13 +756,14 @@ def run(cid, out, glb=False):
             if o.type == 'MESH' and o.name.endswith('_than'):
                 md = o.modifiers.new('Dec', 'DECIMATE'); md.ratio = 3500 / max(1, len(o.data.polygons))
         bpy.ops.export_scene.gltf(filepath=f'{out}/{cid}.glb', use_selection=True, export_apply=True, export_vertex_color='ACTIVE')
-        show(ca_, False); show(cp_, True)
+      show(bo_coll, False); show(ca_, False); show(cp_, True)
+      if True:
         for o in scn.objects: o.select_set(False)
         for o in cp_.objects:
             o.select_set(True)
             if o.type == 'MESH' and (o.name.endswith('_than') or o.name.endswith('_do')):
                 md = o.modifiers.new('Dec', 'DECIMATE'); md.ratio = (6000 if o.name.endswith('_than') else 1500) / max(1, len(o.data.polygons))
-        bpy.ops.export_scene.gltf(filepath=f'{out}/{cid}_dang.glb', use_selection=True, export_apply=True, export_vertex_color='ACTIVE')
+        bpy.ops.export_scene.gltf(filepath=f'{out}/{cid}{SUF[0]}_dang.glb', use_selection=True, export_apply=True, export_vertex_color='ACTIVE')
     print('done', cid)
 
 if __name__ == '__main__':

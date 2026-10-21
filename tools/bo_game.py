@@ -4,7 +4,7 @@ Chạy:  python3 tools/bo_game.py <chung2.glb> assets/models/bo.glb
 (Cần: pip install bpy)
 
 Việc script làm:
-1. Giảm số tam giác từ ~115k xuống ~6k cho nhẹ (style guide: Bơ 4–6k).
+1. Giảm số tam giác từ ~115k xuống ~6k cho nhẹ (style guide: Bơ 4–6k), giữ chi tiết quanh mắt.
 2. Dồn màu lông, khăn, mắt vào một lớp màu đỉnh (COLOR_0) để Godot đọc được.
 3. Gắn bộ xương 16 xương: root, spine, head, 4 chân, 4 đốt đuôi, 2 tai, 2 mắt, khăn.
    Trọng số (weight) tính theo vị trí từng đỉnh, không cần vẽ tay.
@@ -26,11 +26,44 @@ for o in meshes:
     for oo in meshes:
         oo.select_set(oo is o)
     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+
+# Tâm hai mắt (cầu tròng mắt tên 'Mat...'): vùng quanh mắt được giữ nhiều tam giác hơn,
+# nếu không mí mắt bị bào thành hình bát giác và tròng mất màu hổ phách (trông như đeo kính)
+eye_centers = []
+for o in meshes:
+    if o.name.startswith('Mat'):
+        vs = [v.co for v in o.data.vertices]
+        eye_centers.append(sum(vs, Vector()) / len(vs))
+
+
+def target_tris(name):
+    if name.startswith('Bo_Than'):
+        return 4700
+    if name.startswith('Bo_Khan'):
+        return 700
+    if name.startswith('Mat'):
+        return 350     # tròng mắt: đủ mịn để giữ màu hổ phách và đồng tử dọc
+    return 40          # đốm sáng trong mắt
+
+
+for o in meshes:
+    bpy.context.view_layer.objects.active = o
+    for oo in meshes:
+        oo.select_set(oo is o)
     tris = sum(len(p.vertices) - 2 for p in o.data.polygons)
-    target = 4200 if o.name.startswith('Bo_Than') else (900 if o.name.startswith('Bo_Khan') else 120)
+    target = target_tris(o.name)
     if tris > target:
         md = o.modifiers.new('Dec', 'DECIMATE')
         md.ratio = target / tris
+        if o.name.startswith('Bo_Than'):
+            keep = o.vertex_groups.new(name='giu_mat')
+            for v in o.data.vertices:
+                d = min((v.co - c).length for c in eye_centers)
+                if d < .08:
+                    keep.add([v.index], 1.0 - d / .08, 'REPLACE')
+            md.vertex_group = 'giu_mat'
+            md.vertex_group_factor = 1.5
+            md.invert_vertex_group = True  # trọng số 0 = giữ nguyên, nên đảo để vùng mắt được giữ
         bpy.ops.object.modifier_apply(modifier=md.name)
 
 # Màu: lông và mắt đã có màu đỉnh tên 'Color'. Khăn và đốm sáng trong mắt chưa có,

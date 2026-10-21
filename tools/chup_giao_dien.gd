@@ -103,6 +103,25 @@ func _run() -> void:
 	main.rig.yaw += PI * 0.8
 	await _wait(20)
 	await _shot("5b_mui_ten_mep")
+	main.hud.show_tip("Chó Mực đang ngủ", "Chạy nhanh hay va đồ là Mực thức dậy đuổi theo. Rón rén thì bước êm, đi ngang được.",
+		[["Z", "giữ để rón rén"], ["Shift", "đừng chạy nhanh"]])
+	await _wait(5)
+	await _shot("5c_meo_lan_dau")
+	main.hud.show_tip("", "", [], 0.0)
+	# Thứ Ba: ghi chú món trên phiếu, số trứng còn lại, thẻ mở đầu ngày
+	main.hud.set_order_note("thêm pate")
+	main.hud.set_eggs(4)
+	await _wait(5)
+	await _shot("5d_thu_ba_phieu_trung")
+	main.hud.set_order_note("không ớt", false)
+	main.hud.set_eggs(1)
+	main.hud.show_day_card("Thứ Ba", "Chợ tạm họp trên đường lớn, lò Cô Ba hết trứng.",
+		["Đơn 2: mua túi 6 trứng ở tạp hóa Cô Hai, đáp đất mạnh là vỡ", "Góc cờ công viên: đặt bánh lúc cả đám reo \"chiếu tướng\"", "Phiếu có ghi chú món: ráp đúng ý khách"])
+	await _wait(5)
+	await _shot("5e_the_mo_dau_ngay")
+	main.hud.show_day_card("", "", [], 0.0)
+	main.hud.set_order_note("")
+	main.hud.set_eggs(-1)
 	main.hud.set_pause_info(main._pause_info())
 	main.hud.toggle_pause()
 	await _shot("6_tam_dung")

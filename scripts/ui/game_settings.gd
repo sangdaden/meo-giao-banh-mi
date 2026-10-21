@@ -15,6 +15,8 @@ const DEFAULTS := {
 	"show_fps": false,
 	"hud_scale": 1,          # 0 nhỏ, 1 vừa, 2 to
 	"hints": true,           # gợi ý phím góc phải dưới
+	"tips": true,            # mẹo lần đầu (gầm thấp, gần Chó Mực, tới khách), mỗi mẹo hiện một lần
+	"tips_seen": "",         # các mẹo đã hiện, cách nhau bằng dấu phẩy
 }
 
 static var _data := {}

@@ -7,7 +7,8 @@ Chạy:  python3 tools/xuat_skin_game.py <thư_mục_skins> assets/models/skin [
 Kết quả:
 - phu_kien/<id>.glb: mỗi bộ phận một object, toạ độ tính từ điểm gắn của nó.
   Đồ ở chân được tách thành 4 chiếc (tên kết thúc __FL, __FR, __BL, __BR), gốc ở tâm bàn chân.
-- giong/<id>_duc.glb: thân + mắt, có bộ xương cùng tên với Bơ (root, spine, head, leg_*, tail_1..4, ear_*, eye_*, scarf)
+- giong/<id>_duc.glb: thân + mắt, có bộ xương chính thức 22 xương cùng tên với Bơ (root, hips, chest, head,
+  3 xương mỗi chân, tail_1..4, ear_*; thêm eye_*, scarf)
   để player.gd chạy được động tác; xương đặt theo số đo của từng giống, không lấy cứng của Bơ.
 - skin.json: điểm gắn của từng giống (sockets, tâm đầu, ma trận xoay đầu) và điểm gắn của từng object phụ kiện.
 """
@@ -150,8 +151,26 @@ def B(p):  # toạ độ dựng (three.js, Y lên, mèo nhìn +Z) -> Blender
     return Vector((p[0], -p[2], p[1]))
 
 
+def nearest_seg(p, segs):
+    """Các đoạn xương sắp theo khoảng cách từ p: (khoảng cách, tên)."""
+    d = []
+    for n, h, t in segs:
+        sg = t - h
+        kk = max(0.0, min(1.0, (p - h).dot(sg) / sg.length_squared))
+        d.append(((p - (h + sg * kk)).length, n))
+    d.sort()
+    return d
+
+
+def split2(d, w, total):
+    """Chia trọng số total cho đoạn gần nhất và đoạn kề nó để chỗ gập mềm."""
+    inv = [1.0 / (dist + .004) ** 3 for dist, _ in d[:2]]
+    for (dist, n), iv in zip(d[:2], inv):
+        w[n] = w.get(n, 0) + total * iv / sum(inv)
+
+
 def rig(cat, S, k):
-    """Bộ xương 16 xương như tools/bo_game.py nhưng đặt theo số đo của giống (S), nhân cỡ k."""
+    """Bộ xương chính thức 22 xương như tools/bo_game.py (+ mắt, khăn) nhưng đặt theo số đo của giống (S), nhân cỡ k."""
     hc = B(S['head'][0]) * k; body = B(S['body'][0]) * k
     fl, hl = S['fl'], S['hl']
     tail = [B(p) * k for p in cc.catmull(S['tail'][0], 8)]
@@ -167,18 +186,35 @@ def rig(cat, S, k):
                 return tail[i - 1].lerp(tail[i], t)
         return tail[-1]
     tp = [at(i / 4) for i in range(5)]
+    hip = Vector((0, -hl['z'], hl['top'])) * k
+    mid = Vector((0, body.y - .01 * k, body.z + .02 * k))
     bones = {
         'root': ((0, 0, 0), (0, 0, .08 * k), None),
-        'spine': (tuple(body + Vector((0, .13, .01)) * k), tuple(body + Vector((0, -.11, .05)) * k), 'root'),
-        'head': (tuple(hc + Vector((0, .07, -.09)) * k), tuple(hc + Vector((0, 0, .07)) * k), 'spine'),
-        'tail_1': (tuple(tp[0]), tuple(tp[1]), 'spine'), 'tail_2': (tuple(tp[1]), tuple(tp[2]), 'tail_1'),
+        'hips': (tuple(hip), tuple(mid), 'root'),
+        'chest': (tuple(mid), tuple(Vector((0, -fl['z'] - .02, fl['top'] + .04)) * k), 'hips'),
+        'head': (tuple(hc + Vector((0, .07, -.09)) * k), tuple(hc + Vector((0, 0, .07)) * k), 'chest'),
+        'tail_1': (tuple(tp[0]), tuple(tp[1]), 'hips'), 'tail_2': (tuple(tp[1]), tuple(tp[2]), 'tail_1'),
         'tail_3': (tuple(tp[2]), tuple(tp[3]), 'tail_2'), 'tail_4': (tuple(tp[3]), tuple(tp[4]), 'tail_3'),
     }
+    # Chân: vai/háng -> khuỷu/gối -> cổ chân (cao 4 cm) -> mũi bàn chân, như cột chân của catcore.legs_sdf.
+    # Khớp giữa đặt theo tỉ lệ đoạn trên của Bơ (trước 0,51, sau 0,52), lệch nhẹ về hướng gập.
     legs = {}
-    for n, Lg, s in (('leg_FL', fl, -1), ('leg_FR', fl, 1), ('leg_BL', hl, -1), ('leg_BR', hl, 1)):
-        x, y, top = s * Lg['x'] * k, -Lg['z'] * k, Lg['top'] * k
-        bones[n] = ((x, y, top), (x, y, .01), 'spine')
-        legs[n] = (x, y, top - .07 * k)
+    for leg, Lg, s, names, parent, frac, bend in (
+            ('FL', fl, -1, ('upperarm', 'forearm', 'paw'), 'chest', .508, .006),
+            ('FR', fl, 1, ('upperarm', 'forearm', 'paw'), 'chest', .508, .006),
+            ('BL', hl, -1, ('thigh', 'shin', 'paw'), 'hips', .516, -.006),
+            ('BR', hl, 1, ('thigh', 'shin', 'paw'), 'hips', .516, -.006)):
+        x = s * Lg['x']; dz = Lg.get('off', (0, 0))[0 if s < 0 else 1]
+        top = B((x, Lg['top'], Lg['z'])) * k
+        ankle = B((x, .04, Lg['z'] + .005 + dz)) * k
+        joint = top.lerp(ankle, frac) + Vector((0, bend, 0)) * k
+        toe = ankle + Vector((0, -.045, -.028)) * k
+        segs = [(f'{names[0]}_{leg}', top, joint), (f'{names[1]}_{leg}', joint, ankle), (f'{names[2]}_{leg}', ankle, toe)]
+        prev = parent
+        for n, h, t in segs:
+            bones[n] = (tuple(h), tuple(t), prev)
+            prev = n
+        legs[leg] = segs
     TAIL = ['tail_1', 'tail_2', 'tail_3', 'tail_4']
     me = cat.data
     mat_of = {}
@@ -201,7 +237,7 @@ def rig(cat, S, k):
         c = sum(pts, Vector()) / len(pts); tip = max(pts, key=lambda p: p.z)
         bones[n] = ((c.x, c.y, ear_z), tuple(tip), 'head')
     neck = B(S['neck'][0]) * k
-    bones['scarf'] = (tuple(neck + Vector((0, -.03, -.01))), tuple(neck + Vector((0, -.04, -.06))), 'spine')
+    bones['scarf'] = (tuple(neck + Vector((0, -.03, -.01))), tuple(neck + Vector((0, -.04, -.06))), 'chest')
 
     arm_data = bpy.data.armatures.new('MeoRig')
     arm = bpy.data.objects.new('MeoRig', arm_data)
@@ -211,6 +247,9 @@ def rig(cat, S, k):
     for name, (h, t, parent) in bones.items():
         b = arm_data.edit_bones.new(name)
         b.head, b.tail = Vector(h), Vector(t)
+        d = b.tail - b.head
+        if abs(d.x) < 1e-3:
+            b.align_roll(Vector((0, -d.z, d.y)))  # trục X cục bộ = +X của model, như tools/bo_game.py
         if parent:
             b.parent = arm_data.edit_bones[parent]
     bpy.ops.object.mode_set(mode='OBJECT')
@@ -219,10 +258,17 @@ def rig(cat, S, k):
     for v in me.vertices:
         x, y, z = v.co
         w = {}
-        for n, (lx, ly, top) in legs.items():
-            low = z < .06 * k  # bàn chân: nới hộp để ngón chân đi theo khi nhấc chân
-            if abs(x - lx) < (.06 if low else .05) * k and abs(y - ly) < (.11 if low else .075) * k and z < top + .04 * k:
-                w[n] = ramp(z, top + .04 * k, top - .06 * k)
+        p = Vector((x, y, z))
+        for leg, segs in legs.items():
+            # Phần thấp theo hẳn chân, lên gần thân chuyển dần sang chest/hips; chỉ lấy đỉnh quanh ống chân.
+            # Trong chân, mỗi đỉnh chia cho 2 đoạn gần nhất (trên, dưới, bàn chân) để khuỷu/gối gập mềm.
+            a_, e_ = segs[0][1], segs[1][2]
+            top = a_.z - .07 * k
+            ly = (a_.y + e_.y) / 2
+            if abs(x - a_.x) < .06 * k and abs(y - ly) < .11 * k and z < top + .04 * k:
+                d = nearest_seg(p, segs)
+                r_in, r_out = ((.042, .062) if leg[0] == 'F' else (.05, .075))
+                split2(d, w, ramp(z, top + .04 * k, top - .06 * k) * ramp(d[0][0], r_out * k, r_in * k))
         if y < hc.y + .12 * k and z > hc.z - .13 * k:
             w['head'] = ramp(z, hc.z - .12 * k, hc.z - .06 * k) * ramp(y, hc.y + .12 * k, hc.y + .06 * k)
         m = mat_of.get(v.index, '')
@@ -236,7 +282,6 @@ def rig(cat, S, k):
             e = 'ear_L' if x < 0 else 'ear_R'
             kk = ramp(z, ear_z, ear_z + .045 * k)
             w = {e: kk, 'head': 1.0 - kk}
-        p = Vector((x, y, z))
         d = []
         for n in TAIL:
             h, t = Vector(bones[n][0]), Vector(bones[n][1]); sg = t - h
@@ -250,7 +295,10 @@ def rig(cat, S, k):
             for (dist, n, _), iv in zip(d[:2], inv):
                 w[n] = w.get(n, 0) + base * iv / sum(inv)
         rest = max(0.0, 1.0 - sum(w.values()))
-        w['spine'] = w.get('spine', 0) + rest
+        if rest > 0:
+            kc = ramp(y, mid.y + .06 * k, mid.y - .06 * k)  # nửa trước theo chest, nửa sau theo hips
+            w['chest'] = w.get('chest', 0) + rest * kc
+            w['hips'] = w.get('hips', 0) + rest * (1 - kc)
         for n, val in w.items():
             if val > 0.001:
                 groups[n].add([v.index], val, 'REPLACE')

@@ -95,10 +95,13 @@ func _disc(r: float, h: float, y: float, color: Color) -> void:
 	mi.position.y = y
 	vp.add_child(mi)
 
+## Tắt thì Bơ đứng yên và khung 3D thôi vẽ (vd tủ kính trang chủ khi tủ đồ che lên).
 func set_active(on: bool) -> void:
 	if cat:
 		cat.set_process(on)
 	set_process(on)
+	if vp:
+		vp.render_target_update_mode = SubViewport.UPDATE_WHEN_PARENT_VISIBLE if on else SubViewport.UPDATE_DISABLED
 
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:

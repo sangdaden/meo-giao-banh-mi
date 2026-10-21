@@ -535,6 +535,8 @@ func _physics_process(delta: float) -> void:
 	_act_t += delta
 	if _act == "deliver" and not _released and _act_t >= (0.7 if _act_kind == "under_car" else 0.8):
 		_released = true
+		if _mouth_bread:
+			_mouth_bread.visible = false  # ẩn ngay để không thấy hai ổ (ổ bay đi do deliveries.gd vẽ)
 		bread_released.emit(_act_kind)
 	if _act != "" and _act_t >= _act_len:
 		var done := _act

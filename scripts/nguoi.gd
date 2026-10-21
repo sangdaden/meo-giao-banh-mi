@@ -34,6 +34,10 @@ const NAMES := {
 const SEAT := {"chutu": 0.45, "hung": 0.28, "basau": 0.42, "ongbay": 0.30, "ongtam": 0.30, "chunam": 0.45, "bancho": 0.18}
 const ONE_SHOT := ["nhan_banh", "goi_muc", "suyt", "mang", "reo", "dua_tui", "nhan_xe", "va", "xuong_xe"]
 
+## Mọi người dân Nguoi.make ra đều vào nhóm này: một người chỉ có một bản trong cảnh.
+## Cảnh phụ (người xem cờ...) hỏi in_scene() rồi mới dựng, nhường người đã có chỗ trong ngày (khách, chợ).
+const GROUP := "nguoi_dan"
+
 ## Model và mesh đã đổi màu cho bản web, dùng chung giữa các lần tạo
 static var _scenes := {}
 static var _srgb_meshes := {}
@@ -59,7 +63,16 @@ static func make(person_id: String, idle := "viec_rieng") -> Nguoi:
 	p.id = person_id
 	p.idle_anim = idle
 	p.name = "Nguoi_" + person_id
+	p.add_to_group(GROUP)
 	return p
+
+
+## Người id đã được dựng ở đâu đó trong cảnh chưa (khách của ngày, người chợ, hàng xóm...).
+static func in_scene(tree: SceneTree, person_id: String) -> bool:
+	for n in tree.get_nodes_in_group(GROUP):
+		if (n as Nguoi).id == person_id and not n.is_queued_for_deletion():
+			return true
+	return false
 
 
 func _ready() -> void:

@@ -8,6 +8,7 @@ signal landed
 signal noise_made(pos: Vector3, radius: float)
 signal stance_changed(stance: String)   ## HUD hiện chấm chỉ báo khi rón rén/chui
 signal deliver_finished(kind: String)   ## xong động tác giao bánh
+signal bread_released(kind: String)     ## lúc nhả ổ bánh khỏi miệng (0,8 s khi giao cao, 0,7 s khi giao thấp)
 signal startled                         ## giật mình (bị đớp, xe tông)
 signal slipped                          ## bắt đầu trượt trên vũng dầu
 
@@ -66,6 +67,21 @@ var _act := ""                    ## động tác đang diễn: "" | "deliver" |
 var _act_kind := ""
 var _act_t := 0.0
 var _act_len := 0.0
+var _released := false
+# Mức hoà các tư thế đã duyệt (0..1), để chuyển qua lại mượt
+var _sneak_amt := 0.0
+var _slide_amt := 0.0
+var _head_off := Vector3.ZERO     ## dời xương đầu (hệ model: +Y lên, +Z ra trước)
+var _head_roll := 0.0
+var _ear_spread := 0.0
+var _tail_fluff := 0.0
+var _eye_big := 0.0
+var _leg_extra := [0.0, 0.0, 0.0, 0.0]   ## góc cộng thêm cho từng chân theo tư thế
+var _fr_sweep := 0.0              ## chân trước phải vung ngang khi trượt
+var _mouth_bread: Node3D          ## ổ bánh gói giấy ngậm ở miệng khi giao
+var _bob := 0.0                   ## nhún người theo bước
+const BANH_GOI := preload("res://assets/models/do/banh_goi.glb")
+const MOUTH := Vector3(0, 0.368, 0.30)   ## điểm miệng trong hệ model Bơ (đã duyệt)
 
 var _coyote := 0.0
 var _buffer := 0.0
@@ -129,8 +145,12 @@ class Spring:
 	var v := 0.0
 
 	func step(target: float, stiff: float, damping: float, dt: float) -> float:
-		v += ((target - x) * stiff - v * 2.0 * sqrt(stiff) * damping) * dt
-		x += v * dt
+		# Chia nhỏ bước (≤ 1/120 s): máy yếu chạy 5–10 FPS thì một bước lớn làm lò xo nổ tung
+		var n := maxi(1, ceili(dt * 120.0))
+		var h := dt / n
+		for i in n:
+			v += ((target - x) * stiff - v * 2.0 * sqrt(stiff) * damping) * h
+			x += v * h
 		return x
 
 const BO_MODEL := preload("res://assets/models/bo.glb")
@@ -210,11 +230,28 @@ func _build_visual() -> void:
 		_apply_style(mi)
 
 	_build_bag()
+	_build_mouth_bread()
 	apply_outfit()
 	# Thân, khăn, túi và quai: góc nhìn thứ nhất không vẽ (vẫn đổ bóng), thay bằng hai chân trước riêng
 	for mi: MeshInstance3D in _body.find_children("*", "MeshInstance3D", true, false):
 		mi.layers = LAYER_BO_BODY
 	_build_fp_paws()
+
+
+## Ổ bánh gói giấy gắn vào xương đầu ở điểm miệng, chỉ hiện lúc giao (rút từ túi ra ngậm).
+func _build_mouth_bread() -> void:
+	var hi: int = _bone_idx.get("head", -1)
+	if hi < 0:
+		return
+	var att := BoneAttachment3D.new()
+	att.bone_name = "head"
+	_skel.add_child(att)
+	_mouth_bread = BANH_GOI.instantiate()
+	_mouth_bread.transform = _skel.get_bone_global_rest(hi).affine_inverse() * Transform3D(Basis(), MOUTH)
+	_mouth_bread.visible = false
+	att.add_child(_mouth_bread)
+	for mi: MeshInstance3D in _mouth_bread.find_children("*", "MeshInstance3D", true, false):
+		mi.layers = LAYER_BO_BODY
 
 
 ## Túi bánh đeo sát hông phải, quai vắt chéo qua lưng ôm theo thân.
@@ -386,6 +423,9 @@ func _physics_process(delta: float) -> void:
 			noise_made.emit(global_position, noise_land)
 	_was_on_floor = is_on_floor()
 	_act_t += delta
+	if _act == "deliver" and not _released and _act_t >= (0.7 if _act_kind == "under_car" else 0.8):
+		_released = true
+		bread_released.emit(_act_kind)
 	if _act != "" and _act_t >= _act_len:
 		var done := _act
 		_act = ""
@@ -512,23 +552,20 @@ func play_deliver(kind: String) -> void:
 	_act = "deliver"
 	_act_kind = kind
 	_act_t = 0.0
-	_act_len = {"hand": 0.9, "basket": 1.0, "counter": 1.1, "under_car": 1.2, "chair": 1.0}.get(kind, 0.9)
+	# giao_cao 1,2 s (đứng lên, nhả bánh ở 0,8 s) hoặc giao_thap 1,0 s (dáng chui đẩy bánh), rồi giao_xong 0,4 s
+	_act_len = (1.0 if kind == "under_car" else 1.2) + 0.4
+	_released = false
 	velocity.x = 0.0
 	velocity.z = 0.0
-	if kind == "counter" and is_on_floor():
-		velocity.y = jump_velocity * 0.75
 
 
-## Giật mình: nhảy dựng tại chỗ, lông đuôi xù, tai cụp, khựng lại một chút.
+## Giật mình: bật lên tại chỗ, cong lưng, tai dựng xoè, đuôi dựng thẳng xù to, mắt mở to.
 func play_startle() -> void:
 	_act = "startle"
 	_act_t = 0.0
 	_act_len = 0.6
 	if is_on_floor():
-		velocity.y = jump_velocity * 0.45
-	visual.scale = Vector3(0.85, 1.25, 0.85)
-	for i in 2:
-		_ear[i].v += 10.0
+		velocity.y = sqrt(2.0 * gravity * 0.09)  # bật lên 0,09 m
 	startled.emit()
 
 
@@ -577,13 +614,22 @@ func _animate(delta: float, hspeed: float, vy: float, on_floor: bool) -> void:
 	var landed_now := on_floor and not _was_floor_anim
 	_was_floor_anim = on_floor
 
-	# Dáng tạm cho chui/rón rén (thay bằng tư thế Blender khi Sang duyệt bản phác)
-	var crouch_t := 1.0 if stance == "crouch" else 0.0
-	crouch_amount = move_toward(crouch_amount, crouch_t, delta * 6.0)
-	var sneak_k := 1.0 if stance == "sneak" else 0.0
-	# Động tác: u chạy 0→1 trong thời gian diễn, pose = 0→1→0
-	var act_u := clampf(_act_t / maxf(_act_len, 0.01), 0.0, 1.0) if _act != "" else 0.0
-	var act_pose := sin(act_u * PI) if _act != "" else 0.0
+	# Tư thế đã duyệt (trang phác thảo động tác Thứ Hai), làm tạm trên 16 xương:
+	# chui vào/ra 0,25 s; rón rén; trượt dầu; giao cao/thấp; giật mình.
+	crouch_amount = move_toward(crouch_amount, 1.0 if stance == "crouch" else 0.0, delta / 0.25)
+	_sneak_amt = move_toward(_sneak_amt, 1.0 if stance == "sneak" else 0.0, delta / 0.3)
+	_slide_amt = move_toward(_slide_amt, 1.0 if _sliding else 0.0, delta / (0.15 if _sliding else 0.4))
+	var sneak_k := _sneak_amt
+	# Giao: lên dáng trong 0,3 s, giữ, rồi giao_xong 0,4 s cuối trở về
+	var dw := 0.0
+	if _act == "deliver":
+		dw = smoothstep(0.0, 0.3, _act_t) * (1.0 - smoothstep(_act_len - 0.4, _act_len, _act_t))
+	var high := dw if _act_kind != "under_car" else 0.0   # giao_cao: đứng lên hai chân sau
+	var low := dw if _act_kind == "under_car" else 0.0    # giao_thap: dáng chui đẩy bánh
+	var startle := sin(clampf(_act_t / 0.6, 0.0, 1.0) * PI) if _act == "startle" else 0.0
+	var cr := maxf(crouch_amount, low)                     # độ chui (kể cả lúc giao thấp)
+	if _mouth_bread:
+		_mouth_bread.visible = _act == "deliver" and _act_t > 0.25 and not _released
 	# Bước dài và chậm hơn khi rón rén, ngắn và nhanh khi chui
 	var gait := 2.2 if stance in ["walk", "sprint"] else (1.6 if stance == "sneak" else 3.0)
 	# Chân và nhún người
@@ -594,8 +640,8 @@ func _animate(delta: float, hspeed: float, vy: float, on_floor: bool) -> void:
 			swing *= 0.6
 		_legs = [swing, -swing, -swing, swing]
 		if _sliding:
-			_legs = [0.7, 0.7, -0.7, -0.7]  # trượt dầu: chân dạng ra, cứng đơ
-		_body.position.y = absf(sin(_phase)) * 0.04 * k
+			_legs = [0.35, 0.0, -0.3, -0.3]  # trượt dầu: chân cứng đơ
+		_bob = absf(sin(_phase)) * 0.04 * k
 		var side := signf(sin(_phase))
 		if hspeed > 0.3 and side != 0.0 and side != _step_side:
 			_step_side = side
@@ -613,26 +659,36 @@ func _animate(delta: float, hspeed: float, vy: float, on_floor: bool) -> void:
 	var pitch_target := clampf(-_accel * 0.012, -0.12, 0.12)
 	if not on_floor:
 		pitch_target = clampf(vy * 0.04, -0.3, 0.3)
-	if _sliding:
-		lean_target += sin(t * 9.0) * 0.18  # chao đảo
-	if _act == "deliver":
-		# Đưa tận tay/đặt quầy/ghế: ngẩng lên; gầm xe: chúi xuống đẩy vào; giỏ: vươn cao
-		pitch_target += act_pose * {"hand": 0.25, "basket": 0.45, "counter": 0.2, "under_car": -0.3, "chair": 0.3}.get(_act_kind, 0.2)
-	elif _act == "startle":
-		pitch_target += act_pose * 0.35
+	lean_target += _slide_amt * (deg_to_rad(11.0) + sin(t * 9.0) * 0.06)  # trượt: nghiêng 11°, chao nhẹ
+	pitch_target -= deg_to_rad(3.0) * sneak_k                            # rón rén: chúi 3°
+	pitch_target += deg_to_rad(54.0) * high                              # giao cao: ngửa thân 54° quanh hông
 	_body.rotation.z = _lean.step(lean_target, 120.0, 0.7, delta)
 	_body.rotation.x = _pitch.step(pitch_target, 150.0, 0.6, delta)
+	_body.rotation.y = deg_to_rad(6.0) * _slide_amt
 	if landed_now:
 		_pitch.v -= 2.5  # tiếp đất: thân khựng chúi tới rồi bật lại
+	# Xoay quanh hông (0; 0,2; 0,15 trong hệ visual, hông ở phía sau) thay vì quanh chân
+	var hip := Vector3(0, 0.2, 0.15)
+	_body.position = hip - Basis.from_euler(_body.rotation) * hip + Vector3(0, _bob - 0.13 * cr - 0.05 * sneak_k, 0)
 
 	# Thở khi đứng yên: ngực phồng nhẹ
 	var breath := sin(t * 2.4) * (1.0 - k)
 	_body.scale = Vector3(1.0 + 0.012 * breath, 1.0 + 0.008 * breath, 1.0 + 0.006 * breath)
-	# Chui: ép thân thấp xuống 0,25 m (tạm); rón rén: hạ thấp người
-	var low := lerpf(1.0, 0.45, crouch_amount) * lerpf(1.0, 0.85, sneak_k)
-	_body.scale *= Vector3(lerpf(1.0, 1.12, crouch_amount), low, lerpf(1.0, 1.08, crouch_amount))
-	if _act == "deliver" and _act_kind == "under_car":
-		_body.scale.y *= lerpf(1.0, 0.6, act_pose)
+	# Chui: nén cao 0,78, dài 1,1; giật mình: cong lưng (cao thêm 5%)
+	_body.scale *= Vector3(1.0, lerpf(1.0, 0.78, cr) * (1.0 + 0.05 * startle), lerpf(1.0, 1.1, cr))
+	# Chân: chui thì chân trước xoè ra trước 45°, chân sau ra sau 40°; giao cao thì hai chân trước co
+	# trước ngực, chân sau bù góc ngửa để vẫn đứng trên đất
+	# (góc xương chân: dương là vung ra sau theo hệ model)
+	var pre := -deg_to_rad(45.0) * cr - deg_to_rad(30.0) * high
+	var hind := deg_to_rad(40.0) * cr + deg_to_rad(54.0) * high
+	_leg_extra = [pre, pre, hind, hind]
+	_fr_sweep = _slide_amt * 0.9
+	# Đầu: chui hạ 0,15 m, đẩy trước 0,075; rón rén hạ 0,085, đẩy trước 0,055
+	_head_off = Vector3(0, -0.15, 0.075) * cr + Vector3(0, -0.085, 0.055) * sneak_k
+	_head_roll = -deg_to_rad(10.0) * _slide_amt
+	_tail_fluff = startle
+	_eye_big = startle
+	_ear_spread = startle
 
 	# Đầu: nhìn về hướng quẹo, gật ngược nhịp nhún, giữ thăng bằng khi thân chúi
 	_idle_time = _idle_time + delta if (hspeed < 0.3 and on_floor) else 0.0
@@ -644,9 +700,9 @@ func _animate(delta: float, hspeed: float, vy: float, on_floor: bool) -> void:
 	var yaw_target := clampf(_yaw_rate * 0.13, -0.45, 0.45) + look.x
 	var nod := sin(_phase * 2.0 + 0.6) * 0.06 * k if on_floor else 0.0
 	var head_pitch_target := look.y + nod - _body.rotation.x * 0.7
-	head_pitch_target += sneak_k * 0.25 + crouch_amount * 0.1   # rón rén: cúi đầu, mắt nhìn tới
-	if _act == "deliver":
-		head_pitch_target -= act_pose * 0.35  # ngửa đầu đưa ổ bánh tới
+	head_pitch_target += deg_to_rad(8.0) * sneak_k               # rón rén: cúi 8°
+	# Giao cao: so với thân, đầu cúi 36° (thân ngửa 54° nên mặt vẫn ngước lên)
+	head_pitch_target += (deg_to_rad(36.0) + 0.7 * deg_to_rad(54.0)) * high
 	if not on_floor:
 		head_pitch_target += clampf(-vy * 0.03, -0.25, 0.2)  # rơi thì cúi nhìn chỗ đáp
 	_head_yaw.step(yaw_target, 60.0, 0.8, delta)
@@ -654,9 +710,8 @@ func _animate(delta: float, hspeed: float, vy: float, on_floor: bool) -> void:
 
 	# Tai: chạy nhanh thì cụp ra sau, bay lên thì dựng; nảy khi tiếp đất; thỉnh thoảng giật
 	var ear_target := k * 0.55 - (0.25 if not on_floor and vy > 0.0 else 0.0)
-	ear_target += sneak_k * 0.35 + crouch_amount * 0.3   # rón rén/chui: tai xuôi ra sau
-	if _act == "startle":
-		ear_target = 1.0  # giật mình: tai cụp hẳn
+	ear_target += sneak_k * 0.35 + deg_to_rad(69.0) * cr   # rón rén/chui: tai ngả ra sau
+	ear_target = lerpf(ear_target, -0.25, startle)          # giật mình: tai dựng
 	for i in 2:
 		_ear[i].step(ear_target, 140.0, 0.35, delta)
 		if landed_now:
@@ -687,22 +742,36 @@ func _animate(delta: float, hspeed: float, vy: float, on_floor: bool) -> void:
 ## Xoay xương theo các góc tính ở trên. Trục X của xương là trục gập trước/sau.
 func _apply_bones() -> void:
 	for i in 4:
-		_pose(LEG_BONES[i], Vector3.RIGHT, _legs[i] * LEG_SWING_SIGN)
+		var q := Quaternion(Vector3.RIGHT, (_legs[i] + _leg_extra[i]) * LEG_SWING_SIGN)
+		if i == 1:
+			q = q * Quaternion(Vector3.FORWARD, _fr_sweep)  # trượt: chân trước phải vung ngang
+		_pose_q(LEG_BONES[i], q)
 	for i in _fp_paws.size():
 		# Thân Bơ quay ngược 180° trong visual nên trục X đổi chiều
 		_fp_paws[i].rotation.x = FP_PAW_LEAN - _legs[i] * LEG_SWING_SIGN
-	_pose_q("head", Quaternion(Vector3.UP, _head_yaw.x) * Quaternion(Vector3.RIGHT, _head_pitch.x))
+	_pose_q("head", Quaternion(Vector3.UP, _head_yaw.x) * Quaternion(Vector3.RIGHT, _head_pitch.x) * Quaternion(Vector3.FORWARD, _head_roll))
+	var hi: int = _bone_idx["head"]
+	if hi >= 0:
+		var parent := _skel.get_bone_parent(hi)
+		var pb := _skel.get_bone_global_rest(parent).basis if parent >= 0 else Basis()
+		_skel.set_bone_pose_position(hi, _skel.get_bone_rest(hi).origin + pb.inverse() * _head_off)
 	for i in 2:
 		var side := -1.0 if i == 0 else 1.0
 		var flick := sin(_ear_flick[i] * PI) * 0.5
-		_pose_q(["ear_L", "ear_R"][i], Quaternion(Vector3.RIGHT, _ear[i].x + flick) * Quaternion(Vector3.FORWARD, side * flick * 0.6))
+		_pose_q(["ear_L", "ear_R"][i], Quaternion(Vector3.RIGHT, _ear[i].x + flick) * Quaternion(Vector3.FORWARD, side * (flick * 0.6 + deg_to_rad(30.0) * _ear_spread)))
 	for eye in ["eye_L", "eye_R"]:
 		var idx: int = _bone_idx[eye]
 		if idx >= 0:
-			_skel.set_bone_pose_scale(idx, Vector3(1.0, 1.0 - 0.9 * sin(_blink * PI * 0.5), 1.0))
+			var big := 1.0 + 0.16 * _eye_big  # giật mình: mắt to 1,16
+			_skel.set_bone_pose_scale(idx, Vector3(big, big * (1.0 - 0.9 * sin(_blink * PI * 0.5)), big))
 	_pose_q("scarf", Quaternion(Vector3.RIGHT, _scarf_p.x) * Quaternion(Vector3.FORWARD, _scarf_r.x))
 	for i in 4:
 		_pose_q(TAIL_BONES[i], Quaternion(Vector3.RIGHT, -_tail_p[i]) * Quaternion(Vector3.BACK, _tail_y[i]))
+	# Giật mình: đuôi xù to gấp 1,75 bề ngang (chỉ đốt gốc, các đốt sau thừa hưởng tỉ lệ)
+	var ti: int = _bone_idx["tail_1"]
+	if ti >= 0:
+		var f := 1.0 + 0.75 * _tail_fluff
+		_skel.set_bone_pose_scale(ti, Vector3(f, 1.0, f))
 
 
 ## Đuôi mèo thật đổi dáng theo việc mèo đang làm:
@@ -733,22 +802,27 @@ func _update_tail(delta: float, hspeed: float, vy: float, on_floor: bool) -> voi
 		if not on_floor:
 			# Lên: cụp (+), xuống: vểnh (-). Chủ yếu ở gốc đuôi.
 			a += clampf(vy * 0.07, -0.6, 0.5) * (1.0 if i < 2 else 0.5)
-		if stance == "sneak" or stance == "crouch":
-			a += 0.3 * (1.0 if i < 2 else 0.4)  # đuôi hạ thấp, giữ ngang
+		if stance == "sneak":
+			a = lerpf(a, [0.15, 0.0, 0.0, -0.1][i], 0.8)    # rón rén: đuôi duỗi ngang
+		if stance == "crouch" or (_act == "deliver" and _act_kind == "under_car"):
+			a = deg_to_rad(15.0) if i == 0 else 0.0     # chui: đuôi duỗi thấp ra sau
 		if _act == "startle":
-			a = -0.7 if i < 2 else -0.2  # giật mình: đuôi dựng đứng
+			a = [-1.2, -0.1, 0.0, 0.0][i]               # giật mình: đuôi dựng thẳng
 		targets.append(a)
 
 	# Lắc ngang: đứng yên vẫy chậm, chạy thì vẫy nhẹ theo bước; quẹo thì văng ra ngoài
-	var sway := sin(t * (1.6 + k * 4.0)) * lerpf(0.18, 0.08, k)
+	var sway := sin(t * (1.6 + k * 4.0)) * lerpf(0.18, 0.08, k) + 0.5 * _slide_amt  # trượt: đuôi quét sang trái
 	for i in 4:
 		var yaw_target := sway * (0.4 + i * 0.3) - clampf(_yaw_rate * 0.12, -0.5, 0.5) * (0.5 + i * 0.25)
 		var stiff: float = TAIL_STIFF[i]
 		var damp := 2.0 * sqrt(stiff) * TAIL_DAMP
-		_tail_pv[i] += ((targets[i] - _tail_p[i]) * stiff - _tail_pv[i] * damp) * delta
-		_tail_p[i] += _tail_pv[i] * delta
-		_tail_yv[i] += ((yaw_target - _tail_y[i]) * stiff - _tail_yv[i] * damp) * delta
-		_tail_y[i] += _tail_yv[i] * delta
+		var n := maxi(1, ceili(delta * 120.0))  # chia nhỏ bước như Spring.step
+		var h := delta / n
+		for j in n:
+			_tail_pv[i] += ((targets[i] - _tail_p[i]) * stiff - _tail_pv[i] * damp) * h
+			_tail_p[i] += _tail_pv[i] * h
+			_tail_yv[i] += ((yaw_target - _tail_y[i]) * stiff - _tail_yv[i] * damp) * h
+			_tail_y[i] += _tail_yv[i] * h
 
 
 func _pose_q(bone_name: String, q: Quaternion) -> void:

@@ -4,7 +4,7 @@ extends Node3D
 ## Đơn 2 Thứ Ba: Cô Ba hết trứng, sai Bơ qua tạp hóa khối 2 mua một túi 6 trứng rồi mang về lò.
 ## Đồng hồ chạy từ lúc nhận việc ở lò tới lúc đặt túi trứng ở lò. Trên đường về, đáp đất từ cao
 ## hơn 1 m hoặc va người, xe đẩy, sạp chợ, xe máy là vỡ một quả (player.carry_fragile, gói này thêm).
-## Số trứng còn lại ghi vào GameState.eggs_left để màn bếp ráp nhanh ổ trứng cho đơn 3 (gói T3-5).
+## Số trứng còn lại ghi vào GameState.eggs_brought để màn bếp ráp nhanh ổ trứng cho đơn 3 (gói T3-5).
 ##
 ## Hai phần:
 ## - build(): vỏ tiệm và nội thất đứng yên (City dựng qua ô "tap_hoa" trong CityProps.SLOTS).
@@ -12,7 +12,7 @@ extends Node3D
 ##   Có model res://assets/models/pho/tap_hoa.glb (luồng Nhà và đồ phố) thì nạp model làm vỏ,
 ##   va chạm vẫn là các khối ở đây (ẩn hình).
 ## - Một node ShopTapHoa (deliveries.gd tạo khi trong ngày có đơn "errand"): Cô Hai đưa túi trứng,
-##   vết trứng vỡ, chỉ báo số trứng trên HUD, ghi số trứng cho màn bếp.
+##   vết trứng vỡ, chỉ báo số trứng trên HUD, ghi số trứng cho màn bếp (GameState.eggs_brought).
 ##   Đường đi và đồng hồ do main.gd lo (đơn errand: lấy đồ ở vùng quanh COUNTER_POINT, mang về lò).
 ## Toàn bộ là khối tạm. Nội thất, túi trứng, tư thế Bơ ngậm túi và animation Cô Hai chờ Sang duyệt
 ## trang "Phác thảo Thứ Ba".
@@ -250,9 +250,10 @@ func _on_delivered(index: int, _order_data: Dictionary) -> void:
 	player.carry_fragile("", 0)
 	_set_hud_eggs(-1)
 	_bag_on_counter.visible = true  # Cô Hai xếp túi khác lên quầy cho lần chơi sau
-	GameState.eggs_left = _delivered
-	var next := index + 1
-	GameState.quick_assemble_request = next if _main and next < (_main.get("orders") as Array).size() else -1
+	# Màn bếp (PR bếp Thứ Ba) khai GameState.eggs_brought; ghi qua set() để file này chạy được cả khi chưa có
+	var gs: Script = GameState
+	if "eggs_brought" in gs:
+		gs.set("eggs_brought", _delivered)
 	if _main and _main.get("result_notes") is Array and not (_main.result_notes as Array).is_empty():
 		_main.result_notes[-1] += ", về lò còn %d/%d trứng" % [_delivered, EGGS]
 	var tail := "Vào bếp ráp ổ trứng nha!" if _delivered > 0 else "Bể hết rồi, ổ trứng phải làm không trứng..."

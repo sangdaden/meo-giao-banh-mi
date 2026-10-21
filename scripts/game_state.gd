@@ -15,11 +15,6 @@ static var kitchen_stars := 0
 const ORDERS_PER_DAY := 5
 ## Sao bếp của từng ổ (5 phần tử, 0–3), màn bếp ghi. Rỗng = chưa có, dùng kitchen_stars cho mọi ổ.
 static var kitchen_stars_per_bread: Array[int] = []
-## Thứ Ba (gói T3-3): số trứng còn trong túi khi Bơ mang về lò, -1 = chưa đi mua.
-## Màn bếp ráp ổ trứng bằng số này (≤ 3 quả thì ổ trứng tối đa 1 sao bếp).
-static var eggs_left := -1
-## Đơn (0–4) cần ráp nhanh ở cận cảnh bàn ráp ngay sau đơn mua trứng, -1 = không có (gói T3-5 đọc).
-static var quick_assemble_request := -1
 ## Ngày đang chơi, dùng làm tên mục trong file lưu.
 static var day := "thu_hai"
 

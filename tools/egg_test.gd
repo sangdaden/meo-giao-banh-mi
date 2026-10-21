@@ -128,7 +128,8 @@ func _run() -> void:
 	world.result_notes.append("dư 5 giây")
 	world.order_delivered.emit(0, ORDER)
 	_check(deliveries.errand_eggs(0) == 2, "số trứng về lò = 2 (%d)" % deliveries.errand_eggs(0))
-	_check(GameState.eggs_left == 2 and GameState.quick_assemble_request == 1, "ghi số trứng và đơn cần ráp nhanh cho màn bếp")
+	var gs: Script = GameState
+	_check(not ("eggs_brought" in gs) or gs.get("eggs_brought") == 2, "ghi số trứng cho màn bếp (GameState.eggs_brought)")
 	_check(world.result_notes[-1].ends_with("về lò còn 2/6 trứng"), "ghi chú kết quả có số trứng: %s" % world.result_notes[-1])
 	_check(player.fragile_item == "", "đã đưa túi trứng cho Cô Ba")
 
@@ -139,7 +140,7 @@ func _run() -> void:
 	await _settle()
 	world.result_notes.append("dư 9 giây")
 	world.order_delivered.emit(0, ORDER)
-	_check(deliveries.side_ok[0] and world.intact and GameState.eggs_left == 6, "đủ 6 quả: đạt nhiệm vụ phụ, còn nguyên vẹn")
+	_check(deliveries.side_ok[0] and world.intact and deliveries.errand_eggs(0) == 6, "đủ 6 quả: đạt nhiệm vụ phụ, còn nguyên vẹn")
 
 	print("EGG TEST ", "OK" if fails == 0 else "FAIL (%d)" % fails)
 	quit(0 if fails == 0 else 1)

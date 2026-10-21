@@ -64,6 +64,7 @@ func _run() -> void:
 	# Mặc thử món khoá (chỉ xem trên bục)
 	wd.show_tab(1)
 	wd.preview.yaw = wd.preview.start_yaw
+	wd.preview.cat.play_idle_action("", 30.0)
 	for id in ["munlen", "kinhram", "tatsoc", "noduoi"]:
 		wd._try[Outfit.acc(id)[3]] = id
 	wd._refresh()
@@ -75,7 +76,8 @@ func _run() -> void:
 	wd.show_tab(0)
 	wd._try_breed = "muop"
 	wd._refresh()
-	await _wait(10)
+	wd.preview.cat.play_idle_action("", 30.0)
+	await _wait_s(1.0)
 	await _shot("3h_thu_giong")
 	wd.close()
 

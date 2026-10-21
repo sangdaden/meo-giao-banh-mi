@@ -35,6 +35,7 @@ const BASKET_Z := 3.15        ## thúng đặt trước khe giữa hai sạp, ph
 
 const MODEL_DIR := "res://assets/models/cho/"
 const PILE_STACK := 3         ## sạp dọn xong để lại mấy thúng chồng lên nhau
+const CROWD_VIEW_RANGE := 20.0  ## đám đông xa hơn chừng này (cao chưa tới 50 điểm ảnh) thì thôi vẽ: giữ tam giác và lệnh vẽ web
 const GANH_REACH := 0.8       ## hai đầu gánh cách vai Cô Bảy bao xa (va vào thúng gánh cũng là va người)
 const SHIRTS := [Color("#E39C7A"), Color("#5E8FB8"), Color("#F2E3B8"), Color("#8DB36F"), Color("#D7A9C4"), Color("#C9C3B3"), Color("#B85C7A")]
 var _hidden := Transform3D(Basis().scaled(Vector3.ZERO), Vector3(0, -50, 0))  ## giấu bản MultiMesh
@@ -92,7 +93,7 @@ var _spill_mm: MultiMesh
 var _shade_mm: MultiMesh          ## bóng giả dưới bạt sạp (sạp không đổ bóng thật)
 var _slots := {}                  ## MultiMesh model chợ -> {of: key -> chỗ, keys: chỗ -> key}
 var _ganh_mi: MeshInstance3D
-var _seller_stool: MeshInstance3D
+var _stool_mm: MultiMesh           ## thúng úp làm ghế cho người ngồi bán
 var _ganh_shopper: Shopper
 var _shirt_mm: MultiMesh
 var _body_mm: MultiMesh
@@ -528,12 +529,9 @@ func _fold(i: int, instant := false) -> void:
 	for s in _shoppers:
 		if s.seller and s.stall == i and not s.gone:
 			s.seller = false
-			# Người ngồi bán (Cô Tư) không có dáng đi: dọn sạp xong thì cất thúng ghế và vắng mặt luôn
-			var seated: bool = s.person != null and Nguoi.SEAT.has(s.person.id)
-			s.gone = instant or seated
-			s.leaving = not s.gone
-			if seated and _seller_stool:
-				_seller_stool.visible = false
+			s.gone = instant
+			s.leaving = not instant
+			_mm_hide(_stool_mm, i)  # người ngồi đứng dậy xách thúng ghế về luôn
 	if instant:
 		_mm_hide(_open_mm[st.kind], i)
 		_show_pile(i, 1.0)
@@ -657,46 +655,73 @@ func _draw_person(s: Shopper, xf: Transform3D) -> void:
 		p.play(s.stand_anim)
 
 
-## Sáu người chợ đã duyệt: Cô Tư bán rau (ngồi thúng úp), Cô Bảy gánh hàng, Bà Tư và Chị Hồng lựa hàng,
-## Anh Tâm đi dạo chợ. Những người còn lại vẫn là khối tạm cho tới khi có phác thảo.
+## Người chợ đã duyệt ở trang phác thảo Thứ Ba. Người có tên ở gần (Cô Tư bán rau, Cô Bảy gánh hàng,
+## Bà Tư và Chị Hồng lựa hàng, Anh Tâm dạo chợ) dùng bản nhẹ; đám đông còn lại lặp năm người chợ chung
+## (Cô Năm đứng bán, Chú Tám ngồi bán, Bé Thư, Ông Út, Chị Mai) ở bản "dong" ~600 tam giác cho vừa ngân sách web.
 ## (Chú Sáu đẩy xe bắp nướng nằm ở traffic.gd)
 func _cast_people() -> void:
 	var browsers: Array = []
 	var walkers: Array = []
-	var seller: Shopper
+	var sellers: Array = []
+	var cotu: Shopper
 	var best := INF
 	for s in _shoppers:
 		if s.ganh:
-			_give_person(s, "ganhhang", "ganh_di")
+			_give_person(s, "ganhhang", "ganh_di", "nhe")
 		elif s.seller:
+			sellers.append(s)
 			# Sạp rau gần giữa chợ dọn sau cùng: Cô Tư ngồi bán tới hết ngày
 			var st: Dictionary = _stalls[s.stall]
 			if st.kind == "rau" and absf(st.pos.x + 1.0) < best:
 				best = absf(st.pos.x + 1.0)
-				seller = s
+				cotu = s
 		elif s.browse:
 			browsers.append(s)
 		else:
 			walkers.append(s)
-	if seller:
-		_give_person(seller, "bancho", "ngoi_rao")
-		# Thúng úp làm ghế (cao 0,19 m, khớp mặt ghế 0,18 m của Cô Tư), đặt ngay dưới chỗ ngồi
-		_seller_stool = put(self, "thung", seller.a + Vector3(0, 0.19, 0))
-		_seller_stool.basis = Basis(Vector3.RIGHT, PI)
-	if browsers.size() >= 2:
-		_give_person(browsers[0], "dicho1", "dung_chon")
-		_give_person(browsers[1], "dicho3", "xem")
-	if not walkers.is_empty():
-		_give_person(walkers[0], "dicho2", "dung_chon")
+	_stool_mm = _model_mm("thung", sellers.size())
+	for k in sellers.size():
+		var s: Shopper = sellers[k]
+		if s == cotu:
+			_give_person(s, "bancho", "ngoi_rao", "nhe")
+		elif k % 2 == 0:
+			_give_person(s, "cho4", "mac_ca", "dong")
+		else:
+			_give_person(s, "cho8", "mac_ca", "dong")
+		var seat: float = Nguoi.SEAT.get(s.person.id, 0.0)
+		if seat > 0.0:
+			# Thúng úp làm ghế, kéo cao cho mặt thúng đúng mặt ghế của người ngồi (thúng thật cao 0,19 m)
+			var h := seat + 0.01
+			_mm_show(_stool_mm, s.stall, Transform3D(Basis(Vector3.RIGHT, PI).scaled(Vector3(1, h / 0.19, 1)), s.a + Vector3(0, h, 0)))
+	const BROWSE := [["cho5", "dung_chon"], ["cho7", "mac_ca"], ["cho6", "xem"]]
+	const WALK := ["cho6", "cho7", "cho5"]
+	for k in browsers.size():
+		if k == 0:
+			_give_person(browsers[k], "dicho1", "dung_chon", "nhe")
+		elif k == 1:
+			_give_person(browsers[k], "dicho3", "xem", "nhe")
+		else:
+			var b: Array = BROWSE[k % BROWSE.size()]
+			_give_person(browsers[k], b[0], b[1], "dong")
+	for k in walkers.size():
+		if k == 0:
+			_give_person(walkers[k], "dicho2", "dung_chon", "nhe")
+		else:
+			_give_person(walkers[k], WALK[k % WALK.size()], "dung_chon", "dong")
 
 
-func _give_person(s: Shopper, id: String, stand: String) -> void:
+func _give_person(s: Shopper, id: String, stand: String, ban: String) -> void:
 	var p := Nguoi.make(id, stand)
-	p.ban = "nhe"  # bản ~1,4k tam giác: chợ đông, giữ ngân sách web
+	p.ban = ban
 	p.look_target = player
 	s.person = p
 	s.stand_anim = stand
 	add_child(p)
+	if ban == "dong":
+		# Đám đông không đổ bóng thật: chợ ngày Thứ Ba sát ngân sách web (tam giác và lệnh vẽ)
+		for mi: MeshInstance3D in p.find_children("*", "MeshInstance3D", true, false):
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			mi.visibility_range_end = CROWD_VIEW_RANGE
 
 
 # ---------------------------------------------------------------- âm thanh

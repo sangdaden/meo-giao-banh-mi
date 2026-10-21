@@ -16,6 +16,7 @@ Hoạt hình 3D chững chạc, thân thiện (Zootopia, Puss in Boots). Không 
 - Bơ cao 0,6 m tới đỉnh tai. Đầu : thân ≈ 1 : 2,2; đầu to hơn thật 10–15%.
 - Đầu c(0,.43,.17) bán kính (.12,.105,.11). Thân c(0,.24,-.03) r(.108,.112,.19). Ngực c(0,.29,.11) r(.092,.1,.09).
 - Chân trước x ±.056, z .1, từ y .27, r .036→.029. Chân sau x ±.064, z -.15, từ y .22, r .04→.031; đùi sau c(±.064,.24,-.14) r(.058,.1,.09).
+- Đuôi ngắn như mèo nhà thật (Sang chỉnh 21/10, trước đó 0,53 m là quá dài): dài ~0,30 m dọc đường cong ≈ 0,55 × (đầu + thân ~0,55 m); gốc dày 6 cm, chóp 4,4 cm; rủ xuống rồi cong nhẹ lên, chóp cao ~0,42 m. Điểm `tail` trong chung2: (0,.27,-.2) (0,.25,-.285) (0,.29,-.35) (.012,.36,-.385) (.02,.42,-.375), bán kính .03 → .022. Rig 4 xương đuôi, mỗi xương ~7,5 cm. Các giống mèo khác theo tỉ lệ 0,55 (trừ giống cụt đuôi, giống đuôi xù chỉ dày hơn chứ không dài hơn).
 - Cổ rất ngắn, giấu dưới khăn (vòng khăn tâm (0,.335,.13), pháp tuyến (0,.9,.44)).
 - Dáng duyệt: đầu quay .28 rad, nghiêng .05, ngẩng .04 quanh (0,.34,.12); chân trước trái bước +3,5 cm, chân sau phải +3 cm; đuôi chữ S. Không duyệt ở dáng đứng thẳng đơ.
 
@@ -52,8 +53,8 @@ Bơ/skin 4–6k tam giác, texture 1024, 22 xương. Chó Mực 4–5k, 1024. Ng
 | neck (tâm vòng khăn) | (0, .335, .13), pháp tuyến (0, .9, .44) | neck |
 | shoulder | (0, .36, .06) | spine.3 |
 | back | (0, .352, -.03) | spine.2 |
-| tail_mid | (0, .33, -.39) | tail.2 |
-| tail_tip | (.03, .57, -.29) | tail.4 |
+| tail_mid | (0, .29, -.35) | tail.2 |
+| tail_tip | (.02, .42, -.375) | tail.4 |
 | paw.F.L / paw.F.R | (-.056, .022, .112) / (.056, .022, .112) | paw bones |
 | paw.B.L / paw.B.R | (-.064, .022, -.138) / (.064, .022, -.138) | paw bones |
 

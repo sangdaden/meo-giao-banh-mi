@@ -77,6 +77,8 @@ if STYLES['chung2'] is None:
                      pupil='slit', pupilw=.5, iris=('#F7D35E', '#CC8E2C'), ring='#8A5520', smilemouth=True)
     c2['pose'] = dict(yaw=.28, pitch=.04, roll=.05, pivot=(0, .34, .12))
     c2['blush'] = .3
+    # đuôi ngắn như mèo nhà thật (Sang 21/10): ~0,30 m dọc đường cong, rủ xuống rồi cong nhẹ lên
+    c2['tail'] = ([(0, .27, -.2), (0, .25, -.285), (0, .29, -.35), (.012, .36, -.385), (.02, .42, -.375)], (.03, .022))
     STYLES['chung2'] = c2
 S = STYLES[STYLE]
 

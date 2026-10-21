@@ -12,19 +12,26 @@ extends Node3D
 ##
 ## Animation có sẵn (mọi người): dung_yen, noi, vay, vui, sot_ruot, cho_banh, nhan_banh, viec_rieng.
 ## Người đứng có thêm di_bo; Bé Na có keo_day; Bà Sáu có goi_muc.
+## Thứ Ba (trang phác thảo Thứ Ba): Ông Bảy, Ông Tám viec_rieng = đánh cờ, thêm suyt, mang, reo;
+## Cô Hai dua_tui; Chú Năm cho_khach, nhan_xe, cho_di (tựa yên xe máy cao 0,93 m, chở khách);
+## người xem cờ (Ông Chín xemco, người đi chợ dicho1-3) xem, reo; người đi chợ thêm dung_chon, va;
+## Cô Tư bán rau (bancho, ngồi) ngoi_rao; Chú Sáu (hangrong) day_xe, quat_than, va; Cô Bảy (ganhhang) ganh_di, va.
 ## Người ngồi (Chú Tư, Anh Hùng, Bà Sáu, hai ông, Chú Năm) làm mọi động tác ở tư thế ngồi;
 ## gốc model là mặt đất, ghế đặt sao cho mặt ghế đúng chiều cao trong SEAT.
 
 signal finished(anim_name: String)
 
-const IDS := ["coba", "chutu", "bena", "may", "hung", "basau", "ongbay", "ongtam", "cohai", "chunam"]
+const IDS := ["coba", "chutu", "bena", "may", "hung", "basau", "ongbay", "ongtam", "cohai", "chunam",
+	"xemco", "bancho", "hangrong", "ganhhang", "dicho1", "dicho2", "dicho3"]
 const NAMES := {
 	"coba": "Cô Ba", "chutu": "Chú Tư", "bena": "Bé Na", "may": "Chị Mây", "hung": "Anh Hùng",
 	"basau": "Bà Sáu", "ongbay": "Ông Bảy", "ongtam": "Ông Tám", "cohai": "Cô Hai", "chunam": "Chú Năm",
+	"xemco": "Ông Chín", "bancho": "Cô Tư", "hangrong": "Chú Sáu", "ganhhang": "Cô Bảy",
+	"dicho1": "Bà Tư", "dicho2": "Anh Tâm", "dicho3": "Chị Hồng",
 }
 ## Chiều cao mặt ghế (m) của người ngồi, khớp với ROLES trong tools/nguoi_game.py
-const SEAT := {"chutu": 0.45, "hung": 0.28, "basau": 0.42, "ongbay": 0.28, "ongtam": 0.28, "chunam": 0.45}
-const ONE_SHOT := ["nhan_banh", "goi_muc"]
+const SEAT := {"chutu": 0.45, "hung": 0.28, "basau": 0.42, "ongbay": 0.30, "ongtam": 0.30, "chunam": 0.45, "bancho": 0.18}
+const ONE_SHOT := ["nhan_banh", "goi_muc", "suyt", "mang", "reo", "dua_tui", "nhan_xe", "va"]
 
 ## Model và mesh đã đổi màu cho bản web, dùng chung giữa các lần tạo
 static var _scenes := {}

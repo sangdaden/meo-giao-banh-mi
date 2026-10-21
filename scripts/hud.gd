@@ -56,6 +56,13 @@ var end_screen: Control
 var end_text: Label
 var _toast_time := 0.0
 var tip_card: PanelContainer
+var order_note: PanelContainer
+var order_note_label: Label
+var egg_pill: PanelContainer
+var egg_row: HBoxContainer
+var egg_label: Label
+var day_card: Control
+var _day_time := 0.0
 var tip_title: Label
 var tip_body: Label
 var tip_keys: HBoxContainer
@@ -84,6 +91,8 @@ func _ready() -> void:
 	_build_stance()
 	_build_hints()
 	_build_tip()
+	_build_eggs()
+	_build_day_card()
 
 	edge_arrow = EdgeArrow.new()
 	edge_arrow.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -147,6 +156,10 @@ func _process(delta: float) -> void:
 		var fps := Engine.get_frames_per_second()
 		fps_label.text = "%d FPS · %.1f ms" % [fps, 1000.0 / maxf(fps, 1.0)]
 		fps_label.add_theme_color_override("font_color", PAPER if fps >= 55 else (CRUST if fps >= 40 else RED))
+	if _day_time > 0.0:
+		_day_time -= delta
+		day_card.modulate.a = clampf(_day_time / 0.5, 0.0, 1.0)
+		day_card.visible = _day_time > 0.0
 	if _tip_time > 0.0:
 		_tip_time -= delta
 		tip_card.modulate.a = clampf(_tip_time / 0.4, 0.0, 1.0)
@@ -178,6 +191,8 @@ func show_playing_ui(on: bool) -> void:
 		stance_pill.visible = false
 	if tip_card and not on:
 		tip_card.visible = false
+	if egg_pill and not on:
+		egg_pill.visible = false
 
 
 ## color và initial là tuỳ chọn: màu áo và chữ cái của khách cho hình đại diện.
@@ -392,6 +407,14 @@ func _build_order_card() -> void:
 	kitchen_row.add_child(kitchen_stars)
 	kitchen_row.visible = false
 	col.add_child(kitchen_row)
+	# Ghi chú món của khách (Thứ Ba: "không ớt", "thêm pate"), như mẩu giấy ghim trên phiếu
+	order_note = PanelContainer.new()
+	order_note.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	order_note.add_theme_stylebox_override("panel", T.box(Color("#F7D35E"), 6, 8, Color(0, 0, 0, 0), 0))
+	order_note_label = T.label("", 14, INK, "bold")
+	order_note.add_child(order_note_label)
+	order_note.visible = false
+	col.add_child(order_note)
 
 
 func _build_timer() -> void:
@@ -504,6 +527,111 @@ func _build_stance() -> void:
 	stance_pill.visible = false
 
 
+## Ghi chú món của đơn đang giao trên phiếu ("" để ẩn). ok = false: ráp sai ghi chú, gạch đỏ.
+func set_order_note(text: String, ok := true) -> void:
+	if order_note == null:
+		return
+	order_note.visible = text != ""
+	order_note_label.text = "Ghi chú: " + text + ("" if ok else " · ráp sai")
+	order_note.add_theme_stylebox_override("panel", T.box(Color("#F7D35E") if ok else Color("#F2B8A8"), 6, 8, Color(0, 0, 0, 0), 0))
+	order_note_label.add_theme_color_override("font_color", INK if ok else T.RED)
+
+
+## Số trứng còn nguyên trong túi (Thứ Hai không có: gọi -1 để ẩn). Quả vỡ vẽ nứt và mờ đi.
+func set_eggs(left: int, total := 6) -> void:
+	if egg_pill == null:
+		return
+	egg_pill.visible = _playing and left >= 0
+	if left < 0:
+		return
+	if egg_row.get_child_count() != total:
+		for c in egg_row.get_children():
+			c.free()
+		for i in total:
+			var e := EggIcon.new()
+			e.custom_minimum_size = Vector2(22, 28)
+			e.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			egg_row.add_child(e)
+	for i in total:
+		var e: EggIcon = egg_row.get_child(i)
+		var broken := i >= left
+		if e.broken != broken:
+			e.broken = broken
+			e.queue_redraw()
+	egg_label.text = "Trứng %d/%d" % [left, total]
+	egg_label.add_theme_color_override("font_color", PAPER if left > total / 2 else (T.AMBER if left > 0 else T.RED))
+
+
+## Thẻ mở đầu ngày: tên ngày, một câu tình huống, vài dòng điều mới. Tự tắt sau `seconds` giây.
+func show_day_card(title: String, subtitle: String, lines: Array, seconds := 5.0) -> void:
+	day_card.get_meta("title").text = title
+	day_card.get_meta("sub").text = subtitle
+	var box: VBoxContainer = day_card.get_meta("lines")
+	for c in box.get_children():
+		c.queue_free()
+	for l in lines:
+		var h := HBoxContainer.new()
+		h.add_theme_constant_override("separation", 10)
+		var dot := Panel.new()
+		dot.custom_minimum_size = Vector2(10, 10)
+		dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		dot.add_theme_stylebox_override("panel", T.box(T.CRUST, 999, 0, INK, 2))
+		h.add_child(dot)
+		var lab := T.label(str(l), 17, INK, "bold")
+		lab.autowrap_mode = TextServer.AUTOWRAP_WORD
+		lab.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		h.add_child(lab)
+		box.add_child(h)
+	_day_time = seconds
+	day_card.modulate.a = 1.0
+	day_card.visible = seconds > 0.0
+
+
+func _build_eggs() -> void:
+	egg_pill = PanelContainer.new()
+	egg_pill.add_theme_stylebox_override("panel", T.box(Color(INK, 0.82), 999, 14, Color(0, 0, 0, 0), 0))
+	egg_pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_place(egg_pill, 0.0, 1.0, Rect2(28, -172, 0, 44))
+	egg_pill.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	play_root.add_child(egg_pill)
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 6)
+	egg_pill.add_child(h)
+	egg_label = T.label("", 15, PAPER, "bold")
+	egg_label.custom_minimum_size.x = 92
+	h.add_child(egg_label)
+	egg_row = HBoxContainer.new()
+	egg_row.add_theme_constant_override("separation", 3)
+	h.add_child(egg_row)
+	egg_pill.visible = false
+
+
+func _build_day_card() -> void:
+	day_card = PanelContainer.new()
+	day_card.add_theme_stylebox_override("panel", T.box(PAPER, 22, 26, INK, 4, 8))
+	day_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_place(day_card, 0.5, 0.5, Rect2(-300, -150, 600, 0))
+	root.add_child(day_card)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 8)
+	day_card.add_child(v)
+	v.add_child(T.stripe(10))
+	var title := T.label("", 44, INK, "display")
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(title)
+	var sub := T.label("", 18, T.MUTED, "bold")
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sub.autowrap_mode = TextServer.AUTOWRAP_WORD
+	v.add_child(sub)
+	var lines := VBoxContainer.new()
+	lines.add_theme_constant_override("separation", 6)
+	v.add_child(lines)
+	day_card.set_meta("title", title)
+	day_card.set_meta("sub", sub)
+	day_card.set_meta("lines", lines)
+	day_card.visible = false
+
+
 ## Thẻ mẹo lần đầu: nền giấy viền mực ở giữa phía dưới, nhãn "Mẹo", tiêu đề và các phím cần bấm.
 func _build_tip() -> void:
 	tip_card = PanelContainer.new()
@@ -551,7 +679,7 @@ func show_tip(title: String, body: String, keys: Array, seconds := 6.0) -> void:
 		tip_keys.add_child(gap)
 	_tip_time = seconds
 	tip_card.modulate.a = 1.0
-	tip_card.visible = _playing
+	tip_card.visible = _playing and seconds > 0.0
 
 
 func _build_hints() -> void:
@@ -1129,3 +1257,30 @@ class StampIcon:
 		if found:
 			draw_colored_polygon(PackedVector2Array([c + Vector2(0, -2), c + Vector2(-5, -6), c + Vector2(-5, 2)]), UiTheme.RED)
 			draw_colored_polygon(PackedVector2Array([c + Vector2(0, -2), c + Vector2(5, -6), c + Vector2(5, 2)]), UiTheme.RED)
+
+
+## Quả trứng nhỏ cho chỉ báo số trứng: trứng nguyên màu kem, trứng vỡ nứt đôi, lòng đỏ chảy ra.
+class EggIcon:
+	extends Control
+	var broken := false
+
+	func _draw() -> void:
+		var c := size / 2.0
+		var pts := PackedVector2Array()
+		for i in 24:
+			var a := TAU * i / 24.0
+			var r := Vector2(size.x * 0.42, size.y * 0.46)
+			var squash := 1.0 - 0.18 * maxf(0.0, sin(a))  # đầu dưới tròn hơn, đầu trên thon
+			pts.append(c + Vector2(cos(a) * r.x * squash, sin(a) * r.y))
+		var ink := UiTheme.INK
+		if broken:
+			draw_circle(c + Vector2(0, size.y * 0.22), size.x * 0.32, Color(UiTheme.AMBER, 0.75))
+			draw_colored_polygon(pts, Color("#CFC6B4"))
+			var crack := PackedVector2Array([c + Vector2(-size.x * 0.4, -2), c + Vector2(-size.x * 0.15, 3),
+				c + Vector2(0, -3), c + Vector2(size.x * 0.17, 3), c + Vector2(size.x * 0.4, -2)])
+			draw_polyline(crack, ink, 1.8, true)
+		else:
+			draw_colored_polygon(pts, Color("#FFF4DC"))
+			draw_circle(c + Vector2(-size.x * 0.12, -size.y * 0.16), size.x * 0.08, Color(1, 1, 1, 0.9))
+		pts.append(pts[0])
+		draw_polyline(pts, ink, 2.0, true)

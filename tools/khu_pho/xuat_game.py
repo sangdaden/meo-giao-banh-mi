@@ -319,9 +319,9 @@ for _f in FILLERS: BUILDINGS[_f['name']] = (lambda f=_f: filler(f))
 SON = '#FFFFFE'   # màu đánh dấu phần sơn xe (xe_may_son)
 
 # Trần số tam giác: quá thì giảm lưới (collapse), giữ khối chính.
-TARGET = dict(nha_G=4500, chung_cu=12000, nha_ba_sau=8000, cay_xanh=900, xe_may_son=900, xe_may_do=900, xe_may_den=900, xe_may_xanh=900, xe_may_trang=900,
+TARGET = dict(nha_G=4000, nha_C=3500, chung_cu=12000, nha_ba_sau=8000, cay_xanh=900, xe_may_son=900, xe_may_do=900, xe_may_den=900, xe_may_xanh=900, xe_may_trang=900,
               ba_gac=1200, ban_nang=1100, sap_bao=900, o_cho=700, xe_banh_mi=900)
-BUILDING_TARGET = 3000
+BUILDING_TARGET = 2500
 SPECIAL_TARGET = 7000
 PROP_TARGET = 600
 

@@ -1,0 +1,99 @@
+# Đo hiệu năng bản web mỗi lần mở PR hoặc cập nhật main (docs/ngan-sach-hieu-nang.md):
+# - Chạy game bằng renderer Compatibility (giống bản web) trên màn hình ảo, đếm lệnh vẽ,
+#   vật thể và tam giác ở các góc cố định của phố, bếp và màn hình chính. Vượt ngân sách thì đỏ.
+# - Xuất bản web và kiểm dung lượng file tải về.
+# - Ảnh chụp các góc được đính kèm ở mục Artifacts để soát ánh sáng.
+# Máy CI vẽ bằng CPU (llvmpipe) nên số FPS ở đây chỉ để tham khảo; số lệnh vẽ thì giống máy thật.
+name: Hiệu năng bản web
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: hieu-nang-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: "4.3"
+  # Dung lượng tối đa của index.pck (MB). index.wasm là engine, cố định khoảng 35 MB.
+  PCK_MAX_MB: "40"
+  LANG: C.UTF-8
+  LC_ALL: C.UTF-8
+
+jobs:
+  do:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot và export template
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}-web
+
+      - name: Tải Godot và template web
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          base=https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable
+          mkdir -p ~/godot
+          curl -sSL -o godot.zip "$base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip -d ~/godot
+          mv ~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64 ~/godot/godot
+          curl -sSL -o templates.tpz "$base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          dest=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          mkdir -p "$dest"
+          unzip -q -j templates.tpz 'templates/web_*' 'templates/version.txt' -d "$dest"
+          rm godot.zip templates.tpz
+
+      - name: Cài màn hình ảo và OpenGL phần mềm
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends xvfb xauth libgl1-mesa-dri libglx-mesa0 >/dev/null
+
+      - name: Nhập project
+        run: ~/godot/godot --headless --path . --import || true
+
+      - name: Đo lệnh vẽ, vật thể, tam giác (renderer Compatibility như bản web)
+        run: |
+          mkdir -p anh-hieu-nang
+          timeout 900 xvfb-run -a ~/godot/godot --path . --rendering-method gl_compatibility --rendering-driver opengl3 \
+            -s tools/do_hieu_nang.gd -- --chup=anh-hieu-nang 2>&1 | tee hieu-nang.log | grep "hieu nang"
+          {
+            echo "### Hiệu năng bản web (Compatibility)"
+            echo '```'
+            grep "\[hieu nang\]" hieu-nang.log | sed 's/^\[hieu nang\] //'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          grep -q "HIEU NANG OK" hieu-nang.log
+
+      - name: Xuất bản web và kiểm dung lượng tải
+        if: always()
+        run: |
+          mkdir -p build/web
+          ~/godot/godot --headless --path . --export-release "Web" build/web/index.html >/dev/null 2>&1
+          pck=$(stat -c %s build/web/index.pck)
+          wasm=$(stat -c %s build/web/index.wasm)
+          wasm_gz=$(gzip -9 -c build/web/index.wasm | wc -c)
+          pck_gz=$(gzip -9 -c build/web/index.pck | wc -c)
+          mb() { awk "BEGIN { printf \"%.1f\", $1 / 1048576 }"; }
+          line="index.pck $(mb $pck) MB (nén $(mb $pck_gz) MB), index.wasm $(mb $wasm) MB (nén $(mb $wasm_gz) MB), ngân sách pck ${PCK_MAX_MB} MB"
+          echo "$line"
+          echo "**Dung lượng tải:** $line" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$pck" -gt $((PCK_MAX_MB * 1048576)) ]; then
+            echo "::error::index.pck vượt ${PCK_MAX_MB} MB, xem docs/ngan-sach-hieu-nang.md"
+            exit 1
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: anh-hieu-nang
+          path: anh-hieu-nang
+          retention-days: 14

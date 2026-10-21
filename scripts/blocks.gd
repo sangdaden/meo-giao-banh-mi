@@ -110,7 +110,8 @@ static func label(parent: Node, text: String, pos: Vector3, size := 48, color :=
 ## Va chạm (StaticBody3D) vẫn giữ nguyên, chỉ phần hình được gộp.
 ## Model nhà và đồ phố (vật liệu PhoModels) nặng hơn khối nhiều nên gộp theo ô cell x cell mét:
 ## ô nằm ngoài camera thì không vẽ. Đồ nhỏ (dưới 1,5 m) gộp riêng và tắt khi xa hơn 45 m.
-## Khối mỏng sát đất (vạch kẻ, vỉa hè, vũng nước) không đổ bóng.
+## Model gộp được sinh LOD (ImporterMesh) để nhà ở xa vẽ ít tam giác hơn, cả ở lượt bóng.
+## Khối mỏng sát đất (vạch kẻ, vỉa hè, vũng nước) và đồ dưới 0,6 m không đổ bóng.
 static func merge_static(root: Node3D, cell := 0.0) -> void:
 	var tools := {}
 	var mats := {}
@@ -129,6 +130,7 @@ static func merge_static(root: Node3D, cell := 0.0) -> void:
 		if m == model_mat:
 			var c := aabb.get_center()
 			small = aabb.size.x < 1.5 and aabb.size.y < 1.5 and aabb.size.z < 1.5
+			no_shadow = no_shadow or (aabb.size.x < 0.6 and aabb.size.y < 0.6 and aabb.size.z < 0.6)
 			key += ":%d:%d:%s" % [floori(c.x / cell), floori(c.z / cell), small]
 		if no_shadow:
 			key += ":flat"
@@ -137,14 +139,21 @@ static func merge_static(root: Node3D, cell := 0.0) -> void:
 			st.begin(Mesh.PRIMITIVE_TRIANGLES)
 			tools[key] = st
 			mats[key] = m
-			info[key] = [small, no_shadow]
+			info[key] = [small, no_shadow, m == model_mat]
 		tools[key].append_from(mi.mesh, 0, xf)
+		mi.mesh = null  # bỏ mesh trước khi xoá node, nếu không bản headless báo 'Parameter "m" is null'
 		mi.get_parent().remove_child(mi)
 		mi.free()
 	for key in tools:
 		var out := MeshInstance3D.new()
 		out.name = "Merged"
-		out.mesh = tools[key].commit()
+		if info[key][2]:
+			var im := ImporterMesh.new()
+			im.add_surface(Mesh.PRIMITIVE_TRIANGLES, tools[key].commit_to_arrays(), [], {}, mats[key])
+			im.generate_lods(25, 60, [])
+			out.mesh = im.get_mesh()
+		else:
+			out.mesh = tools[key].commit()
 		out.material_override = mats[key]
 		if info[key][0]:
 			out.visibility_range_end = 45.0

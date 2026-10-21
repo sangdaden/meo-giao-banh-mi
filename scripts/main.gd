@@ -357,6 +357,8 @@ func _on_dog_bite() -> void:
 func _update_hud() -> void:
 	if order_index >= ORDERS.size():
 		return
+	if "stance" in player:  # dáng rón rén/chui do luồng động tác của Bơ thêm vào player.gd
+		hud.set_stance(player.stance)
 	var order: Dictionary = ORDERS[order_index]
 	if player.carrying:
 		hud.set_order(order_index, ORDERS.size(), "%s · %s" % [order.who, order.place], order.item, order.color)

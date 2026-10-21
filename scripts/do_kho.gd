@@ -46,6 +46,18 @@ const EASY := {
 	"market_walkers": 10,
 	# Leo chung cư (bếp: luồng "Thiết kế lại màn bếp" tự đọc DoKho.hard())
 	"apartment_time": 90.0,
+	"ledge_reach": 1.15,         # với tới mép cao 2,45 m (trước 2,2 m)
+	"wall_kick_max": 4,          # đạp tường 4 lần (trước 3)
+	"wall_gap_max": 2.0,         # khe rộng tới 2 m vẫn bật tường được (trước 1,5 m)
+	"pipe_speed": 2.0,           # leo ống nước 2 m/s (trước 1,4)
+	"baby_min_noise": 7.0,       # chỉ tiếng to (chạy nhanh, đáp mạnh) làm em bé trở mình; đi thường không sao
+	"lift_wait_min": 2.0,        # thang máy xuống 2–5 s (trước 4–10)
+	"lift_wait_max": 5.0,
+	"lift_block_chance": 0.15,   # Ông Bảy chắn cửa 15% (trước 30%), đứng 1,5 s (trước 2,5)
+	"lift_block_time": 1.5,
+	"lift_stuck_chance": 0.1,    # thang kẹt 10% (trước 20%), kẹt 1,5 s (trước 3)
+	"lift_stuck_time": 1.5,
+	"rattle_throw": 2.5,         # cục nóng rung đứng được 2,5 s mới hất (trước 1,4)
 }
 
 

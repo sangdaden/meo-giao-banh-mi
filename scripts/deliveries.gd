@@ -10,6 +10,8 @@ extends Node3D
 ##   Phụ: không giẫm vũng dầu nào (giẫm là in dấu chân dầu).
 ## - chair: Bà Sáu ngồi ghế mây dưới giàn bông giấy, nhận bánh rồi gọi "Mực, đừng làm bé mèo sợ".
 ##   Phụ: qua hẻm mà Chó Mực không hề thức.
+## - beside_tea (Thứ Ba): rón rén tới góc cờ, đặt túi cạnh ấm trà của Ông Bảy và Ông Tám
+##   (scripts/chess_corner.gd). Phụ: đặt đúng lúc chiếu tướng. Bị mắng thì đơn mất 1 sao.
 ##
 ## Cách dùng trong main.gd:
 ##   build_static(self, ORDERS) trước Blocks.merge_static (phần đứng yên được gộp lệnh vẽ),
@@ -25,6 +27,7 @@ const QUESTS := {
 	"khong_do_ly": "Không làm đổ ly cà phê nào",
 	"khong_dau": "Không giẫm vũng dầu nào",
 	"muc_ngu_yen": "Qua hẻm mà Chó Mực không thức",
+	"dat_luc_chieu": "Đặt túi đúng lúc chiếu tướng",
 }
 
 const PAPER := Color("#E8E2D0")
@@ -104,6 +107,9 @@ var _hand_hung := Vector3.ZERO
 var _bites := 0
 var _speech: Label3D
 
+# Thứ Ba đơn 3: góc cờ tướng
+var chess: ChessCorner
+
 
 # ---------------------------------------------------------------- dựng cảnh
 
@@ -127,6 +133,10 @@ func build_static(parent: Node3D, order_list: Array) -> void:
 				_build_hung(parent, i, p, o.color, title)
 			"chair":
 				_build_sau(parent, i, p, o.color, title)
+			"beside_tea":
+				if chess == null:
+					ChessCorner.build_static(parent)
+					chess = ChessCorner.new()
 	for pd in PUDDLES:
 		var m := Blocks.box(parent, Vector3(pd.size.x, 0.02, pd.size.y), pd.pos + Vector3(0, 0.055, 0), WATER)  # trên mặt vỉa hè 0,04 m
 		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -251,6 +261,8 @@ func _head(parent: Node3D, pos: Vector3) -> void:
 
 ## Phần chuyển động, dựng khi node vào cây cảnh (sau merge_static nên không bị gộp).
 func _ready() -> void:
+	if chess:
+		add_child(chess)
 	for a in _arms:
 		var pivot := Node3D.new()
 		pivot.position = a.pos
@@ -351,6 +363,8 @@ func setup(p: CharacterBody3D, d: Node, h: CanvasLayer, is_autotest := false) ->
 	autotest = is_autotest
 	if dog and dog.has_signal("bit_player"):
 		dog.bit_player.connect(func(): _bites += 1)
+	if chess:
+		chess.setup(player, hud)
 
 
 # ---------------------------------------------------------------- vòng đơn
@@ -360,6 +374,11 @@ func stand_point(i: int) -> Vector3:
 	if _kind[i] == "basket":
 		return _moto_na
 	return orders[i].pos
+
+
+## Đơn i bị trừ 1 sao vì lý do riêng của cách giao (góc cờ: hai ông mắng vì chạy nhanh, đụng bàn).
+func star_lost(i: int) -> bool:
+	return _kind[i] == "beside_tea" and chess != null and chess.scolded
 
 
 ## Tên nhiệm vụ phụ của đơn i.
@@ -384,6 +403,8 @@ func on_pick_up(i: int) -> void:
 				_reset_glass(g)
 		"under_car":
 			_oiled = false
+		"beside_tea":
+			chess.begin_order()
 	if _kind[i] == "chair" and _speech:
 		_speech.visible = false
 
@@ -418,8 +439,12 @@ func step(i: int, in_zone: bool, _delta: float) -> bool:
 			hint = "[E] Đặt bánh lên quầy"
 		"under_car":
 			hint = "[E] Đưa vào tay Anh Hùng"
+		"beside_tea":
+			hint = "[E] Đặt túi cạnh ấm trà"
 	if autotest and kind != "basket":
 		pressed = in_zone
+		if kind == "beside_tea":
+			pressed = in_zone and chess.distracted  # autotest đợi chiếu tướng để thử nhiệm vụ phụ
 	_prompt.visible = ready
 	if ready:
 		_prompt.text = hint
@@ -437,6 +462,11 @@ func step(i: int, in_zone: bool, _delta: float) -> bool:
 			_play_deliver(kind)
 		"chair":
 			_deliver_sau(i)
+		"beside_tea":
+			_play_deliver(kind)
+			side_ok[i] = chess.deliver()
+			if side_ok[i]:
+				_toast("Đặt túi đúng lúc chiếu tướng, chẳng ai để ý!", 2.0, 1.8)
 		_:
 			_play_deliver(kind)
 	current = -1

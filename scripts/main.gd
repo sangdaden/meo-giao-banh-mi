@@ -262,7 +262,7 @@ func _deliver(order: Dictionary) -> void:
 	var r := Scoring.order_done(order_index, {
 		"time_ratio": 0.0 if late else time_left / _time_limit(order),
 		"late": late,
-		"intact": intact,
+		"intact": intact and not deliveries.star_lost(order_index),  # góc cờ: bị mắng thì mất 1 sao
 		"kitchen_star": Scoring.kitchen_star_for(order_index),
 		"side_quest": order.get("side_quest", ""),
 		"side_quest_ok": side_quest_ok,
@@ -276,6 +276,8 @@ func _deliver(order: Dictionary) -> void:
 		note = "qua mặt Chó Mực" + (", bị đớp %d lần" % bites if bites > 0 else "")
 	elif not intact:
 		note += ", bánh bị dập"
+	if deliveries.star_lost(order_index):
+		note += ", bị hai ông mắng"
 	result_notes.append(note)
 	if late:
 		hud.show_toast("Giao trễ cho %s: 1 sao, không có tiền boa." % order.who, 2.5)

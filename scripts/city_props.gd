@@ -36,6 +36,7 @@ const BE_NA_BIKE := Vector3(25.2, 0, -15.6)      ## xe máy đậu dưới ban c
 const BE_NA_BALCONY := Vector3(25.2, 6.0, -16.2) ## sàn ban công tầng 3
 const CAFE_COUNTER := Vector3(5.4, 0.9, 6.3)     ## mặt quầy Chị Mây
 const SHOP_BACK_DOOR := Vector3(32.3, 0, 16.7)   ## cửa sau tiệm xe nhìn ra hẻm khối 6
+const CHESS_CORNER := Vector3(-29.0, 0, 8.5)     ## tâm bàn cờ góc công viên khối 4 (chess_corner.gd, đơn 3 Thứ Ba)
 
 ## Làn xe đẩy hàng rong (traffic.gd): vỉa hè khối 3 và khối 6 nhìn ra đường lớn, tránh cột điện (31, 6) và chồng thùng khối 3
 const CART_LANES := [

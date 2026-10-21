@@ -1225,6 +1225,14 @@ func _task_text() -> String:
 func _update_hud() -> void:
 	hud.set_timer(time_left, time_limit, state == State.PLAY)
 	if easy and not quick:
+		if first_shift:
+			hud.set_clock(true, "Ca đầu · không tính giờ")
+		elif not seq.is_empty():
+			hud.set_clock(false, "Đồng hồ dừng khi đang làm")
+		elif time_left > 0.0:
+			hud.set_clock(false, "Xong trước khi hết giờ: thêm 1 sao")
+		else:
+			hud.set_clock(false, "Hết giờ cũng không sao, cứ làm tiếp")
 		var held := _item_name(holding) if holding != "" else ""
 		hud.set_task("VIỆC BÂY GIỜ · Ổ %d/%d" % [made, LOAVES], _task_text(), held)
 		var oven_s: String = {"trong": "", "nuong": "Lò · đang nướng %d" % ceili(bake_time - oven_t), "chin": "Lò · bánh chín!", "chay": "Lò · cháy!"}[oven_state]

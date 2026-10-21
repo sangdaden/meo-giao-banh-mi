@@ -69,6 +69,7 @@ var _debug := "--sound-log" in OS.get_cmdline_user_args()
 
 
 func _ready() -> void:
+	UiTheme.install_symbol_fallback()  # ★ ✓ ▲ không hiện thành ô số
 	process_mode = Node.PROCESS_MODE_ALWAYS  # nhạc và bảng âm lượng vẫn chạy khi tạm dừng
 	for b in BUSES:
 		if AudioServer.get_bus_index(b) == -1:

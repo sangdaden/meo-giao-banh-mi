@@ -26,6 +26,9 @@ var state := State.MENU
 var order_index := 0
 var time_left := 0.0
 var results: Array = []  # số sao từng đơn, 0 là trễ
+var result_notes: Array = []  # ghi chú từng đơn cho màn kết quả ("dư 6 giây", "trễ"...)
+var carry_time := 0.0  # số giây đã mang bánh, để tính bánh còn nóng hay nguội
+var bites := 0  # số lần bị Chó Mực đớp trong đơn hiện tại
 
 var player: CharacterBody3D
 var rig: Node3D
@@ -75,16 +78,20 @@ func _ready() -> void:
 	hud.start_pressed.connect(start_game)
 	hud.restart_pressed.connect(restart)
 	add_child(preload("res://scripts/sound_director.gd").new())  # nhạc và tiếng động
+	hud.menu_pressed.connect(_to_menu)
 
+	GameSettings.apply_graphics(get_tree())
+	GameSettings.apply_camera(get_tree())
+	GameSettings.watch_camera(get_tree())
+
+	# Màn hình chính nằm ở scenes/menu.tscn, nên mở cảnh này là vào chơi luôn.
 	_autotest = "--autotest" in OS.get_cmdline_user_args()
 	if _autotest:
 		print("[autotest] bắt đầu")
-		start_game()
-	elif GameState.from_kitchen:
-		# Vừa làm xong màn bếp: vào giao luôn, đồng hồ mỗi đơn được cộng điểm bếp
-		start_game()
-		if GameState.kitchen_bonus > 0.0:
-			hud.show_toast("Bếp được %d sao: mỗi đơn cộng thêm %d giây!" % [GameState.kitchen_stars, int(GameState.kitchen_bonus)], 3.0)
+	start_game()
+	if GameState.from_kitchen and GameState.kitchen_bonus > 0.0:
+		# Vừa làm xong màn bếp: đồng hồ mỗi đơn được cộng điểm bếp
+		hud.show_toast("Bếp được %d sao: mỗi đơn cộng thêm %d giây!" % [GameState.kitchen_stars, int(GameState.kitchen_bonus)], 3.0)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -97,6 +104,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				restart()
 		State.PLAY:
 			if event.is_action_pressed("pause"):
+				hud.set_pause_info(_pause_info())
 				hud.toggle_pause()
 			elif event is InputEventMouseButton and event.pressed and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 				Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -106,6 +114,7 @@ func start_game() -> void:
 	state = State.PLAY
 	order_index = 0
 	results.clear()
+	result_notes.clear()
 	player.carrying = false
 	player.can_move = true
 	if not _autotest:
@@ -114,6 +123,20 @@ func start_game() -> void:
 	hud.show_playing_ui(true)
 	hud.set_progress(results)
 	hud.show_toast("Chạy tới lò bánh Cô Ba nhận đơn 1!")
+
+
+func _to_menu() -> void:
+	get_tree().paused = false
+	get_tree().change_scene_to_file("res://scenes/menu.tscn")
+
+
+func _pause_info() -> String:
+	if order_index >= ORDERS.size():
+		return ""
+	var order: Dictionary = ORDERS[order_index]
+	if player.carrying:
+		return "Đơn %d/%d · %s · đồng hồ đứng ở 0:%02d" % [order_index + 1, ORDERS.size(), order.who, int(ceil(time_left))]
+	return "Đơn %d/%d · đang về lò nhận bánh" % [order_index + 1, ORDERS.size()]
 
 
 func restart() -> void:
@@ -132,6 +155,7 @@ func _physics_process(delta: float) -> void:
 			_pick_up(order)
 	else:
 		time_left -= delta
+		carry_time += delta
 		if customer_zones[order_index].overlaps_body(player):
 			_deliver(order)
 		elif time_left <= 0.0:
@@ -163,6 +187,8 @@ func _current_goal() -> Vector3:
 func _pick_up(order: Dictionary) -> void:
 	player.carrying = true
 	time_left = _time_limit(order)
+	carry_time = 0.0
+	bites = 0
 	dog.awake = order.get("boss", false)
 	hud.show_toast("Nhận %s! Giao cho %s ở %s" % [order.item, order.who, order.place])
 	if dog.awake:
@@ -178,12 +204,17 @@ func _deliver(order: Dictionary) -> void:
 	var ratio: float = time_left / _time_limit(order)
 	var stars: int = 3 if ratio >= 0.5 else (2 if ratio >= 0.25 else 1)
 	results.append(stars)
+	var note := "dư %d giây" % int(ceil(time_left))
+	if order.get("boss", false):
+		note = "qua mặt Chó Mực" + (", bị đớp %d lần" % bites if bites > 0 else "")
+	result_notes.append(note)
 	hud.show_toast("Giao xong cho %s! %d sao" % [order.who, stars])
 	_next_order()
 
 
 func _fail(order: Dictionary) -> void:
 	results.append(0)
+	result_notes.append("hết giờ")
 	hud.show_toast("Trễ đơn của %s rồi! Quay về lò nhận đơn tiếp." % order.who, 2.5)
 	_next_order()
 
@@ -201,14 +232,15 @@ func _end_game() -> void:
 	state = State.END
 	player.can_move = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	var lines := ""
+	var rows := []
 	var total := 0
 	for i in ORDERS.size():
 		var s: int = results[i]
 		total += s
-		lines += "Đơn %d · %s (%s): %s\n" % [i + 1, ORDERS[i].who, ORDERS[i].place, ("%d sao" % s) if s > 0 else "trễ"]
-	lines += "\nTổng cộng %d/15 sao" % total
-	hud.show_end(lines)
+		rows.append({"who": ORDERS[i].who, "place": ORDERS[i].place, "item": ORDERS[i].item,
+			"color": ORDERS[i].color, "stars": s, "note": result_notes[i]})
+	hud.show_results(rows)
+	_save_record(total)
 	print("[ket qua] ", results, " tong ", total)
 	if _autotest:
 		var ok := results.size() == 5 and results.all(func(s): return s > 0) and _bitten
@@ -216,8 +248,18 @@ func _end_game() -> void:
 		get_tree().quit(0 if ok else 1)
 
 
+## Lưu kỷ lục sao để màn hình chính hiện.
+func _save_record(total: int) -> void:
+	var cf := ConfigFile.new()
+	cf.load("user://ky_luc.cfg")
+	if total > int(cf.get_value("ky_luc", "sao", -1)):
+		cf.set_value("ky_luc", "sao", total)
+		cf.save("user://ky_luc.cfg")
+
+
 func _on_dog_bite() -> void:
 	_bitten = true
+	bites += 1
 	time_left = maxf(time_left - BITE_PENALTY, 0.1)
 	player.knockback(dog.global_position)
 	hud.show_toast("Chó Mực đớp mất %d giây!" % int(BITE_PENALTY))
@@ -228,13 +270,17 @@ func _update_hud() -> void:
 		return
 	var order: Dictionary = ORDERS[order_index]
 	if player.carrying:
-		hud.set_order(order_index, ORDERS.size(), "%s · %s" % [order.who, order.place], order.item)
+		hud.set_order(order_index, ORDERS.size(), "%s · %s" % [order.who, order.place], order.item, order.color)
 		hud.set_timer(time_left, _time_limit(order), true)
-		hud.set_distance(player.global_position.distance_to(order.pos), "Tới chỗ khách")
+		hud.set_distance(player.global_position.distance_to(order.pos), order.place)
+		hud.set_goal(order.pos + Vector3.UP)
+		hud.set_bread(true, order.item, 1.0 - carry_time / 45.0)  # nguội hẳn sau 45 giây
 	else:
-		hud.set_order(order_index, ORDERS.size(), "Lò bánh Cô Ba", "Tới lò nhận bánh")
+		hud.set_order(order_index, ORDERS.size(), "Lò bánh Cô Ba", "Tới lò nhận " + order.item, Color("#D98E2B"), "B")
 		hud.set_timer(0, 1, false)
-		hud.set_distance(player.global_position.distance_to(City.BAKERY_POINT), "Tới lò bánh")
+		hud.set_distance(player.global_position.distance_to(City.BAKERY_POINT), "Lò bánh Cô Ba")
+		hud.set_goal(City.BAKERY_POINT + Vector3.UP)
+		hud.set_bread(false)
 
 
 # ---------------------------------------------------------------- dựng cảnh

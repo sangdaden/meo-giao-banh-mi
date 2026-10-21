@@ -37,8 +37,16 @@ const BE_NA_BALCONY := Vector3(25.2, 6.0, -16.2) ## sàn ban công tầng 3
 const CAFE_COUNTER := Vector3(5.4, 0.9, 6.3)     ## mặt quầy Chị Mây
 const SHOP_BACK_DOOR := Vector3(32.3, 0, 16.7)   ## cửa sau tiệm xe nhìn ra hẻm khối 6
 
+## Làn xe đẩy hàng rong (traffic.gd): vỉa hè khối 3 và khối 6 nhìn ra đường lớn, tránh cột điện (31, 6) và chồng thùng khối 3
+const CART_LANES := [
+	[Vector3(21.5, 0, -6.1), Vector3(38.6, 0, -6.1)],
+	[Vector3(32.0, 0, 6.1), Vector3(42.5, 0, 6.1)],
+]
+
 ## Vùng không thả xe máy ngẫu nhiên (x_min, z_min, cỡ)
 const KEEP_CLEAR := [
+	Rect2(20.8, -6.2, 18.5, 0.2),   # làn xe đẩy khối 3
+	Rect2(31.3, 6.0, 11.9, 0.2),    # làn xe đẩy khối 6
 	Rect2(-10.0, 4.9, 17.0, 2.2),   # bàn ghế quán cà phê và chồng thùng bên hông
 	Rect2(-12.5, -6.2, 3.5, 1.2),   # chồng thùng leo mái hiên khối 2
 	Rect2(-22.0, 5.0, 8.0, 25.0),   # hẻm 42

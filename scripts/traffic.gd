@@ -487,6 +487,9 @@ func _sidewalk_lines() -> Array:
 
 func _build_walkers(rng: RandomNumberGenerator) -> void:
 	var lines := _sidewalk_lines()
+	# Bỏ ba mặt phố đã kín đồ (lò bánh Cô Ba, sạp báo Chú Tư, bàn ghế quán cà phê Mây) để người đi bộ không đi xuyên qua
+	for busy in [9, 3, 0]:
+		lines.remove_at(busy)
 	for k in 10:
 		var w := Walker.new()
 		var line: Array = lines[(k * 7) % lines.size()]
@@ -538,8 +541,10 @@ func _place_walker(w: Walker, delta: float) -> void:
 
 ## Xe đẩy hàng rong: thùng gỗ có tủ kính, người bán đẩy phía sau; Bơ nhảy lên nóc được.
 func _build_carts(rng: RandomNumberGenerator) -> void:
-	var lines := _sidewalk_lines()
-	var picks := [lines[0], lines[9]]  # vỉa hè khối lò bánh và khối 5, cùng nhìn ra đường lớn
+	# Vỉa hè khối 3 và khối 6 nhìn ra đường lớn, cách mặt tiền 0,9 m để thùng xe không lấn vào tường.
+	# Vỉa hè khối lò bánh và khối 5 đã kín đồ (tủ bánh Cô Ba, bàn ghế cà phê) nên xe không đi ở đó.
+	# Hai làn này nằm trong CityProps.KEEP_CLEAR để xe máy đậu không chắn đường xe đẩy.
+	var picks := [CityProps.CART_LANES[0], CityProps.CART_LANES[1]]
 	var kinds := [["Bánh mì", Color("#E8C98A")], ["Chè", Color("#7FB7A4")]]
 	for k in picks.size():
 		var w := Walker.new()

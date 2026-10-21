@@ -47,7 +47,7 @@ const DATA := {
 		"time_mult": 1.0,
 		"extras": {"market": true, "chess_corner": true, "shop_tap_hoa": true, "dog_sleeps_at_alley_mouth": true},
 		"orders": [
-			{"who": "Chú Năm", "place": "Xe ôm đầu hẻm 42", "item": "1 ổ thịt nguội", "note": "khong_ot", "pos": Vector3(-12.6, 0, 6.2), "time": 17.0, "color": Color("#4F7FA8"), "delivery": "on_seat", "side_quest": "kip_xe_om"},
+			{"who": "Chú Năm", "place": "Xe ôm đầu hẻm 42", "item": "1 ổ thịt nguội", "note": "khong_ot", "pos": Vector3(-17.5, 0, 10.0), "time": 17.0, "color": Color("#4F7FA8"), "delivery": "on_seat", "side_quest": "kip_xe_om"},
 			{"who": "Cô Hai", "place": "Tạp hóa", "item": "1 túi 6 trứng", "kind": "errand", "errand_item": "trung6", "pos": Vector3(8.0, 0, -6.0), "time": 25.0, "color": Color("#E39C7A"), "delivery": "errand", "side_quest": "du_6_trung"},
 			{"who": "Ông Bảy, Ông Tám", "place": "Góc cờ công viên", "item": "1 ổ pate, 1 ổ trứng", "pos": Vector3(-30.0, 0, 9.0), "time": 22.0, "color": Color("#7A8B5A"), "delivery": "beside_tea", "side_quest": "dat_luc_chieu"},
 			{"who": "Bé Na", "place": "Chung cư", "item": "2 ổ trứng", "note": "them_pate", "pos": Vector3(24.0, 0, -15.6), "time": 22.0, "color": Color("#D7A9C4"), "delivery": "basket", "basket_period": 2.0, "side_quest": "khong_dung_nguoi"},

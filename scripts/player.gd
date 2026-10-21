@@ -68,8 +68,7 @@ var carrying := false:
 		carrying = v
 		if bread:
 			bread.visible = v
-		if _bag:
-			_bag.visible = v or _wear_bag
+		_show_bag()
 
 ## Dáng đi hiện tại: "walk" | "sprint" | "crouch" | "sneak"
 var stance := "walk"
@@ -172,6 +171,7 @@ var _lick_w := Spring.new()    # 0..1: mức đang làm động tác
 var _action_timer := 6.0
 var _bag: Node3D
 var _wear_bag := true
+var _basket_loaves: Array = []  ## ổ bánh trong giỏ giao bánh đang đeo (OutfitView.loaves)
 var _scarf_mesh: MeshInstance3D  # khăn là một mặt (surface) của mesh Bơ, tháo khăn thì thay vật liệu ẩn
 var _scarf_surface := -1
 var _scarf_mat: Material
@@ -497,8 +497,6 @@ func apply_outfit(worn := {}) -> void:
 	_acc_nodes.clear()
 	var is_bo := breed == "bo" and not _cai_model  # Bơ chuẩn có sẵn khăn và túi dựng trong code
 	_wear_bag = is_bo and worn.get("back", "") == "tuibanh"
-	if _bag:
-		_bag.visible = carrying or _wear_bag
 	if _scarf_mesh:
 		if _hidden_mat == null:
 			_hidden_mat = StandardMaterial3D.new()
@@ -514,6 +512,19 @@ func apply_outfit(worn := {}) -> void:
 		_acc_nodes.append_array(OutfitView.attach(_skel, id, breed, sex if _cai_model else "duc"))
 		_ears_down = _ears_down or OutfitView.ears_down(id)
 	_cloth_mats = OutfitView.cloth_mats(_acc_nodes)
+	_basket_loaves = OutfitView.loaves(_acc_nodes)
+	_show_bag()
+
+
+## Túi bánh dựng bằng code hiện khi đeo nó hoặc khi đang mang bánh. Đeo giỏ giao bánh (giỏ mây, giỏ đan)
+## thì bánh nằm trong giỏ: túi không hiện, ổ bánh trong giỏ hiện khi đang mang bánh.
+func _show_bag() -> void:
+	var held := carrying and (bread == null or bread.visible)
+	if _bag:
+		_bag.visible = _wear_bag or (carrying and _basket_loaves.is_empty())
+	for l in _basket_loaves:
+		if is_instance_valid(l):
+			l.visible = held
 
 
 ## Bản web (Compatibility) không đổi màu đỉnh từ linear sang sRGB như Forward+,
@@ -1055,6 +1066,8 @@ func _animate(delta: float, hspeed: float, vy: float, on_floor: bool) -> void:
 		var fall_t := clampf(-vy / 8.0, -1.0, 1.0) if not on_floor else 0.0
 		OutfitView.cloth_drive(_cloth_mats, clampf(_cloth_s.step(k, 30.0, 0.8, delta), 0.0, 1.2),
 			_cloth_fall.step(fall_t, 40.0, 0.5, delta), _cloth_turn.step(clampf(-_yaw_rate * k * 0.25, -1.0, 1.0), 30.0, 0.6, delta))
+	if not _basket_loaves.is_empty():
+		_show_bag()  # đơn không mang bánh (túi trứng) tắt bread sau khi đã bắt đầu mang
 	_body.rotation.y = deg_to_rad(6.0) * _slide_amt
 	_pitch.step(pitch_target, 150.0, 0.6, delta)
 	if landed_now:

@@ -109,6 +109,8 @@ static func attach(skel: Skeleton3D, id: String, breed := "bo", sex := "duc") ->
 		if compat:
 			copy.mesh = srgb_mesh(mi.mesh)
 		holder.add_child(copy)
+		if str(mi.name).begins_with("Banh") or str(mi.get_parent().name).begins_with("Banh"):
+			copy.set_meta("loaf", true)
 		style(copy, oi)
 		copy.layers = 1 << 10  # cùng lớp thân Bơ: góc nhìn thứ nhất không vẽ
 		out.append(att)
@@ -172,6 +174,18 @@ static func cloth_mats(nodes: Array) -> Array:
 		for mi: MeshInstance3D in n.find_children("*", "MeshInstance3D", true, false):
 			if mi.has_meta("cloth"):
 				out.append(mi.get_meta("cloth"))
+	return out
+
+
+## Ổ bánh trong giỏ giao bánh (bộ phận tên Banh*): player.gd chỉ cho hiện khi đang mang bánh.
+static func loaves(nodes: Array) -> Array:
+	var out := []
+	for n in nodes:
+		if not is_instance_valid(n):
+			continue
+		for mi: MeshInstance3D in n.find_children("*", "MeshInstance3D", true, false):
+			if mi.has_meta("loaf"):
+				out.append(mi)
 	return out
 
 

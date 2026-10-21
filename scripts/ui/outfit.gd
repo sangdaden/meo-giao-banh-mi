@@ -46,6 +46,14 @@ const ACCS := [
 	["chuong", "Vòng chuông", "sukien", "neck"],
 	["denlong", "Đèn lồng ông sao", "sukien", "tail"],
 	["bongbay", "Bóng bay buộc đuôi", "sukien", "tail"],
+	# 7 món bán theo gói (Sang duyệt 21/10/2026): tủ đồ cho mặc thử, không mua bằng tiền boa
+	["giomay", "Giỏ mây đeo hông", "goi", "back"],
+	["camen", "Cà mèn ba ngăn", "goi", "back"],
+	["giodan", "Giỏ nhựa đan đi chợ", "goi", "back"],
+	["baolixi", "Bao lì xì đeo lưng", "goi", "back"],
+	["canhmai", "Cành mai cài tai", "goi", "head"],
+	["khanlen", "Khăn len Tết sọc", "goi", "neck"],
+	["huyhieu", "Khăn đỏ cài huy hiệu bánh mì vàng", "goi", "neck"],
 ]
 ## Phụ kiện Bơ vẽ sẵn bằng code (player.gd), không cần model phụ kiện
 const IN_GAME := ["khando", "tuibanh"]

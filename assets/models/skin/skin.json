@@ -4350,6 +4350,279 @@
    "ears": "",
    "lift": 0,
    "tris": 2998
+  },
+  "giomay": {
+   "objects": {
+    "Gio_May": {
+     "sock": "back",
+     "kind": "wood",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    },
+    "Vanh_Gio": {
+     "sock": "back",
+     "kind": "wood",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    },
+    "Quai_Gio": {
+     "sock": "back",
+     "kind": "cloth",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    },
+    "Banh_1": {
+     "sock": "back",
+     "kind": "paper",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    },
+    "Banh_2": {
+     "sock": "back",
+     "kind": "paper",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    },
+    "Khan_Lot": {
+     "sock": "back",
+     "kind": "cloth",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    }
+   },
+   "ears": "",
+   "lift": 0,
+   "tris": 913
+  },
+  "camen": {
+   "objects": {
+    "Ca_Men": {
+     "sock": "back",
+     "kind": "gloss",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    },
+    "Khung_Cam": {
+     "sock": "back",
+     "kind": "gloss",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    },
+    "Num_Nap": {
+     "sock": "back",
+     "kind": "plastic",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    },
+    "Day_Buoc": {
+     "sock": "back",
+     "kind": "cloth",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    }
+   },
+   "ears": "",
+   "lift": 0,
+   "tris": 911
+  },
+  "giodan": {
+   "objects": {
+    "Gio_Dan": {
+     "sock": "back",
+     "kind": "plastic",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    },
+    "Quai_Xach": {
+     "sock": "back",
+     "kind": "plastic",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    },
+    "Quai_Deo": {
+     "sock": "back",
+     "kind": "cloth",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    },
+    "Banh": {
+     "sock": "back",
+     "kind": "paper",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    },
+    "Rau_Hanh": {
+     "sock": "back",
+     "kind": "cloth",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    }
+   },
+   "ears": "",
+   "lift": 0,
+   "tris": 920
+  },
+  "baolixi": {
+   "objects": {
+    "Bao_Li_Xi": {
+     "sock": "back",
+     "kind": "paper",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    },
+    "Day_Deo": {
+     "sock": "back",
+     "kind": "cloth",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    },
+    "Tua_Vang": {
+     "sock": "back",
+     "kind": "cloth",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    }
+   },
+   "ears": "",
+   "lift": 0,
+   "tris": 614
+  },
+  "canhmai": {
+   "objects": {
+    "Hoa_Mai": {
+     "sock": "head",
+     "kind": "cloth",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    },
+    "Nhuy_Mai": {
+     "sock": "head",
+     "kind": "cloth",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    },
+    "Nu_Mai": {
+     "sock": "head",
+     "kind": "cloth",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    },
+    "La_Mai": {
+     "sock": "head",
+     "kind": "cloth",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    },
+    "Canh_Mai": {
+     "sock": "head",
+     "kind": "wood",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    }
+   },
+   "ears": "",
+   "lift": 0,
+   "tris": 756
+  },
+  "khanlen": {
+   "objects": {
+    "Khan_Len": {
+     "sock": "neck",
+     "kind": "cloth",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0,
+     "cloth": {
+      "hinge": [
+       0.0638,
+       -0.0196,
+       0.0962
+      ]
+     }
+    },
+    "Tua_Khan": {
+     "sock": "neck",
+     "kind": "cloth",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0,
+     "cloth": {
+      "hinge": [
+       0.0638,
+       -0.0196,
+       0.0962
+      ]
+     }
+    }
+   },
+   "ears": "",
+   "lift": 0,
+   "tris": 684
+  },
+  "huyhieu": {
+   "objects": {
+    "Khan_Do": {
+     "sock": "neck",
+     "kind": "cloth",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    },
+    "Huy_Hieu": {
+     "sock": "neck",
+     "kind": "gloss",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    },
+    "Vien_HH": {
+     "sock": "neck",
+     "kind": "gloss",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    },
+    "Banh_Noi": {
+     "sock": "neck",
+     "kind": "gloss",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    },
+    "Ruy_Bang": {
+     "sock": "neck",
+     "kind": "cloth",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    }
+   },
+   "ears": "",
+   "lift": 0,
+   "tris": 832
   }
  },
  "bo_head": {

@@ -19,7 +19,7 @@ concurrency:
 env:
   GODOT_VERSION: "4.3"
   # Dung lượng tối đa của index.pck (MB). index.wasm là engine, cố định khoảng 35 MB.
-  PCK_MAX_MB: "40"
+  PCK_MAX_MB: "60"
   LANG: C.UTF-8
   LC_ALL: C.UTF-8
 

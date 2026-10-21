@@ -1,6 +1,7 @@
 extends SceneTree
 ## Chụp 5 chỗ giao bánh (deliveries.gd) ra PNG để soát bố cục khối tạm.
-## Chạy: xvfb-run godot --path . --rendering-driver opengl3 -s tools/chup_giao_banh.gd -- <thư_mục_ra>
+## Chạy: xvfb-run godot --path . --rendering-driver opengl3 --fixed-fps 30 -s tools/chup_giao_banh.gd -- <thư_mục_ra>
+## (--fixed-fps: máy ảo vẽ chậm, delta lớn làm lò xo hoạt hình Bơ chạy sai)
 
 var out := "user://chup_giao"
 ## Góc chụp từng đơn: vị trí camera so với chỗ giao, và điểm nhìn

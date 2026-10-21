@@ -2,13 +2,12 @@ class_name WardrobePanel
 extends Control
 ## Tủ đồ của Bơ (artboard 3). Bên trái: Bơ 3D trên bục, kéo chuột hoặc vuốt để xoay 360°,
 ## lăn chuột để phóng to; sáu ô gắn phụ kiện. Bên phải: ba tab Giống mèo, Phụ kiện, Bộ đồ.
-## Danh mục và đồ đang mặc nằm ở Outfit. Món chưa có hình trong game hiện khoá "Sắp có";
-## khi luồng skin đưa model vào, thêm id vào Outfit.IN_GAME và vẽ món đó trong player.apply_outfit().
+## Danh mục và đồ đang mặc nằm ở Outfit. Món khoá mà đã có model (assets/models/skin, xem OutfitView)
+## thì bấm để mặc thử trên bục: chỉ xem trước, "Xong" trả Bơ về đồ đã có. Món chưa xuất model hiện "Đang dựng".
 
 signal closed
 
 const T = preload("res://scripts/ui/ui_theme.gd")
-const PlayerScript = preload("res://scripts/player.gd")
 const TAGS := {
 	"mac": ["#F7D35E", "#2A1A05"],
 	"thuong": ["#E7DCC4", "#1F3A3D"],
@@ -18,9 +17,9 @@ const TAGS := {
 }
 const TAB_NAMES := ["Giống mèo · 19", "Phụ kiện · 35", "Bộ đồ · 8"]
 const NOTES := [
-	"19 giống, hiện mới có Bơ trong game. Các giống khác đang dựng trong Blender.",
-	"Bấm một món để đeo hoặc tháo. Món khoá đang được dựng trong Blender.",
-	"Mặc cả bộ khi mọi món trong bộ đã có trong game.",
+	"Bấm giống mèo khoá để xem thử trên bục. Chỉ xem trước, chưa chơi được.",
+	"Bấm món đã có để đeo hoặc tháo. Món khoá bấm để mặc thử, bấm lần nữa để bỏ.",
+	"Bộ còn khoá thì mặc thử cả bộ trên bục. Bấm Xong để trả về đồ đã có.",
 ]
 
 var tab := 0
@@ -34,6 +33,11 @@ var _slots: HBoxContainer
 var _worn_label: Label
 var _note: Label
 var _done: Button
+var _untry: Button
+var _name: Label
+## Đồ mặc thử trên bục theo ô (chưa sở hữu, không mang vào màn chơi) và giống đang xem thử ("" = Bơ).
+var _try := {}
+var _try_breed := ""
 
 
 func _ready() -> void:
@@ -78,7 +82,9 @@ func _ready() -> void:
 	T.place(name_card, 0.0, 1.0, Rect2(28, -200, 444, 74))
 	var nc := VBoxContainer.new()
 	nc.add_theme_constant_override("separation", 0)
-	nc.add_child(T.label("Bơ · mèo ta cam", 24, T.INK, "display"))
+	_name = T.label("Bơ · mèo ta cam", 24, T.INK, "display")
+	_name.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	nc.add_child(_name)
 	_worn_label = T.label("", 14, T.MUTED, "bold")
 	_worn_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	nc.add_child(_worn_label)
@@ -126,6 +132,13 @@ func _ready() -> void:
 	_note.autowrap_mode = TextServer.AUTOWRAP_WORD
 	_note.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	foot.add_child(_note)
+	_untry = T.button("Bỏ mặc thử", "secondary", 60, 17)
+	_untry.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_untry.pressed.connect(func():
+		_clear_try()
+		_refresh()
+		_note.text = "Đã bỏ đồ mặc thử.")
+	foot.add_child(_untry)
 	_done = T.button("Xong", "primary", 60, 20)
 	_done.custom_minimum_size.x = 150
 	_done.alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -156,12 +169,49 @@ func show_tab(i: int, filter := "") -> void:
 	_refresh()
 
 
+## Đồ hiện trên bục: đồ đang đeo, ô nào có món mặc thử thì thay bằng món đó.
+func _shown() -> Dictionary:
+	var w := {}
+	for s in Outfit.SLOTS:
+		w[s[0]] = _try.get(s[0], Outfit.worn(s[0]))
+	return w
+
+
+func _trying() -> bool:
+	return not _try.is_empty() or _try_breed != ""
+
+
+func _clear_try() -> void:
+	_try.clear()
+	_try_breed = ""
+
+
+func _breed(id: String) -> Array:
+	for b in Outfit.BREEDS:
+		if b[0] == id:
+			return b
+	return Outfit.BREEDS[0]
+
+
 func _refresh() -> void:
 	_build_slots()
+	var br := _breed(_try_breed if _try_breed != "" else "bo")
+	_name.text = "%s · %s%s" % [br[1], br[2].to_lower(), " · xem thử" if _try_breed != "" else ""]
 	var names := Outfit.worn_names()
-	_worn_label.text = "Đực · " + ("đang đeo: " + ", ".join(names) if names.size() > 0 else "chưa đeo gì")
+	var txt := "Đực · " + ("đang đeo: " + ", ".join(names) if names.size() > 0 else "chưa đeo gì")
+	if not _try.is_empty():
+		var tried := PackedStringArray()
+		for slot in _try:
+			tried.append(Outfit.acc(_try[slot])[1])
+		txt += " · thử: " + ", ".join(tried)
+	_worn_label.text = txt
+	_untry.visible = _trying()
 	if preview.cat:
-		preview.cat.apply_outfit()
+		var want := _try_breed if _try_breed != "" else "bo"
+		if preview.cat.breed != want:
+			preview.cat.set_breed(want, _shown())
+		else:
+			preview.cat.apply_outfit(_shown())
 
 	for c in _filters.get_children():
 		c.queue_free()
@@ -208,14 +258,15 @@ func _build_slots() -> void:
 	for c in _slots.get_children():
 		c.queue_free()
 	for s in Outfit.SLOTS:
-		var id := Outfit.worn(s[0])
+		var id: String = _try.get(s[0], Outfit.worn(s[0]))
+		var tried := _try.has(s[0])
 		var active: bool = tab == 1 and slot_filter == s[0]
 		var b := Button.new()
 		b.custom_minimum_size = Vector2(66, 84)
 		b.focus_mode = Control.FOCUS_ALL
-		b.tooltip_text = "Ô %s: %s" % [s[1], Outfit.acc(id)[1] if id != "" else "trống, bấm để chọn"]
-		var fill := Color("#FFF1D6") if id != "" else Color("#FBF3E2")
-		var border := T.TEAL if active else (T.CRUST if id != "" else Color("#8A7B5C"))
+		b.tooltip_text = "Ô %s: %s%s" % [s[1], Outfit.acc(id)[1] if id != "" else "trống, bấm để chọn", " (đang thử)" if tried else ""]
+		var fill := Color("#DDF0EA") if tried else (Color("#FFF1D6") if id != "" else Color("#FBF3E2"))
+		var border := T.TEAL if active or tried else (T.CRUST if id != "" else Color("#8A7B5C"))
 		b.add_theme_stylebox_override("normal", T.box(fill, 18, 4, border, 4 if active or id != "" else 3))
 		b.add_theme_stylebox_override("hover", T.box(fill.lightened(0.3), 18, 4, border, 4))
 		b.add_theme_stylebox_override("pressed", T.box(fill.darkened(0.06), 18, 4, border, 4))
@@ -313,18 +364,23 @@ func _name_label(text: String) -> Label:
 
 
 ## Món chưa có: làm mờ nội dung, nền xám cát, dải mực "Khoá · ..." ở trên cùng (tên vẫn đọc được).
-func _lock_cover(b: Button, body: Control, text: String) -> void:
-	body.modulate = Color(1, 1, 1, 0.5)
-	for k in ["normal", "hover", "pressed"]:
-		b.add_theme_stylebox_override(k, T.box(Color("#E9E2D2") if k != "hover" else Color("#F1EBDD"), 18, 6, Color("#8A7B5C"), 3))
+## Đang mặc thử thì không mờ, viền và dải màu xanh "Đang thử".
+func _lock_cover(b: Button, body: Control, text: String, tried := false) -> void:
+	if tried:
+		for k in ["normal", "hover", "pressed"]:
+			b.add_theme_stylebox_override(k, T.box(Color("#DDF0EA") if k != "hover" else Color("#E8F6F1"), 18, 6, T.TEAL, 4))
+	else:
+		body.modulate = Color(1, 1, 1, 0.5)
+		for k in ["normal", "hover", "pressed"]:
+			b.add_theme_stylebox_override(k, T.box(Color("#E9E2D2") if k != "hover" else Color("#F1EBDD"), 18, 6, Color("#8A7B5C"), 3))
 	var rib := PanelContainer.new()
-	rib.add_theme_stylebox_override("panel", T.box(T.INK, 8, 4, Color(0, 0, 0, 0), 0))
+	rib.add_theme_stylebox_override("panel", T.box(T.TEAL if tried else T.INK, 8, 4, Color(0, 0, 0, 0), 0))
 	rib.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	rib.anchor_right = 1.0
 	rib.offset_left = 8
 	rib.offset_right = -8
 	rib.offset_top = 8
-	var l := T.label("Khoá · " + text, 10, T.PAPER, "bold")
+	var l := T.label("Đang thử · bấm để bỏ" if tried else "Khoá · " + text, 10, T.PAPER, "bold")
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD
 	rib.add_child(l)
@@ -333,7 +389,9 @@ func _lock_cover(b: Button, body: Control, text: String) -> void:
 
 func _breed_tile(br: Array) -> Button:
 	var ready: bool = br[0] in Outfit.BREEDS_IN_GAME
-	var b := _tile_button(Vector2(104, 150), br[0] == "bo")
+	var model := OutfitView.has_breed(br[0])
+	var tried: bool = _try_breed == br[0]
+	var b := _tile_button(Vector2(104, 150), br[0] == "bo" and _try_breed == "")
 	b.tooltip_text = "%s · %s" % [br[1], br[2]]
 	var v := _tile_body(b)
 	var face := CatFace.new()
@@ -347,18 +405,25 @@ func _breed_tile(br: Array) -> Button:
 	v.add_child(_name_label(br[1]))
 	v.add_child(_tag(br[3]))
 	if not ready:
-		_lock_cover(b, v, "Sắp có" if br[3] in ["thuong", "hiem"] else br[7])
+		_lock_cover(b, v, "bấm để thử" if model else "đang dựng", tried)
 	b.pressed.connect(func():
 		if ready:
+			_try_breed = ""
 			_note.text = "%s · %s · đang chọn." % [br[1], br[2]]
+		elif model:
+			_try_breed = "" if tried else br[0]
+			_note.text = ("Đã bỏ xem thử %s." % br[1]) if tried else ("Đang xem thử %s · %s. Mở khoá: %s." % [br[1], br[2], br[7].to_lower()])
 		else:
-			_note.text = "%s · %s · đang dựng trong Blender. %s." % [br[1], br[2], br[7]])
+			_note.text = "%s · %s · đang dựng trong Blender. %s." % [br[1], br[2], br[7]]
+		_refresh())
 	return b
 
 
 func _acc_tile(a: Array) -> Button:
 	var ready := Outfit.in_game(a[0])
-	var on := Outfit.is_worn(a[0])
+	var model := OutfitView.has_model(a[0])
+	var tried: bool = _try.get(a[3], "") == a[0]
+	var on := Outfit.is_worn(a[0]) and not _try.has(a[3])
 	var b := _tile_button(Vector2(104, 160), on)
 	b.tooltip_text = "%s · ô %s" % [a[1], Outfit.slot_name(a[3])]
 	var v := _tile_body(b)
@@ -384,12 +449,20 @@ func _acc_tile(a: Array) -> Button:
 		p.add_child(badge)
 		b.add_child(p)
 	if not ready:
-		_lock_cover(b, v, "Sắp có")
+		_lock_cover(b, v, "bấm để thử" if model else "đang dựng", tried)
 	b.pressed.connect(func():
 		if ready:
+			_try.erase(a[3])
 			Outfit.toggle(a[0])
 			_refresh()
 			_note.text = "%s %s." % ["Đã đeo" if Outfit.is_worn(a[0]) else "Đã tháo", a[1].to_lower()]
+		elif model:
+			if tried:
+				_try.erase(a[3])
+			else:
+				_try[a[3]] = a[0]
+			_refresh()
+			_note.text = ("Đã bỏ thử %s." % a[1].to_lower()) if tried else ("Đang mặc thử %s. Chỉ xem trên bục, chưa mang vào màn chơi." % a[1].to_lower())
 		else:
 			_note.text = "%s (ô %s) đang được dựng trong Blender, sắp có." % [a[1], Outfit.slot_name(a[3])])
 	return b
@@ -399,9 +472,15 @@ func _set_card(s: Array) -> Control:
 	var items: Array = s[2]
 	var ready := 0
 	var worn := 0
+	var models := 0
+	var tried := 0
 	for id in items:
 		if Outfit.in_game(id):
 			ready += 1
+		if OutfitView.has_model(id):
+			models += 1
+		if _try.get(Outfit.acc(id)[3], "") == id:
+			tried += 1
 		if Outfit.is_worn(id):
 			worn += 1
 	var all_ready := ready == items.size()
@@ -443,8 +522,23 @@ func _set_card(s: Array) -> Control:
 				Outfit.wear(id)
 			_refresh()
 			_note.text = "Đã mặc %s." % s[0].to_lower())
+	elif models > 0:
+		# Một ô chỉ đeo được một món: bộ có hai món cùng ô thì món sau thắng.
+		var all_on := tried > 0 and tried == _set_try_count(items)
+		b = T.button("Bỏ mặc thử bộ" if all_on else "Mặc thử cả bộ", "secondary" if all_on else "primary", 44, 15)
+		b.tooltip_text = "Chỉ xem trên bục" + ("" if models == items.size() else " · %d món còn đang dựng" % (items.size() - models))
+		b.pressed.connect(func():
+			for id in items:
+				var slot: String = Outfit.acc(id)[3]
+				if all_on:
+					if _try.get(slot, "") == id:
+						_try.erase(slot)
+				elif OutfitView.has_model(id) and not Outfit.in_game(id):
+					_try[slot] = id
+			_refresh()
+			_note.text = ("Đã bỏ thử %s." % s[0].to_lower()) if all_on else ("Đang mặc thử %s trên bục." % s[0].to_lower()))
 	else:
-		b = T.button("Sắp có · %d/%d món" % [ready, items.size()], "secondary", 44, 15)
+		b = T.button("Đang dựng · %d/%d món" % [models, items.size()], "secondary", 44, 15)
 		b.disabled = true
 		b.tooltip_text = "Các món trong bộ đang được dựng trong Blender"
 	b.alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -452,11 +546,24 @@ func _set_card(s: Array) -> Control:
 	return card
 
 
+## Số món của bộ còn lại trên bục khi mặc thử cả bộ (mỗi ô một món, món sau thắng).
+func _set_try_count(items: Array) -> int:
+	var slots := {}
+	for id in items:
+		if OutfitView.has_model(id) and not Outfit.in_game(id):
+			slots[Outfit.acc(id)[3]] = id
+	return slots.size()
+
+
 func open() -> void:
 	visible = true
 
 
+## Xong: bỏ hết đồ mặc thử, Bơ trên bục và trong màn chơi chỉ mặc đồ đã có.
 func close() -> void:
+	if _trying():
+		_clear_try()
+		_refresh()
 	visible = false
 	closed.emit()
 
@@ -465,135 +572,6 @@ func _unhandled_input(event: InputEvent) -> void:
 	if visible and event.is_action_pressed("ui_cancel"):
 		close()
 		get_viewport().set_input_as_handled()
-
-
-## Bơ 3D trên bục tròn trong thế giới riêng. Kéo để xoay 360° (thả tay thì quay chậm dần),
-## kéo dọc để nhìn cao thấp, lăn chuột để phóng to, bấm đúp để về góc ban đầu.
-class BoPreview:
-	extends SubViewportContainer
-	const START_YAW := PI + 0.65
-	const START_PITCH := 0.22
-	const START_DIST := 2.3
-	const TARGET := Vector3(0, 0.27, -0.02)
-	var vp: SubViewport
-	var cat: Node3D
-	var cam: Camera3D
-	var yaw := START_YAW
-	var pitch := START_PITCH
-	var dist := START_DIST
-	var spin := 0.0
-	var dragging := false
-	var _hint: Control
-
-	func _ready() -> void:
-		stretch = true
-		mouse_filter = Control.MOUSE_FILTER_STOP
-		mouse_default_cursor_shape = Control.CURSOR_DRAG
-		vp = SubViewport.new()
-		vp.own_world_3d = true
-		vp.msaa_3d = Viewport.MSAA_2X
-		vp.render_target_update_mode = SubViewport.UPDATE_WHEN_PARENT_VISIBLE
-		add_child(vp)
-
-		var we := WorldEnvironment.new()
-		var e := Environment.new()
-		e.background_mode = Environment.BG_COLOR
-		e.background_color = Color("#9CCBC1")
-		e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-		e.ambient_light_color = Color("#BFD3DA")
-		# Cùng mức sáng với màn giao bánh (main.gd): bản web Compatibility sáng hơn nên giảm bớt
-		var compat := RenderingServer.get_rendering_device() == null
-		e.ambient_light_energy = 0.3 if compat else 0.45
-		e.tonemap_mode = Environment.TONE_MAPPER_LINEAR if compat else Environment.TONE_MAPPER_FILMIC
-		we.environment = e
-		vp.add_child(we)
-		var sun := DirectionalLight3D.new()
-		sun.rotation_degrees = Vector3(-52, 35, 0)
-		sun.light_color = Color("#FFE8C4")
-		sun.light_energy = 0.6 if compat else 0.95
-		sun.shadow_enabled = true
-		sun.directional_shadow_max_distance = 6.0
-		vp.add_child(sun)
-		var fill := DirectionalLight3D.new()
-		fill.rotation_degrees = Vector3(-20, -150, 0)
-		fill.light_color = Color("#CFE6E0")
-		fill.light_energy = 0.15 if compat else 0.25
-		vp.add_child(fill)
-
-		# Bục: mặt giấy gói bánh, viền mực bên dưới
-		_disc(0.5, 0.035, -0.0175, Color("#E2CFA8"))
-		_disc(0.52, 0.03, -0.04, UiTheme.INK)
-
-		cat = PlayerScript.new()
-		cat.preview = true
-		vp.add_child(cat)
-		cat.set_physics_process(false)
-		cam = Camera3D.new()
-		cam.fov = 30.0
-		cam.cull_mask = 0xFFFFF & ~PlayerScript.LAYER_FP_PAWS
-		vp.add_child(cam)
-
-		_hint = PanelContainer.new()
-		_hint.add_theme_stylebox_override("panel", UiTheme.box(Color(UiTheme.INK, 0.78), 999, 12, Color(0, 0, 0, 0), 0))
-		_hint.add_child(UiTheme.label("Kéo chuột hoặc vuốt để xoay 360°", 14, UiTheme.PAPER, "bold"))
-		_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		UiTheme.place(_hint, 0.5, 1.0, Rect2(-150, -50, 300, 36))
-		add_child(_hint)
-
-	func _disc(r: float, h: float, y: float, color: Color) -> void:
-		var m := CylinderMesh.new()
-		m.top_radius = r
-		m.bottom_radius = r
-		m.height = h
-		m.radial_segments = 48
-		var mat := StandardMaterial3D.new()
-		mat.albedo_color = color
-		mat.roughness = 0.9
-		m.material = mat
-		var mi := MeshInstance3D.new()
-		mi.mesh = m
-		mi.position.y = y
-		vp.add_child(mi)
-
-	func set_active(on: bool) -> void:
-		if cat:
-			cat.set_process(on)
-		set_process(on)
-
-	func _gui_input(event: InputEvent) -> void:
-		if event is InputEventMouseButton:
-			if event.button_index == MOUSE_BUTTON_LEFT:
-				dragging = event.pressed
-				if event.double_click:
-					spin = 0.0
-					var tw := create_tween().set_parallel().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-					tw.tween_property(self, "yaw", START_YAW + roundf((yaw - START_YAW) / TAU) * TAU, 0.5)
-					tw.tween_property(self, "pitch", START_PITCH, 0.5)
-					tw.tween_property(self, "dist", START_DIST, 0.5)
-			elif event.pressed and event.button_index == MOUSE_BUTTON_WHEEL_UP:
-				dist = maxf(dist - 0.15, 1.3)
-			elif event.pressed and event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-				dist = minf(dist + 0.15, 3.2)
-			accept_event()
-		elif event is InputEventMouseMotion and dragging:
-			yaw += event.relative.x * 0.012
-			pitch = clampf(pitch + event.relative.y * 0.005, -0.05, 0.75)
-			spin = event.relative.x * 0.012 * 60.0
-			if _hint.visible:
-				var tw := create_tween()
-				tw.tween_property(_hint, "modulate:a", 0.0, 0.4)
-				tw.tween_callback(_hint.hide)
-			accept_event()
-
-	func _process(delta: float) -> void:
-		if not dragging:
-			yaw += spin * delta
-			spin *= exp(-3.0 * delta)
-		if cat and cat.visual:
-			cat.visual.rotation.y = yaw
-		var dir := Vector3(0, sin(pitch), cos(pitch))
-		cam.position = TARGET + dir * dist
-		cam.look_at(TARGET)
 
 
 ## Biểu tượng ô gắn vẽ bằng nét: mũ, kính, khăn, túi, nơ đuôi, tất.

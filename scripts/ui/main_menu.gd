@@ -11,6 +11,7 @@ var settings: SettingsPanel
 var wardrobe: WardrobePanel
 var level_select: LevelSelectPanel
 var start_btn: Button
+var showcase_cat: BoPreview
 
 
 ## Cảnh đầu tiên của một ca: bếp nếu đã có, không thì vào thẳng màn giao.
@@ -104,6 +105,10 @@ func _ready() -> void:
 	add_child(level_select)
 	for p in [wardrobe, settings, level_select]:
 		p.closed.connect(func(): start_btn.grab_focus())
+	wardrobe.visibility_changed.connect(func():
+		showcase_cat.set_active(not wardrobe.visible)
+		if not wardrobe.visible and showcase_cat.cat:
+			showcase_cat.cat.apply_outfit())
 
 	T.wire_clicks(self)
 	if PlayMode.back_to_select:
@@ -141,14 +146,20 @@ func _showcase() -> Control:
 	glass.size = Vector2(544, 364)
 	glass.clip_contents = true
 	root.add_child(glass)
-	var pic := TextureRect.new()
-	pic.texture = load("res://assets/ui/bo_menu.jpg")
-	pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	pic.position = Vector2(4, 0)
-	pic.size = Vector2(536, 364)
-	glass.add_child(pic)
+	# Bơ 3D thật (cùng model trong màn chơi): vẫy đuôi, chớp mắt, thở, thỉnh thoảng ngồi hoặc liếm chân.
+	# Kéo chuột để xoay. Tủ đồ mở thì tạm dừng để đỡ tốn máy.
+	showcase_cat = BoPreview.new()
+	showcase_cat.bg_color = Color("#8DBDB3")
+	showcase_cat.show_hint = false
+	showcase_cat.start_yaw = PI + 0.75
+	showcase_cat.start_pitch = 0.16
+	showcase_cat.start_dist = 1.95
+	showcase_cat.target = Vector3(0, 0.27, 0.0)
+	showcase_cat.position = Vector2(4, 0)
+	showcase_cat.size = Vector2(536, 364)
+	glass.add_child(showcase_cat)
 	var shine := GlassShine.new()
+	shine.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	shine.position = Vector2.ZERO
 	shine.size = glass.size
 	glass.add_child(shine)

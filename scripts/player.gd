@@ -85,7 +85,15 @@ var _fp_paws := []               ## khớp vai của hai chân trước BoPaw (t
 var first_person := false        ## camera_rig gán: góc nhìn thứ nhất thì người quay theo camera
 var _body: Node3D
 var bread: Node3D
-var preview := false             ## tủ đồ: đứng yên trên bục xem trước, không có vật lý
+var preview := false             ## tủ đồ/màn hình chính: đứng yên trên bục, không có vật lý, thỉnh thoảng ngồi hoặc liếm chân
+var breed := "bo"                ## giống mèo đang dùng (tủ đồ cho mặc thử giống khác)
+var _model: Node3D
+var _acc_nodes := []             # phụ kiện đang gắn (OutfitView.attach)
+var _ears_down := false          # đội nón che tai: tai cụp xuống
+var _action := ""                # động tác chờ khi preview: "sit" | "lick" | ""
+var _sit_w := Spring.new()
+var _lick_w := Spring.new()    # 0..1: mức đang làm động tác
+var _action_timer := 6.0
 var _bag: Node3D
 var _wear_bag := true
 var _scarf_mesh: MeshInstance3D  # khăn là một mặt (surface) của mesh Bơ, tháo khăn thì thay vật liệu ẩn
@@ -121,6 +129,18 @@ var _look_timer := 2.0
 var _blink_timer := 3.0
 var _blink := 0.0                             # 1 = mắt nhắm
 var _flick_timer := 4.0
+var _sit := 0.0
+var _lick := 0.0
+var _off_legs := [0.0, 0.0, 0.0, 0.0]  # cộng thêm cho động tác chờ (ngồi, liếm chân)
+var _off_head := Vector2.ZERO          # (xoay ngang, cúi)
+var _off_tail := 0.0
+var _sit_pivot := Vector3(0, 0.22, -0.13)
+## Góc động tác chờ (rad), chỉnh ở đây
+const SIT_PITCH := 0.45        # thân ngẩng lên khi ngồi
+const SIT_HIND := 0.75         # chân sau gập tới trước, nằm sát sàn
+const LICK_PAW := 1.5          # đang ngồi, chân trước trái nhấc lên tới miệng
+const LICK_HEAD := 0.6         # cúi đầu xuống chân
+const SIT_TAIL := 0.5          # đuôi nhấc lên khỏi sàn khi ngồi
 
 
 ## Lò xo giảm chấn một chiều: đuổi theo đích, có quán tính nên chuyển động không bị giật cục.
@@ -198,23 +218,45 @@ func _build_visual() -> void:
 	_body = Node3D.new()
 	visual.add_child(_body)
 
-	var model: Node3D = BO_MODEL.instantiate()
-	model.rotation.y = PI  # model quay mặt về +Z (glTF), Godot coi -Z là phía trước
-	_body.add_child(model)
-	_skel = model.find_children("*", "Skeleton3D", true, false)[0]
-	for bone_name in BONE_NAMES:
-		var idx := _skel.find_bone(bone_name)
-		_bone_idx[bone_name] = idx
-		_bone_rest[bone_name] = _skel.get_bone_rest(idx).basis.get_rotation_quaternion()
-	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
-		_apply_style(mi)
-
+	_load_model()
 	_build_bag()
 	apply_outfit()
 	# Thân, khăn, túi và quai: góc nhìn thứ nhất không vẽ (vẫn đổ bóng), thay bằng hai chân trước riêng
 	for mi: MeshInstance3D in _body.find_children("*", "MeshInstance3D", true, false):
 		mi.layers = LAYER_BO_BODY
 	_build_fp_paws()
+
+
+## Dựng model của giống đang chọn (Bơ hoặc giống skin cùng bộ xương, xem tools/xuat_skin_game.py).
+func _load_model() -> void:
+	if _model:
+		_model.free()
+	_acc_nodes.clear()
+	_scarf_mesh = null
+	var scene: PackedScene = OutfitView.breed_scene(breed)
+	_model = (scene if scene else BO_MODEL).instantiate()
+	_model.rotation.y = PI  # model quay mặt về +Z (glTF), Godot coi -Z là phía trước
+	_body.add_child(_model)
+	_skel = _model.find_children("*", "Skeleton3D", true, false)[0]
+	for bone_name in BONE_NAMES:
+		var idx := _skel.find_bone(bone_name)
+		_bone_idx[bone_name] = idx
+		_bone_rest[bone_name] = _skel.get_bone_rest(idx).basis.get_rotation_quaternion() if idx >= 0 else Quaternion.IDENTITY
+	for mi: MeshInstance3D in _model.find_children("*", "MeshInstance3D", true, false):
+		_apply_style(mi)
+		mi.layers = LAYER_BO_BODY
+	# Khớp vai trước: ngồi xuống thì thân xoay quanh đây để bàn chân trước đứng yên trên sàn
+	var fl: int = _bone_idx["leg_FL"]
+	if fl >= 0:
+		_sit_pivot = _model.transform * _skel.get_bone_global_rest(fl).origin
+		_sit_pivot.x = 0.0
+
+
+## Đổi giống mèo (tủ đồ mặc thử). Giống chưa có model thì giữ Bơ.
+func set_breed(id: String, worn := {}) -> void:
+	breed = id if OutfitView.has_breed(id) else "bo"
+	_load_model()
+	apply_outfit(worn)
 
 
 ## Túi bánh đeo sát hông phải, quai vắt chéo qua lưng ôm theo thân.
@@ -296,10 +338,19 @@ func _apply_style(mi: MeshInstance3D) -> void:
 			_scarf_mat = m
 
 
-## Mặc đồ theo tủ đồ (Outfit): khăn quàng đỏ và túi bánh tháo ra được.
-## Túi bánh tháo rồi thì chỉ hiện lúc đang mang bánh đi giao.
-func apply_outfit() -> void:
-	_wear_bag = Outfit.worn("back") == "tuibanh"
+## Mặc đồ theo tủ đồ (Outfit). worn = {ô: id} để mặc thử trong tủ đồ; để trống thì lấy đồ đã mặc.
+## Trên Bơ, khăn quàng đỏ là một phần của model và túi bánh dựng bằng code (túi chứa ổ bánh khi giao);
+## món khác và mọi món trên giống khác lấy từ model phụ kiện. Túi tháo rồi thì chỉ hiện lúc mang bánh.
+func apply_outfit(worn := {}) -> void:
+	if worn.is_empty():
+		for s in Outfit.SLOTS:
+			worn[s[0]] = Outfit.worn(s[0])
+	for n in _acc_nodes:
+		if is_instance_valid(n):
+			n.queue_free()
+	_acc_nodes.clear()
+	var is_bo := breed == "bo"
+	_wear_bag = is_bo and worn.get("back", "") == "tuibanh"
 	if _bag:
 		_bag.visible = carrying or _wear_bag
 	if _scarf_mesh:
@@ -307,8 +358,15 @@ func apply_outfit() -> void:
 			_hidden_mat = StandardMaterial3D.new()
 			_hidden_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 			_hidden_mat.albedo_color = Color(1, 1, 1, 0)
-		var on := Outfit.worn("neck") == "khando"
+		var on: bool = worn.get("neck", "") == "khando"
 		_scarf_mesh.set_surface_override_material(_scarf_surface, _scarf_mat if on else _hidden_mat)
+	_ears_down = false
+	for slot in worn:
+		var id: String = worn[slot]
+		if id == "" or (is_bo and id in ["khando", "tuibanh"]):
+			continue
+		_acc_nodes.append_array(OutfitView.attach(_skel, id, breed))
+		_ears_down = _ears_down or OutfitView.ears_down(id)
 
 
 ## Bản web (Compatibility) không đổi màu đỉnh từ linear sang sRGB như Forward+,
@@ -681,28 +739,71 @@ func _animate(delta: float, hspeed: float, vy: float, on_floor: bool) -> void:
 	if on_floor and k > 0.05:
 		_scarf_p.v += cos(_phase * 2.0) * k * 6.0 * delta
 
+	if preview:
+		_idle_action(delta, t)
 	_apply_bones()
+
+
+## Bắt đầu ngay một động tác chờ ("sit" | "lick" | "" để đứng), giữ trong `seconds` giây.
+func play_idle_action(action_name: String, seconds := 4.0) -> void:
+	_action = action_name
+	_action_timer = seconds
+
+
+## Động tác chờ ở tủ đồ và màn hình chính: thỉnh thoảng ngồi xuống, hoặc ngồi liếm chân trước.
+## Cộng thêm vào dáng đứng; _sit_w, _lick_w là lò xo 0..1 nên vào và ra động tác đều mềm.
+func _idle_action(delta: float, t: float) -> void:
+	_action_timer -= delta
+	if _action_timer <= 0.0:
+		if _action == "":
+			_action = "sit" if randf() < 0.55 else "lick"
+			_action_timer = randf_range(4.0, 6.5) if _action == "sit" else randf_range(3.0, 4.0)
+		else:
+			_action = ""
+			_action_timer = randf_range(5.0, 9.0)
+	_sit = clampf(_sit_w.step(1.0 if _action in ["sit", "lick"] else 0.0, 18.0, 0.9, delta), 0.0, 1.0)
+	_lick = clampf(_lick_w.step(1.0 if _action == "lick" else 0.0, 22.0, 0.9, delta), 0.0, 1.0)
+	if _sit < 0.001 and _lick < 0.001:
+		_body.position = Vector3.ZERO
+		_off_legs = [0.0, 0.0, 0.0, 0.0]
+		_off_head = Vector2.ZERO
+		_off_tail = 0.0
+		return
+	# Ngồi: thân ngẩng lên quanh khớp vai trước nên mông hạ xuống; chân trước bù lại để vẫn thẳng đứng,
+	# chân sau gập ra trước. Trục X của chân: dương là vung ra sau.
+	var a := SIT_PITCH * _sit
+	_body.rotation.x += a
+	_body.position = _sit_pivot - _sit_pivot.rotated(Vector3.RIGHT, a)
+	_off_legs = [a - LICK_PAW * _lick, a, -SIT_HIND * _sit, -SIT_HIND * _sit]
+	# Liếm chân: nhấc chân trước trái lên, cúi đầu nghiêng sang, đầu gật nhịp liếm. Trục X của đầu: dương là cúi.
+	_off_head = Vector2(0.25 * _lick, a * 0.8 + (LICK_HEAD + sin(t * 11.0) * 0.07) * _lick)
+	_off_tail = SIT_TAIL * _sit
+	if _lick > 0.0:
+		_blink = maxf(_blink, 0.6 * _lick)
 
 
 ## Xoay xương theo các góc tính ở trên. Trục X của xương là trục gập trước/sau.
 func _apply_bones() -> void:
 	for i in 4:
-		_pose(LEG_BONES[i], Vector3.RIGHT, _legs[i] * LEG_SWING_SIGN)
+		_pose(LEG_BONES[i], Vector3.RIGHT, (_legs[i] + _off_legs[i]) * LEG_SWING_SIGN)
 	for i in _fp_paws.size():
 		# Thân Bơ quay ngược 180° trong visual nên trục X đổi chiều
 		_fp_paws[i].rotation.x = FP_PAW_LEAN - _legs[i] * LEG_SWING_SIGN
-	_pose_q("head", Quaternion(Vector3.UP, _head_yaw.x) * Quaternion(Vector3.RIGHT, _head_pitch.x))
+	_pose_q("head", Quaternion(Vector3.UP, _head_yaw.x + _off_head.x) * Quaternion(Vector3.RIGHT, _head_pitch.x + _off_head.y))
 	for i in 2:
 		var side := -1.0 if i == 0 else 1.0
 		var flick := sin(_ear_flick[i] * PI) * 0.5
-		_pose_q(["ear_L", "ear_R"][i], Quaternion(Vector3.RIGHT, _ear[i].x + flick) * Quaternion(Vector3.FORWARD, side * flick * 0.6))
+		_pose_q(["ear_L", "ear_R"][i], Quaternion(Vector3.RIGHT, _ear[i].x + flick + (1.0 if _ears_down else 0.0)) * Quaternion(Vector3.FORWARD, side * flick * 0.6))
+		var ei: int = _bone_idx[["ear_L", "ear_R"][i]]
+		if ei >= 0:
+			_skel.set_bone_pose_scale(ei, Vector3.ONE * (0.45 if _ears_down else 1.0))
 	for eye in ["eye_L", "eye_R"]:
 		var idx: int = _bone_idx[eye]
 		if idx >= 0:
 			_skel.set_bone_pose_scale(idx, Vector3(1.0, 1.0 - 0.9 * sin(_blink * PI * 0.5), 1.0))
 	_pose_q("scarf", Quaternion(Vector3.RIGHT, _scarf_p.x) * Quaternion(Vector3.FORWARD, _scarf_r.x))
 	for i in 4:
-		_pose_q(TAIL_BONES[i], Quaternion(Vector3.RIGHT, -_tail_p[i]) * Quaternion(Vector3.BACK, _tail_y[i]))
+		_pose_q(TAIL_BONES[i], Quaternion(Vector3.RIGHT, -_tail_p[i] + _off_tail * (1.0 if i < 2 else -0.6)) * Quaternion(Vector3.BACK, _tail_y[i]))
 
 
 ## Đuôi mèo thật đổi dáng theo việc mèo đang làm:

@@ -1,95 +1,117 @@
 extends Node3D
-## Màn bếp Cô Ba: Bơ làm 2 ổ bánh mì trong 2 phút 30 giây trước khi đi giao.
-## Camera đứng cố định ngoài tủ kính nhìn vào bếp. Bơ chạy giữa các trạm, mỗi lần cầm một món:
-## bao bột → bàn nhồi → lò gạch → kệ (rau, chả, thịt) → thớt → bàn ráp → tủ kính.
-## Tới trạm bấm E: camera lướt vào cận cảnh, mỗi bước bấm E để hai chân trước của Bơ làm.
-## Điểm bếp (0–3 sao) cộng 2 giây/sao vào đồng hồ mọi đơn giao (GameState.kitchen_bonus).
+## Màn bếp Cô Ba: Bơ làm 2 ổ bánh mì trước khi đi giao.
+## Camera đứng cố định ngoài xe bánh mì (tủ kính) nhìn vào bếp. Bơ chạy giữa các trạm, mỗi lần cầm một món:
+## bao bột → bàn nhào (nhào, ủ, tạo hình) → lò gạch → bàn đồ chua → kệ (rổ rau, chả, thịt) → bồn rửa → thớt
+## → bàn ráp → xe bánh mì. Tới trạm bấm E: camera lướt vào cận cảnh, mỗi bước có một kiểu thao tác
+## (scripts/kitchen_input.gd: bấm, giữ, giữ-thả, xen kẽ, nhúng, canh giờ, vuốt, xoay, chọn) và hai chân trước
+## của Bơ làm theo từng nhịp. Điểm bếp (0–3 sao) cộng giờ vào các đơn giao (GameState.kitchen_bonus).
 ##
-## Toàn bộ đồ bếp là khối tạm (scripts/kitchen_props.gd) theo màu thẻ đồ bếp kiểu D.
+## Đồ bếp là .glb kiểu D thật (assets/models/bep/, scripts/kitchen_models.gd). Các bước theo phạm vi
+## "Bản đầu" trên trang phác thảo game: ổ bánh, dưa leo, ngò, đồ chua, ớt, chả, thịt, pate, xì dầu, ráp.
 
 const PlayerScript := preload("res://scripts/player.gd")
 const CameraScript := preload("res://scripts/kitchen_camera.gd")
 const HudScript := preload("res://scripts/kitchen_hud.gd")
-const P := preload("res://scripts/kitchen_props.gd")
+const KM := preload("res://scripts/kitchen_models.gd")
+const KI := preload("res://scripts/kitchen_input.gd")
 
-@export var time_limit := 150.0   ## 2 phút 30 giây cho 2 ổ
+@export var time_limit := 210.0   ## 3 phút 30 giây cho 2 ổ (bản đầu nhiều bước hơn bản khối)
 @export var bake_time := 6.0      ## lò nướng chín sau 6 giây
 @export var burn_after := 5.0     ## để thêm quá 5 giây là cháy
+@export var proof_time := 8.0     ## ủ bột 8 giây
 @export var spare_for_star := 45.0  ## còn dư từ chừng này giây thì được sao thứ ba
 const LOAVES := 2
-const USE_RADIUS := 0.6
+const USE_RADIUS := 0.32
 const STAR_SECONDS := 2.0
+
+const DOUGH_TINT := Color(1, 1, 1)
+const BAKE_TINT := Color(1.0, 0.82, 0.6)
+const PATE := Color("#9B6A4A")
+const WATER := Color(0.62, 0.82, 0.92, 0.6)
+
+# Bố cục (mét, cỡ mèo): bàn cao 34 cm, lò và xe bánh mì cỡ thật.
+const BAO := Vector3(-2.2, 0, -1.45)
+const NHOI := Vector3(-1.25, 0.341, -1.4)   ## mặt bàn nhào
+const LO := Vector3(0.3, 0, -1.33)
+const KE := Vector3(1.55, 0.341, -1.4)      ## mặt bàn nguyên liệu
+const RUA := Vector3(2.42, 0, -0.35)
+const THOT := Vector3(2.2, 0.386, 0.55)     ## mặt thớt
+const CHUA := Vector3(-2.3, 0.341, 0.15)    ## mặt bàn đồ chua
+const RAP := Vector3(0.3, 0.399, 0.15)      ## mặt bàn ráp
+const XE := Vector3(-1.2, 0, 1.2)
+const TRAY_OUT := -0.72   ## z của khay khi kéo ra đặt trên cửa lò
+const TRAY_IN := -1.3     ## z của khay khi nằm trong lò
 
 enum State { MENU, PLAY, END }
 
 var state := State.MENU
 var time_left := 0.0
-var holding := ""          ## món đang cầm: "", bot, khay_song, khay_chin, khay_chay, rau, cha, thit, rau_xong..., banh_mi
-var dough_started := false
+var holding := ""          ## món đang cầm: "", bot, khay_song, khay_chin, khay_chay, rau, rau_sach, cha, thit, *_xong, do_chua, banh_mi
+var flour_taken := false
+var dough_state := "none"  ## none, proofing, risen, shaped
+var proof_t := 0.0
 var oven_state := "trong"  ## trong, nuong, chin, chay
 var oven_t := 0.0
 var bread_burnt := false
-var loaf_stars: Array[int] = []   ## sao từng ổ, ghi lúc bỏ ổ vào tủ kính
+var pate_open := false
+var do_chua_done := false
+var loaf_stars: Array[int] = []   ## sao từng ổ, ghi lúc bỏ ổ vào xe bánh mì
 var taken := {"rau": false, "cha": false, "thit": false}
-var on_rap := {"rau": false, "cha": false, "thit": false}
+var on_rap := {"rau": false, "cha": false, "thit": false, "do_chua": false}
 var loaves_on_rap := 0
 var made := 0
+var mistakes := 0
+
+# Phiếu ghi món (Thứ Ba): ổ thứ i của ca làm cho đơn loaf_orders[i]; ổ có phiếu được làm trước.
+var loaf_orders: Array[int] = []
+var loaf_note_ok: Array[bool] = []
+var _note_ok := true          ## ổ đang ráp còn đúng phiếu không
+# Ráp nhanh (Thứ Ba sau đơn 2): chỉ ráp 1 ổ trứng ở bàn ráp rồi về phố
+var quick := false
+var quick_order := -1
+const QUICK_TIME := 40.0
+const QUICK_SPARE := 10.0     ## ráp xong còn dư chừng này giây thì 3 sao
+const NOTE_NAMES := {"khong_ot": "không ớt", "them_pate": "thêm pate", "nhieu_do_chua": "nhiều đồ chua"}
 
 var player: CharacterBody3D
 var cam: Node3D
 var hud: CanvasLayer
-var stations := {}   ## id -> {name, use, work, cam, ring}
+var stations := {}   ## id -> {name, use, work, cam, look, ring}
 var carry_node: Node3D
+var input: KI
 
 # Cận cảnh: chuỗi bước của trạm đang làm
 var seq: Array = []
 var seq_station := ""
 var seq_index := 0
-var presses_left := 0
-var busy := false
 
-# Đồ động ở các trạm (cận cảnh dùng)
+# Chân Bơ trong cận cảnh
 var paw_rig: Node3D
 var paw_l: Node3D
 var paw_r: Node3D
-var flour_puff: CPUParticles3D
-var heap: MeshInstance3D
-var dough: MeshInstance3D
-var balls: Array[MeshInstance3D] = []
-var raw_loaves: Array[MeshInstance3D] = []
+const PAW_L_REST := Vector3(-0.065, 0.05, 0.12)
+const PAW_R_REST := Vector3(0.065, 0.05, 0.12)
+const CLOSE_BACK := 0.5    ## camera cận cảnh lùi về phía Bơ đứng bao nhiêu mét so với điểm làm việc
+const CLOSE_UP := 0.44     ## và cao hơn điểm làm việc bao nhiêu mét (ngang tầm mắt Bơ đứng hai chân)
+const CLOSE_AHEAD := 0.0
+const PAW_SIZE := 0.8      ## chân trước nhỏ lại cho hợp đồ bếp cỡ mèo (thớt 38 cm, hộp pate 10 cm)
+
+# Đồ động ở các trạm
+var n := {}                ## tên -> Node3D (đồ cận cảnh ở các trạm)
+var balls: Array[Node3D] = []
+var raw_loaves: Array[Node3D] = []
 var slashes: Array[Node3D] = []
-var jug: Node3D
-var stream: MeshInstance3D
-var cloth: MeshInstance3D
-var cutter: Node3D
-var oven_door: Node3D
-var oven_fire: MeshInstance3D
-var oven_tray: Node3D
-var oven_loaves: Array[MeshInstance3D] = []
-var oven_label: Label3D
-var spray: Node3D
+var oven_loaves: Array[Dictionary] = []   ## mỗi ổ: {song, vang, chay}
+var rap_loaves: Array[Node3D] = []
+var case_slots: Array[Node3D] = []
+var board := {}            ## đồ trên thớt của món đang sơ chế
+var loaf := {}             ## ổ đang ráp: base, lid, smear, pieces, done, paper
+var flour_puff: CPUParticles3D
 var mist: CPUParticles3D
 var smoke: CPUParticles3D
-var shelf_items := {}
-var board_knife: Node3D
-var board_item: Node3D
-var board_slices: Array[MeshInstance3D] = []
 var drops: CPUParticles3D
-var rap_tray: Node3D
-var rap_loaves: Array[MeshInstance3D] = []
-var rap_bowls := {}
-var work_loaf: Node3D
-var work_parts := {}
-var pate_jar: Node3D
-var sauce: Node3D
-var case_slots: Array[Node3D] = []
-var paper: MeshInstance3D
-
-const PAW_L_REST := Vector3(-0.09, 0.06, 0.15)
-const PAW_R_REST := Vector3(0.09, 0.06, 0.15)
-const CLOSE_BACK := 0.42   ## camera cận cảnh lùi về phía Bơ đứng bao nhiêu mét so với điểm làm việc
-const CLOSE_UP := 0.34     ## và cao hơn điểm làm việc bao nhiêu mét (ngang tầm mắt Bơ)
-const CLOSE_AHEAD := 0.08  ## camera nhìn hơi vượt qua điểm làm việc để chân nằm ở nửa dưới khung
+var oven_label: Label3D
+var fire_light: OmniLight3D
 
 # Tự chơi: --autotest-bep (kiểm tra, thoát khi xong) hoặc --demo-bep (để quay clip)
 var _bot := false
@@ -97,6 +119,9 @@ var _bot_quit := false
 var _bot_path: Array[Vector3] = []
 var _bot_goal := ""
 var _bot_wait := 0.0
+var _grid: AStarGrid2D
+const GRID := 0.1
+const GRID_ORIGIN := Vector2(-2.6, -1.7)
 
 
 func _ready() -> void:
@@ -105,8 +130,20 @@ func _ready() -> void:
 		# Kiểm tra vòng giao bánh như cũ: bỏ qua bếp
 		get_tree().change_scene_to_file.call_deferred("res://scenes/main.tscn")
 		return
-	_bot = "--autotest-bep" in args or "--demo-bep" in args
-	_bot_quit = "--autotest-bep" in args
+	_bot = "--autotest-bep" in args or "--demo-bep" in args or "--autotest-rap-nhanh" in args or "--demo-rap-nhanh" in args
+	_bot_quit = "--autotest-bep" in args or "--autotest-rap-nhanh" in args
+	for a in args:
+		if a.begins_with("--ngay="):   # bot thử bếp của ngày khác, vd --ngay=thu_ba (phiếu ghi món)
+			GameState.day = a.trim_prefix("--ngay=")
+	if "--autotest-rap-nhanh" in args or "--demo-rap-nhanh" in args:
+		GameState.day = "thu_ba"
+		GameState.quick_assemble_request = 2
+		GameState.eggs_brought = 3 if "--it-trung" in args else 6
+	quick = GameState.quick_assemble_request >= 0
+	quick_order = GameState.quick_assemble_request
+	if quick:
+		time_limit = QUICK_TIME
+	_load_notes()
 
 	_setup_input()
 	_setup_environment()
@@ -116,33 +153,48 @@ func _ready() -> void:
 	_build_room(room)
 	_build_stations(room)
 	Blocks.merge_static(room)
+	_build_grid()
 
 	player = PlayerScript.new()
 	player.name = "Bo"
-	player.walk_speed = 2.6   # bếp nhỏ, chạy 5 m/s thì vọt qua trạm
-	player.sprint_speed = 4.0
-	player.position = Vector3(-1.0, 0.1, 0.9)
+	player.walk_speed = 2.0   # bếp cỡ mèo 5 × 3,4 m
+	player.sprint_speed = 3.0
+	player.position = Vector3(-0.5, 0.05, 0.45)
 	add_child(player)
 
 	cam = CameraScript.new()
 	cam.name = "CameraBep"
+	cam.main_pos = Vector3(0, 2.6, 4.3)
+	cam.main_look = Vector3(0, 0.0, -0.3)
 	cam.target = player
 	add_child(cam)
 	player.camera_rig = cam
 
 	_build_paws()
 
+	input = KI.new()
+	input.bot = _bot
+	input.hit.connect(_on_hit)
+	input.progress.connect(_on_progress)
+	input.miss.connect(_on_miss)
+	input.picked_changed.connect(_show_step)
+	input.wrong_pick.connect(_on_wrong_pick)
+
 	hud = HudScript.new()
 	add_child(hud)
 	hud.start_pressed.connect(start_game)
 	hud.go_delivery_pressed.connect(_go_delivery)
 	hud.menu_pressed.connect(func(): PlayMode.back_to_menu(get_tree()))
+	hud.option_pressed.connect(func(i: int): input.choose(i))
 	if PlayMode.kitchen_only():
 		for b in hud.end_screen.find_children("*", "Button", true, false):
 			b.text = "Về chọn màn (Enter)"
 	_update_hud()
 
-	if _bot:
+	if quick:
+		hud.start_screen.visible = false
+		start_game.call_deferred()
+	elif _bot:
 		print("[bep] tự chơi")
 		if _bot_quit:
 			start_game.call_deferred()
@@ -158,9 +210,12 @@ func start_game() -> void:
 	player.can_move = true
 	hud.start_screen.visible = false
 	hud.show_playing_ui(true)
-	hud.show_toast("Tới bao bột xúc bột trước nhé!", 2.5)
 	_sound("music", "kitchen")
 	_sound("ambience", "kitchen")
+	if quick:
+		_start_quick()
+		return
+	hud.show_toast("Tới bao bột xúc bột trước nhé!", 2.5)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -174,11 +229,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		State.PLAY:
 			if event.is_action_pressed("pause"):
 				hud.toggle_pause()
-			elif event.is_action_pressed("interact") and not _bot:
-				if seq.is_empty():
-					_interact()
-				else:
-					_press()
+			elif _bot:
+				pass
+			elif not seq.is_empty():
+				input.screen_center = get_viewport().get_visible_rect().size * 0.5
+				input.handle(event)
+			elif event.is_action_pressed("interact") and not (event is InputEventMouseButton):
+				_interact()
 
 
 func _physics_process(delta: float) -> void:
@@ -186,15 +243,22 @@ func _physics_process(delta: float) -> void:
 		return
 	time_left -= delta
 	_update_oven(delta)
+	_update_proof(delta)
+	if not seq.is_empty():
+		input.update(delta)
+		_show_step()
 	if _bot:
 		_bot_step(delta)
 	if time_left <= 0.0:
 		time_left = 0.0
-		_end(false)
+		if quick:
+			_end_quick(false)
+		else:
+			_end(false)
 	_update_hud()
 
 
-func _process(delta: float) -> void:
+func _process(_delta: float) -> void:
 	# Vòng tròn dưới chân trạm: trạm nên tới sáng cam nhấp nháy, trạm đang đứng sáng vàng
 	var near := _near_station()
 	var goal := _suggest()
@@ -230,14 +294,26 @@ func _steps_for(id: String) -> Array:
 		"bot":
 			if holding != "":
 				return _no("Tay đang cầm %s rồi" % _item_name(holding))
-			if dough_started:
+			if flour_taken:
 				return _no("Bột đủ cho 2 ổ rồi")
-			return [_s("xuc", "Xúc bột", 1)]
+			return [_s("xuc", "Xúc bột", "tap", {"n": 2})]
 		"nhoi":
-			if holding != "bot":
-				return _no("Cần mang bột tới bàn nhồi")
-			return [_s("do_nuoc", "Đổ nước", 1), _s("nhoi", "Nhồi bột", 4), _s("u", "Ủ bột", 1),
-				_s("chia", "Chia bột", 1), _s("ve", "Vê thành ổ", 2), _s("khia", "Khía mặt bánh", 2)]
+			if holding == "bot":
+				return [_s("do_bot", "Đổ bột vào thau", "tap"),
+					_s("rot_nuoc", "Rót nước", "hold_release", {"dur": 1.6, "zone": [0.7, 0.88]}),
+					_s("nhao", "Nhào bột", "alt", {"n": 12}),
+					_s("u", "Phủ khăn ủ bột", "tap")]
+			if dough_state == "proofing":
+				return _no("Bột đang ủ, còn %d giây. Tranh thủ làm việc khác!" % ceili(proof_time - proof_t))
+			if dough_state == "risen":
+				if holding != "":
+					return _no("Đặt %s xuống trước đã" % _item_name(holding))
+				return [_s("chia", "Chia bột", "tap", {"n": 2}),
+					_s("lan", "Nặn và lăn dài", "alt", {"n": 8}),
+					_s("rach", "Rạch mặt bánh", "timing", {"n": 2, "zone": [0.4, 0.6], "speed": 3.0})]
+			if dough_state == "none":
+				return _no("Cần mang bột tới bàn nhào")
+			return _no("Bàn nhào xong việc rồi")
 		"lo":
 			match oven_state:
 				"nuong":
@@ -245,27 +321,53 @@ func _steps_for(id: String) -> Array:
 				"chin", "chay":
 					if holding != "":
 						return _no("Đặt %s xuống trước đã" % _item_name(holding))
-					return [_s("mo_cua", "Mở cửa lò", 1), _s("keo_khay", "Kéo khay ra", 1)]
+					return [_s("deo_gang", "Đeo găng, mở cửa lò", "tap"),
+						_s("rut_khay", "Rút khay ra", "hold", {"dur": 1.0})]
 				_:
 					if holding != "khay_song":
 						return _no("Cần mang khay bánh sống tới lò")
-					return [_s("mo_cua", "Mở cửa lò", 1), _s("phun", "Phun hơi nước", 1),
-						_s("day_khay", "Đẩy khay vào lò", 1), _s("dong_cua", "Đóng cửa lò", 1)]
+					return [_s("mo_cua", "Mở cửa lò", "tap"),
+						_s("xit", "Xịt hơi nước", "tap", {"n": 3}),
+						_s("day_khay", "Đẩy khay vào lò", "hold", {"dur": 1.2}),
+						_s("dong_cua", "Đóng cửa lò", "tap")]
 		"rau", "cha", "thit":
 			if taken[id]:
 				return _no("Lấy %s rồi" % _item_name(id))
 			if holding != "":
 				return _no("Tay đang cầm %s rồi" % _item_name(holding))
-			return [_s("lay", "Lấy %s" % _item_name(id), 1)]
+			return [_s("lay", "Lấy %s" % _item_name(id), "tap")]
+		"rua":
+			if holding != "rau":
+				return _no("Mang rổ rau tới bồn rửa" if holding == "" else "Bồn rửa chỉ để rửa rau")
+			return [_s("chai_rua", "Chà rửa dưa leo", "alt", {"n": 6}),
+				_s("nhung", "Nhúng lắc ngò", "dip", {"n": 6}),
+				_s("lat", "Lặt ngò", "pick", {"order": ["Bỏ rễ", "Bỏ lá úa", "Ngắt nhánh nhỏ"], "wrong": ["Bỏ ngọn"]})]
 		"thot":
 			match holding:
 				"rau":
-					return [_s("rua", "Rửa rau", 1), _s("nhat", "Nhặt lá úa", 1), _s("cat", "Cắt rau", 3)]
+					return _no("Rửa rau ở bồn trước đã")
+				"rau_sach":
+					return [_s("cat_dau", "Cắt hai đầu dưa leo", "tap", {"n": 2}),
+						_s("che_doc", "Chẻ dọc dưa leo", "timing", {"n": 3, "zone": [0.38, 0.62], "speed": 2.4}),
+						_s("cat_ot", "Cắt ớt", "tap", {"n": 4})]
 				"cha":
-					return [_s("boc_la", "Bóc lá chuối", 1), _s("cat", "Thái chả", 3)]
+					return [_s("cat_lat", "Cắt lạt buộc", "tap", {"n": 2}),
+						_s("boc_la", "Bóc lá chuối", "hold", {"dur": 1.2}),
+						_s("cat_doi", "Cắt đôi đòn chả", "tap"),
+						_s("thai_cha", "Thái chả", "timing", {"n": 4, "zone": [0.4, 0.6], "speed": 2.4})]
 				"thit":
-					return [_s("cat", "Thái thịt", 3), _s("xep", "Xếp ra đĩa", 1)]
-			return _no("Mang rau, chả hoặc thịt sống tới thớt")
+					return [_s("boc_giay", "Bóc giấy gói thịt", "hold", {"dur": 1.0}),
+						_s("thai_thit", "Thái thịt", "timing", {"n": 4, "zone": [0.4, 0.6], "speed": 2.4}),
+						_s("xep_quat", "Xếp thịt hình quạt", "alt", {"n": 4})]
+			return _no("Mang dưa leo, chả hoặc thịt tới thớt")
+		"do_chua":
+			if do_chua_done:
+				return _no("Đồ chua làm rồi")
+			if holding != "":
+				return _no("Tay đang cầm %s rồi" % _item_name(holding))
+			return [_s("got", "Gọt cà rốt", "swipe", {"n": 3}),
+				_s("bao", "Bào sợi", "swipe", {"n": 3}),
+				_s("pha", "Pha giấm đường", "rotate", {"n": 2})]
 		"rap":
 			if holding in ["khay_chin", "khay_chay"]:
 				loaves_on_rap = LOAVES
@@ -274,7 +376,7 @@ func _steps_for(id: String) -> Array:
 				_refresh_rap()
 				hud.show_toast("Đặt bánh lên bàn ráp")
 				return []
-			if holding.ends_with("_xong"):
+			if holding.ends_with("_xong") or holding == "do_chua":
 				var k := holding.trim_suffix("_xong")
 				on_rap[k] = true
 				_set_holding("")
@@ -282,26 +384,84 @@ func _steps_for(id: String) -> Array:
 				hud.show_toast("Đặt %s lên bàn ráp" % _item_name(k))
 				return []
 			if holding != "":
-				return _no("Phải sơ chế %s trên thớt trước" % _item_name(holding) if holding in taken else "Bàn ráp chưa cần %s" % _item_name(holding))
+				return _no("Phải sơ chế %s trước" % _item_name(holding) if holding in ["rau", "rau_sach", "cha", "thit"] else "Bàn ráp chưa cần %s" % _item_name(holding))
 			var missing := []
 			if loaves_on_rap == 0:
 				missing.append("bánh nướng")
-			for k in ["rau", "cha", "thit"]:
+			for k in on_rap:
 				if not on_rap[k]:
 					missing.append(_item_name(k))
 			if not missing.is_empty():
 				return _no("Còn thiếu: " + ", ".join(missing))
-			return [_s("xe", "Xẻ bánh", 1), _s("pate", "Phết pate", 1), _s("kep", "Kẹp chả, thịt", 1),
-				_s("them_rau", "Thêm rau", 1), _s("tuong", "Rưới nước tương", 1)]
+			var steps := [_s("xe", "Xẻ bánh", "hold_release", {"dur": 1.6, "zone": [0.7, 0.9]})]
+			if not pate_open:
+				steps.append(_s("khui", "Khui hộp pate", "swipe"))
+				steps.append(_s("khuay", "Khuấy pate", "rotate"))
+			steps.append_array(_assemble_steps(["Thịt nguội", "Chả lụa", "Dưa leo", "Đồ chua", "Ngò", "Ớt"], ["Trứng", "Xíu mại"]))
+			return steps
 		"tu":
 			if holding != "banh_mi":
-				return _no("Ráp xong ổ bánh mì rồi mới bỏ vào tủ")
-			return [_s("goi", "Gói giấy", 1), _s("bo_vao", "Bỏ vào tủ kính", 1)]
+				return _no("Ráp xong ổ bánh mì rồi mới bỏ vào xe")
+			return [_s("bo_vao", "Bỏ vào tủ kính", "tap")]
 	return []
 
 
-func _s(id: String, title: String, presses: int) -> Dictionary:
-	return {"id": id, "name": title, "n": presses}
+## Các bước ráp sau khi xẻ: phết pate, xếp nhân theo phiếu, xì dầu, gói. Phiếu đổi thứ tự nhân:
+## "không ớt" bỏ Ớt (chọn Ớt là sai phiếu), "thêm pate" thêm một lượt pate, "nhiều đồ chua" thêm đồ chua.
+func _assemble_steps(fillings: Array, wrong: Array) -> Array:
+	var note := _current_note()
+	var order := fillings.duplicate()
+	var bad := wrong.duplicate()
+	match note:
+		"khong_ot":
+			order.erase("Ớt")
+			bad.append("Ớt")
+		"them_pate":
+			order.push_front("Thêm pate")
+		"nhieu_do_chua":
+			order.insert(order.find("Đồ chua") + 1, "Thêm đồ chua")
+	var pick_name: String = "Xếp nhân" + (" · phiếu: " + NOTE_NAMES[note] if note != "" else "")
+	return [_s("pate", "Phết pate", "hold", {"dur": 1.2}),
+		_s("xep_nhan", pick_name, "pick", {"order": order, "wrong": bad}),
+		_s("xi_dau", "Rưới xì dầu", "tap", {"n": 2}),
+		_s("goi", "Gói giấy", "alt", {"n": 4})]
+
+
+## Phiếu của ổ đang ráp ("" nếu không có).
+func _current_note() -> String:
+	var k := quick_order if quick else (loaf_orders[made] if made < loaf_orders.size() else -1)
+	return GameState.bread_notes[k] if k >= 0 and k < GameState.bread_notes.size() else ""
+
+
+## Đọc phiếu ghi món của ngày (Days, gói T3-1) và chọn ổ nào làm cho đơn nào.
+func _load_notes() -> void:
+	var orders: Array = []
+	if ResourceLoader.exists("res://scripts/days.gd"):
+		orders = load("res://scripts/days.gd").orders(GameState.day)
+	if not quick or GameState.bread_notes.size() != GameState.ORDERS_PER_DAY:
+		var notes: Array[String] = []
+		var oks: Array[bool] = []
+		for i in GameState.ORDERS_PER_DAY:
+			notes.append(str(orders[i].get("note", "")) if i < orders.size() else "")
+			oks.append(true)
+		GameState.bread_notes = notes
+		GameState.bread_note_ok = oks
+	# Ổ có phiếu làm trước, rồi tới các đơn đầu ngày; bỏ đơn mua đồ (errand)
+	var noted: Array[int] = []
+	var rest: Array[int] = []
+	for i in GameState.ORDERS_PER_DAY:
+		if i < orders.size() and orders[i].get("kind", "deliver") == "errand":
+			continue
+		(noted if GameState.bread_notes[i] != "" else rest).append(i)
+	noted.append_array(rest)
+	loaf_orders = noted.slice(0, LOAVES)
+	loaf_orders.sort()
+
+
+func _s(id: String, title: String, type: String, extra := {}) -> Dictionary:
+	var d := {"id": id, "name": title, "type": type, "n": 1}
+	d.merge(extra, true)
+	return d
 
 
 func _no(msg: String) -> Array:
@@ -315,8 +475,6 @@ func _begin(id: String, steps: Array) -> void:
 	seq = steps
 	seq_station = id
 	seq_index = 0
-	presses_left = steps[0].n
-	busy = false
 	player.can_move = false
 	player.velocity = Vector3.ZERO
 	var st: Dictionary = stations[id]
@@ -325,32 +483,35 @@ func _begin(id: String, steps: Array) -> void:
 	cam.close_up(st.cam, st.look)
 	_place_paws(st)
 	player.visual.visible = false  # cận cảnh chỉ thấy hai chân trước, thân Bơ không che camera
+	_set_holding_visible(false)
 	_on_begin(id)
-	_show_step()
+	_start_step()
 
 
-## Một lần bấm E trong cận cảnh: chân Bơ làm một nhịp của bước hiện tại.
-func _press() -> void:
-	if busy or seq.is_empty():
-		return
+func _start_step() -> void:
 	var step: Dictionary = seq[seq_index]
-	var beat: int = step.n - presses_left
-	presses_left -= 1
-	busy = true
+	input.start(step)
+	_on_step_start(step.id)
 	_show_step()
-	var tw := _beat(seq_station, step.id, beat)
-	tw.finished.connect(_beat_done, CONNECT_ONE_SHOT)
 
 
-func _beat_done() -> void:
-	busy = false
-	if presses_left > 0:
-		_show_step()
+## Một nhịp xong (một lần bấm trúng, một nhát vuốt, một vòng xoay...): chân Bơ diễn nhịp đó.
+func _on_hit(index: int, last: bool) -> void:
+	if seq.is_empty():
+		return
+	input.locked = true
+	var step: Dictionary = seq[seq_index]
+	var tw := _beat(step.id, index, last)
+	tw.finished.connect(_beat_done.bind(last), CONNECT_ONE_SHOT)
+
+
+func _beat_done(last: bool) -> void:
+	input.locked = false
+	if not last or seq.is_empty():
 		return
 	seq_index += 1
 	if seq_index < seq.size():
-		presses_left = seq[seq_index].n
-		_show_step()
+		_start_step()
 		return
 	var id := seq_station
 	seq = []
@@ -360,12 +521,49 @@ func _beat_done() -> void:
 	paw_rig.visible = false
 	player.visual.visible = true
 	player.can_move = true
+	_set_holding_visible(true)
 	_finish(id)
 
 
-func _show_step() -> void:
+func _on_miss(text: String) -> void:
+	mistakes += 1
+	hud.flash(text)
+	_sound("play", "fail")
+	if seq.is_empty():
+		return
 	var step: Dictionary = seq[seq_index]
-	hud.show_step(step.name, seq_index, seq.size(), presses_left, busy)
+	if step.id == "rot_nuoc" and text.begins_with("Quá"):
+		drops.global_position = n.thau.global_position + Vector3(0, 0.08, 0)
+		drops.restart()
+
+
+func _on_wrong_pick(option: String) -> void:
+	if _current_note() == "khong_ot" and option == "Ớt":
+		_note_ok = false
+		hud.flash("Phiếu ghi KHÔNG ỚT! Ổ này sai phiếu rồi")
+
+
+func _show_step() -> void:
+	if seq.is_empty():
+		return
+	var step: Dictionary = seq[seq_index]
+	hud.show_step(step.name, seq_index, seq.size(), input.hint())
+	match input.kind:
+		"hold", "swipe", "rotate":
+			hud.set_meter(input.value)
+		"hold_release":
+			hud.set_meter(input.value, input.zone)
+		"timing":
+			hud.set_meter(0.0, input.zone, input.value)
+		_:
+			hud.set_meter(-1.0)
+	if input.kind == "pick":
+		var done := []
+		for i in input.options.size():
+			done.append(input.is_picked(i))
+		hud.set_pick(input.options, done, input.cursor)
+	else:
+		hud.set_pick([], [], 0)
 
 
 ## Kết quả sau khi làm xong cả chuỗi bước ở một trạm.
@@ -374,44 +572,66 @@ func _finish(id: String) -> void:
 		print("[bep] %5.1fs xong trạm %s (cầm %s)" % [time_limit - time_left, id, holding])
 	match id:
 		"bot":
-			dough_started = true
+			flour_taken = true
 			_set_holding("bot")
 		"nhoi":
-			_set_holding("khay_song")
-			_reset_kneading()
+			if holding == "bot":
+				_set_holding("")
+				dough_state = "proofing"
+				proof_t = 0.0
+				hud.show_toast("Ủ bột %d giây. Tranh thủ làm đồ chua!" % int(proof_time), 2.5)
+			else:
+				dough_state = "shaped"
+				n.tray_raw.visible = false
+				_set_holding("khay_song")
 		"lo":
 			if holding == "khay_song":
 				_set_holding("")
 				oven_state = "nuong"
 				oven_t = 0.0
 				_sound("loop", "oven_fire")
-				hud.show_toast("Nướng 6 giây. Tranh thủ đi lấy rau, chả, thịt!", 2.5)
+				hud.show_toast("Nướng %d giây. Tranh thủ đi lấy rau, chả, thịt!" % int(bake_time), 2.5)
 			else:
 				var burnt := oven_state == "chay"
 				_set_holding("khay_chay" if burnt else "khay_chin")
 				oven_state = "trong"
-				oven_tray.visible = false
+				n.oven_tray.visible = false
 				smoke.emitting = false
 				_sound("stop_loop", "oven_fire")
-				create_tween().tween_property(oven_door, "rotation:y", 0.0, 0.4)
+				n.mitt.reparent(self)
+				var tw := create_tween()
+				tw.tween_property(n.oven_door, "rotation:x", 0.0, 0.4)
+				tw.parallel().tween_property(n.mitt, "global_position", n.mitt_rest, 0.3)
 				hud.show_toast("Ôi cháy mất rồi! Đành dùng tạm..." if burnt else "Bánh vàng giòn thơm phức!", 2.5)
 		"rau", "cha", "thit":
 			taken[id] = true
 			_set_holding(id)
+		"rua":
+			_set_holding("rau_sach")
+			n.wash_cuke.visible = false
+			n.wash_herb.visible = false
 		"thot":
-			_set_holding(holding + "_xong")
+			_set_holding(holding.trim_suffix("_sach") + "_xong")
 			_clear_board()
+		"do_chua":
+			do_chua_done = true
+			n.chua_jar.visible = false
+			n.chua_shreds.visible = false
+			_set_holding("do_chua")
 		"rap":
 			loaves_on_rap -= 1
 			_set_holding("banh_mi")
-			work_loaf.visible = false
+			_reset_loaf()
 			_refresh_rap()
+			if quick:
+				_end_quick(true)
 		"tu":
 			_set_holding("")
 			case_slots[made].visible = true
-			paper.visible = false
+			loaf_note_ok.append(_note_ok)
+			_note_ok = true
 			made += 1
-			# Sao của ổ này: 1 vì làm xong, +1 nếu không cháy, +1 nếu bỏ tủ khi còn dư đủ giờ
+			# Sao của ổ này: 1 vì làm xong, +1 nếu không cháy, +1 nếu bỏ xe khi còn dư đủ giờ
 			loaf_stars.append(1 + int(not bread_burnt) + int(time_left >= spare_for_star))
 			if made >= LOAVES:
 				_end(true)
@@ -419,13 +639,92 @@ func _finish(id: String) -> void:
 				hud.show_toast("Xong ổ 1! Quay lại bàn ráp làm ổ 2")
 
 
+# ---------------------------------------------------------------- ráp nhanh ổ trứng (Thứ Ba, sau đơn 2)
+
+## Vào thẳng cận cảnh bàn ráp: bánh, nhân, pate đã sẵn; đập trứng, đánh trứng rồi ráp như thường.
+func _start_quick() -> void:
+	loaves_on_rap = 1
+	bread_burnt = false
+	pate_open = true
+	n.pate_lid.visible = false
+	n.pate_fill.visible = true
+	for k in on_rap:
+		on_rap[k] = true
+	_refresh_rap()
+	var eggs := clampi(GameState.eggs_brought, 1, 2)
+	n.egg_bowl.visible = true
+	for i in n.eggs.size():
+		n.eggs[i].visible = i < eggs
+	player.global_position = stations.rap.use
+	hud.show_toast("Ráp nhanh ổ trứng cho đơn %d!" % (quick_order + 1), 2.5)
+	var steps := [_s("dap_trung", "Đập trứng", "tap", {"n": eggs}),
+		_s("khuay_trung", "Đánh trứng", "rotate"),
+		_s("xe", "Xẻ bánh", "hold_release", {"dur": 1.6, "zone": [0.7, 0.9]})]
+	steps.append_array(_assemble_steps(["Trứng", "Dưa leo", "Đồ chua", "Ngò", "Ớt"], ["Chả lụa", "Xíu mại"]))
+	_begin("rap", steps)
+
+
+func _end_quick(done: bool) -> void:
+	if state == State.END:
+		return
+	state = State.END
+	player.can_move = false
+	hud.hide_step()
+	var stars := 1
+	var lines := ""
+	if done:
+		stars = 3 if time_left >= QUICK_SPARE else 2
+		lines += "★ Ráp xong ổ trứng, còn dư %d giây\n" % int(time_left)
+		if stars == 3:
+			lines += "★ Nhanh tay (dư từ %d giây)\n" % int(QUICK_SPARE)
+	else:
+		lines += "Hết giờ! Ổ trứng đành gói vội\n"
+	if GameState.eggs_brought <= 3:
+		stars = mini(stars, 1)
+		lines += "✗ Chỉ còn %d quả trứng nguyên: ổ trứng tối đa 1 sao\n" % GameState.eggs_brought
+	var note := _current_note()
+	if note != "":
+		lines += ("✓ Đúng phiếu \"%s\"\n" if _note_ok else "✗ Sai phiếu \"%s\": đơn đó mất sao nguyên vẹn\n") % NOTE_NAMES[note]
+	var per: Array[int] = GameState.kitchen_stars_per_bread.duplicate()
+	while per.size() < GameState.ORDERS_PER_DAY:
+		per.append(GameState.kitchen_stars)
+	per[quick_order] = stars
+	GameState.kitchen_stars_per_bread = per
+	while GameState.bread_note_ok.size() < GameState.ORDERS_PER_DAY:
+		GameState.bread_note_ok.append(true)
+	GameState.bread_note_ok[quick_order] = _note_ok if done else true
+	GameState.quick_assemble_request = -1
+	lines += "\n%d/3 sao bếp cho ổ trứng của đơn %d" % [stars, quick_order + 1]
+	hud.show_end(lines)
+	for b in hud.end_screen.find_children("*", "Button", true, false):
+		b.text = "Mang bánh đi giao (Enter)"
+	_sound("music", "jingle_win" if done else "jingle_lose")
+	print("[bep] rap_nhanh don=%d sao=%d trung=%d dung_phieu=%s con_lai=%.1fs truot=%d" % [quick_order + 1, stars, GameState.eggs_brought, _note_ok, time_left, mistakes])
+	if _bot_quit:
+		print("AUTOTEST RAP NHANH ", "OK" if done else "FAIL")
+		get_tree().quit(0 if done else 1)
+	elif _bot:
+		get_tree().create_timer(3.0).timeout.connect(_go_delivery)
+
+
+func _update_proof(delta: float) -> void:
+	if dough_state != "proofing":
+		return
+	proof_t += delta
+	var k := clampf(proof_t / proof_time, 0.0, 1.0)
+	n.proof_bowl.scale = Vector3(1.0, 0.9 + 0.25 * k, 1.0)
+	if proof_t >= proof_time:
+		dough_state = "risen"
+		_sound("play", "oven_ding")
+		hud.show_toast("Bột nở rồi! Về bàn nhào tạo hình", 2.0)
+
+
 func _update_oven(delta: float) -> void:
-	var c := P.DOUGH
 	match oven_state:
 		"nuong", "chin", "chay":
 			oven_t += delta
 			if oven_t < bake_time:
-				c = P.DOUGH.lerp(P.CRUST, oven_t / bake_time)
+				_loaf_look("song", BAKE_TINT.lerp(Color.WHITE, 1.0 - oven_t / bake_time))
 				oven_label.text = "Đang nướng %d" % ceili(bake_time - oven_t)
 				oven_label.modulate = Color("#FFE2A8")
 			elif oven_t < bake_time + burn_after:
@@ -433,7 +732,7 @@ func _update_oven(delta: float) -> void:
 					oven_state = "chin"
 					_sound("play", "oven_ding")
 					hud.show_toast("Bánh chín rồi! Lấy ra kẻo cháy", 2.0)
-				c = P.CRUST.lerp(P.CRUST.darkened(0.3), (oven_t - bake_time) / burn_after)
+				_loaf_look("vang", Color.WHITE.lerp(Color(0.7, 0.6, 0.55), (oven_t - bake_time) / burn_after))
 				oven_label.text = "CHÍN! Lấy ra (%d)" % ceili(bake_time + burn_after - oven_t)
 				oven_label.modulate = Color("#9BE38B") if fmod(oven_t, 0.5) < 0.3 else Color.WHITE
 			else:
@@ -442,14 +741,20 @@ func _update_oven(delta: float) -> void:
 					smoke.emitting = true
 					_sound("play", "burn")
 					hud.show_toast("Khói kìa! Bánh cháy rồi!", 2.0)
-				c = P.BURNT
+				_loaf_look("chay", Color.WHITE)
 				oven_label.text = "CHÁY!"
-				oven_label.modulate = P.RED
-			for l in oven_loaves:
-				(l.material_override as StandardMaterial3D).albedo_color = c
+				oven_label.modulate = Color("#C8412F")
 		_:
 			oven_label.text = ""
-	oven_fire.visible = oven_state != "trong"
+	fire_light.light_energy = 1.1 if oven_state != "trong" else 0.45
+
+
+## Ổ trong lò: hiện dạng sống/vàng/cháy, nhuộm thêm màu cho mượt lúc chuyển.
+func _loaf_look(kind: String, tint: Color) -> void:
+	for l in oven_loaves:
+		for k in l:
+			l[k].visible = k == kind
+		(l[kind].material_override as StandardMaterial3D).albedo_color = tint
 
 
 func _end(success: bool) -> void:
@@ -474,6 +779,8 @@ func _end(success: bool) -> void:
 			lines += "☆ Chỉ dư %d giây (cần từ %d giây)\n" % [int(time_left), int(spare_for_star)]
 	else:
 		lines += "Hết giờ! Mới xong %d/%d ổ.\n" % [made, LOAVES]
+	if mistakes > 0:
+		lines += "Bấm trượt %d lần (mỗi lần mất chút thời gian)\n" % mistakes
 	GameState.kitchen_stars = stars
 	if not _bot:  # sao bếp cao nhất cho màn Chọn màn
 		GameState.set_day("sao_bep", maxi(int(GameState.get_day("sao_bep", -1)), stars))
@@ -481,7 +788,16 @@ func _end(success: bool) -> void:
 	# Sao từng ổ cho 5 đơn giao. Bếp mới làm LOAVES ổ: các đơn sau dùng số sao chung của ca.
 	var per_bread: Array[int] = []
 	for i in GameState.ORDERS_PER_DAY:
-		per_bread.append(loaf_stars[i] if i < loaf_stars.size() else stars)
+		per_bread.append(stars)
+	for i in loaf_stars.size():
+		per_bread[loaf_orders[i]] = loaf_stars[i]
+		GameState.bread_note_ok[loaf_orders[i]] = loaf_note_ok[i]
+		var note: String = GameState.bread_notes[loaf_orders[i]]
+		if note != "":
+			if loaf_note_ok[i]:
+				lines += "✓ Ổ %d đúng phiếu \"%s\"\n" % [i + 1, NOTE_NAMES[note]]
+			else:
+				lines += "✗ Ổ %d sai phiếu \"%s\": đơn đó mất sao nguyên vẹn\n" % [i + 1, NOTE_NAMES[note]]
 	GameState.kitchen_stars_per_bread = per_bread
 	GameState.kitchen_bonus = stars * STAR_SECONDS
 	lines += "\n%d/3 sao · ổ bánh 3 sao giúp đơn đó được cộng thêm %d giây" % [stars, int(Scoring.KITCHEN_BONUS_SECONDS)]
@@ -490,7 +806,8 @@ func _end(success: bool) -> void:
 	_sound("music", "jingle_win" if success else "jingle_lose")
 	for i in stars:
 		get_tree().create_timer(0.5 + 0.45 * i).timeout.connect(_sound.bind("play", "star_%d" % (i + 1)))
-	print("[bep] xong=%d/%d sao=%d tung_o=%s con_lai=%.1fs chay=%s" % [made, LOAVES, stars, per_bread, time_left, bread_burnt])
+	print("[bep] xong=%d/%d sao=%d tung_o=%s con_lai=%.1fs chay=%s truot=%d o_cho_don=%s phieu=%s dung_phieu=%s" % [made, LOAVES, stars,
+		per_bread, time_left, bread_burnt, mistakes, loaf_orders, GameState.bread_notes, GameState.bread_note_ok])
 	if _bot_quit:
 		print("AUTOTEST BEP ", "OK" if success else "FAIL")
 		get_tree().quit(0 if success else 1)
@@ -501,11 +818,20 @@ func _end(success: bool) -> void:
 func _go_delivery() -> void:
 	if state != State.END:
 		return
+	if quick:
+		GameState.from_quick_assemble = true
+		get_tree().change_scene_to_file("res://scenes/main.tscn")
+		return
 	if PlayMode.kitchen_only() and not _bot:
 		PlayMode.back_to_menu(get_tree())
 		return
 	GameState.from_kitchen = true
 	get_tree().change_scene_to_file("res://scenes/main.tscn")
+
+
+func _set_holding_visible(v: bool) -> void:
+	if carry_node:
+		carry_node.visible = v
 
 
 func _set_holding(kind: String) -> void:
@@ -515,18 +841,57 @@ func _set_holding(kind: String) -> void:
 		carry_node = null
 	if kind != "":
 		_sound("play", "pickup")
-		carry_node = P.carry_item(kind)
-		carry_node.position = Vector3(0, 0.42, 0.04)
+		carry_node = _carry_model(kind)
+		carry_node.position = Vector3(0, 0.4, 0.02)
 		player.visual.add_child(carry_node)
 		carry_node.scale = Vector3.ONE * 0.2
 		create_tween().tween_property(carry_node, "scale", Vector3.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
+## Món đang cầm, đội trên lưng Bơ (thu nhỏ cho vừa người mèo).
+func _carry_model(kind: String) -> Node3D:
+	var root := Node3D.new()
+	match kind:
+		"bot":
+			KM.place(root, "bot_dong", Vector3.ZERO, 0, 0.45)
+		"khay_song", "khay_chin", "khay_chay":
+			var m: String = {"khay_song": "bot_phoi", "khay_chin": "banh_vang", "khay_chay": "banh_chay"}[kind]
+			KM.place(root, "khay_inox", Vector3.ZERO, 90, 0.7)
+			KM.place(root, m, Vector3(-0.035, 0.02, 0), 90, 0.5)
+			KM.place(root, m, Vector3(0.035, 0.02, 0), 90, 0.5)
+		"rau":
+			KM.place(root, "ro_tre", Vector3.ZERO, 0, 0.5)
+			KM.place(root, "dua_leo", Vector3(0, 0.03, 0), 90, 0.5)
+			KM.place(root, "ngo_bo", Vector3(0.03, 0.03, 0), 30, 0.4)
+		"rau_sach":
+			KM.place(root, "dua_leo", Vector3.ZERO, 90, 0.6)
+			KM.place(root, "ngo_bo", Vector3(0.03, 0.02, 0), 30, 0.5)
+			KM.place(root, "ot", Vector3(-0.03, 0.02, 0), 60, 0.6)
+		"rau_xong":
+			KM.place(root, "dua_leo_lat", Vector3.ZERO, 90, 0.6)
+			KM.place(root, "ngo_bo", Vector3(0.03, 0.02, 0), 30, 0.4)
+		"cha":
+			KM.place(root, "cha_cay", Vector3.ZERO, 90, 0.5)
+		"cha_xong":
+			KM.place(root, "cha_khoanh", Vector3.ZERO, 90, 0.6)
+		"thit":
+			KM.place(root, "thit_nguoi", Vector3.ZERO, 90, 0.7)
+		"thit_xong":
+			KM.place(root, "thit_lat", Vector3.ZERO, 90, 0.6)
+		"do_chua":
+			KM.place(root, "hu_do_chua", Vector3.ZERO, 0, 0.5)
+		"banh_mi":
+			var w := _wrapped_loaf(root, bread_burnt)
+			w.rotation_degrees.y = 90
+			w.scale = Vector3.ONE * 0.6
+	return root
+
+
 func _item_name(kind: String) -> String:
 	return {
 		"bot": "bột", "khay_song": "khay bánh sống", "khay_chin": "khay bánh nướng", "khay_chay": "khay bánh cháy",
-		"rau": "rau", "cha": "chả lụa", "thit": "thịt nguội", "rau_xong": "rau đã cắt", "cha_xong": "chả đã thái",
-		"thit_xong": "thịt đã thái", "banh_mi": "ổ bánh mì",
+		"rau": "rổ rau", "rau_sach": "rau đã rửa", "cha": "chả lụa", "thit": "thịt nguội", "rau_xong": "dưa leo, ngò, ớt",
+		"cha_xong": "chả đã thái", "thit_xong": "thịt đã thái", "do_chua": "đồ chua", "banh_mi": "ổ bánh mì",
 	}.get(kind, kind)
 
 
@@ -537,16 +902,22 @@ func _suggest() -> String:
 			return "nhoi"
 		"khay_song":
 			return "lo"
-		"khay_chin", "khay_chay", "rau_xong", "cha_xong", "thit_xong":
+		"khay_chin", "khay_chay", "rau_xong", "cha_xong", "thit_xong", "do_chua":
 			return "rap"
-		"rau", "cha", "thit":
+		"rau":
+			return "rua"
+		"rau_sach", "cha", "thit":
 			return "thot"
 		"banh_mi":
 			return "tu"
 	if oven_state in ["chin", "chay"]:
 		return "lo"
-	if not dough_started:
+	if not flour_taken:
 		return "bot"
+	if dough_state == "risen":
+		return "nhoi"
+	if not do_chua_done:
+		return "do_chua"
 	for k in ["rau", "cha", "thit"]:
 		if not taken[k]:
 			return k
@@ -554,6 +925,8 @@ func _suggest() -> String:
 		return "rap"
 	if oven_state == "nuong":
 		return "lo"
+	if dough_state == "proofing":
+		return "nhoi"
 	return ""
 
 
@@ -562,15 +935,28 @@ func _update_hud() -> void:
 	var tick := func(ok: bool) -> String: return "✓" if ok else "○"
 	var baked := loaves_on_rap > 0 or made > 0 or holding in ["khay_chin", "khay_chay", "banh_mi"]
 	var text := "Bếp Cô Ba · 2 ổ bánh mì\n"
-	text += "%s Xúc bột, nhồi, tạo hình\n" % tick.call(dough_started and holding != "bot")
-	text += "%s Nướng 6 giây\n" % tick.call(baked)
-	for k in ["rau", "cha", "thit"]:
-		text += "%s %s\n" % [tick.call(on_rap[k]), {"rau": "Rau: rửa, nhặt, cắt", "cha": "Chả: bóc lá, thái", "thit": "Thịt: thái, xếp"}[k]]
-	text += "%s Ráp và bỏ tủ: %d/%d ổ\n" % [tick.call(made >= LOAVES), made, LOAVES]
+	text += "%s Xúc bột, nhào, ủ, tạo hình\n" % tick.call(dough_state == "shaped")
+	text += "%s Nướng %d giây\n" % [tick.call(baked), int(bake_time)]
+	text += "%s Đồ chua: gọt, bào, pha\n" % tick.call(on_rap.do_chua)
+	text += "%s Rau: rửa, lặt ngò, cắt dưa leo, ớt\n" % tick.call(on_rap.rau)
+	text += "%s Chả: cắt lạt, bóc lá, thái\n" % tick.call(on_rap.cha)
+	text += "%s Thịt: bóc giấy, thái, xếp\n" % tick.call(on_rap.thit)
+	text += "%s Ráp và bỏ xe: %d/%d ổ\n" % [tick.call(made >= LOAVES), made, LOAVES]
+	var notes := []
+	for i in loaf_orders.size():
+		var note: String = GameState.bread_notes[loaf_orders[i]] if loaf_orders[i] < GameState.bread_notes.size() else ""
+		if note != "":
+			notes.append("ổ %d %s" % [i + 1, NOTE_NAMES[note]])
+	if not notes.is_empty():
+		text += "Phiếu: " + ", ".join(notes) + "\n"
 	text += "\nĐang cầm: %s" % (_item_name(holding) if holding != "" else "không")
+	if quick:
+		text = "Ráp nhanh · 1 ổ trứng cho đơn %d\nTrứng còn nguyên: %d quả%s" % [quick_order + 1, GameState.eggs_brought,
+			"\nPhiếu: " + NOTE_NAMES[_current_note()] if _current_note() != "" else ""]
 	hud.set_recipe(text)
 	var oven_txt: String = {"trong": "trống", "nuong": "đang nướng", "chin": "CHÍN, lấy ra!", "chay": "CHÁY!"}[oven_state]
-	hud.set_status("Ổ xong: %d/%d\nLò: %s" % [made, LOAVES, oven_txt])
+	var dough_txt := "đang ủ %d giây" % ceili(proof_time - proof_t) if dough_state == "proofing" else ("nở rồi!" if dough_state == "risen" else "")
+	hud.set_status("Ổ xong: %d/%d\nLò: %s%s" % [made, LOAVES, oven_txt, "\nBột: " + dough_txt if dough_txt != "" else ""])
 	if seq.is_empty():
 		var near := _near_station()
 		if near != "":
@@ -601,14 +987,16 @@ func _sound(method: String, sound_name: String) -> void:
 		s.call(method, sound_name)
 
 
-# ---------------------------------------------------------------- cận cảnh: chân Bơ làm từng nhịp
+# ---------------------------------------------------------------- cận cảnh: chân Bơ
 
 func _build_paws() -> void:
 	paw_rig = Node3D.new()
 	paw_rig.name = "ChanBo"
 	add_child(paw_rig)
-	paw_l = P.paw(paw_rig, -1.0)
-	paw_r = P.paw(paw_rig, 1.0)
+	paw_l = BoPaw.create(-1.0, PAW_SIZE)
+	paw_rig.add_child(paw_l)
+	paw_r = BoPaw.create(1.0, PAW_SIZE)
+	paw_rig.add_child(paw_r)
 	paw_rig.visible = false
 
 
@@ -625,609 +1013,927 @@ func _place_paws(st: Dictionary) -> void:
 	paw_rig.visible = true
 
 
-## Toạ độ của một điểm thế giới trong hệ chân (để đưa chân tới đúng món).
+## Điểm thế giới trong hệ chân (để đưa chân tới đúng món).
+func _w(p: Vector3) -> Vector3:
+	return paw_rig.to_local(p)
+
+
 func _at(node: Node3D, up := 0.04) -> Vector3:
-	return paw_rig.to_local(node.global_position) + Vector3(0, up, 0)
+	return _w(node.global_position + Vector3(0, up, 0))
+
+
+func _reach(tw: Tween, paw: Node3D, local: Vector3, dur := 0.2, parallel := false) -> void:
+	var t := tw.parallel() if parallel else tw
+	t.tween_property(paw, "position", local, dur).set_trans(Tween.TRANS_SINE)
+
+
+func _rest(tw: Tween, dur := 0.2) -> void:
+	tw.tween_property(paw_l, "position", PAW_L_REST, dur).set_trans(Tween.TRANS_SINE)
+	tw.parallel().tween_property(paw_r, "position", PAW_R_REST, dur).set_trans(Tween.TRANS_SINE)
+
+
+## Chân nhấc lên rồi ấn xuống một điểm.
+func _tap(tw: Tween, paw: Node3D, target: Vector3, rest: Vector3, dur := 0.35) -> void:
+	tw.tween_property(paw, "position", target + Vector3(0, 0.06, 0), dur * 0.45).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(paw, "position", target, dur * 0.2).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_property(paw, "position", rest, dur * 0.35).set_trans(Tween.TRANS_SINE)
+
+
+## Dao chặt một nhát xuống điểm p (thế giới), chân phải cầm cán.
+func _chop(tw: Tween, knife: Node3D, p: Vector3) -> void:
+	tw.tween_property(knife, "global_position", p + Vector3(0, 0.08, 0), 0.1)
+	tw.parallel().tween_property(paw_r, "position", _w(p + Vector3(0.1, 0.09, 0.02)), 0.1)
+	tw.tween_property(knife, "global_position", p + Vector3(0, 0.005, 0), 0.07).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.parallel().tween_property(paw_r, "position", _w(p + Vector3(0.1, 0.015, 0.02)), 0.07)
+	_sound("play", "chop")
 
 
 func _on_begin(id: String) -> void:
 	match id:
 		"nhoi":
-			heap.visible = true
-			heap.scale = Vector3.ONE
+			if dough_state == "risen":
+				n.proof_bowl.visible = false
+				n.towel.global_position = n.towel_rest
+				n.towel.rotation = Vector3.ZERO
+				n.towel.visible = true
+				n.dough.visible = true
+				n.dough.global_position = NHOI + Vector3(-0.3, 0, 0.06)
+				n.dough.scale = Vector3(1.3, 1.25, 1.3)
+				n.tray_raw.visible = true
 		"lo":
 			if holding == "khay_song":
-				oven_tray.visible = true
-				oven_tray.position.z = 0.75
-				for l in oven_loaves:
-					(l.material_override as StandardMaterial3D).albedo_color = P.DOUGH
+				_loaf_look("song", Color.WHITE)   # khay hiện lúc bắt đầu đẩy vào lò
+		"rua":
+			n.wash_cuke.visible = true
+			n.wash_herb.visible = true
+			n.wash_herb.scale = Vector3.ONE * 0.8
 		"thot":
 			_setup_board(holding)
 		"rap":
-			work_loaf.visible = true
-			for k in work_parts:
-				work_parts[k].visible = false
-			work_parts.top.rotation.x = 0.0
-		"tu":
-			paper.visible = false
-	_set_holding_visible(false)
+			_reset_loaf()
+			loaf.base.visible = true
+			_refresh_rap()
+			for l in rap_loaves:   # chồng bánh chờ ráp che camera cận cảnh: cất đi trong lúc ráp
+				l.visible = false
 
 
-func _set_holding_visible(v: bool) -> void:
-	if carry_node:
-		carry_node.visible = v
+## Chuẩn bị đồ cho một bước (gọi khi bước bắt đầu).
+func _on_step_start(id: String) -> void:
+	match id:
+		"day_khay":
+			n.oven_tray.visible = true
+			n.oven_tray.position.z = TRAY_OUT
+		"pate":
+			n.pate_knife.visible = true
+		"goi":
+			loaf.paper.visible = true
+			loaf.paper.rotation = Vector3.ZERO
+			loaf.paper.scale = Vector3(1.6, 1, 1.4)
 
 
-## Chân đi tới rồi ấn xuống một điểm, rồi về chỗ cũ.
-func _tap(tw: Tween, paw: Node3D, target: Vector3, rest: Vector3, dur := 0.35) -> void:
-	tw.tween_property(paw, "position", target + Vector3(0, 0.07, 0), dur * 0.45).set_trans(Tween.TRANS_SINE)
-	tw.tween_property(paw, "position", target, dur * 0.2).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	tw.tween_property(paw, "position", rest, dur * 0.35).set_trans(Tween.TRANS_SINE)
+## Bước liên tục (giữ, giữ-thả, vuốt, xoay): độ đầy v (0..1) điều khiển động tác.
+func _on_progress(v: float) -> void:
+	if seq.is_empty():
+		return
+	var id: String = seq[seq_index].id
+	match id:
+		"rot_nuoc":  # bê ca nước nghiêng rót vào thau, nước dâng
+			var k := clampf(v * 3.0, 0.0, 1.0)
+			var over: Vector3 = n.thau.global_position + Vector3(0.12, 0.13, 0)
+			n.jug.global_position = (n.jug_rest as Vector3).lerp(over, k)
+			n.jug.rotation.z = lerpf(0.0, 1.2, clampf(v * 2.0 - 0.2, 0.0, 1.0))
+			n.stream.visible = v > 0.25
+			n.water.visible = v > 0.25
+			n.water.scale = Vector3(1, maxf(v, 0.05), 1)
+			paw_r.position = _w(n.jug.global_position + Vector3(0.04, 0.06, 0.04))
+		"day_khay", "rut_khay":  # hai chân đẩy (kéo) khay vào (ra) lò
+			var z := lerpf(TRAY_OUT, TRAY_IN, v) if id == "day_khay" else lerpf(TRAY_IN, TRAY_OUT, v)
+			n.oven_tray.position.z = z
+			var front := Vector3(LO.x, 0.25, z + 0.25)
+			paw_l.position = _w(front + Vector3(-0.12, 0.02, 0))
+			paw_r.position = _w(front + Vector3(0.12, 0.02, 0))
+		"boc_la":  # lớp lá chuối nhấc lên, lật ra sau, lộ đòn chả trắng
+			var wrap: Node3D = board.wrap
+			wrap.position = board.wrap_rest + Vector3(0, 0.1 * v, -0.15 * v)
+			wrap.rotation.x = -1.4 * v
+			paw_l.position = _w(wrap.global_position + Vector3(-0.05, 0.05, 0.03))
+			paw_r.position = _w(wrap.global_position + Vector3(0.05, 0.05, 0.03))
+		"boc_giay":  # giấy gói thịt bóc dần ra sau
+			var paper: Node3D = board.paper
+			paper.position = board.paper_rest + Vector3(0, 0.05 * v, -0.18 * v)
+			paper.rotation.x = -1.6 * v
+			paw_r.position = _w(paper.global_position + Vector3(0.04, 0.03, 0.04))
+		"got":  # dao gọt chạy dọc củ cà rốt (sang phải theo hướng nhìn của Bơ), vỏ bong ra
+			var a: Vector3 = n.carrot.global_position + Vector3(0, 0.05, 0.12)
+			var b: Vector3 = n.carrot.global_position + Vector3(0, 0.05, -0.1)
+			n.peeler.global_position = a.lerp(b, v)
+			paw_r.position = _w(n.peeler.global_position + Vector3(0.03, 0.03, 0))
+		"bao":  # chà cà rốt lên bàn bào, sợi rơi vào tô
+			var g: Vector3 = n.grater.global_position
+			n.carrot.global_position = g + Vector3(0.06, 0.15 - 0.1 * v, 0)
+			n.carrot.rotation = Vector3(0, deg_to_rad(90), deg_to_rad(70))
+			paw_r.position = _w(n.carrot.global_position + Vector3(0.05, 0.05, 0))
+			paw_l.position = _w(g + Vector3(0.02, 0.12, 0.04))
+		"pha", "khuay", "khuay_trung":  # que khuấy vẽ vòng trong tô (hộp pate, tô trứng)
+			var c: Vector3 = {"pha": n.bowl_mix.global_position + Vector3(0, 0.07, 0),
+				"khuay": n.pate_can.global_position + Vector3(0, 0.09, 0),
+				"khuay_trung": n.egg_bowl.global_position + Vector3(0, 0.05, 0)}[id]
+			var r := 0.045 if id == "pha" else (0.035 if id == "khuay_trung" else 0.025)
+			var a := (input.count + v) * TAU
+			var stick: Node3D = n.stirrer
+			stick.visible = true
+			stick.global_position = c + Vector3(cos(a) * r, 0, sin(a) * r)
+			stick.rotation = Vector3(deg_to_rad(80), 0, 0)
+			paw_r.position = _w(stick.global_position + Vector3(0, 0.1, 0.02))
+			if id == "pha":
+				n.chua_shreds.rotation.y = a * 0.3
+		"khui":  # vuốt nắp hộp pate trượt ra
+			n.pate_lid.position = n.pate_lid_rest + Vector3(0.09 * v, 0.02 * v, 0)
+			paw_r.position = _w(n.pate_lid.global_position + Vector3(0.0, 0.03, 0.02))
+		"pate":  # quệt pate dọc ruột bánh
+			loaf.smear.visible = true
+			loaf.smear.scale = Vector3(maxf(v, 0.02), 1, 1)
+			paw_r.position = _w(loaf.base.global_position + Vector3(-0.15 + 0.3 * v, 0.07, 0.03))
+			n.pate_knife.global_position = paw_r.global_position + Vector3(-0.03, -0.02, -0.02)
+		"xe":  # dao xẻ dọc ổ bánh; thả sai vùng là dao quay về đầu ổ
+			var p0: Vector3 = loaf.base.global_position + Vector3(-0.17, 0.045, 0.0)
+			n.rap_knife.global_position = p0 + Vector3(0.34 * minf(v, 1.0), 0, 0)
+			n.rap_knife.rotation = Vector3(0, 0, 0)
+			paw_r.position = _w(n.rap_knife.global_position + Vector3(0.12, 0.03, 0.02))
+			paw_l.position = _w(loaf.base.global_position + Vector3(0.06, 0.08, 0.02))
 
 
-## Một nhịp animation cho bước `step` ở trạm `id`. beat = lần bấm thứ mấy của bước (0..n-1).
-func _beat(id: String, step: String, beat: int) -> Tween:
+## Một nhịp animation cho bước `step`. i = nhịp thứ mấy (0..n-1).
+func _beat(step: String, i: int, last: bool) -> Tween:
 	var tw := create_tween()
 	match step:
 		"xuc":  # thò chân vào miệng bao, bột tung lên
-			var top := paw_rig.to_local(stations.bot.work)
-			tw.tween_property(paw_r, "position", top + Vector3(0, 0.12, 0), 0.25).set_trans(Tween.TRANS_SINE)
-			tw.tween_property(paw_r, "position", top - Vector3(0, 0.02, 0), 0.15)
+			var top := BAO + Vector3(0, 0.26, 0)
+			_reach(tw, paw_r, _w(top + Vector3(0, 0.1, 0.02)), 0.18)
+			_reach(tw, paw_r, _w(top - Vector3(0, 0.03, 0)), 0.12)
 			tw.tween_callback(func(): flour_puff.restart())
-			tw.tween_property(paw_r, "position", PAW_R_REST, 0.3).set_trans(Tween.TRANS_SINE).set_delay(0.15)
+			tw.tween_property(paw_r, "position", PAW_R_REST + Vector3(0, 0.05, 0), 0.25).set_delay(0.1)
 			_sound("play", "knead")
-		"do_nuoc":  # bê bình rót nước vào ụ bột
-			var j0 := jug.position
-			var over := heap.position + Vector3(0.09, 0.2, 0)
-			tw.tween_property(jug, "position", over, 0.3).set_trans(Tween.TRANS_SINE)
-			tw.parallel().tween_property(paw_r, "position", _at_world(heap.global_position + Vector3(0.14, 0.18, 0.02)), 0.3)
-			tw.tween_property(jug, "rotation:z", 1.2, 0.25)
-			tw.tween_callback(func(): stream.visible = true; _sound("play", "water"))
-			tw.tween_property(heap, "scale", Vector3(1.1, 0.85, 1.1), 0.5)
-			tw.tween_callback(func(): stream.visible = false)
-			tw.tween_property(jug, "rotation:z", 0.0, 0.2)
-			tw.tween_property(jug, "position", j0, 0.3).set_trans(Tween.TRANS_SINE)
-			tw.parallel().tween_property(paw_r, "position", PAW_R_REST, 0.3)
-		"nhoi":  # hai chân thay nhau ấn, cục bột bẹp rồi phồng lại
-			if beat == 0:
-				heap.visible = false
-				dough.visible = true
-				dough.scale = Vector3(1.2, 0.6, 1.2)
-			var paw := paw_l if beat % 2 == 0 else paw_r
-			var rest := PAW_L_REST if beat % 2 == 0 else PAW_R_REST
-			_tap(tw, paw, _at(dough, 0.05) + Vector3(0.03 * (1 if beat % 2 else -1), 0, 0), rest, 0.4)
-			tw.parallel().tween_property(dough, "scale", Vector3(1.35, 0.55, 1.2), 0.15).set_delay(0.15)
-			tw.tween_property(dough, "scale", Vector3(1.0 + beat * 0.03, 0.85, 1.0), 0.15).set_trans(Tween.TRANS_BACK)
-			_sound("play", "knead")
-		"u":  # phủ khăn, bột nở to
-			cloth.visible = true
-			cloth.scale = Vector3(0.01, 0.01, 0.01)
-			tw.tween_property(cloth, "scale", Vector3.ONE, 0.25)
-			tw.tween_property(dough, "scale", Vector3(1.35, 1.15, 1.3), 1.0).set_trans(Tween.TRANS_SINE)
-			tw.parallel().tween_property(cloth, "position:y", cloth.position.y + 0.04, 1.0)
-			tw.tween_property(cloth, "scale", Vector3(0.01, 0.01, 0.01), 0.2)
-			tw.tween_callback(func(): cloth.visible = false; cloth.position.y -= 0.04)
-		"chia":  # dao chặt đôi cục bột
-			var c0 := cutter.position
-			tw.tween_property(cutter, "position", dough.position + Vector3(-0.1, 0.16, 0), 0.25)
-			tw.parallel().tween_property(paw_r, "position", _at_world(dough.global_position + Vector3(0.0, 0.18, 0.02)), 0.25)
-			tw.tween_property(cutter, "position", dough.position + Vector3(-0.1, 0.02, 0), 0.12)
-			tw.parallel().tween_property(paw_r, "position", _at_world(dough.global_position + Vector3(0.0, 0.05, 0.02)), 0.12)
-			tw.tween_callback(func():
-				dough.visible = false
-				for b in balls:
-					b.visible = true
-					b.position = dough.position
-			)
-			tw.tween_property(balls[0], "position", raw_loaves[0].position, 0.25)
-			tw.parallel().tween_property(balls[1], "position", raw_loaves[1].position, 0.25)
-			tw.parallel().tween_property(cutter, "position", c0, 0.3)
-			tw.parallel().tween_property(paw_r, "position", PAW_R_REST, 0.3)
-			_sound("play", "chop")
-		"ve":  # hai chân lăn viên bột thành ổ dài
-			var b := balls[beat]
-			var l := raw_loaves[beat]
-			var tgt := _at(l, 0.05)
-			tw.tween_property(paw_l, "position", tgt + Vector3(-0.04, 0, 0), 0.15)
-			tw.parallel().tween_property(paw_r, "position", tgt + Vector3(0.04, 0, 0), 0.15)
-			tw.tween_callback(func(): b.visible = false; l.visible = true; l.scale = Vector3(0.5, 1.4, 1.0))
-			for i in 2:
-				tw.tween_property(paw_l, "position", tgt + Vector3(-0.08, 0, 0.03), 0.1)
-				tw.parallel().tween_property(paw_r, "position", tgt + Vector3(0.08, 0, -0.03), 0.1)
-				tw.tween_property(paw_l, "position", tgt + Vector3(-0.08, 0, -0.03), 0.1)
-				tw.parallel().tween_property(paw_r, "position", tgt + Vector3(0.08, 0, 0.03), 0.1)
-			tw.parallel().tween_property(l, "scale", Vector3(1, 1, 0.8), 0.4).set_delay(-0.3)
-			tw.tween_property(paw_l, "position", PAW_L_REST, 0.2)
-			tw.parallel().tween_property(paw_r, "position", PAW_R_REST, 0.2)
-		"khia":  # dao rạch 3 đường chéo trên mặt ổ
-			var l := raw_loaves[beat]
-			var c0 := cutter.position
-			tw.tween_property(cutter, "position", l.position + Vector3(-0.1, 0.07, 0), 0.2)
-			tw.parallel().tween_property(paw_r, "position", _at_world(l.global_position + Vector3(0.05, 0.1, 0.02)), 0.2)
-			tw.tween_property(cutter, "position", l.position + Vector3(-0.02, 0.045, 0), 0.25)
-			tw.parallel().tween_property(paw_r, "position", _at_world(l.global_position + Vector3(0.12, 0.08, 0.02)), 0.25)
-			tw.tween_callback(func(): slashes[beat].visible = true)
-			tw.tween_property(cutter, "position", c0, 0.25)
-			tw.parallel().tween_property(paw_r, "position", PAW_R_REST, 0.25)
-		"mo_cua":
-			var handle := _at_world(oven_door.global_position + oven_door.global_basis.x * 0.55)
-			tw.tween_property(paw_r, "position", handle, 0.2)
-			tw.tween_property(oven_door, "rotation:y", -1.9, 0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-			tw.parallel().tween_property(paw_r, "position", handle + Vector3(-0.2, 0, 0.25), 0.4)
-			tw.tween_property(paw_r, "position", PAW_R_REST, 0.2)
-			_sound("play", "oven_open")
-		"phun":  # bình xịt phun hơi nước vào lò cho vỏ giòn
-			var s0 := spray.position
-			tw.tween_property(spray, "position", spray.position + Vector3(0.1, 0.2, 0.1), 0.25)
-			tw.parallel().tween_property(paw_r, "position", _at_world(spray.global_position + Vector3(0.1, 0.22, 0.14)), 0.25)
-			tw.tween_callback(func(): mist.restart())
-			tw.tween_property(spray, "rotation:x", -0.3, 0.1)
-			tw.tween_property(spray, "rotation:x", 0.0, 0.1)
-			tw.tween_callback(func(): mist.restart())
-			tw.tween_property(spray, "rotation:x", -0.3, 0.1)
-			tw.tween_property(spray, "rotation:x", 0.0, 0.1)
-			tw.tween_property(spray, "position", s0, 0.25)
-			tw.parallel().tween_property(paw_r, "position", PAW_R_REST, 0.25)
-			_sound("play", "spray")
-		"day_khay":  # hai chân đẩy khay vào sâu trong lò
-			var front := _at(oven_tray, 0.03)
-			tw.tween_property(paw_l, "position", front + Vector3(-0.12, 0, 0.12), 0.2)
-			tw.parallel().tween_property(paw_r, "position", front + Vector3(0.12, 0, 0.12), 0.2)
-			tw.tween_property(oven_tray, "position:z", 0.15, 0.45).set_trans(Tween.TRANS_SINE)
-			tw.parallel().tween_property(paw_l, "position", front + Vector3(-0.12, 0, -0.4), 0.45).set_trans(Tween.TRANS_SINE)
-			tw.parallel().tween_property(paw_r, "position", front + Vector3(0.12, 0, -0.4), 0.45).set_trans(Tween.TRANS_SINE)
-			tw.tween_property(paw_l, "position", PAW_L_REST, 0.25)
-			tw.parallel().tween_property(paw_r, "position", PAW_R_REST, 0.25)
-		"dong_cua":
-			var handle := _at_world(oven_door.global_position + oven_door.global_basis.x * 0.55)
-			tw.tween_property(paw_r, "position", handle, 0.25)
-			tw.tween_property(oven_door, "rotation:y", 0.0, 0.35).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-			tw.parallel().tween_property(paw_r, "position", _at_world(oven_door.global_position + Vector3(0.55, 0, 0.06)), 0.35)
-			tw.tween_property(paw_r, "position", PAW_R_REST, 0.2)
-		"keo_khay":  # kéo khay ra, khói/hơi bốc lên
-			var back := _at(oven_tray, 0.03)
-			tw.tween_property(paw_l, "position", back + Vector3(-0.15, 0, 0), 0.2)
-			tw.parallel().tween_property(paw_r, "position", back + Vector3(0.15, 0, 0), 0.2)
-			tw.tween_property(oven_tray, "position:z", 0.75, 0.45).set_trans(Tween.TRANS_SINE)
-			tw.parallel().tween_property(paw_l, "position", back + Vector3(-0.15, 0, 0.6), 0.45)
-			tw.parallel().tween_property(paw_r, "position", back + Vector3(0.15, 0, 0.6), 0.45)
-			tw.tween_callback(func(): mist.restart())
-			tw.tween_property(oven_tray, "position:y", oven_tray.position.y + 0.15, 0.25)
-			tw.tween_property(paw_l, "position", PAW_L_REST, 0.2)
-			tw.parallel().tween_property(paw_r, "position", PAW_R_REST, 0.2)
-			tw.tween_callback(func(): oven_tray.position.y -= 0.15)
-			_sound("play", "crunch")
-		"lay":  # vươn chân nhấc món trên kệ
-			var item: Node3D = shelf_items[id]
-			var p0 := item.position
-			tw.tween_property(paw_r, "position", _at(item, 0.06), 0.25).set_trans(Tween.TRANS_SINE)
-			tw.tween_property(item, "position", p0 + Vector3(0, 0.12, 0.1), 0.25)
-			tw.parallel().tween_property(paw_r, "position", _at(item, 0.06) + Vector3(0, 0.12, 0.1), 0.25)
-			tw.tween_callback(func(): item.visible = false; item.position = p0)
-			tw.tween_property(paw_r, "position", PAW_R_REST, 0.2)
-		"rua":  # nước nhỏ giọt, chân xoa bó rau
-			tw.tween_callback(func(): drops.restart())
-			for i in 3:
-				tw.tween_property(paw_l, "position", _at(board_item, 0.05) + Vector3(-0.05, 0, 0), 0.12)
-				tw.parallel().tween_property(board_item, "rotation:y", 0.2 * (1 if i % 2 else -1), 0.12)
-				tw.tween_property(paw_l, "position", _at(board_item, 0.07) + Vector3(0.04, 0, 0), 0.12)
-			tw.tween_property(board_item, "rotation:y", 0.0, 0.1)
-			tw.parallel().tween_property(paw_l, "position", PAW_L_REST, 0.2)
+		"do_bot":  # trút bột vào thau
+			n.flour.visible = true
+			n.flour.scale = Vector3.ONE * 0.05
+			_reach(tw, paw_r, _at(n.thau, 0.12), 0.18)
+			_reach(tw, paw_l, _at(n.thau, 0.12) + Vector3(-0.06, 0, 0), 0.18, true)
+			tw.tween_property(n.flour, "scale", Vector3.ONE * 0.5, 0.35).set_trans(Tween.TRANS_BACK)
+			tw.parallel().tween_callback(func(): flour_puff.global_position = n.thau.global_position + Vector3(0, 0.08, 0); flour_puff.restart())
+			_rest(tw)
+		"rot_nuoc":  # rót xong: đặt ca về chỗ
+			tw.tween_callback(func(): n.stream.visible = false)
+			tw.tween_property(n.jug, "rotation:z", 0.0, 0.2)
+			tw.tween_property(n.jug, "global_position", n.jug_rest, 0.25)
+			_rest(tw)
 			_sound("play", "water")
-		"nhat":  # nhặt một lá úa vứt đi
-			var leaf := P.sphere(board_item, 0.025, Vector3(0.04, 0.04, 0.02), Color("#B9A23A"))
-			tw.tween_property(paw_r, "position", _at(leaf, 0.04), 0.2)
-			tw.tween_callback(func(): leaf.reparent(paw_r))
-			tw.tween_property(paw_r, "position", PAW_R_REST + Vector3(0.18, 0.15, 0), 0.3)
-			tw.tween_callback(func(): leaf.queue_free())
-			tw.tween_property(paw_r, "position", PAW_R_REST, 0.2)
-		"cat":  # dao chặt một nhát, một lát rơi ra
-			var i := beat
-			var item_x := 0.07 - i * 0.05
-			var hand := board_item.position + Vector3(item_x, 0.13, 0)
-			tw.tween_property(board_knife, "position", hand, 0.12)
-			tw.parallel().tween_property(paw_r, "position", _at_world(board_item.global_position + Vector3(item_x + 0.1, 0.15, 0.03)), 0.12)
-			tw.tween_property(board_knife, "position", hand - Vector3(0, 0.1, 0), 0.08).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-			tw.parallel().tween_property(paw_r, "position", _at_world(board_item.global_position + Vector3(item_x + 0.1, 0.05, 0.03)), 0.08)
+		"nhao":  # hai chân thay nhau ấn, cục bột bẹp rồi phồng lại
+			if i == 0:
+				n.flour.visible = false
+				n.water.visible = false
+				n.dough.visible = true
+				n.dough.global_position = n.thau.global_position + Vector3(0, 0.02, 0)
+				n.dough.scale = Vector3(1.2, 0.7, 1.2)
+			var paw := paw_l if i % 2 == 0 else paw_r
+			var rest := PAW_L_REST if i % 2 == 0 else PAW_R_REST
+			_tap(tw, paw, _at(n.dough, 0.06) + Vector3(0.025 * (1 if i % 2 else -1), 0, 0), rest, 0.28)
+			tw.parallel().tween_property(n.dough, "scale", Vector3(1.35, 0.6, 1.25), 0.1).set_delay(0.1)
+			tw.tween_property(n.dough, "scale", Vector3(1.0 + i * 0.015, 0.85, 1.0), 0.1).set_trans(Tween.TRANS_BACK)
+			_sound("play", "knead")
+		"u":  # khăn bay tới phủ lên thau, thau đổi thành tô ủ có khăn
+			_reach(tw, paw_r, _w(n.towel_rest + Vector3(0, 0.03, 0.03)), 0.15)
+			tw.tween_property(n.towel, "global_position", n.thau.global_position + Vector3(0, 0.1, 0), 0.3).set_trans(Tween.TRANS_SINE)
+			tw.parallel().tween_property(paw_r, "position", _at(n.thau, 0.12), 0.3)
 			tw.tween_callback(func():
-				var s := board_slices[i]
-				s.visible = true
-				board_item.scale.x = maxf(board_item.scale.x - 0.22, 0.25)
+				n.towel.visible = false
+				n.thau.visible = false
+				n.dough.visible = false
+				n.proof_bowl.visible = true
+				n.proof_bowl.scale = Vector3(1, 0.9, 1)
 			)
-			tw.tween_property(board_slices[i], "position:z", board_slices[i].position.z + 0.06, 0.12)
-			tw.tween_property(board_knife, "position", hand + Vector3(0, 0.03, 0), 0.12)
-			tw.parallel().tween_property(paw_l, "position", _at(board_item, 0.06) + Vector3(-0.08, 0, 0), 0.12)
-			_sound("play", "chop")
-		"boc_la":  # bóc lớp lá chuối gói chả
-			var wrap: Node3D = board_item.get_node("La")
-			tw.tween_property(paw_l, "position", _at(board_item, 0.06) + Vector3(-0.05, 0, 0), 0.15)
-			tw.parallel().tween_property(paw_r, "position", _at(board_item, 0.06) + Vector3(0.05, 0, 0), 0.15)
-			tw.tween_property(wrap, "position", wrap.position + Vector3(0, 0.12, -0.2), 0.4).set_trans(Tween.TRANS_BACK)
-			tw.parallel().tween_property(wrap, "rotation:x", -1.2, 0.4)
-			tw.parallel().tween_property(paw_r, "position", _at(board_item, 0.18) + Vector3(0.05, 0, -0.2), 0.4)
-			tw.tween_callback(func(): wrap.visible = false)
-			tw.tween_property(paw_l, "position", PAW_L_REST, 0.2)
-			tw.parallel().tween_property(paw_r, "position", PAW_R_REST, 0.2)
-		"xep":  # gạt các lát ra đĩa
-			var plate := P.cylinder(board_item.get_parent(), 0.09, 0.012, board_item.position + Vector3(0, 0.0, 0.2), Color.WHITE)
-			plate.name = "Dia"
-			tw.tween_property(paw_r, "position", _at(board_slices[0], 0.03) + Vector3(0.05, 0, -0.05), 0.15)
-			for s in board_slices:
-				tw.parallel().tween_property(s, "position", plate.position + Vector3(randf_range(-0.04, 0.04), 0.02, randf_range(-0.03, 0.03)), 0.35)
-			tw.parallel().tween_property(paw_r, "position", _at(plate, 0.05), 0.35)
-			tw.tween_property(paw_r, "position", PAW_R_REST, 0.2)
-		"xe":  # xẻ dọc ổ bánh, nắp trên mở ra
-			tw.tween_property(paw_r, "position", _at(work_loaf, 0.06) + Vector3(-0.1, 0, 0), 0.15)
-			tw.tween_property(paw_r, "position", _at(work_loaf, 0.06) + Vector3(0.12, 0, 0), 0.35)
-			tw.parallel().tween_property(work_parts.top, "rotation:x", -0.7, 0.35)
-			tw.tween_property(paw_r, "position", PAW_R_REST, 0.2)
-			_sound("play", "crunch")
-		"pate":  # quệt pate dọc ruột bánh
-			tw.tween_property(paw_r, "position", _at(pate_jar, 0.08), 0.15)
-			tw.tween_property(paw_r, "position", _at(work_loaf, 0.05) + Vector3(-0.08, 0, 0), 0.2)
-			tw.tween_callback(func(): work_parts.pate.visible = true; work_parts.pate.scale = Vector3(0.1, 1, 1))
-			tw.tween_property(paw_r, "position", _at(work_loaf, 0.05) + Vector3(0.09, 0, 0), 0.3)
-			tw.parallel().tween_property(work_parts.pate, "scale", Vector3.ONE, 0.3)
-			tw.tween_property(paw_r, "position", PAW_R_REST, 0.2)
-		"kep":  # gắp chả và thịt từ bát bỏ vào ổ
-			for k in ["cha", "thit"]:
-				var bowl: Node3D = rap_bowls[k]
-				tw.tween_property(paw_r, "position", _at(bowl, 0.06), 0.18)
-				tw.tween_property(paw_r, "position", _at(work_loaf, 0.07), 0.18)
-				tw.tween_callback(func(): work_parts[k].visible = true)
-			tw.tween_property(paw_r, "position", PAW_R_REST, 0.2)
-		"them_rau":
-			var bowl: Node3D = rap_bowls.rau
-			tw.tween_property(paw_l, "position", _at(bowl, 0.06), 0.18)
-			tw.tween_property(paw_l, "position", _at(work_loaf, 0.08), 0.2)
-			tw.tween_callback(func(): work_parts.rau.visible = true)
-			tw.tween_property(paw_l, "position", PAW_L_REST, 0.2)
-		"tuong":  # chai nước tương nghiêng rưới
-			var s0 := sauce.position
-			tw.tween_property(sauce, "position", work_loaf.position + Vector3(0.08, 0.15, 0), 0.25)
-			tw.parallel().tween_property(paw_r, "position", _at_world(work_loaf.global_position + Vector3(0.1, 0.15, 0.03)), 0.25)
-			tw.tween_property(sauce, "rotation:z", 2.0, 0.2)
-			tw.tween_callback(func(): drops.global_position = work_loaf.global_position + Vector3(0, 0.12, 0); drops.restart())
-			tw.tween_property(sauce, "position:x", work_loaf.position.x - 0.08, 0.3)
-			tw.tween_property(sauce, "rotation:z", 0.0, 0.15)
-			tw.tween_property(sauce, "position", s0, 0.25)
+			_rest(tw)
+		"chia":  # dao cắt bột cắt một viên, viên bột lăn sang khay
+			var b := balls[i]
+			var p0: Vector3 = n.dough.global_position
+			if i == 0:
+				n.towel.visible = false
+			tw.tween_property(n.scraper, "global_position", p0 + Vector3(0.05, 0.12, 0), 0.12)
+			tw.parallel().tween_property(paw_r, "position", _w(p0 + Vector3(0.1, 0.13, 0.03)), 0.12)
+			tw.tween_property(n.scraper, "global_position", p0 + Vector3(0.05, 0.01, 0), 0.08)
+			tw.parallel().tween_property(paw_r, "position", _w(p0 + Vector3(0.1, 0.02, 0.03)), 0.08)
+			tw.tween_callback(func():
+				b.visible = true
+				b.global_position = p0 + Vector3(0.06, 0, 0)
+				n.dough.scale *= 0.7
+				if i == balls.size() - 1:
+					n.dough.visible = false
+			)
+			tw.tween_property(b, "global_position", raw_loaves[i].global_position, 0.25)
+			tw.parallel().tween_property(n.scraper, "global_position", n.scraper_rest, 0.25)
 			tw.parallel().tween_property(paw_r, "position", PAW_R_REST, 0.25)
-			_sound("play", "sauce")
-		"goi":  # giấy gói quấn quanh ổ
-			paper.visible = true
-			paper.scale = Vector3(0.1, 0.1, 0.1)
-			tw.tween_property(paw_l, "position", _at(paper, 0.05) + Vector3(-0.06, 0, 0), 0.15)
-			tw.parallel().tween_property(paw_r, "position", _at(paper, 0.05) + Vector3(0.06, 0, 0), 0.15)
-			tw.tween_property(paper, "scale", Vector3.ONE, 0.35).set_trans(Tween.TRANS_BACK)
-			tw.parallel().tween_property(paw_l, "position", _at(paper, 0.08) + Vector3(-0.02, 0, 0), 0.35)
-			tw.parallel().tween_property(paw_r, "position", _at(paper, 0.08) + Vector3(0.02, 0, 0), 0.35)
-			tw.tween_property(paw_l, "position", PAW_L_REST, 0.2)
+			_sound("play", "chop")
+		"lan":  # hai chân lăn viên bột thành ổ dài
+			var k := i / 4
+			var b := balls[k]
+			var l := raw_loaves[k]
+			var tgt := _at(l, 0.04)
+			if i % 4 == 0:
+				b.visible = false
+				l.visible = true
+				l.scale = Vector3(0.45, 1.2, 1.4)
+			var dz := 0.03 if i % 2 == 0 else -0.03
+			tw.tween_property(paw_l, "position", tgt + Vector3(-0.06, 0, dz), 0.12)
+			tw.parallel().tween_property(paw_r, "position", tgt + Vector3(0.06, 0, -dz), 0.12)
+			tw.parallel().tween_property(l, "scale", Vector3(0.45 + 0.55 * float(i % 4 + 1) / 4.0, 1.2 - 0.2 * float(i % 4 + 1) / 4.0, 1.4 - 0.4 * float(i % 4 + 1) / 4.0), 0.12)
+			tw.parallel().tween_property(l, "rotation:x", dz * 8.0, 0.12)
+			if i % 4 == 3:
+				tw.tween_property(l, "rotation:x", 0.0, 0.08)
+				_rest(tw, 0.12)
+		"rach":  # dao rạch đường xéo trên mặt ổ
+			var l := raw_loaves[i]
+			var p: Vector3 = l.global_position + Vector3(0, 0.07, 0)
+			tw.tween_property(n.scraper, "global_position", p + Vector3(-0.12, 0.02, 0), 0.1)
+			tw.parallel().tween_property(paw_r, "position", _w(p + Vector3(-0.06, 0.04, 0.03)), 0.1)
+			tw.tween_property(n.scraper, "global_position", p + Vector3(0.1, -0.015, 0), 0.18)
+			tw.parallel().tween_property(paw_r, "position", _w(p + Vector3(0.14, 0.02, 0.03)), 0.18)
+			tw.tween_callback(func(): slashes[i].visible = true)
+			tw.tween_property(n.scraper, "global_position", n.scraper_rest, 0.2)
 			tw.parallel().tween_property(paw_r, "position", PAW_R_REST, 0.2)
+		"mo_cua", "deo_gang":  # (đeo găng) nắm mép trên cửa lò, kéo cửa lật xuống
+			var top: Vector3 = n.oven_door.global_position + Vector3(0, 0.28, 0.04)
+			if step == "deo_gang":
+				tw.tween_property(n.mitt, "global_position", paw_r.global_position + Vector3(0, -0.01, 0), 0.25)
+				tw.tween_callback(func(): n.mitt.reparent(paw_r))
+			_reach(tw, paw_r, _w(top), 0.2)
+			tw.tween_property(n.oven_door, "rotation:x", PI * 0.5, 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			tw.parallel().tween_property(paw_r, "position", _w(top + Vector3(0, -0.22, 0.22)), 0.4)
+			tw.tween_callback(func():
+				if holding == "":   # mở lò lấy bánh: khay đang trong lò
+					n.oven_tray.visible = true
+					n.oven_tray.position.z = TRAY_IN
+				mist.restart()
+			)
+			_rest(tw)
+			_sound("play", "oven_open")
+		"xit":  # bình xịt phun hơi nước vào miệng lò
+			var s0: Vector3 = n.spray_rest
+			var aim := Vector3(LO.x + 0.1, 0.42, -0.75)
+			tw.tween_property(n.spray, "global_position", aim, 0.15 if i > 0 else 0.25)
+			tw.parallel().tween_property(paw_r, "position", _w(aim + Vector3(0.03, 0.1, 0.04)), 0.15 if i > 0 else 0.25)
+			tw.tween_callback(func(): mist.restart())
+			tw.tween_property(n.spray, "rotation:x", -0.35, 0.06)
+			tw.tween_property(n.spray, "rotation:x", 0.0, 0.08)
+			if last:
+				tw.tween_property(n.spray, "global_position", s0, 0.2)
+				tw.parallel().tween_property(paw_r, "position", PAW_R_REST, 0.2)
+			_sound("play", "spray")
+		"day_khay", "rut_khay":
+			if step == "rut_khay":
+				tw.tween_callback(func(): mist.restart())
+				_sound("play", "crunch")
+			_rest(tw)
+		"dong_cua":
+			var top: Vector3 = n.oven_door.global_position + Vector3(0, 0.03, 0.3)
+			_reach(tw, paw_r, _w(top), 0.2)
+			tw.tween_property(n.oven_door, "rotation:x", 0.0, 0.35).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+			tw.parallel().tween_property(paw_r, "position", _w(n.oven_door.global_position + Vector3(0, 0.3, 0.05)), 0.35)
+			_rest(tw)
+		"lay":  # vươn chân nhấc món trên bàn nguyên liệu
+			var item: Node3D = n["ke_" + seq_station]
+			var p0 := item.position
+			_reach(tw, paw_r, _at(item, 0.05), 0.2)
+			_reach(tw, paw_l, _at(item, 0.05) + Vector3(-0.06, 0, 0), 0.2, true)
+			tw.tween_property(item, "position", p0 + Vector3(0, 0.1, 0.12), 0.25)
+			tw.parallel().tween_property(paw_r, "position", _at(item, 0.05) + Vector3(0, 0.1, 0.12), 0.25)
+			tw.parallel().tween_property(paw_l, "position", _at(item, 0.05) + Vector3(-0.06, 0.1, 0.12), 0.25)
+			tw.tween_callback(func(): item.visible = false; item.position = p0)
+			_rest(tw)
+		"chai_rua":  # chà dưa leo trong bồn, nước bắn
+			var c: Node3D = n.wash_cuke
+			var paw := paw_l if i % 2 == 0 else paw_r
+			var rest := PAW_L_REST if i % 2 == 0 else PAW_R_REST
+			tw.tween_callback(func(): drops.global_position = c.global_position + Vector3(0, 0.05, 0); drops.restart())
+			_tap(tw, paw, _at(c, 0.03) + Vector3(0.03 * (1 if i % 2 else -1), 0, 0), rest, 0.22)
+			tw.parallel().tween_property(c, "rotation:x", c.rotation.x + 1.2, 0.22)
+			if i == 0:
+				_sound("play", "water")
+		"nhung":  # nhúng bó ngò xuống nước rồi nhấc lên lắc
+			var h: Node3D = n.wash_herb
+			var down := i % 2 == 0
+			var y: float = RUA.y + (0.15 if down else 0.27)
+			tw.tween_property(h, "global_position:y", y, 0.14).set_trans(Tween.TRANS_SINE)
+			tw.parallel().tween_property(paw_r, "position", _w(Vector3(h.global_position.x, y + 0.06, h.global_position.z + 0.02)), 0.14)
+			tw.parallel().tween_property(h, "rotation:z", 0.0 if down else 0.25 * (1 if i % 4 == 1 else -1), 0.14)
+			if not down:
+				tw.tween_callback(func(): drops.global_position = h.global_position; drops.restart())
+			if last:
+				tw.tween_property(h, "global_position:y", RUA.y + 0.22, 0.12)
+				tw.parallel().tween_property(paw_r, "position", PAW_R_REST, 0.12)
+		"lat":  # ngắt một phần bó ngò, ném đi
+			var h: Node3D = n.wash_herb
+			var bit := KM.place(self, "ngo_bo", h.global_position + Vector3(0.05 - 0.05 * i, 0.02, 0), 40.0 * i, 0.3)
+			_reach(tw, paw_r, _at(bit, 0.02), 0.14)
+			tw.tween_property(bit, "global_position", h.global_position + Vector3(0.3, 0.25, 0.1), 0.3).set_trans(Tween.TRANS_SINE)
+			tw.parallel().tween_property(paw_r, "position", _w(h.global_position + Vector3(0.12, 0.12, 0.08)), 0.25)
+			tw.parallel().tween_property(h, "scale", Vector3.ONE * (0.8 - 0.07 * (i + 1)), 0.2)
+			tw.tween_callback(bit.queue_free)
+			tw.tween_property(paw_r, "position", PAW_R_REST, 0.15)
+		"cat_dau":  # chặt một đầu dưa leo, mẩu đầu văng ra
+			var c: Node3D = board.cuke
+			var side := -1.0 if i == 0 else 1.0
+			var p: Vector3 = c.global_position + Vector3(side * 0.085, 0.02, 0)
+			_chop(tw, board.knife, p)
+			tw.tween_callback(func():
+				var end := KM.place(self, "dua_leo", p + Vector3(side * 0.015, -0.02, 0), 0, 1.0)
+				end.scale = Vector3(0.12, 1, 1)
+				board.bits.append(end)
+				var tw2 := create_tween()
+				tw2.tween_property(end, "global_position", end.global_position + Vector3(side * 0.08, 0, 0.04), 0.2)
+				c.scale.x -= 0.08
+			)
+			tw.tween_property(board.knife, "global_position", board.knife_rest, 0.15)
+			tw.parallel().tween_property(paw_r, "position", PAW_R_REST, 0.15)
+		"che_doc":  # chẻ dọc: lần cuối dưa leo tách thành 4 lát
+			var c: Node3D = board.cuke
+			_chop(tw, board.knife, c.global_position + Vector3(0, 0.02, 0))
+			tw.tween_callback(func():
+				if last:
+					c.visible = false
+					board.strips.visible = true
+				else:
+					c.scale.z *= 0.8
+			)
+			tw.tween_property(board.knife, "global_position", board.knife_rest, 0.12)
+			tw.parallel().tween_property(paw_r, "position", PAW_R_REST, 0.12)
+		"cat_ot":  # thái ớt thành khoanh
+			var o: Node3D = board.chili
+			var p: Vector3 = o.global_position + Vector3(0.04 - 0.02 * i, 0.01, 0)
+			_chop(tw, board.knife, p)
+			tw.tween_callback(func():
+				var s: Node3D = board.chili_slices[i]
+				s.visible = true
+				o.scale.x = maxf(o.scale.x - 0.22, 0.15)
+				if last:
+					o.visible = false
+			)
+			tw.tween_property(board.knife, "global_position", board.knife_rest, 0.1)
+			tw.parallel().tween_property(paw_r, "position", PAW_R_REST, 0.1)
+		"cat_lat":  # cắt sợi lạt buộc đòn chả
+			var band: Node3D = board.bands[i]
+			_chop(tw, board.knife, band.global_position + Vector3(0, 0.06, 0))
+			tw.tween_callback(func(): band.visible = false)
+			tw.tween_property(board.knife, "global_position", board.knife_rest, 0.12)
+			tw.parallel().tween_property(paw_r, "position", PAW_R_REST, 0.12)
+		"boc_la":
+			tw.tween_callback(func(): board.wrap.visible = false)
+			_rest(tw)
+		"cat_doi":  # chặt đôi đòn chả
+			var c: Node3D = board.cha
+			_chop(tw, board.knife, c.global_position + Vector3(0, 0.05, 0))
+			tw.tween_callback(func():
+				c.visible = false
+				for h in board.halves:
+					h.visible = true
+				var tw2 := create_tween()
+				tw2.tween_property(board.halves[0], "position:x", board.halves[0].position.x - 0.03, 0.15)
+				tw2.parallel().tween_property(board.halves[1], "position:x", board.halves[1].position.x + 0.03, 0.15)
+			)
+			tw.tween_property(board.knife, "global_position", board.knife_rest, 0.15)
+			tw.parallel().tween_property(paw_r, "position", PAW_R_REST, 0.15)
+		"thai_cha", "thai_thit":  # thái một lát, lát mới xếp ra
+			var src: Node3D = board.halves[0] if step == "thai_cha" else board.meat
+			_chop(tw, board.knife, src.global_position + Vector3(0.03, 0.04, 0))
+			tw.tween_callback(func():
+				if step == "thai_cha":
+					board.slices.visible = true
+					board.slices.scale = Vector3(float(i + 1) / 4.0, 1, 1)
+					for h in board.halves:
+						h.scale.x = maxf(h.scale.x - 0.12, 0.3)
+					if last:
+						for h in board.halves:
+							h.visible = false
+				else:
+					board.meat_slices[i].visible = true
+					src.scale.x = maxf(src.scale.x - 0.18, 0.2)
+					if last:
+						src.visible = false
+			)
+			tw.tween_property(board.knife, "global_position", board.knife_rest, 0.1)
+			tw.parallel().tween_property(paw_r, "position", PAW_R_REST, 0.1)
+		"boc_giay":
+			tw.tween_callback(func(): board.paper.visible = false)
+			_rest(tw)
+		"xep_quat":  # gạt từng lát thịt xoè ra hình quạt
+			var s: Node3D = board.meat_slices[i]
+			var paw := paw_l if i % 2 == 0 else paw_r
+			var rest := PAW_L_REST if i % 2 == 0 else PAW_R_REST
+			_reach(tw, paw, _at(s, 0.02), 0.1)
+			tw.tween_property(s, "rotation:y", deg_to_rad(-45 + 30 * i), 0.15)
+			tw.parallel().tween_property(s, "global_position", THOT + Vector3(-0.02 + 0.015 * i, 0.003 * i, 0.02), 0.15)
+			tw.parallel().tween_property(paw, "position", _w(THOT + Vector3(-0.02 + 0.015 * i, 0.03, 0.05)), 0.15)
+			tw.tween_property(paw, "position", rest, 0.1)
+		"got":  # một dải vỏ bong ra
+			var peel := KM.place(self, "ca_rot", n.peeler.global_position + Vector3(0, -0.01, 0), 90, 1.0)
+			peel.scale = Vector3(0.5, 0.15, 0.2)
+			tw.tween_property(peel, "global_position", peel.global_position + Vector3(0.12, 0.08, 0), 0.2)
+			tw.tween_callback(peel.queue_free)
+			_reach(tw, paw_r, PAW_R_REST, 0.12)
+			_sound("play", "chop")
+		"bao":  # củ cà rốt ngắn dần, tô đầy sợi
+			tw.tween_callback(func():
+				n.carrot.scale = Vector3(maxf(1.0 - 0.3 * (i + 1), 0.1), 1, 1)
+				n.chua_shreds.visible = true
+				n.chua_shreds.scale = Vector3.ONE * (0.35 + 0.2 * (i + 1))
+				if last:
+					n.carrot.visible = false
+			)
+			_rest(tw, 0.12)
+			_sound("play", "chop")
+		"dap_trung":  # cầm quả trứng gõ vào miệng tô, trứng rơi vào tô
+			var egg: Node3D = n.eggs[i]
+			var rim: Vector3 = n.egg_bowl.global_position + Vector3(0.05, 0.08, 0)
+			_reach(tw, paw_r, _at(egg, 0.03), 0.15)
+			tw.tween_property(egg, "global_position", rim + Vector3(0, 0.05, 0), 0.2)
+			tw.parallel().tween_property(paw_r, "position", _w(rim + Vector3(0.03, 0.08, 0.03)), 0.2)
+			tw.tween_property(egg, "global_position", rim, 0.07).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+			tw.tween_callback(func():
+				egg.visible = false
+				n.egg_in_bowl.visible = true
+				n.egg_in_bowl.scale = Vector3.ONE * (0.45 + 0.15 * i)
+				_sound("play", "crunch")
+			)
+			_rest(tw)
+		"pha", "khuay", "khuay_trung":
+			if last:
+				tw.tween_callback(func(): n.stirrer.visible = false)
+				_rest(tw)
+			else:
+				tw.tween_interval(0.02)
+		"khui":
+			tw.tween_property(n.pate_lid, "position", n.pate_lid_rest + Vector3(0.14, -0.02, 0.04), 0.15)
+			tw.tween_callback(func(): n.pate_lid.visible = false; n.pate_fill.visible = true; pate_open = true)
+			_rest(tw, 0.12)
+		"pate":
+			tw.tween_callback(func(): n.pate_knife.visible = false)
+			_rest(tw)
+		"xe":  # xẻ xong: nắp bánh mở ra
+			tw.tween_callback(func():
+				loaf.lid.visible = true
+				loaf.lid.rotation.x = 0.0
+			)
+			tw.tween_property(loaf.lid, "rotation:x", -0.9, 0.25).set_trans(Tween.TRANS_BACK)
+			tw.parallel().tween_property(n.rap_knife, "global_position", n.rap_knife_rest, 0.25)
+			_rest(tw)
+			_sound("play", "crunch")
+		"xep_nhan":  # gắp đúng món, thả vào ổ
+			var name: String = input.order[i]
+			var piece: Node3D = loaf.pieces.get(name)
+			if piece:
+				var goal := piece.position
+				piece.visible = true
+				piece.position = goal + Vector3(0, 0.12, 0.08)
+				_reach(tw, paw_r, _w(piece.global_position + Vector3(0, 0.03, 0.02)), 0.12)
+				tw.tween_property(piece, "position", goal, 0.18).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+				tw.parallel().tween_property(paw_r, "position", _w(loaf.base.global_position + Vector3(0, 0.08, 0.04)), 0.15)
+			if last:
+				tw.tween_callback(func():
+					for k in loaf.pieces:
+						loaf.pieces[k].visible = false
+					loaf.base.visible = false
+					loaf.lid.visible = false
+					loaf.smear.visible = false
+					loaf.done.visible = true
+				)
+				_rest(tw)
+		"xi_dau":  # chai xì dầu nghiêng rưới dọc ổ
+			var s0: Vector3 = n.sauce_rest
+			var over: Vector3 = loaf.done.global_position + Vector3(0.1 - 0.15 * i, 0.15, 0.02)
+			tw.tween_property(n.sauce, "global_position", over, 0.18)
+			tw.parallel().tween_property(paw_r, "position", _w(over + Vector3(0.03, 0.03, 0.03)), 0.18)
+			tw.tween_property(n.sauce, "rotation:z", 2.2, 0.12)
+			tw.tween_callback(func(): drops.global_position = over + Vector3(-0.05, -0.04, 0); drops.restart())
+			tw.tween_property(n.sauce, "rotation:z", 0.0, 0.12)
+			if last:
+				tw.tween_property(n.sauce, "global_position", s0, 0.2)
+				tw.parallel().tween_property(paw_r, "position", PAW_R_REST, 0.2)
+			_sound("play", "sauce")
+		"goi":  # giấy cuộn dần quanh ổ, nhịp cuối thành ổ gói giấy
+			var paw := paw_l if i % 2 == 0 else paw_r
+			var rest := PAW_L_REST if i % 2 == 0 else PAW_R_REST
+			_tap(tw, paw, _at(loaf.paper, 0.04) + Vector3(0.04 * (1 if i % 2 else -1), 0, 0), rest, 0.22)
+			tw.parallel().tween_property(loaf.paper, "scale", Vector3(1.6 - 0.15 * (i + 1), 1, 1.4 - 0.2 * (i + 1)), 0.2)
+			if last:
+				tw.tween_callback(func():
+					loaf.done.visible = false
+					loaf.paper.visible = false
+					loaf.wrapped.visible = true
+				)
 			_sound("play", "wrap")
-		"bo_vao":  # đẩy ổ đã gói vào kệ tủ kính
+		"bo_vao":  # đẩy ổ đã gói vào tủ kính xe bánh mì
 			var slot := case_slots[made]
-			tw.tween_property(paw_r, "position", _at(paper, 0.04), 0.15)
-			tw.tween_property(paper, "global_position", slot.global_position, 0.35).set_trans(Tween.TRANS_SINE)
-			tw.parallel().tween_property(paw_r, "position", _at_world(slot.global_position + Vector3(0, 0.04, -0.05)), 0.35)
-			tw.tween_property(paw_r, "position", PAW_R_REST, 0.2)
-	tw.tween_interval(0.05)
+			var w := _wrapped_loaf(self, bread_burnt)
+			w.global_position = paw_rig.to_global(Vector3(0, 0.03, 0.08))
+			tw.tween_property(w, "global_position", slot.global_position, 0.35).set_trans(Tween.TRANS_SINE)
+			tw.parallel().tween_property(paw_r, "position", _w(slot.global_position + Vector3(0, 0.04, -0.06)), 0.35)
+			tw.tween_callback(w.queue_free)
+			_rest(tw)
+	tw.tween_interval(0.04)
 	return tw
-
-
-func _at_world(p: Vector3) -> Vector3:
-	return paw_rig.to_local(p)
 
 
 # ---------------------------------------------------------------- trạng thái đồ ở trạm
 
-func _reset_kneading() -> void:
-	heap.visible = false
-	dough.visible = false
-	dough.scale = Vector3.ONE
-	for b in balls:
-		b.visible = false
-	for l in raw_loaves:
-		l.visible = false
-	for s in slashes:
-		s.visible = false
-
-
 func _setup_board(kind: String) -> void:
-	var board_top: Vector3 = stations.thot.work
-	if board_item:
-		board_item.queue_free()
-	for s in board_slices:
-		s.queue_free()
-	board_slices.clear()
-	board_item = Node3D.new()
-	add_child(board_item)
-	board_item.position = board_top + Vector3(0, 0.0, -0.02)
-	var slice_col := P.LEAF
+	_clear_board()
+	board.knife = KM.place(self, "dao", THOT + Vector3(0.0, 0.0, 0.17), 0)
+	board.knife_rest = board.knife.global_position
+	board.bits = []
 	match kind:
-		"rau":
-			for i in 7:
-				P.sphere(board_item, 0.035, Vector3(-0.09 + i * 0.03, 0.03, randf_range(-0.02, 0.02)), P.LEAF.lerp(P.LEAF_DARK, randf()))
+		"rau_sach":
+			board.cuke = KM.place(self, "dua_leo", THOT + Vector3(0, 0, -0.04), 0)
+			board.strips = KM.place(self, "dua_leo_lat", THOT + Vector3(0, 0, -0.04), 0)
+			board.strips.visible = false
+			board.chili = KM.place(self, "ot", THOT + Vector3(0.0, 0, 0.07), 0)
+			board.chili_slices = []
+			for i in 4:
+				var s := KM.place(self, "ot_lat", THOT + Vector3(-0.07 + 0.025 * i, 0, 0.1), 90)
+				s.visible = false
+				board.chili_slices.append(s)
 		"cha":
-			var core := P.cylinder(board_item, 0.045, 0.2, Vector3(0, 0.045, 0), P.CHA)
-			core.rotation_degrees.z = 90
-			var wrap := P.cylinder(board_item, 0.05, 0.21, Vector3(0, 0.045, 0), P.LEAF_DARK)
-			wrap.rotation_degrees.z = 90
-			wrap.name = "La"
-			slice_col = P.CHA
+			board.cha = KM.place(self, "cha_boc", THOT + Vector3(0, 0, -0.02), 0)
+			board.cha.scale = Vector3(2.4, 0.9, 0.9)
+			var wrap := Node3D.new()
+			add_child(wrap)
+			wrap.global_position = THOT + Vector3(0, 0, -0.02)
+			KM.place(wrap, "cha_cay", Vector3(0, -0.012, 0), 0)
+			board.wrap = wrap
+			board.wrap_rest = wrap.position
+			board.bands = []
+			for x in [-0.07, 0.07]:
+				var band := Blocks.box(self, Vector3(0.008, 0.13, 0.13), THOT + Vector3(x, 0.055, -0.02), Color("#C9A877"))
+				board.bands.append(band)
+			board.halves = []
+			for x in [-0.055, 0.055]:
+				var h := KM.place(self, "cha_boc", THOT + Vector3(x, 0, -0.02), 0)
+				h.scale = Vector3(1.15, 0.9, 0.9)
+				h.visible = false
+				board.halves.append(h)
+			board.slices = KM.place(self, "cha_khoanh", THOT + Vector3(0, 0, 0.09), 0, 0.8)
+			board.slices.visible = false
 		"thit":
-			P.sphere(board_item, 0.06, Vector3(0, 0.045, 0), P.HAM, Vector3(1.6, 0.8, 1.0))
-			slice_col = P.HAM
-	for i in 3:
-		var s := P.cylinder(self, 0.035, 0.012, board_top + Vector3(0.07 - i * 0.05, 0.012, 0.05), slice_col, 12)
-		s.visible = false
-		board_slices.append(s)
+			board.meat = KM.place(self, "thit_nguoi", THOT + Vector3(0, 0, -0.03), 90)
+			var paper := Node3D.new()
+			add_child(paper)
+			paper.global_position = THOT + Vector3(0, 0.1, -0.03)
+			KM.place(paper, "giay_goi", Vector3.ZERO, 90, 0.9)
+			board.paper = paper
+			board.paper_rest = paper.position
+			board.meat_slices = []
+			for i in 4:
+				var s := KM.place(self, "thit_lat", THOT + Vector3(-0.1 + 0.05 * i, 0.002 * i, 0.1), 90, 0.55)
+				s.visible = false
+				board.meat_slices.append(s)
 
 
 func _clear_board() -> void:
-	if board_item:
-		board_item.queue_free()
-		board_item = null
-	for s in board_slices:
-		s.queue_free()
-	board_slices.clear()
-	var plate := get_node_or_null("Dia")
-	if plate:
-		plate.queue_free()
+	for k in board:
+		var v = board[k]
+		if v is Node:
+			v.queue_free()
+		elif v is Array:
+			for x in v:
+				if x is Node:
+					x.queue_free()
+	board.clear()
+
+
+func _reset_loaf() -> void:
+	for k in ["base", "lid", "smear", "done", "paper", "wrapped"]:
+		loaf[k].visible = false
+	for k in loaf.pieces:
+		loaf.pieces[k].visible = false
+	var burnt := bread_burnt
+	loaf.base.get_child(0).visible = not burnt
+	loaf.base.get_child(1).visible = burnt
+	loaf.lid.get_child(0).visible = not burnt
+	loaf.lid.get_child(1).visible = burnt
 
 
 func _refresh_rap() -> void:
-	rap_tray.visible = loaves_on_rap > 0
 	for i in rap_loaves.size():
 		rap_loaves[i].visible = i < loaves_on_rap
-		(rap_loaves[i].material_override as StandardMaterial3D).albedo_color = P.BURNT if bread_burnt else P.CRUST
-	for k in rap_bowls:
-		rap_bowls[k].get_child(1).visible = on_rap[k]
-	(work_parts.base.material_override as StandardMaterial3D).albedo_color = P.BURNT if bread_burnt else P.CRUST
-	(work_parts.top.get_child(0).material_override as StandardMaterial3D).albedo_color = P.BURNT if bread_burnt else P.CRUST
+		rap_loaves[i].get_child(0).visible = not bread_burnt
+		rap_loaves[i].get_child(1).visible = bread_burnt
+	for k in on_rap:
+		n["rap_" + k].visible = on_rap[k]
+
+
+## Ổ bánh gói giấy (như ổ giao cho khách): bánh nằm trong ống giấy trắng sọc đỏ.
+func _wrapped_loaf(parent: Node, burnt: bool) -> Node3D:
+	var w := Node3D.new()
+	parent.add_child(w)
+	KM.place(w, "banh_chay" if burnt else "banh_vang", Vector3.ZERO)
+	for side in [-1, 1]:
+		var p := KM.place(w, "giay_goi", Vector3(0.0, 0.0, side * 0.04), 0, 1.0)
+		p.rotation_degrees.x = 90 * side
+		p.scale = Vector3(0.85, 1, 0.5)
+	var top := KM.place(w, "giay_goi", Vector3(0, 0.078, 0), 0, 1.0)
+	top.scale = Vector3(0.85, 1, 0.5)
+	return w
 
 
 # ---------------------------------------------------------------- dựng phòng và trạm
 
 func _build_room(room: Node3D) -> void:
-	# Sàn gạch bông kem xen hồng như thẻ p_soche, tường vàng nhạt, chân tường gạch men xanh
-	for x in range(-4, 4):
-		for z in range(-3, 3):
+	# Sàn gạch bông 40 cm: kem xen hồng như thẻ p_soche (khối phẳng: 1 viên gach_bong.glb 600 tam giác,
+	# lát cả sàn thì quá nặng cho bản web)
+	for x in range(-7, 7):
+		for z in range(-5, 5):
 			var c := Color("#F3E9D8") if (x + z) % 2 == 0 else Color("#EBD6C0")
-			Blocks.box(room, Vector3(0.98, 0.04, 0.98), Vector3(x + 0.5, -0.02, z + 0.5), c)
-			Blocks.box(room, Vector3(0.18, 0.042, 0.18), Vector3(x + 0.5, -0.02, z + 0.5), Color("#E39AA0") if (x + z) % 2 == 0 else Color("#7FB7A4"))
+			var p := Vector3(x * 0.4 + 0.2, -0.02, z * 0.4 + 0.2)
+			Blocks.box(room, Vector3(0.39, 0.04, 0.39), p, c)
+			Blocks.box(room, Vector3(0.09, 0.042, 0.09), p, Color("#E39AA0") if (x + z) % 2 == 0 else Color("#7FB7A4"))
 	var floor_body := StaticBody3D.new()
 	room.add_child(floor_body)
 	var fs := CollisionShape3D.new()
 	var fb := BoxShape3D.new()
-	fb.size = Vector3(10, 0.2, 8)
+	fb.size = Vector3(8, 0.2, 6)
 	fs.shape = fb
 	fs.position.y = -0.1
 	floor_body.add_child(fs)
 
-	Blocks.solid_box(room, Vector3(7.6, 3.0, 0.2), Vector3(0, 1.5, -2.5), Color("#F2D9A6"))
-	Blocks.solid_box(room, Vector3(0.2, 3.0, 5.2), Vector3(-3.8, 1.5, 0), Color("#EBCB8E"))
-	Blocks.solid_box(room, Vector3(0.2, 3.0, 5.2), Vector3(3.8, 1.5, 0), Color("#EBCB8E"))
-	Blocks.box(room, Vector3(7.6, 0.6, 0.02), Vector3(0, 0.3, -2.39), Color("#7FB7A4"))
-	for i in 16:
-		Blocks.box(room, Vector3(0.02, 0.6, 0.025), Vector3(-3.75 + i * 0.5, 0.3, -2.38), Color("#5F978A"))
+	Blocks.solid_box(room, Vector3(5.6, 2.4, 0.1), Vector3(0, 1.2, -1.8), Color("#F2D9A6"))
+	Blocks.solid_box(room, Vector3(0.1, 2.4, 3.6), Vector3(-2.7, 1.2, 0), Color("#EBCB8E"))
+	Blocks.solid_box(room, Vector3(0.1, 2.4, 3.6), Vector3(2.7, 1.2, 0), Color("#EBCB8E"))
+	Blocks.box(room, Vector3(5.6, 0.36, 0.02), Vector3(0, 0.18, -1.74), Color("#7FB7A4"))
+	for i in 14:
+		Blocks.box(room, Vector3(0.015, 0.36, 0.022), Vector3(-2.6 + i * 0.4, 0.18, -1.73), Color("#5F978A"))
 	# Cửa sổ sau bếp, nắng chiếu vào
-	Blocks.box(room, Vector3(1.2, 0.8, 0.03), Vector3(-1.75, 1.75, -2.38), Color("#BFE3EE"))
-	Blocks.box(room, Vector3(1.3, 0.06, 0.06), Vector3(-1.75, 1.33, -2.36), Color("#8A5A30"))
-	Blocks.box(room, Vector3(0.05, 0.8, 0.04), Vector3(-1.75, 1.75, -2.36), Color("#8A5A30"))
-	# Lịch treo tường, kệ treo nồi
-	Blocks.box(room, Vector3(0.4, 0.55, 0.02), Vector3(2.6, 1.6, -2.38), Color("#FFF8EA"))
-	Blocks.box(room, Vector3(0.4, 0.12, 0.022), Vector3(2.6, 1.82, -2.37), P.RED)
-	# Đèn thả đỏ như thẻ p_soche
-	for x in [-1.6, 1.4]:
-		Blocks.box(room, Vector3(0.01, 0.8, 0.01), Vector3(x, 2.6, -0.2), Color("#333333"))
-		var shade := CylinderMesh.new()
-		shade.top_radius = 0.04
-		shade.bottom_radius = 0.2
-		shade.height = 0.2
-		shade.radial_segments = 16
-		Blocks.mesh(room, shade, Vector3(x, 2.15, -0.2), P.RED)
-	# Tủ kính phía trước (camera nhìn xuyên qua) và quầy gỗ thấp bên phải
-	P.glass_case(room, Vector3(-1.95, 0, 2.0), 2.4)
-	var counter := Blocks.solid_box(room, Vector3(2.8, 0.45, 0.5), Vector3(2.2, 0.225, 2.05), P.WOOD_DARK, Blocks.LAYER_PROP)
-	Blocks.box(counter, Vector3(2.84, 0.04, 0.54), Vector3(0, 0.24, 0), P.WOOD)
-	Blocks.invisible_wall(room, Vector3(8, 2, 0.2), Vector3(0, 1, 2.45))
-	# Rổ, thùng trang trí trên quầy
-	P.cylinder(room, 0.14, 0.12, Vector3(1.6, 0.53, 2.05), Color("#9B6A3A"))
-	P.cylinder(room, 0.08, 0.2, Vector3(2.9, 0.57, 2.05), Color("#3D5A80"))
+	Blocks.box(room, Vector3(0.8, 0.55, 0.02), Vector3(-1.25, 1.1, -1.74), Color("#BFE3EE"))
+	Blocks.box(room, Vector3(0.88, 0.05, 0.05), Vector3(-1.25, 0.8, -1.72), Color("#8A5A30"))
+	Blocks.box(room, Vector3(0.04, 0.55, 0.03), Vector3(-1.25, 1.1, -1.72), Color("#8A5A30"))
+	# Lịch treo tường
+	Blocks.box(room, Vector3(0.28, 0.38, 0.02), Vector3(1.55, 1.0, -1.74), Color("#FFF8EA"))
+	Blocks.box(room, Vector3(0.28, 0.08, 0.022), Vector3(1.55, 1.15, -1.73), Color("#C8412F"))
+	Blocks.invisible_wall(room, Vector3(6, 2, 0.2), Vector3(0, 1, 1.8))
+	# Đèn thả đỏ, sọt rác, củi cạnh lò, cây cán bột
+	for p in [Vector3(-1.25, 1.35, -1.25), Vector3(0.3, 1.35, 0.15)]:
+		KM.place(room, "den_treo", p)
+	KM.solid(room, "thung_rac", Vector3(2.3, 0, 1.45))
+	KM.place(room, "lo_cui", Vector3(-0.45, 0, -1.55), 10)
+	KM.place(room, "cay_can", CHUA + Vector3(0.0, 0, -0.42), 90)
+	KM.place(room, "cu_cai", CHUA + Vector3(-0.12, 0, -0.32), 70)
+	KM.place(room, "hu_men", NHOI + Vector3(0.42, 0, -0.18))
 
 
-func _station(id: String, title: String, use: Vector3, work: Vector3, cam_off: Vector3) -> void:
+func _station(id: String, title: String, use: Vector3, work: Vector3) -> void:
 	var torus := TorusMesh.new()
-	torus.inner_radius = 0.28
-	torus.outer_radius = 0.34
+	torus.inner_radius = 0.17
+	torus.outer_radius = 0.21
 	torus.rings = 24
 	torus.ring_segments = 4
 	var ring := MeshInstance3D.new()
 	ring.mesh = torus
-	var m := P.own_mat(Color(1, 1, 1, 0.2))
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(1, 1, 1, 0.2)
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	ring.material_override = m
 	ring.position = use + Vector3(0, 0.02, 0)
 	add_child(ring)
-	# Camera cận cảnh đặt ngay trên đầu Bơ nhìn xuống bàn, như Bơ nhìn chân mình:
-	# chỉ thấy một đoạn cẳng tay ngắn và bàn chân ở gần mép dưới khung hình.
+	# Camera cận cảnh đặt ngay trên đầu Bơ nhìn xuống bàn, như Bơ nhìn chân mình
 	var back := Vector3(use.x - work.x, 0, use.z - work.z).normalized()
-	var cam := work + back * CLOSE_BACK + Vector3.UP * CLOSE_UP
+	var cam_pos := work + back * CLOSE_BACK + Vector3.UP * CLOSE_UP
 	var look := work - back * CLOSE_AHEAD
-	stations[id] = {"name": title, "use": use, "work": work, "cam": cam, "look": look, "ring": ring}
+	stations[id] = {"name": title, "use": use, "work": work, "cam": cam_pos, "look": look, "ring": ring}
 
 
 func _build_stations(room: Node3D) -> void:
 	# 1. Bao bột
-	P.flour_sack(room, Vector3(-3.05, 0, -1.85))
-	_station("bot", "Bao bột", Vector3(-3.05, 0, -1.2), Vector3(-3.05, 0.66, -1.85), Vector3(0.35, 0.45, 0.7))
-	flour_puff = _particles(Vector3(-3.05, 0.7, -1.85), Color(1, 1, 1, 0.85), 24, 0.02, -0.6)
+	KM.solid(room, "bao_bot", BAO)
+	_station("bot", "Bao bột", Vector3(BAO.x, 0, -1.0), BAO + Vector3(0, 0.25, 0))
+	flour_puff = _particles(BAO + Vector3(0, 0.28, 0), Color(1, 1, 1, 0.85), 24, 0.012, -0.6)
 
-	# 2. Bàn nhồi: ụ bột, cục bột, 2 viên, 2 ổ sống, bình nước, khăn ủ, dao chia bột, cây cán bột
-	var t := Vector3(-1.75, 0.75, -1.95)
-	P.table(room, Vector3(1.3, 0.75, 0.7), Vector3(t.x, 0, t.z))
-	var rp := P.cylinder(room, 0.025, 0.36, t + Vector3(0.45, 0.03, 0.1), Color("#E8C58A"))
-	rp.rotation_degrees.z = 90
-	_station("nhoi", "Bàn nhồi bột", Vector3(-1.75, 0, -1.15), t + Vector3(-0.05, 0, 0.05), Vector3(0.0, 0.55, 0.62))
-	var c := Vector3(-1.8, 0.75, -1.9)
-	var cone := CylinderMesh.new()
-	cone.top_radius = 0.0
-	cone.bottom_radius = 0.1
-	cone.height = 0.08
-	heap = Blocks.mesh(self, cone, c + Vector3(0, 0.04, 0), Color.WHITE)
-	dough = P.sphere(self, 0.07, c + Vector3(0, 0.05, 0), P.DOUGH)
-	for i in 2:
-		balls.append(P.sphere(self, 0.045, c + Vector3(0, 0.04, 0), P.DOUGH))
-		var l := P.loaf(self, c + Vector3(-0.08 + i * 0.16, 0.035, 0.08), P.DOUGH)
-		l.rotation_degrees = Vector3(0, 90, 90)
+	# 2. Bàn nhào: thau bột, ca nước, khăn ủ, dao cắt bột, khay bánh sống
+	KM.solid(room, "ban_nhao", Vector3(NHOI.x, 0, NHOI.z))
+	_station("nhoi", "Bàn nhào bột", Vector3(NHOI.x, 0, -0.82), NHOI + Vector3(-0.1, 0, 0.07))
+	n.thau = KM.place(self, "thau", NHOI + Vector3(-0.3, 0, 0.06))
+	n.flour = KM.place(self, "bot_dong", NHOI + Vector3(-0.3, 0.01, 0.06), 0, 0.5)
+	n.flour.visible = false
+	n.water = Blocks.mesh(self, _disc(0.1, 0.03), NHOI + Vector3(-0.3, 0.02, 0.06), WATER)
+	n.water.visible = false
+	n.dough = KM.place(self, "bot_khoi_nhao", NHOI + Vector3(-0.3, 0.02, 0.06))
+	n.dough.visible = false
+	n.proof_bowl = KM.place(self, "bot_u_to", NHOI + Vector3(-0.3, 0, 0.06))
+	n.proof_bowl.visible = false
+	n.jug_rest = NHOI + Vector3(0.4, 0, -0.12)
+	n.jug = KM.place(self, "ca_nuoc", n.jug_rest, 0)
+	n.stream = Blocks.mesh(self, _disc(0.008, 0.13), NHOI + Vector3(-0.22, 0.08, 0.06), WATER)
+	n.stream.visible = false
+	n.towel_rest = NHOI + Vector3(0.4, 0, 0.14)
+	n.towel = KM.place(self, "khan_u", n.towel_rest, 0, 0.6)
+	n.scraper_rest = NHOI + Vector3(-0.42, 0, -0.18)
+	n.scraper = KM.place(self, "dao_lam", n.scraper_rest, 90)
+	n.tray_raw = Node3D.new()
+	add_child(n.tray_raw)
+	n.tray_raw.global_position = NHOI + Vector3(0.08, 0, 0.0)
+	KM.place(n.tray_raw, "khay_inox", Vector3.ZERO, 0, 1.25)
+	for i in LOAVES:
+		var lp := Vector3(0.0, 0.02, -0.06 + i * 0.12)
+		var b := KM.place(n.tray_raw, "bot_khoi_nhao", lp, 0, 0.55)
+		b.visible = false
+		balls.append(b)
+		var l := KM.place(n.tray_raw, "bot_phoi", lp, 0, 0.75)
+		l.visible = false
 		raw_loaves.append(l)
 		var sl := Node3D.new()
 		l.add_child(sl)
 		for k in 3:
-			var cut := Blocks.box(sl, Vector3(0.006, 0.035, 0.03), Vector3(0.034, -0.05 + k * 0.05, 0), Color("#C9A877"))
-			cut.rotation_degrees.x = 30
+			var cut := Blocks.box(sl, Vector3(0.006, 0.012, 0.045), Vector3(-0.07 + k * 0.07, 0.075, 0), Color("#C9A877"))
+			cut.rotation_degrees.y = 35
+		sl.visible = false
 		slashes.append(sl)
-	jug = Node3D.new()
-	jug.position = c + Vector3(0.35, 0.0, -0.15)
-	add_child(jug)
-	P.cylinder(jug, 0.045, 0.14, Vector3(0, 0.07, 0), P.WATER)
-	P.cylinder(jug, 0.04, 0.1, Vector3(0, 0.05, 0), Color(0.45, 0.7, 0.9, 0.7))
-	stream = P.cylinder(self, 0.008, 0.18, c + Vector3(0.02, 0.12, 0), P.WATER)
-	cloth = Blocks.box(self, Vector3(0.24, 0.02, 0.24), c + Vector3(0, 0.15, 0), Color("#E8D9C2"))
-	cutter = P.knife(self)
-	cutter.position = c + Vector3(-0.35, 0.01, -0.1)
-	_reset_kneading()
-	stream.visible = false
-	cloth.visible = false
+	n.tray_raw.visible = false
 
-	# 3. Lò gạch
-	var oven := P.oven(room, Vector3(0.35, 0, -1.85))
-	_station("lo", "Lò gạch", Vector3(0.35, 0, -0.85), Vector3(0.35, 0.55, -1.25), Vector3(0.25, 0.35, 0.85))
-	# Cửa và lửa phải động nên đưa ra khỏi phòng (phòng bị gộp mesh)
-	oven_door = oven.get_node("Cua")
-	oven_door.reparent(self)
-	oven_fire = oven.get_node("Lua")
-	oven_fire.reparent(self)
-	# Khay nằm trong một node đặt ở tâm lò: "position:z" = 0,15 là trong lò, 0,75 là ngoài miệng lò
-	var holder := Node3D.new()
-	holder.position = Vector3(0.35, 0, -1.85)
-	add_child(holder)
-	oven_tray = P.tray(holder, Vector3(0, 0.44, 0.75))
-	for i in 2:
-		oven_loaves.append(P.loaf(oven_tray, Vector3(0, 0.04, -0.05 + i * 0.1), P.DOUGH))
-	oven_tray.visible = false
-	oven_label = Blocks.label(self, "", Vector3(0.35, 1.55, -1.2), 32)
-	spray = Node3D.new()
-	spray.position = Vector3(0.95, 0.4, -1.2)
-	add_child(spray)
-	P.cylinder(spray, 0.03, 0.12, Vector3(0, 0.06, 0), Color.WHITE)
-	P.cylinder(spray, 0.012, 0.05, Vector3(0, 0.14, 0), P.RED)
-	Blocks.box(room, Vector3(0.3, 0.38, 0.3), Vector3(0.95, 0.19, -1.25), Color("#7A6A5E"))
-	mist = _particles(Vector3(0.35, 0.65, -1.3), Color(1, 1, 1, 0.5), 30, 0.025, 0.2)
-	smoke = _particles(Vector3(0.35, 1.0, -1.2), Color(0.25, 0.25, 0.25, 0.6), 30, 0.05, 0.4)
+	# 3. Lò gạch: cửa lật xuống (bản lề ở mép dưới), khay trượt, lửa phát sáng, bình xịt, găng
+	KM.solid(room, "lo_gach", LO)
+	_station("lo", "Lò gạch", Vector3(LO.x, 0, -0.5), Vector3(LO.x, 0.3, -0.86))
+	n.oven_door = KM.place(self, "lo_cua", LO + Vector3(0, 0.23, 0.385))
+	var fire := KM.own(self, "lo_lua", LO + Vector3(0, 0.235, -0.1), 0, 0.9)
+	var fm: StandardMaterial3D = fire.material_override
+	fm.emission_enabled = true
+	fm.emission = Color("#FF8A2A")
+	fm.emission_energy_multiplier = 1.6
+	n.oven_tray = Node3D.new()
+	add_child(n.oven_tray)
+	n.oven_tray.position = Vector3(LO.x, 0.25, TRAY_OUT)
+	KM.place(n.oven_tray, "lo_khay", Vector3.ZERO)
+	for i in LOAVES:
+		var d := {}
+		for k in ["song", "vang", "chay"]:
+			var model: String = {"song": "bot_phoi", "vang": "banh_vang", "chay": "banh_chay"}[k]
+			d[k] = KM.own(n.oven_tray, model, Vector3(0, 0.012, -0.08 + i * 0.16), 0, 0.8 if k == "song" else 0.75)
+		oven_loaves.append(d)
+	n.oven_tray.visible = false
+	oven_label = Blocks.label(self, "", LO + Vector3(0, 1.35, 0.2), 28)
+	n.spray_rest = LO + Vector3(0.62, 0, 0.42)
+	n.spray = KM.place(self, "binh_xit", n.spray_rest)
+	n.mitt_rest = LO + Vector3(0.62, 0, 0.6)
+	n.mitt = KM.place(self, "gang_lo", n.mitt_rest, -30)
+	mist = _particles(LO + Vector3(0, 0.42, 0.4), Color(1, 1, 1, 0.5), 30, 0.015, 0.2)
+	smoke = _particles(LO + Vector3(0, 0.62, 0.42), Color(0.25, 0.25, 0.25, 0.6), 30, 0.035, 0.4)
 	smoke.one_shot = false
 	smoke.lifetime = 1.6
 	smoke.explosiveness = 0.0
 	smoke.emitting = false
 
-	# 4. Kệ nguyên liệu: rổ rau, đòn chả lụa gói lá, khúc thịt nguội
-	P.shelf(room, Vector3(2.5, 0, -2.05), 1.7)
-	var top := 0.72
-	var items := {"rau": 1.95, "cha": 2.5, "thit": 3.05}
-	for k in items:
-		var x: float = items[k]
+	# 4. Bàn nguyên liệu: rổ tre (dưa leo, ngò, ớt), đòn chả gói lá trên khay, khúc thịt nguội trên khay
+	KM.solid(room, "ban_nhao", Vector3(KE.x, 0, KE.z))
+	var ke := {"rau": -0.33, "cha": 0.02, "thit": 0.35}
+	for k in ke:
+		var p: Vector3 = KE + Vector3(ke[k], 0, 0.02)
+		if k != "rau":
+			KM.place(room, "khay_inox", p, 90, 1.0)
 		var item := Node3D.new()
-		item.position = Vector3(x, top, -2.0)
 		add_child(item)
+		item.position = p + Vector3(0, 0.0 if k == "rau" else 0.03, 0)
 		match k:
 			"rau":
-				P.cylinder(item, 0.13, 0.08, Vector3(0, 0.04, 0), Color("#9B6A3A"))
-				for i in 6:
-					P.sphere(item, 0.045, Vector3(cos(i * 1.05) * 0.06, 0.1, sin(i * 1.05) * 0.06), P.LEAF)
+				KM.place(item, "ro_tre", Vector3.ZERO, 0, 0.9)
+				KM.place(item, "dua_leo", Vector3(-0.03, 0.03, 0.03), 20)
+				KM.place(item, "ngo_bo", Vector3(0.04, 0.035, -0.04), 60, 0.7)
+				KM.place(item, "ot", Vector3(0.03, 0.04, 0.06), -30)
 			"cha":
-				var cl := P.cylinder(item, 0.06, 0.22, Vector3(0, 0.06, 0), P.LEAF_DARK)
-				cl.rotation_degrees.z = 90
-				for i in 3:
-					var band := P.cylinder(item, 0.062, 0.01, Vector3(-0.06 + i * 0.06, 0.06, 0), Color("#C9A877"))
-					band.rotation_degrees.z = 90
+				KM.place(item, "cha_cay", Vector3.ZERO, 90, 0.75)
 			"thit":
-				P.sphere(item, 0.08, Vector3(0, 0.06, 0), P.HAM, Vector3(1.3, 0.8, 1))
-		shelf_items[k] = item
+				KM.place(item, "thit_nguoi", Vector3.ZERO, 90)
+		n["ke_" + k] = item
 		var title: String = {"rau": "Rổ rau", "cha": "Chả lụa", "thit": "Thịt nguội"}[k]
-		_station(k, title, Vector3(x, 0, -1.4), item.position + Vector3(0, 0.05, 0), Vector3(-0.1, 0.4, 0.6))
+		_station(k, title, Vector3(p.x, 0, -0.82), p + Vector3(0, 0.04, 0.05))
 
-	# 5. Bàn thớt
-	var bt := Vector3(3.0, 0.75, 0.4)
-	P.table(room, Vector3(0.8, 0.75, 1.1), Vector3(bt.x, 0, bt.z))
-	P.board(room, bt + Vector3(-0.05, 0, 0))
-	_station("thot", "Thớt", Vector3(2.15, 0, 0.4), bt + Vector3(-0.05, 0.05, 0), Vector3(-0.6, 0.45, 0.3))
-	board_knife = P.knife(self)
-	board_knife.position = bt + Vector3(-0.1, 0.06, -0.32)
-	drops = _particles(bt + Vector3(-0.05, 0.3, 0), Color(0.5, 0.75, 0.95, 0.8), 30, 0.012, -3.0)
-	drops.direction = Vector3.DOWN
-	drops.spread = 15.0
+	# 5. Bồn rửa sát tường phải, vòi quay vào bếp
+	KM.solid(room, "bon_rua", RUA, -90)
+	_station("rua", "Bồn rửa", Vector3(1.95, 0, RUA.z), RUA + Vector3(-0.02, 0.17, 0))
+	n.wash_cuke = KM.place(self, "dua_leo", RUA + Vector3(-0.02, 0.16, 0.06), 90)
+	n.wash_herb = KM.place(self, "ngo_bo", RUA + Vector3(-0.02, 0.22, -0.07), 90, 0.8)
+	n.wash_cuke.visible = false
+	n.wash_herb.visible = false
 
-	# 6. Bàn ráp: khay bánh, 3 bát nhân, hũ pate, chai nước tương, ổ đang ráp
-	var rt := Vector3(0.0, 0.75, 0.55)
-	P.table(room, Vector3(1.5, 0.75, 0.7), Vector3(rt.x, 0, rt.z))
-	_station("rap", "Bàn ráp bánh", Vector3(0.0, 0, 1.3), rt + Vector3(0, 0.02, 0.05), Vector3(0.0, 0.5, 0.6))
-	rap_tray = P.tray(self, rt + Vector3(-0.5, 0.01, -0.1))
+	# 6. Bàn thớt: thớt gỗ tròn
+	KM.solid(room, "ban_nhao", Vector3(2.25, 0, THOT.z), 90)
+	KM.place(room, "thot", Vector3(THOT.x, 0.341, THOT.z))
+	_station("thot", "Thớt", Vector3(1.66, 0, THOT.z), THOT)
+	drops = _particles(THOT + Vector3(0, 0.2, 0), Color(0.5, 0.75, 0.95, 0.8), 24, 0.006, -3.0)
+	drops.direction = Vector3.UP
+	drops.spread = 60.0
+
+	# 7. Bàn đồ chua sát tường trái: hũ đồ chua, tô trộn, bàn bào, cà rốt, dao gọt
+	KM.solid(room, "ban_nhao", Vector3(CHUA.x, 0, CHUA.z), 90)
+	_station("do_chua", "Bàn đồ chua", Vector3(-1.72, 0, CHUA.z), CHUA + Vector3(0.05, 0, 0.05))
+	n.chua_jar = KM.place(self, "hu_do_chua", CHUA + Vector3(-0.1, 0, 0.42))
+	n.bowl_mix = KM.place(self, "to_phoi", CHUA + Vector3(0.05, 0, -0.12))
+	n.chua_shreds = KM.place(self, "do_chua_chen", CHUA + Vector3(0.05, 0.02, -0.12), 0, 0.5)
+	n.chua_shreds.visible = false
+	n.grater = KM.place(self, "ban_bao", CHUA + Vector3(-0.08, 0, 0.1), 90)
+	n.carrot_rest = CHUA + Vector3(0.12, 0, 0.2)
+	n.carrot = KM.place(self, "ca_rot", n.carrot_rest, 90)
+	n.peeler = KM.place(self, "dao_lam", CHUA + Vector3(0.18, 0, 0.42), 0)
+	n.stirrer = KM.place(self, "dao_lam", Vector3.ZERO, 0)
+	n.stirrer.visible = false
+
+	# 8. Bàn ráp: 3 bát nhân sẵn trên bàn, ổ bánh nướng, hộp pate, chai xì dầu
+	KM.solid(room, "ban_rap", Vector3(RAP.x, 0, RAP.z))
+	_station("rap", "Bàn ráp bánh", Vector3(RAP.x, 0, 0.75), RAP + Vector3(0, 0, 0.08))
+	for i in LOAVES:
+		var l := Node3D.new()
+		add_child(l)
+		l.global_position = RAP + Vector3(0.0, 0.075 * i, -0.0)
+		KM.place(l, "banh_vang", Vector3.ZERO, 0, 0.85)
+		KM.place(l, "banh_chay", Vector3.ZERO, 0, 0.85)
+		rap_loaves.append(l)
+	n.rap_cha = KM.place(self, "cha_khoanh", RAP + Vector3(-0.2, 0.03, -0.1), 0, 0.45)
+	n.rap_rau = KM.place(self, "dua_leo_lat", RAP + Vector3(0.0, 0.03, -0.1), 0, 0.5)
+	n.rap_thit = KM.place(self, "thit_lat", RAP + Vector3(0.2, 0.03, -0.1), 0, 0.45)
+	n.rap_do_chua = KM.place(self, "do_chua_chen", RAP + Vector3(0.29, 0, 0.0), 0, 0.45)
+	n.pate_can = KM.place(self, "pate_hop", RAP + Vector3(-0.28, 0, 0.13))
+	n.pate_lid_rest = RAP + Vector3(-0.28, 0.108, 0.13)
+	n.pate_lid = Blocks.mesh(self, _disc(0.047, 0.006), n.pate_lid_rest, Color("#E8913A"))
+	n.pate_fill = Blocks.mesh(self, _disc(0.044, 0.004), n.pate_lid_rest - Vector3(0, 0.002, 0), PATE)
+	n.pate_fill.visible = false
+	n.pate_knife = KM.place(self, "dao_lam", RAP + Vector3(-0.2, 0.0, 0.2), 0)
+	n.pate_knife.visible = false
+	n.sauce_rest = RAP + Vector3(0.3, 0, 0.16)
+	n.sauce = KM.place(self, "chai_xi_dau", n.sauce_rest)
+	n.rap_knife_rest = RAP + Vector3(0.18, 0, 0.2)
+	n.rap_knife = KM.place(self, "dao", n.rap_knife_rest, 0, 0.8)
+	# Trứng cho ráp nhanh (chỉ hiện ở chế độ ráp nhanh)
+	n.egg_bowl = KM.place(self, "to_bo_trung", RAP + Vector3(-0.02, 0, -0.01))
+	n.egg_bowl.visible = false
+	n.egg_in_bowl = KM.place(self, "trung_vo", RAP + Vector3(-0.02, 0.02, -0.01), 0, 0.5)
+	n.egg_in_bowl.visible = false
+	n.eggs = []
 	for i in 2:
-		rap_loaves.append(P.loaf(rap_tray, Vector3(0, 0.04, -0.05 + i * 0.1)))
-	var bowl_x := {"rau": 0.35, "cha": 0.5, "thit": 0.65}
-	for k in bowl_x:
-		var bowl := Node3D.new()
-		bowl.position = rt + Vector3(bowl_x[k] - 0.1, 0, -0.15)
-		add_child(bowl)
-		P.cylinder(bowl, 0.06, 0.04, Vector3(0, 0.02, 0), Color.WHITE)
-		var fill := P.cylinder(bowl, 0.05, 0.02, Vector3(0, 0.035, 0), {"rau": P.LEAF, "cha": P.CHA, "thit": P.HAM}[k])
-		fill.visible = false
-		rap_bowls[k] = bowl
-	pate_jar = Node3D.new()
-	pate_jar.position = rt + Vector3(-0.25, 0, -0.2)
-	add_child(pate_jar)
-	P.cylinder(pate_jar, 0.04, 0.06, Vector3(0, 0.03, 0), Color("#E0B020"))
-	P.cylinder(pate_jar, 0.041, 0.02, Vector3(0, 0.04, 0), P.RED)
-	sauce = Node3D.new()
-	sauce.position = rt + Vector3(0.3, 0, 0.15)
-	add_child(sauce)
-	P.cylinder(sauce, 0.022, 0.12, Vector3(0, 0.06, 0), Color("#5A2E1A"))
-	P.cylinder(sauce, 0.012, 0.04, Vector3(0, 0.14, 0), P.RED)
-	work_loaf = Node3D.new()
-	work_loaf.position = rt + Vector3(0.0, 0.0, 0.08)
-	add_child(work_loaf)
-	work_parts.base = P.loaf(work_loaf, Vector3(0, 0.03, 0))
-	work_parts.base.scale = Vector3(1.2, 1.3, 0.75)
-	var top_half := Node3D.new()
-	top_half.position = Vector3(0, 0.045, -0.035)
-	work_loaf.add_child(top_half)
-	var lid := P.loaf(top_half, Vector3(0, 0.0, 0.035))
-	lid.scale = Vector3(0.7, 1.25, 0.5)
-	work_parts.top = top_half
-	work_parts.pate = Blocks.box(work_loaf, Vector3(0.2, 0.008, 0.035), Vector3(0, 0.052, 0), P.PATE)
-	work_parts.cha = Blocks.box(work_loaf, Vector3(0.19, 0.012, 0.04), Vector3(0, 0.062, -0.004), P.CHA)
-	work_parts.thit = Blocks.box(work_loaf, Vector3(0.18, 0.012, 0.04), Vector3(0, 0.072, 0.004), P.HAM)
-	var greens := Node3D.new()
-	work_loaf.add_child(greens)
-	for i in 5:
-		P.sphere(greens, 0.016, Vector3(-0.08 + i * 0.04, 0.085, 0), P.LEAF)
-	work_parts.rau = greens
-	work_loaf.visible = false
+		var e := KM.place(self, "trung", RAP + Vector3(-0.15 - 0.045 * i, 0, 0.0 + 0.035 * i))
+		e.visible = false
+		n.eggs.append(e)
+	var lp := RAP + Vector3(0, 0, 0.12)
+	loaf.base = _loaf_pair(lp, 1.0)
+	loaf.lid = _loaf_pair(lp + Vector3(0, 0.035, -0.035), 1.0)
+	loaf.lid.scale = Vector3(1, 0.6, 0.85)
+	loaf.smear = Blocks.box(self, Vector3(0.28, 0.006, 0.03), lp + Vector3(0, 0.07, 0), PATE)
+	loaf.done = KM.place(self, "banh_bo", lp, 0)
+	loaf.paper = KM.place(self, "giay_goi", lp + Vector3(0, -0.002, 0), 0)
+	loaf.wrapped = _wrapped_loaf(self, false)
+	loaf.wrapped.global_position = lp
+	loaf.pieces = {
+		"Thịt nguội": KM.place(self, "thit_lat", lp + Vector3(0, 0.07, 0), 0, 0.55),
+		"Chả lụa": KM.place(self, "cha_khoanh", lp + Vector3(0, 0.075, 0), 0, 0.55),
+		"Dưa leo": KM.place(self, "dua_leo_lat", lp + Vector3(0, 0.085, 0.01), 0, 0.65),
+		"Đồ chua": KM.place(self, "do_chua_chen", lp + Vector3(0.09, 0.08, 0), 0, 0.3),
+		"Ngò": KM.place(self, "ngo_bo", lp + Vector3(-0.07, 0.09, 0), 0, 0.45),
+		"Ớt": KM.place(self, "ot_lat", lp + Vector3(0.03, 0.1, 0), 0, 1.2),
+		"Trứng": KM.place(self, "trung_vo", lp + Vector3(0, 0.07, 0), 0, 0.55),
+		"Thêm pate": Blocks.box(self, Vector3(0.24, 0.01, 0.034), lp + Vector3(0, 0.076, 0), PATE),
+		"Thêm đồ chua": KM.place(self, "do_chua_chen", lp + Vector3(-0.09, 0.08, 0), 0, 0.3),
+	}
+	_reset_loaf()
 	_refresh_rap()
 
-	# 7. Tủ kính: 2 chỗ xếp ổ đã gói, giấy gói
-	_station("tu", "Tủ kính", Vector3(-2.05, 0, 1.25), Vector3(-2.05, 0.6, 1.95), Vector3(0.3, 0.45, -0.75))
+	# 9. Xe bánh mì (tủ kính) phía trước: camera nhìn xuyên kính vào bếp
+	var cart := KM.solid(room, "xe_banh_mi", XE)
+	cart.get_child(0).reparent(self)   # thân xe tách khỏi phòng để tách kính trong
+	var cart_mesh: MeshInstance3D = get_child(get_child_count() - 1)
+	KM.split_glass(cart_mesh, Color("bee5e7"))
+	_station("tu", "Xe bánh mì", Vector3(XE.x, 0, 0.6), XE + Vector3(0, 0.53, -0.12))
 	for i in LOAVES:
 		var slot := Node3D.new()
-		slot.position = Vector3(-2.45 + i * 0.5, 0.56, 2.0)
 		add_child(slot)
-		var w := Blocks.box(slot, Vector3(0.24, 0.07, 0.09), Vector3(0, 0.03, 0), Color("#FFF8EA"))
+		slot.global_position = XE + Vector3(-0.2 + i * 0.4, 0.53, 0.0)
+		var w := _wrapped_loaf(slot, false)
 		w.rotation_degrees.y = 8
-		Blocks.box(slot, Vector3(0.05, 0.075, 0.095), Vector3(0.0, 0.03, 0), P.RED)
 		slot.visible = false
 		case_slots.append(slot)
-	paper = Blocks.box(self, Vector3(0.24, 0.07, 0.09), Vector3(-2.05, 0.6, 1.8), Color("#FFF8EA"))
-	paper.visible = false
+
+
+## Ổ bánh nướng hai dạng (vàng, cháy) chồng nhau; bật tắt theo bread_burnt.
+func _loaf_pair(pos: Vector3, s: float) -> Node3D:
+	var l := Node3D.new()
+	add_child(l)
+	l.global_position = pos
+	KM.place(l, "banh_vang", Vector3.ZERO, 0, s)
+	KM.place(l, "banh_chay", Vector3.ZERO, 0, s)
+	return l
+
+
+func _disc(r: float, h: float) -> CylinderMesh:
+	var c := CylinderMesh.new()
+	c.top_radius = r
+	c.bottom_radius = r
+	c.height = h
+	c.radial_segments = 16
+	c.rings = 1
+	return c
 
 
 func _particles(pos: Vector3, color: Color, amount: int, size: float, gravity_y: float) -> CPUParticles3D:
@@ -1247,8 +1953,8 @@ func _particles(pos: Vector3, color: Color, amount: int, size: float, gravity_y:
 	p.mesh = m
 	p.direction = Vector3.UP
 	p.spread = 40.0
-	p.initial_velocity_min = 0.2
-	p.initial_velocity_max = 0.6
+	p.initial_velocity_min = 0.15
+	p.initial_velocity_max = 0.4
 	p.gravity = Vector3(0, gravity_y, 0)
 	p.scale_amount_min = 0.6
 	p.scale_amount_max = 1.4
@@ -1265,7 +1971,7 @@ func _setup_environment() -> void:
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color("#FFE6C4")
 	var compat := RenderingServer.get_rendering_device() == null
-	env.ambient_light_energy = 0.22 if compat else 0.4
+	env.ambient_light_energy = 0.3 if compat else 0.5
 	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR if compat else Environment.TONE_MAPPER_FILMIC
 	env.ssao_enabled = true
 	var world := WorldEnvironment.new()
@@ -1275,24 +1981,24 @@ func _setup_environment() -> void:
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-55, 25, 0)  # nắng xiên qua cửa sổ sau
 	sun.light_color = Color("#FFE8C4")
-	sun.light_energy = 0.45 if compat else 0.8
+	sun.light_energy = 0.5 if compat else 0.85
 	sun.shadow_enabled = true
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
-	sun.directional_shadow_max_distance = 14.0
+	sun.directional_shadow_max_distance = 10.0
 	add_child(sun)
-	for x in [-1.6, 1.4]:
+	for p in [Vector3(-1.25, 1.2, -1.25), Vector3(0.3, 1.2, 0.15)]:
 		var lamp := OmniLight3D.new()
-		lamp.position = Vector3(x, 1.95, -0.2)
+		lamp.position = p
 		lamp.light_color = Color("#FFC98A")
-		lamp.light_energy = 0.8
-		lamp.omni_range = 4.0
+		lamp.light_energy = 0.7
+		lamp.omni_range = 2.6
 		add_child(lamp)
-	var fire := OmniLight3D.new()
-	fire.position = Vector3(0.35, 0.6, -1.0)
-	fire.light_color = Color("#FF8A3A")
-	fire.light_energy = 0.6
-	fire.omni_range = 1.6
-	add_child(fire)
+	fire_light = OmniLight3D.new()
+	fire_light.position = LO + Vector3(0, 0.4, 0.6)
+	fire_light.light_color = Color("#FF8A3A")
+	fire_light.light_energy = 0.45
+	fire_light.omni_range = 1.2
+	add_child(fire_light)
 
 
 func _setup_input() -> void:
@@ -1304,6 +2010,14 @@ func _setup_input() -> void:
 	_action("sprint", [KEY_SHIFT], [JOY_BUTTON_RIGHT_SHOULDER, JOY_BUTTON_X], [])
 	_action("pause", [KEY_ESCAPE], [JOY_BUTTON_START], [])
 	_action("interact", [KEY_E, KEY_ENTER, KEY_KP_ENTER], [JOY_BUTTON_B], [])
+	# Chuột trái cũng là E trong cận cảnh (bấm, giữ, canh giờ); kéo chuột để vuốt, vẽ vòng để xoay
+	var has_mouse := false
+	for e in InputMap.action_get_events("interact"):
+		has_mouse = has_mouse or e is InputEventMouseButton
+	if not has_mouse:
+		var mb := InputEventMouseButton.new()
+		mb.button_index = MOUSE_BUTTON_LEFT
+		InputMap.action_add_event("interact", mb)
 
 
 func _action(action: String, keys: Array, buttons: Array, axes: Array) -> void:
@@ -1327,17 +2041,64 @@ func _action(action: String, keys: Array, buttons: Array, axes: Array) -> void:
 
 # ---------------------------------------------------------------- tự chơi
 
-## Bot đi theo gợi ý _suggest(): đi theo lối giữa các bàn tới trạm, bấm E, bấm qua từng bước.
-## Lối đi: bếp chia 3 dải theo Z (sau, giữa, trước). Dải giữa có bàn ráp và bàn thớt,
-## nên muốn qua dải giữa phải đi theo lối trái (x = -1.5) hoặc lối phải (x = 1.5).
+## Lưới đi được cho bot: ô 10 cm, chặn chỗ có bàn, lò, xe (nới thêm bằng bán kính thân Bơ).
+func _build_grid() -> void:
+	_grid = AStarGrid2D.new()
+	_grid.region = Rect2i(0, 0, int(5.2 / GRID), int(3.4 / GRID))
+	_grid.cell_size = Vector2.ONE
+	_grid.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_ONLY_IF_NO_OBSTACLES
+	_grid.update()
+	var edge := int(0.25 / GRID)
+	for gx in _grid.region.size.x:
+		for gy in _grid.region.size.y:
+			if gx < edge or gy < edge or gx >= _grid.region.size.x - edge or gy >= _grid.region.size.y - edge:
+				_grid.set_point_solid(Vector2i(gx, gy))
+	for body: StaticBody3D in find_children("*", "StaticBody3D", true, false):
+		if body.collision_layer != Blocks.LAYER_PROP:
+			continue
+		for cs: CollisionShape3D in body.find_children("*", "CollisionShape3D", false, false):
+			var box := cs.shape as BoxShape3D
+			if box == null:
+				continue
+			var xf := cs.global_transform
+			var half := box.size * 0.5
+			var lo := Vector2(INF, INF)
+			var hi := Vector2(-INF, -INF)
+			for sx in [-1, 1]:
+				for sz in [-1, 1]:
+					var c := xf * Vector3(half.x * sx, 0, half.z * sz)
+					lo = lo.min(Vector2(c.x, c.z))
+					hi = hi.max(Vector2(c.x, c.z))
+			lo -= Vector2.ONE * 0.24
+			hi += Vector2.ONE * 0.24
+			for gx in range(_cell(lo).x, _cell(hi).x + 1):
+				for gy in range(_cell(lo).y, _cell(hi).y + 1):
+					if _grid.is_in_boundsv(Vector2i(gx, gy)):
+						_grid.set_point_solid(Vector2i(gx, gy))
+
+
+func _cell(p: Vector2) -> Vector2i:
+	return Vector2i(floori((p.x - GRID_ORIGIN.x) / GRID), floori((p.y - GRID_ORIGIN.y) / GRID))
+
+
+func _route(from: Vector3, to: Vector3) -> Array[Vector3]:
+	var path: Array[Vector3] = []
+	var a := _cell(Vector2(from.x, from.z))
+	var b := _cell(Vector2(to.x, to.z))
+	if _grid.is_point_solid(a):
+		_grid.set_point_solid(a, false)  # Bơ đứng sát mép vùng cấm: cho đi ra
+	var pts := _grid.get_id_path(a, b)
+	for k in range(1, pts.size() - 1, 2):
+		var c: Vector2i = pts[k]
+		path.append(Vector3(GRID_ORIGIN.x + (c.x + 0.5) * GRID, 0, GRID_ORIGIN.y + (c.y + 0.5) * GRID))
+	path.append(to)
+	return path
+
+
+## Bot đi theo gợi ý _suggest(): tìm đường trên lưới tới trạm, bấm E, để KitchenInput tự làm từng bước.
 func _bot_step(delta: float) -> void:
 	if not seq.is_empty():
 		_bot_release()
-		if not busy:
-			_bot_wait -= delta
-			if _bot_wait <= 0.0:
-				_bot_wait = 0.12
-				_press()
 		return
 	var goal := _suggest()
 	if oven_state == "nuong" and holding == "":
@@ -1345,8 +2106,9 @@ func _bot_step(delta: float) -> void:
 	if goal == "":
 		_bot_release()
 		return
-	if goal == "lo" and oven_state == "nuong" and _near_station() == "lo":
-		_bot_release()  # đứng chờ bánh chín
+	var waiting := (goal == "lo" and oven_state == "nuong") or (goal == "nhoi" and dough_state == "proofing")
+	if waiting and _near_station() == goal:
+		_bot_release()  # đứng chờ bánh chín, bột nở
 		return
 	if goal != _bot_goal:
 		_bot_goal = goal
@@ -1365,10 +2127,10 @@ func _bot_step(delta: float) -> void:
 	var p := player.global_position
 	var next: Vector3 = _bot_path[0]
 	var d := Vector2(next.x - p.x, next.z - p.z)
-	if d.length() < (0.12 if _bot_path.size() == 1 else 0.25):
+	if d.length() < (0.08 if _bot_path.size() == 1 else 0.15):
 		_bot_path.pop_front()
 		return
-	var dir := d.normalized() * clampf(d.length() * 2.5, 0.35, 1.0)
+	var dir := d.normalized() * clampf(d.length() * 3.0, 0.35, 1.0)
 	_bot_axis("move_right", "move_left", dir.x)
 	_bot_axis("move_back", "move_forward", dir.y)
 
@@ -1388,21 +2150,3 @@ func _bot_axis(pos_action: String, neg_action: String, v: float) -> void:
 func _bot_release() -> void:
 	for a in ["move_right", "move_left", "move_forward", "move_back"]:
 		Input.action_release(a)
-
-
-func _route(from: Vector3, to: Vector3) -> Array[Vector3]:
-	var path: Array[Vector3] = []
-	var band_from := _band(from.z)
-	var band_to := _band(to.z)
-	if band_from == band_to and band_from != 1:
-		path.append(to)
-		return path
-	var lane := -1.5 if absf(from.x + 1.5) + absf(to.x + 1.5) < absf(from.x - 1.5) + absf(to.x - 1.5) else 1.5
-	path.append(Vector3(lane, 0, from.z))
-	path.append(Vector3(lane, 0, to.z))
-	path.append(to)
-	return path
-
-
-func _band(z: float) -> int:
-	return 0 if z < -0.1 else (1 if z < 1.05 else 2)

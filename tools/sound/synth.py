@@ -17,6 +17,9 @@ import zlib
 import numpy as np
 from scipy.signal import butter, lfilter, sosfilt
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from bark import bark_v2  # noqa: E402
+
 SR = 44100
 OUT = os.path.join(os.path.dirname(__file__), "..", "..", "assets", "audio")
 rng = np.random.default_rng(7)
@@ -500,24 +503,19 @@ def tick(urgent=False):
 
 # ---------------------------------------------------------------- tiếng động: Chó Mực
 
+BARK_KIND = os.environ.get("BARK_KIND", "vua")  # "vua", "tram" (to, trầm), "kho" (khàn, gắt)
+
+
 def bark(variant=0):
-    """Tiếng 'gâu': nguồn răng cưa thô 280-420 Hz rơi nhanh, formant quanh 1 kHz, thêm hơi thở."""
-    dur = 0.22 if variant == 0 else 0.18
-    t = t_of(dur)
-    u = t / dur
-    f0 = (380 if variant == 0 else 440) * (1.15 - 0.45 * u) * (1 + 0.04 * rng.standard_normal(len(t)).cumsum() / 200)
-    ph = phase_of(f0)
-    src = sum(np.sin(k * ph) / k ** 0.7 for k in range(1, 20))
-    y = filt(src, "band", (500, 2200), 2) + 0.4 * filt(src, "low", 400)
-    y += 0.5 * filt(noise(dur), "band", (800, 3000))
-    y *= np.exp(-((u - 0.15) / 0.25) ** 2)
-    return fade(y * 1.0, 0.002, 0.03)
+    """Tiếng 'gâu': mô hình nguồn-bộ lọc như giọng nói, xem bark.py."""
+    y = bark_v2(BARK_KIND, seed=1 + variant)
+    return fade(filt(y, "low", 7000), 0.001, 0.01)
 
 
 def bark_double():
     x = silence(0.65)
     mix_at(x, bark(0), 0)
-    mix_at(x, bark(1), 0.27, 0.85)
+    mix_at(x, bark(1), 0.3, 0.85)
     return reverb(x, 0.2)
 
 

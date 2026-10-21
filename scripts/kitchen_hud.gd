@@ -21,8 +21,9 @@ var task_label: Label          # dòng việc bây giờ
 var say_panel: PanelContainer  # thẻ lời Cô Ba
 var say_label: Label
 var _say_t := 0.0
-var clock_note: Label          # viên nhỏ dưới đồng hồ: sao thứ ba, đồng hồ dừng, ca đầu không tính giờ
+var clock_note: Label          # viên nhỏ dưới đồng hồ: sao thứ ba, ca đầu được tặng sao
 var _untimed := false
+var _step_max_w := 420.0
 var status_label: Label
 var prompt_label: Label
 var prompt_key: Control
@@ -30,7 +31,7 @@ var step_panel: Control
 var start_text: Label
 var step_title: Label
 var step_count: Label
-var step_hint: HBoxContainer   # hàng phím + cách bấm của bước
+var step_hint: HFlowContainer  # hàng phím + cách bấm của bước (xuống dòng khi dài)
 var step_flash: Label          # dòng báo bấm sai, thay chỗ hàng phím một lúc
 var step_dots: HBoxContainer
 var meter: Meter
@@ -205,6 +206,7 @@ func _ready() -> void:
 	panel.custom_minimum_size.x = 300
 	play_root.add_child(panel)
 	step_panel = panel
+	_step_max_w = 420.0
 	var sv := VBoxContainer.new()
 	sv.add_theme_constant_override("separation", 6)
 	panel.add_child(sv)
@@ -222,8 +224,9 @@ func _ready() -> void:
 	step_title.add_theme_constant_override("line_spacing", -10)
 	step_title.autowrap_mode = TextServer.AUTOWRAP_WORD
 	sv.add_child(step_title)
-	step_hint = HBoxContainer.new()
-	step_hint.add_theme_constant_override("separation", 6)
+	step_hint = HFlowContainer.new()
+	step_hint.add_theme_constant_override("h_separation", 6)
+	step_hint.add_theme_constant_override("v_separation", 6)
 	sv.add_child(step_hint)
 	step_flash = T.label("", 17, T.RED, "bold")
 	step_flash.autowrap_mode = TextServer.AUTOWRAP_WORD
@@ -421,6 +424,16 @@ func show_step(title: String, index: int, count: int, hint_parts: Array) -> void
 	for i in count:
 		var col := T.LEAF if i < index else (T.CRUST if i == index else PAPER)
 		(step_dots.get_child(i) as Panel).add_theme_stylebox_override("panel", T.box(col, 999, 0, INK, 2))
+	_fit_step()
+
+
+## Thẻ cận cảnh luôn rộng cố định và nằm gọn góc phải dưới (trước đây hàng ô chọn dài đẩy thẻ ra khỏi mép trái).
+func _fit_step() -> void:
+	var w := minf(_step_max_w, get_viewport().get_visible_rect().size.x - 48.0)
+	step_panel.custom_minimum_size.x = w
+	step_panel.size.x = w
+	step_panel.reset_size()
+	_place(step_panel, 1.0, 1.0, Rect2(-24, -22, 0, 0))
 
 
 func hide_step() -> void:
@@ -441,7 +454,10 @@ func set_meter(fill: float, zone := Vector2(-1, -1), needle := -1.0) -> void:
 
 ## Các ô chọn. done[i] = đã chọn đúng; cursor = ô đang trỏ bằng ← →. options rỗng thì ẩn.
 func set_pick(options: Array, done: Array, cursor: int) -> void:
+	var was := pick_row.visible
 	pick_row.visible = not options.is_empty()
+	if was != pick_row.visible:
+		_fit_step.call_deferred()
 	if pick_row.get_child_count() != options.size():
 		for c in pick_row.get_children():
 			pick_row.remove_child(c)

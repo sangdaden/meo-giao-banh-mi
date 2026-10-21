@@ -10,7 +10,7 @@ extends Node3D
 ## "Bản đầu" trên trang phác thảo game: ổ bánh, dưa leo, ngò, đồ chua, ớt, chả, thịt, pate, xì dầu, ráp.
 ##
 ## Thong thả (mặc định, Sang duyệt 21/10, trang "Bếp Cô Ba dễ chơi"): không thua, đồng hồ chỉ quyết định
-## sao thứ ba và dừng trong cận cảnh, bánh không cháy. Bước nào cũng còn cận cảnh nhưng chỉ bấm hoặc giữ E;
+## sao thứ ba (chạy cả lúc cận cảnh), bánh không cháy. Bước nào cũng còn cận cảnh nhưng chỉ bấm hoặc giữ E;
 ## các động tác phụ (mở lò, cắt lạt…) Bơ tự làm (EASY_AUTO). Cô Ba đứng góc bếp: chuẩn bị sẵn đồ theo ngày
 ## (PREP), đưa nguyên liệu, mang nhân sang bàn ráp, mang ổ ráp xong vào tủ kính, nhắc việc khi Bơ đứng lâu.
 ## Chỉ đường: dấu chân vàng trên sàn, bong bóng trên trạm kế, giữ Tab là Bơ tự đi tới.
@@ -29,7 +29,7 @@ const KI := preload("res://scripts/kitchen_input.gd")
 @export var proof_time := 8.0     ## ủ bột 8 giây
 @export var spare_for_star := 45.0  ## còn dư từ chừng này giây thì được sao thứ ba
 const LOAVES := 2
-const EASY_TIME := 300.0   ## Thong thả: xong trong 5 phút là sao thứ ba (không có thua)
+const EASY_TIME := 420.0   ## Thong thả: xong trong 7 phút là sao thứ ba (không có thua). Đồng hồ chạy cả lúc cận cảnh (Sang 21/10)
 ## Thong thả: Bơ tự diễn các bước này, người chơi không phải bấm
 const EASY_AUTO := ["do_bot", "mo_cua", "xit", "dong_cua", "deo_gang", "chia", "lay", "nhung", "lat", "cat_dau",
 	"cat_lat", "boc_la", "cat_doi", "boc_giay", "xep_quat", "khui", "khuay", "xi_dau"]
@@ -40,7 +40,11 @@ const PREP := {
 	"thu_tu": ["bot", "pate"],
 	"thu_nam": ["pate"],
 }
-const CO_BA_POS := Vector3(2.3, 0, -1.3)   ## góc phải sau, cạnh kệ nguyên liệu
+const CO_BA_POS := Vector3(2.1, 0, -1.0)    ## đứng trước quầy riêng, mặt nhìn vào tường phải (máy quay thấy nghiêng)
+const QUAY_BA := Vector3(2.47, 0, -1.0)     ## quầy gỗ cỡ người của Cô Ba (0,62 × 0,36, cao 0,85 m), sát tường phải
+const QUAY_TOP := 0.855
+## Việc tay Cô Ba ở quầy (trang "Cô Ba đứng bếp", Sang duyệt 21/10/2026). Chưa có clip thì dùng lau quầy.
+const CO_BA_WORK := ["nhao_bot", "thai_cha", "tron_do_chua", "viec_rieng"]
 const IDLE_NAG := 9.0      ## đứng không làm gì chừng này giây thì Cô Ba nhắc việc
 const TRAIL_PAWS := 14
 const USE_RADIUS := 0.32
@@ -62,6 +66,8 @@ const THOT := Vector3(2.2, 0.386, 0.55)     ## mặt thớt
 const CHUA := Vector3(-2.3, 0.341, 0.15)    ## mặt bàn đồ chua
 const RAP := Vector3(0.3, 0.399, 0.15)      ## mặt bàn ráp
 const XE := Vector3(-1.2, 0, 1.2)
+const LOAF_HALF := 0.55               ## ổ xẻ: nửa dưới cao 55% ổ (ổ cao 7,5 cm)
+const LOAF_CUT := 0.075 * LOAF_HALF   ## mặt cắt nửa dưới, nhân đặt từ đây
 const TRAY_OUT := -0.72   ## z của khay khi kéo ra đặt trên cửa lò
 const TRAY_IN := -1.3     ## z của khay khi nằm trong lò
 
@@ -86,8 +92,11 @@ var loaves_on_rap := 0
 var made := 0
 var mistakes := 0
 var easy := true           ## Thong thả (mặc định); false = Chế độ thử thách
-var first_shift := false   ## ca bếp đầu tiên: Cô Ba dẫn từng việc, không tính giờ
+var first_shift := false   ## ca bếp đầu tiên: Cô Ba dẫn từng việc, hết giờ vẫn tặng sao thứ ba
 var co_ba: Node3D          ## Nguoi "coba"
+var _co_ba_turn_until := 0.0   ## tới lúc này Cô Ba còn quay sang Bơ (nói, đưa đồ)
+var _co_ba_walking := false
+var _co_ba_tray: Node3D
 var _chain := ""           ## cận cảnh xong thì vào luôn cận cảnh trạm này (Cô Ba đưa món kế)
 var _idle_t := 0.0
 var _said := {}            ## lời dẫn ca đầu đã nói
@@ -248,7 +257,7 @@ func _ready() -> void:
 			+ "Cứ đi theo dấu chân vàng tới trạm có bong bóng (giữ Tab là Bơ tự đi), rồi bấm E.\n"
 			+ "Mỗi bước chỉ cần bấm hoặc giữ E như thẻ góc phải, chân Bơ làm hết động tác.\n"
 			+ "Cô Ba ở góc bếp đưa đồ, mang nhân và bánh giúp, quên việc thì cô nhắc.\n\n"
-			+ ("Ca đầu không tính giờ." if first_shift else "Không có thua: xong trong 5 phút thì thêm sao thứ ba.")
+			+ ("Ca đầu: hết giờ Cô Ba vẫn tặng sao thứ ba." if first_shift else "Không có thua: xong trong 7 phút thì thêm sao thứ ba.")
 			+ " Mỗi sao bếp cộng giây cho các đơn giao.")
 	_update_hud()
 
@@ -334,9 +343,8 @@ func _unhandled_input(event: InputEvent) -> void:
 func _physics_process(delta: float) -> void:
 	if state != State.PLAY:
 		return
-	# Thong thả: đồng hồ dừng trong cận cảnh và cả ca đầu; hết giờ không thua, chỉ mất sao thứ ba
-	if not (easy and (first_shift or not seq.is_empty())):
-		time_left = maxf(time_left - delta, 0.0)
+	# Đồng hồ luôn chạy, cả lúc cận cảnh (Sang 21/10). Thong thả: hết giờ không thua, chỉ mất sao thứ ba
+	time_left = maxf(time_left - delta, 0.0)
 	_update_oven(delta)
 	_update_proof(delta)
 	if not seq.is_empty():
@@ -365,6 +373,7 @@ func _process(_delta: float) -> void:
 		else:
 			mat.albedo_color = Color(1, 1, 1, 0.18)
 	_update_guides(_delta, goal, near)
+	_update_co_ba(_delta)
 
 
 # ---------------------------------------------------------------- luật chơi
@@ -797,6 +806,7 @@ func _finish(id: String) -> void:
 					_give_board_item(next)
 					_chain = "thot"
 					_co_ba_say("Để cô mang qua bàn ráp. Thêm %s nè!" % _item_name(next), "cho_banh", 2.5)
+					_co_ba_carry_to_rap()
 				else:
 					_co_ba_say("Nhân đủ hết rồi! %s" % ("Lấy bánh ra lò rồi lên bàn ráp nha." if loaves_on_rap == 0 else "Qua bàn ráp nha."), "vui")
 			else:
@@ -838,7 +848,7 @@ func _put_in_case() -> void:
 		hud.show_toast("Xong ổ 1! Quay lại bàn ráp làm ổ 2")
 
 
-## Sao thứ ba: Thong thả là xong trước khi hết 5 phút (ca đầu luôn được), Thử thách là còn dư spare_for_star.
+## Sao thứ ba: Thong thả là xong trước khi hết 7 phút (ca đầu luôn được), Thử thách là còn dư spare_for_star.
 func _fast_enough() -> bool:
 	if easy:
 		return first_shift or time_left > 0.0
@@ -867,7 +877,7 @@ func _start_quick() -> void:
 		_s("khuay_trung", "Đánh trứng", "rotate"),
 		_s("xe", "Xẻ bánh", "hold_release", {"dur": 1.6, "zone": [0.7, 0.9]})]
 	steps.append_array(_assemble_steps(["Trứng", "Dưa leo", "Đồ chua", "Ngò", "Ớt"], ["Chả lụa", "Xíu mại"]))
-	_begin("rap", steps)
+	_begin("rap", _ease(steps) if easy else steps)
 
 
 func _end_quick(done: bool) -> void:
@@ -990,11 +1000,11 @@ func _end(success: bool) -> void:
 		if _fast_enough():
 			stars += 1
 			if easy:
-				lines += "★ Ca đầu, Cô Ba tặng sao\n" if first_shift else "★ Xong trong 5 phút\n"
+				lines += "★ Ca đầu, Cô Ba tặng sao\n" if first_shift else "★ Xong trong 7 phút\n"
 			else:
 				lines += "★ Còn dư %d giây (từ %d giây mới được sao)\n" % [int(time_left), int(spare_for_star)]
 		elif easy:
-			lines += "☆ Quá 5 phút một chút, lần sau nhanh tay hơn nha\n"
+			lines += "☆ Quá 7 phút một chút, lần sau nhanh tay hơn nha\n"
 		else:
 			lines += "☆ Chỉ dư %d giây (cần từ %d giây)\n" % [int(time_left), int(spare_for_star)]
 	else:
@@ -1224,11 +1234,17 @@ func _task_text() -> String:
 
 func _update_hud() -> void:
 	hud.set_timer(time_left, time_limit, state == State.PLAY)
+	if easy and quick:   # ráp nhanh: một dòng việc + phiếu, không có ô "Ổ xong / Lò" của ca bếp
+		var note := _current_note()
+		hud.set_clock(false, "Còn dư %d giây: đủ 3 sao" % int(QUICK_SPARE) if time_left >= QUICK_SPARE else "Cứ ráp tiếp, không thua")
+		hud.set_task("RÁP NHANH · ĐƠN %d · TRỨNG CÒN %d" % [quick_order + 1, GameState.eggs_brought],
+			"Phiếu: %s" % NOTE_NAMES[note] if note != "" else "Ráp 1 ổ trứng", "")
+		hud.set_status("")
+		_update_prompt()
+		return
 	if easy and not quick:
 		if first_shift:
-			hud.set_clock(true, "Ca đầu · không tính giờ")
-		elif not seq.is_empty():
-			hud.set_clock(false, "Đồng hồ dừng khi đang làm")
+			hud.set_clock(false, "Ca đầu: hết giờ vẫn được sao thứ ba")
 		elif time_left > 0.0:
 			hud.set_clock(false, "Xong trước khi hết giờ: thêm 1 sao")
 		else:
@@ -1794,6 +1810,8 @@ func _beat(step: String, i: int, last: bool) -> Tween:
 			_rest(tw)
 		"xe":  # xẻ xong: nắp bánh mở ra
 			tw.tween_callback(func():
+				loaf.base.scale = Vector3(1, LOAF_HALF, 1)
+				loaf.crumb.visible = true
 				loaf.lid.visible = true
 				loaf.lid.rotation.x = 0.0
 			)
@@ -1926,6 +1944,8 @@ func _clear_board() -> void:
 func _reset_loaf() -> void:
 	for k in ["base", "lid", "smear", "done", "paper", "wrapped"]:
 		loaf[k].visible = false
+	loaf.base.scale = Vector3.ONE   # ổ nguyên cho tới lúc xẻ
+	loaf.crumb.visible = false
 	for k in loaf.pieces:
 		loaf.pieces[k].visible = false
 	var burnt := bread_burnt
@@ -2130,6 +2150,7 @@ func _build_stations(room: Node3D) -> void:
 
 	# 5. Bồn rửa sát tường phải, vòi quay vào bếp
 	KM.solid(room, "bon_rua", RUA, -90)
+	_build_co_ba_counter(room)
 	_station("rua", "Bồn rửa", Vector3(1.95, 0, RUA.z), RUA + Vector3(-0.02, 0.17, 0))
 	n.wash_cuke = KM.place(self, "dua_leo", RUA + Vector3(-0.02, 0.16, 0.06), 90)
 	n.wash_herb = KM.place(self, "ngo_bo", RUA + Vector3(-0.02, 0.22, -0.07), 90, 0.8)
@@ -2194,24 +2215,26 @@ func _build_stations(room: Node3D) -> void:
 		e.visible = false
 		n.eggs.append(e)
 	var lp := RAP + Vector3(0, 0, 0.12)
+	# Ổ xẻ: nửa dưới (ruột kem lộ ra) + nắp nửa trên bản lề ở mép sau; nhân nằm trong lòng ổ
 	loaf.base = _loaf_pair(lp, 1.0)
-	loaf.lid = _loaf_pair(lp + Vector3(0, 0.035, -0.035), 1.0)
-	loaf.lid.scale = Vector3(1, 0.6, 0.85)
-	loaf.smear = Blocks.box(self, Vector3(0.28, 0.006, 0.03), lp + Vector3(0, 0.07, 0), PATE)
+	loaf.crumb = Blocks.box(loaf.base, Vector3(0.31, 0.004, 0.07), Vector3(0, LOAF_CUT / LOAF_HALF + 0.002, 0), Color("#F1DDB4"))
+	loaf.lid = _loaf_pair(lp + Vector3(0, LOAF_CUT, -0.045), 1.0)
+	loaf.lid.scale = Vector3(1, LOAF_HALF, 0.9)
+	loaf.smear = Blocks.box(self, Vector3(0.28, 0.004, 0.05), lp + Vector3(0, LOAF_CUT + 0.003, 0), PATE)
 	loaf.done = KM.place(self, "banh_bo", lp, 0)
 	loaf.paper = KM.place(self, "giay_goi", lp + Vector3(0, -0.002, 0), 0)
 	loaf.wrapped = _wrapped_loaf(self, false)
 	loaf.wrapped.global_position = lp
 	loaf.pieces = {
-		"Thịt nguội": KM.place(self, "thit_lat", lp + Vector3(0, 0.07, 0), 0, 0.55),
-		"Chả lụa": KM.place(self, "cha_khoanh", lp + Vector3(0, 0.075, 0), 0, 0.55),
-		"Dưa leo": KM.place(self, "dua_leo_lat", lp + Vector3(0, 0.085, 0.01), 0, 0.65),
-		"Đồ chua": KM.place(self, "do_chua_chen", lp + Vector3(0.09, 0.08, 0), 0, 0.3),
-		"Ngò": KM.place(self, "ngo_bo", lp + Vector3(-0.07, 0.09, 0), 0, 0.45),
-		"Ớt": KM.place(self, "ot_lat", lp + Vector3(0.03, 0.1, 0), 0, 1.2),
-		"Trứng": KM.place(self, "trung_vo", lp + Vector3(0, 0.07, 0), 0, 0.55),
-		"Thêm pate": Blocks.box(self, Vector3(0.24, 0.01, 0.034), lp + Vector3(0, 0.076, 0), PATE),
-		"Thêm đồ chua": KM.place(self, "do_chua_chen", lp + Vector3(-0.09, 0.08, 0), 0, 0.3),
+		"Thịt nguội": KM.place(self, "thit_lat", lp + Vector3(-0.06, LOAF_CUT + 0.005, 0), 0, 0.5),
+		"Chả lụa": KM.place(self, "cha_khoanh", lp + Vector3(0.06, LOAF_CUT + 0.004, 0), 0, 0.42),
+		"Dưa leo": KM.place(self, "dua_leo_lat", lp + Vector3(0, LOAF_CUT + 0.022, 0.012), 0, 0.65),
+		"Đồ chua": _pickle_shreds(lp + Vector3(0.07, LOAF_CUT + 0.028, -0.004), 7),
+		"Ngò": KM.place(self, "ngo_bo", lp + Vector3(-0.07, LOAF_CUT + 0.03, 0), 0, 0.32),
+		"Ớt": KM.place(self, "ot_lat", lp + Vector3(0.02, LOAF_CUT + 0.036, 0.006), 0, 1.0),
+		"Trứng": KM.place(self, "trung_vo", lp + Vector3(0, LOAF_CUT + 0.004, 0), 90, 0.5),
+		"Thêm pate": Blocks.box(self, Vector3(0.24, 0.006, 0.04), lp + Vector3(0, LOAF_CUT + 0.008, 0), PATE),
+		"Thêm đồ chua": _pickle_shreds(lp + Vector3(-0.05, LOAF_CUT + 0.03, 0.004), 6),
 	}
 	_reset_loaf()
 	_refresh_rap()
@@ -2230,6 +2253,20 @@ func _build_stations(room: Node3D) -> void:
 		w.rotation_degrees.y = 8
 		slot.visible = false
 		case_slots.append(slot)
+
+
+## Nhúm đồ chua (sợi cà rốt và củ cải) để bỏ vào ổ, thay cho cả chén đồ chua.
+func _pickle_shreds(pos: Vector3, count: int) -> Node3D:
+	var g := Node3D.new()
+	add_child(g)
+	g.global_position = pos
+	var rng := RandomNumberGenerator.new()
+	rng.seed = count
+	for i in count * 2:
+		var b := Blocks.box(g, Vector3(0.05, 0.004, 0.004), Vector3(rng.randf_range(-0.04, 0.04), rng.randf_range(0, 0.008), rng.randf_range(-0.018, 0.018)),
+			Color("#E8893A") if i % 2 == 0 else Color("#F4EEDD"))
+		b.rotation.y = rng.randf_range(-0.6, 0.6)
+	return g
 
 
 ## Ổ bánh nướng hai dạng (vàng, cháy) chồng nhau; bật tắt theo bread_burnt.
@@ -2343,19 +2380,99 @@ func _action(action: String, keys: Array, buttons: Array, axes: Array) -> void:
 func _build_co_ba() -> void:
 	if not ResourceLoader.exists("res://assets/models/nguoi/coba.glb"):
 		return
-	co_ba = NguoiScript.make("coba", "dung_yen")
+	co_ba = NguoiScript.make("coba", "viec_rieng")
 	co_ba.position = CO_BA_POS
-	var to := Vector3(0.2, 0, 0.2) - CO_BA_POS
-	co_ba.rotation.y = atan2(to.x, to.z)
+	co_ba.rotation.y = PI / 2.0
 	add_child(co_ba)
 	co_ba.look_target = player
-	co_ba.add_collision(Vector3(0.45, 1.5, 0.35), Vector3(0, 0.75, 0))
+	# Không có khối va chạm: cô đứng sát trạm thịt nguội, quầy đã chặn góc này
+	# Khay inox Cô Ba bưng khi mang nhân ra bàn ráp (gắn vào tay phải, chỉ hiện lúc đi)
+	if co_ba.skeleton:
+		_co_ba_tray = co_ba.attach("hand.R")
+		var tray := KM.place(_co_ba_tray, "khay_inox", Vector3(-0.12, 0.02, 0.08), 0.0)
+		tray.rotation_degrees = Vector3(0, 0, 0)
+		_co_ba_tray.visible = false
+
+
+## Quầy gỗ cỡ người sát tường phải: thau bột, thớt chả, hũ đồ chua của Cô Ba.
+func _build_co_ba_counter(room: Node3D) -> void:
+	if not ResourceLoader.exists(KM.DIR + "quay_ba.glb"):
+		return
+	KM.solid(room, "quay_ba", QUAY_BA, -90)
+	var x := QUAY_BA.x - 0.02
+	KM.place(room, "thau", Vector3(x, QUAY_TOP, QUAY_BA.z - 0.16))
+	KM.place(room, "bot_khoi_nhao", Vector3(x, QUAY_TOP + 0.03, QUAY_BA.z - 0.16))
+	KM.place(room, "thot", Vector3(x, QUAY_TOP, QUAY_BA.z + 0.13), 0, 0.85)
+	KM.place(room, "cha_cay", Vector3(x, QUAY_TOP + 0.04, QUAY_BA.z + 0.13), 90, 0.75)
+	KM.place(room, "hu_do_chua", Vector3(x + 0.08, QUAY_TOP, QUAY_BA.z - 0.33), 0, 0.7)
+
+
+## Việc tay hợp với lúc Bơ đang làm: nhào bột lúc làm bột và nướng, thái chả lúc Bơ rửa rau
+## (sắp đưa chả), trộn đồ chua lúc Bơ ở thớt, lau quầy lúc ráp và cất bánh.
+func _co_ba_work_for() -> String:
+	var g := _suggest()
+	if holding in ["rau", "rau_sach"] or g in ["rau", "rua"]:
+		return "thai_cha"
+	if holding in ["cha", "thit", "rau_xong", "cha_xong", "thit_xong"] or g in ["cha", "thit", "thot", "do_chua"]:
+		return "tron_do_chua"
+	if holding in ["banh_mi", "khay_chin", "khay_chay"] or g in ["rap", "tu"] or made >= LOAVES:
+		return "viec_rieng"
+	return "nhao_bot"
+
+
+## Mỗi khung: chọn việc tay, xoay người về quầy hoặc sang Bơ khi đang nói/đưa đồ.
+func _update_co_ba(delta: float) -> void:
+	if co_ba == null or _co_ba_walking:
+		return
+	var work := _co_ba_work_for()
+	if co_ba.anim == null or not co_ba.anim.has_animation(work):
+		work = "viec_rieng"
+	if co_ba.idle_anim != work:
+		co_ba.idle_anim = work
+		if co_ba.current() in CO_BA_WORK and not co_ba.busy():
+			co_ba.play(work, 0.5)
+	var yaw := PI / 2.0
+	if Time.get_ticks_msec() / 1000.0 < _co_ba_turn_until:
+		var to := player.global_position - co_ba.global_position
+		yaw = atan2(to.x, to.z)
+	co_ba.rotation.y = lerp_angle(co_ba.rotation.y, yaw, minf(1.0, delta * 7.0))
+
+
+## Cô Ba bưng khay nhân từ quầy ra bàn ráp rồi về (đồ đã nằm trên bàn ráp từ trước, đây là cho thấy cô đi).
+func _co_ba_carry_to_rap() -> void:
+	if co_ba == null or _co_ba_walking or _bot:
+		return
+	_co_ba_walking = true
+	var walk := "bung_khay" if co_ba.anim and co_ba.anim.has_animation("bung_khay") else "di_bo"
+	if _co_ba_tray and walk == "bung_khay":
+		_co_ba_tray.visible = true
+	var pts: Array[Vector3] = [Vector3(1.6, 0, -0.5), Vector3(0.95, 0, -0.1), Vector3(1.6, 0, -0.5), CO_BA_POS]
+	var tw := create_tween()
+	var from := CO_BA_POS
+	for i in pts.size():
+		var p: Vector3 = pts[i]
+		var d := p - from
+		var face := atan2(d.x, d.z)
+		tw.tween_callback(func(): co_ba.play(walk, 0.25))
+		tw.tween_property(co_ba, "rotation:y", face, 0.25)
+		tw.tween_property(co_ba, "position", p, d.length() / 0.7)
+		if i == 1:   # tới bàn ráp: đặt khay
+			tw.tween_callback(func():
+				if _co_ba_tray:
+					_co_ba_tray.visible = false
+				co_ba.play_once("nhan_banh"))
+			tw.tween_interval(1.2)
+		from = p
+	tw.tween_callback(func():
+		_co_ba_walking = false
+		co_ba.play(co_ba.idle_anim, 0.4))
 
 
 ## Cô Ba làm một động tác (noi, vay, vui, cho_banh, nhan_banh) rồi về đứng yên.
 func _co_ba(anim_name: String) -> void:
-	if co_ba == null:
+	if co_ba == null or _co_ba_walking:
 		return
+	_co_ba_turn_until = Time.get_ticks_msec() / 1000.0 + 3.0
 	if anim_name in NguoiScript.ONE_SHOT:
 		co_ba.play_once(anim_name)
 	else:

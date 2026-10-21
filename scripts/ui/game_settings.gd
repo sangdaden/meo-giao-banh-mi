@@ -75,7 +75,8 @@ static func apply_graphics(tree: SceneTree) -> void:
 	var shadows: bool = get_value("shadows")
 	if tree.current_scene:
 		for light in tree.current_scene.find_children("*", "DirectionalLight3D", true, false):
-			light.shadow_enabled = shadows
+			if not light.is_in_group("den_phu"):  # đèn phụ (ánh trời) không bao giờ đổ bóng
+				light.shadow_enabled = shadows
 
 
 ## Áp cài đặt camera cho rig (rig của luồng màn chơi: group "camera_rig").

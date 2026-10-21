@@ -9,9 +9,11 @@ const SHOTS := [
 	["1_cho_toan_canh", Vector3(-16.0, 11.0, 1.5), Vector3(1.0, 0, 0), 0],
 	["2_ngang_tam_meo", Vector3(-14.5, 1.0, -1.8), Vector3(-6.0, 0.6, -2.2), 0],
 	["3_gam_sap", Vector3(-13.6, 0.3, -4.0), Vector3(-6.0, 0.3, -4.0), 0],
-	["4_xe_che_chan_hem", Vector3(18.5, 2.6, -15.4), Vector3(24.0, 0.6, -15.4), 0],
-	["5_cho_tan_don_4", Vector3(-16.0, 11.0, 1.5), Vector3(1.0, 0, 0), 3],
-	["6_cho_tan_ba_gac", Vector3(-6.0, 5.0, -2.0), Vector3(-1.0, 0.4, 0.3), 4],
+	["4_xe_bap_chan_hem", Vector3(18.5, 2.6, -15.4), Vector3(24.0, 0.6, -15.4), 0],
+	["5_co_bay_ganh", Vector3(0, 1.4, 3.2), Vector3(0, 1.0, 0), 0],     # tính từ chỗ Cô Bảy
+	["6_co_tu_ban_rau", Vector3(0.6, 1.2, 3.4), Vector3(0, 0.6, 0), 0],  # tính từ chỗ Cô Tư, z hướng ra lòng đường
+	["7_cho_tan_don_4", Vector3(-16.0, 11.0, 1.5), Vector3(1.0, 0, 0), 3],
+	["8_cho_tan_ba_gac", Vector3(-6.0, 5.0, -2.0), Vector3(-1.0, 0.4, 0.3), 4],
 ]
 
 
@@ -40,13 +42,23 @@ func _run() -> void:
 	var traffic: Node = main.get_node("GiaoThong")
 	for s in SHOTS:
 		main.order_index = s[3]
-		if s[0] == "4_xe_che_chan_hem" and not traffic.blocked_alleys.is_empty():
+		if s[0] == "4_xe_bap_chan_hem" and not traffic.blocked_alleys.is_empty():
 			for i in 60 * 40:  # chờ tới lúc xe chè đứng chắn hẻm
 				await physics_frame
 				if traffic.blocked_alleys[0].blocked:
 					break
-		cam.global_position = s[1]
-		cam.look_at(s[2])
+		var base := Vector3.ZERO
+		var off: Vector3 = s[1]
+		var market: Node = main.get_node_or_null("ChoSang")
+		if market and s[0].begins_with("5_"):
+			base = market._ganh_shopper.pos
+		elif market and s[0].begins_with("6_"):
+			for sh in market._shoppers:
+				if sh.person and sh.person.id == "bancho":
+					base = sh.a
+			off.z *= -signf(base.z)
+		cam.global_position = base + off
+		cam.look_at(base + s[2])
 		cam.current = true
 		await _wait(60 if s[3] == 0 else 60 * 14)
 		var draws := RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME)

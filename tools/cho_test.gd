@@ -1,5 +1,5 @@
 extends SceneTree
-## Thử chợ sáng Thứ Ba trong màn giao thật: gầm sạp, va người đi chợ, đổ thúng, xe chè chặn hẻm khối 3,
+## Thử chợ sáng Thứ Ba trong màn giao thật: gầm sạp, va người đi chợ, đổ thúng, xe bắp nướng chặn hẻm khối 3,
 ## xe máy chạy chậm qua chợ, và chợ tan ở đơn 4 (sạp gập, ba gác chở hàng về).
 ## Chạy: godot --headless --path . --script res://tools/cho_test.gd -- --cho
 ## In "CHO TEST OK" và thoát mã 0 nếu mọi tình huống đúng.
@@ -32,6 +32,7 @@ func _run() -> void:
 	await _frames(5)
 	_case_stall_gap()
 	await _case_bump()
+	await _case_ganh()
 	await _case_spill()
 	await _case_alley_cart()
 	_case_bikes_slow()
@@ -91,6 +92,22 @@ func _case_bump() -> void:
 	await _frames(70)
 
 
+## Đụng thúng gánh phía trước Cô Bảy (cách vai 0,8 m) cũng là va người.
+func _case_ganh() -> void:
+	var before: int = market.bumps_total
+	market._bump_cd = 0.0
+	var g = market._ganh_shopper
+	var rigged: Array = market._shoppers.filter(func(s) -> bool: return s.person != null).map(func(s) -> String: return s.person.id)
+	_check(rigged.size() == 5 and "ganhhang" in rigged and "bancho" in rigged, "người chợ có xương: %s" % ", ".join(rigged))
+	var front: Vector3 = g.pos - g.xf.basis.z * market.GANH_REACH
+	player.global_position = front + Vector3(0, 0.05, 0)
+	player.velocity = Vector3.ZERO
+	await _frames(2)
+	_check(market.bumps_total > before, "đụng thúng gánh của Cô Bảy là va người")
+	player.global_position = Vector3(-30, 0.1, 0)
+	await _frames(70)
+
+
 ## Chạy nhanh húc thúng thì thúng đổ; rón rén đi sát thì không.
 func _case_spill() -> void:
 	var spilled: Array = []
@@ -111,7 +128,7 @@ func _case_spill() -> void:
 	await _frames(10)
 
 
-## Xe chè đẩy vào chắn kín miệng hẻm khối 3 rồi đẩy ra theo lịch.
+## Xe bắp nướng đẩy vào chắn kín miệng hẻm khối 3 rồi đẩy ra theo lịch.
 func _case_alley_cart() -> void:
 	_check(traffic.blocked_alleys.size() == 1, "giao thông có một hẻm bị chặn theo lịch")
 	var saw_blocked := false
@@ -127,9 +144,9 @@ func _case_alley_cart() -> void:
 		elif saw_blocked:
 			saw_open = true
 			break
-	_check(saw_blocked, "xe chè có lúc chặn hẻm khối 3")
+	_check(saw_blocked, "xe bắp nướng có lúc chặn hẻm khối 3")
 	_check(full_block, "khi chặn thì kín cả bề ngang hẻm 2,4 m")
-	_check(saw_open, "xe chè có lúc đẩy ra, hẻm thông")
+	_check(saw_open, "xe bắp nướng có lúc đẩy ra, hẻm thông")
 
 
 ## Xe máy trong vùng chợ không chạy quá tốc độ chợ.
@@ -156,13 +173,19 @@ func _case_packing() -> void:
 		if st.folded:
 			folded += 1
 	var left := 0
+	var sellers_left := 0
+	var walkers := 0
 	for s in market._shoppers:
-		if not s.gone:
-			left += 1
+		if s.seller:
+			sellers_left += 0 if s.gone else 1
+		else:
+			walkers += 1
+			left += 0 if s.gone else 1
 	_check(started[0], "chợ bắt đầu dọn ở đơn 4")
 	_check(folded == 9, "đơn 4 gập một nửa số sạp (%d/18)" % folded)
 	_check(market._ba_gac != null, "ba gác chở hàng về nằm giữa đường")
-	_check(left <= int(round(market.CROWD[3] * market._shoppers.size())), "người đi chợ về bớt (%d còn lại)" % left)
+	_check(left <= int(round(market.CROWD[3] * walkers)), "người đi chợ về bớt (%d còn lại)" % left)
+	_check(sellers_left == 18 - folded, "người bán của sạp đã dọn đi về (%d còn ngồi)" % sellers_left)
 	var st0: Dictionary = market._stalls.filter(func(s: Dictionary) -> bool: return s.folded)[0]
 	_check(_hits(st0.pos + Vector3(0, 0.3, -0.25 * (1 if st0.pos.z < 0 else -1)), Vector3(0.4, 0.3, 0.4)), "sạp đã gập thành đống hàng có va chạm")
 	main.order_index = 4

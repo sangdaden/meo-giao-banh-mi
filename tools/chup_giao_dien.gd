@@ -103,6 +103,11 @@ func _run() -> void:
 	main.rig.yaw += PI * 0.8
 	await _wait(20)
 	await _shot("5b_mui_ten_mep")
+	main.hud.show_tip("Chó Mực đang ngủ", "Chạy nhanh hay va đồ là Mực thức dậy đuổi theo. Rón rén thì bước êm, đi ngang được.",
+		[["Z", "giữ để rón rén"], ["Shift", "đừng chạy nhanh"]])
+	await _wait(5)
+	await _shot("5c_meo_lan_dau")
+	main.hud.show_tip("", "", [], 0.0)
 	main.hud.set_pause_info(main._pause_info())
 	main.hud.toggle_pause()
 	await _shot("6_tam_dung")

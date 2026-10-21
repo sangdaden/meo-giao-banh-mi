@@ -55,6 +55,11 @@ var settings: SettingsPanel
 var end_screen: Control
 var end_text: Label
 var _toast_time := 0.0
+var tip_card: PanelContainer
+var tip_title: Label
+var tip_body: Label
+var tip_keys: HBoxContainer
+var _tip_time := 0.0
 var _goal := Vector3.ZERO
 var _has_goal := false
 var _playing := false
@@ -78,6 +83,7 @@ func _ready() -> void:
 	_build_distance()
 	_build_stance()
 	_build_hints()
+	_build_tip()
 
 	edge_arrow = EdgeArrow.new()
 	edge_arrow.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -141,6 +147,10 @@ func _process(delta: float) -> void:
 		var fps := Engine.get_frames_per_second()
 		fps_label.text = "%d FPS · %.1f ms" % [fps, 1000.0 / maxf(fps, 1.0)]
 		fps_label.add_theme_color_override("font_color", PAPER if fps >= 55 else (CRUST if fps >= 40 else RED))
+	if _tip_time > 0.0:
+		_tip_time -= delta
+		tip_card.modulate.a = clampf(_tip_time / 0.4, 0.0, 1.0)
+		tip_card.visible = _tip_time > 0.0
 	if _toast_time > 0.0:
 		_toast_time -= delta
 		toast.modulate.a = clampf(_toast_time / 0.4, 0.0, 1.0)
@@ -166,6 +176,8 @@ func show_playing_ui(on: bool) -> void:
 		bag_card.visible = false
 	if stance_pill and not on:
 		stance_pill.visible = false
+	if tip_card and not on:
+		tip_card.visible = false
 
 
 ## color và initial là tuỳ chọn: màu áo và chữ cái của khách cho hình đại diện.
@@ -490,6 +502,56 @@ func _build_stance() -> void:
 	stance_label = T.label("", 15, PAPER, "bold")
 	h.add_child(stance_label)
 	stance_pill.visible = false
+
+
+## Thẻ mẹo lần đầu: nền giấy viền mực ở giữa phía dưới, nhãn "Mẹo", tiêu đề và các phím cần bấm.
+func _build_tip() -> void:
+	tip_card = PanelContainer.new()
+	tip_card.add_theme_stylebox_override("panel", T.box(PAPER, 16, 14, INK, 3, 5))
+	tip_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_place(tip_card, 0.5, 1.0, Rect2(-260, -262, 520, 112))
+	play_root.add_child(tip_card)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 6)
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tip_card.add_child(v)
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 10)
+	v.add_child(top)
+	var tag := PanelContainer.new()
+	tag.add_theme_stylebox_override("panel", T.box(T.TEAL, 999, 10, Color(0, 0, 0, 0), 0))
+	tag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	tag.add_child(T.label("Mẹo", 13, PAPER, "bold"))
+	top.add_child(tag)
+	tip_title = T.label("", 20, INK, "display")
+	top.add_child(tip_title)
+	tip_body = T.label("", 15, T.MUTED, "bold")
+	tip_body.autowrap_mode = TextServer.AUTOWRAP_WORD
+	v.add_child(tip_body)
+	tip_keys = HBoxContainer.new()
+	tip_keys.add_theme_constant_override("separation", 6)
+	v.add_child(tip_keys)
+	tip_card.visible = false
+
+
+## Hiện một mẹo lần đầu. keys: [[phím, việc], ...], vd [["C", "giữ để chui"]].
+func show_tip(title: String, body: String, keys: Array, seconds := 6.0) -> void:
+	if tip_card == null:
+		return
+	tip_title.text = title
+	tip_body.text = body
+	for c in tip_keys.get_children():
+		c.queue_free()
+	for k in keys:
+		tip_keys.add_child(_keycap(k[0], 14))
+		var l := T.label(k[1], 14, INK, "bold")
+		tip_keys.add_child(l)
+		var gap := Control.new()
+		gap.custom_minimum_size.x = 8
+		tip_keys.add_child(gap)
+	_tip_time = seconds
+	tip_card.modulate.a = 1.0
+	tip_card.visible = _playing
 
 
 func _build_hints() -> void:

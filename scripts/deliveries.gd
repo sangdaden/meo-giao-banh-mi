@@ -16,7 +16,8 @@ extends Node3D
 ##   add_child sau merge_static (phần chuyển động: giỏ, ly, tay, tờ báo...), rồi setup().
 ##   Mỗi nhịp vật lý lúc đang mang bánh: step(order_index, in_zone) trả true là đã giao xong.
 ##   Bố cục lấy theo CityProps (xe máy, ban công Bé Na, quầy và bàn cà phê, ghế mây Bà Sáu).
-## Toàn bộ là khối tạm; model giỏ, tờ báo, ly, chén sữa và tư thế 5 người dân chờ Sang duyệt phác thảo.
+## Đồ giao bánh là model Sang duyệt 21/10 (assets/models/giao/*.glb, trang https://claude.ai/artifact/8TqKjyoKebvAqXgEUEU25X):
+## ổ bánh gói giấy Bơ ngậm, giỏ, tờ báo, ly cà phê (và bản đổ), chén sữa. Người dân vẫn là khối tạm chờ duyệt tư thế.
 
 ## Tên nhiệm vụ phụ theo khóa "side_quest" trong ORDERS
 const QUESTS := {
@@ -28,13 +29,17 @@ const QUESTS := {
 }
 
 const PAPER := Color("#E8E2D0")
-const INK := Color("#6E6A60")
 const SKIN := Color("#E7B98F")
 const PANTS := Color("#3D4A4A")
-const WATER := Color(0.42, 0.62, 0.72, 0.55)
-const OIL := Color(0.10, 0.08, 0.07, 0.85)
-const BASKET := Color("#E05A7A")
-const COFFEE := Color("#6B4A2E")
+const WATER_TOP := Color("#8FB7C9")
+const OIL_TOP := Color("#2B2724")
+
+const MODELS := "res://assets/models/giao/%s.glb"
+## Điểm miệng Bơ trong toạ độ model bo.glb (mặt trước +Z), ổ bánh ngậm nằm ngang theo trục X
+const MOUTH := Vector3(0, 0.368, 0.30)
+const RELEASE_AT := 0.8          ## giây trong động tác giao thì Bơ nhả ổ bánh
+const GIO_H := 0.66              ## giỏ kèm dây chụm cao bao nhiêu (gio_rong.glb)
+const GLASS_WOBBLE := 0.5        ## ly rung bao lâu
 
 ## Vũng nước trên đường từ sạp báo về lò bánh (tờ báo rơi nếu chạy nhanh qua)
 const PUDDLES := [
@@ -42,7 +47,7 @@ const PUDDLES := [
 	{"pos": Vector3(-20.5, 0, -3.2), "size": Vector2(2.2, 1.8)},
 ]
 
-const BASKET_PERIOD := 2.8      ## giây cho một lượt đưa qua đưa lại
+const BASKET_PERIOD := 3.0      ## giây cho một lượt đưa qua đưa lại
 const BASKET_SWING := 0.6       ## giỏ lệch xa nhất bao nhiêu mét so với chỗ đứng trên xe
 const BASKET_REACH := 0.42      ## giỏ cách Bơ dưới mức này thì bỏ bánh vào được
 const BASKET_RETRY := 1.5       ## trật thì phải đợi
@@ -62,6 +67,11 @@ var _kind: Array[String] = []
 var _arms: Array = []            # {"order", "pos", "yaw", "color"} → pivot vai
 var _arm_nodes := {}             # order -> Node3D
 var _prompt: Label3D
+var _mouth: Node3D               # điểm miệng Bơ, bám theo xương đầu
+var _scenes := {}                # tên model -> PackedScene
+var _mat_solid: StandardMaterial3D
+var _mat_glass: StandardMaterial3D
+var _mat_wet: StandardMaterial3D
 var _e_prev := false
 var _hspeed_prev := 0.0
 
@@ -78,7 +88,8 @@ var _anchor := Vector3.ZERO      # móc dây trên ban công
 var _pivot: Node3D
 var _rope: MeshInstance3D
 var _basket: Node3D
-var _basket_loaf: Node3D
+var _basket_empty: Node3D
+var _basket_loaf: Node3D         # giỏ có bánh
 var _lower := 0.0                # 0 = kéo lên ban công, 1 = thòng xuống hẳn
 var _swing_t := 0.0
 var _retry := 0.0
@@ -91,6 +102,7 @@ var _glasses: Array = []         # {"node", "table", "base", "wobble", "fallen"}
 var _glass_broken := false
 var _counter_top := Vector3.ZERO
 var _milk: Node3D
+var _milk_empty: Node3D
 
 # Đơn 4: vũng dầu
 var _oils: Array = []            # {"pos", "r", "inside"}
@@ -127,9 +139,13 @@ func build_static(parent: Node3D, order_list: Array) -> void:
 				_build_hung(parent, i, p, o.color, title)
 			"chair":
 				_build_sau(parent, i, p, o.color, title)
-	for pd in PUDDLES:
-		var m := Blocks.box(parent, Vector3(pd.size.x, 0.02, pd.size.y), pd.pos + Vector3(0, 0.055, 0), WATER)  # trên mặt vỉa hè 0,04 m
-		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var water := StandardMaterial3D.new()
+	water.albedo_color = Color(WATER_TOP, 0.6)
+	water.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	water.roughness = 0.05
+	for k in PUDDLES.size():
+		var pd: Dictionary = PUDDLES[k]
+		_blob(parent, pd.pos + Vector3(0, 0.055, 0), pd.size / 2.0, water, k * 7)  # trên mặt vỉa hè 0,04 m
 
 
 ## Chú Tư: ngồi ghế nhựa xanh trên vỉa hè trước sạp báo, quay ra đường (hướng nam).
@@ -178,14 +194,7 @@ func _build_hung(parent: Node3D, i: int, p: Vector3, shirt: Color, title: String
 	Blocks.label(parent, title, moto + Vector3(0, 1.8, 0), 40)
 	# Vũng dầu trước tiệm, chừa lối vào ở giữa
 	for o in [{"off": Vector3(-1.6, 0, 0.5), "r": 0.55}, {"off": Vector3(1.5, 0, 0.6), "r": 0.6}, {"off": Vector3(0.1, 0, 1.7), "r": 0.5}]:
-		var c := CylinderMesh.new()
-		c.top_radius = o.r
-		c.bottom_radius = o.r
-		c.height = 0.02
-		c.radial_segments = 16
-		c.rings = 1
-		var m := Blocks.mesh(parent, c, p + o.off + Vector3(0, 0.055, 0), OIL)
-		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_blob(parent, p + o.off + Vector3(0, 0.055, 0), Vector2(o.r, o.r), _oil_mat(), int(o.r * 100.0))
 		_oils.append({"pos": p + o.off, "r": o.r, "inside": false})
 
 
@@ -240,6 +249,85 @@ func _standing(parent: Node3D, pos: Vector3, yaw: float, shirt: Color, height :=
 	root.add_child(shape)
 
 
+## Vũng loang hình mây (như ảnh renders/vung_top): tam giác quạt, bán kính lượn theo vài sóng sin.
+func _blob(parent: Node3D, pos: Vector3, radius: Vector2, m: Material, seed_k: int) -> MeshInstance3D:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_normal(Vector3.UP)
+	var n := 28
+	var ph := float(seed_k) * 1.7
+	var pts: Array[Vector3] = []
+	for k in n:
+		var a := TAU * k / n
+		var r := 1.0 + 0.16 * sin(3.0 * a + ph) + 0.08 * sin(5.0 * a + ph * 2.3)
+		pts.append(Vector3(cos(a) * radius.x * r, 0, sin(a) * radius.y * r) / 1.1)
+	for k in n:
+		st.add_vertex(Vector3.ZERO)
+		st.add_vertex(pts[(k + 1) % n])
+		st.add_vertex(pts[k])
+	var mi := MeshInstance3D.new()
+	mi.mesh = st.commit()
+	mi.material_override = m
+	mi.position = pos
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mi)
+	return mi
+
+
+## Dầu nhớt: sẫm và bóng loáng.
+func _oil_mat(alpha := 0.92) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(OIL_TOP, alpha)
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.roughness = 0.08
+	m.metallic_specular = 0.9
+	return m
+
+
+## Dựng một model đồ giao bánh. Màu nằm ở màu đỉnh (COLOR_0) như đồ bếp; bản Compatibility (web)
+## không tự đổi linear sang sRGB nên đổi tay như player.gd. glass: vỏ thủy tinh trong suốt.
+func _model(model_name: String, parent: Node, pos := Vector3.ZERO, glass := false) -> Node3D:
+	if not _scenes.has(model_name):
+		_scenes[model_name] = load(MODELS % model_name)
+	if _mat_solid == null:
+		_mat_solid = StandardMaterial3D.new()
+		_mat_solid.vertex_color_use_as_albedo = true
+		_mat_solid.roughness = 0.8
+		_mat_glass = StandardMaterial3D.new()
+		_mat_glass.vertex_color_use_as_albedo = true
+		_mat_glass.albedo_color = Color(1, 1, 1, 0.3)
+		_mat_glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_mat_glass.roughness = 0.1
+		_mat_glass.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_mat_wet = _mat_solid.duplicate()
+		_mat_wet.albedo_color = Color(0.55, 0.58, 0.6)  # giấy ướt sẫm màu
+	var n: Node3D = _scenes[model_name].instantiate()
+	n.position = pos
+	parent.add_child(n)
+	for mi: MeshInstance3D in n.find_children("*", "MeshInstance3D", true, false):
+		if RenderingServer.get_rendering_device() == null:
+			_srgb(mi, model_name)
+		mi.material_override = _mat_glass if glass else _mat_solid
+	return n
+
+
+var _srgb_meshes := {}
+
+func _srgb(mi: MeshInstance3D, key: String) -> void:
+	if not _srgb_meshes.has(key):
+		var src: ArrayMesh = mi.mesh
+		var dst := ArrayMesh.new()
+		for i in src.get_surface_count():
+			var arrays := src.surface_get_arrays(i)
+			var cols: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+			for k in cols.size():
+				cols[k] = cols[k].linear_to_srgb()
+			arrays[Mesh.ARRAY_COLOR] = cols
+			dst.add_surface_from_arrays(src.surface_get_primitive_type(i), arrays)
+		_srgb_meshes[key] = dst
+	mi.mesh = _srgb_meshes[key]
+
+
 func _head(parent: Node3D, pos: Vector3) -> void:
 	var head := SphereMesh.new()
 	head.radius = 0.17
@@ -266,10 +354,12 @@ func _ready() -> void:
 		_arm_nodes[a.order] = pivot
 
 	if _tu_paper_pos != Vector3.ZERO:
+		# Chú Tư cầm tờ báo mở (bao_mo, 60 x 42 cm) che mặt, mặt trước báo quay về phía đường
 		_tu_paper = Node3D.new()
-		_tu_paper.position = _tu_paper_pos
+		_tu_paper.position = _tu_paper_pos + Vector3(0.05, -0.25, -0.02)
+		_tu_paper_pos = _tu_paper.position
 		add_child(_tu_paper)
-		_newspaper(_tu_paper, Vector3(0, 0, 0), 1.4).rotation.x = -PI / 2  # dựng đứng che mặt
+		_model("bao_mo", _tu_paper)
 
 	if _anchor != Vector3.ZERO:
 		_pivot = Node3D.new()
@@ -278,16 +368,9 @@ func _ready() -> void:
 		_rope = Blocks.box(_pivot, Vector3(0.015, 1.0, 0.015), Vector3.ZERO, Color("#F2E3B8"))
 		_basket = Node3D.new()
 		_pivot.add_child(_basket)
-		var c := BASKET
-		Blocks.box(_basket, Vector3(0.34, 0.03, 0.28), Vector3(0, 0.015, 0), c)            # đáy
-		Blocks.box(_basket, Vector3(0.34, 0.22, 0.03), Vector3(0, 0.11, 0.125), c)         # thành
-		Blocks.box(_basket, Vector3(0.34, 0.22, 0.03), Vector3(0, 0.11, -0.125), c)
-		Blocks.box(_basket, Vector3(0.03, 0.22, 0.28), Vector3(0.155, 0.11, 0), c)
-		Blocks.box(_basket, Vector3(0.03, 0.22, 0.28), Vector3(-0.155, 0.11, 0), c)
-		Blocks.box(_basket, Vector3(0.02, 0.35, 0.02), Vector3(0, 0.37, 0), Color("#F2E3B8"))  # quai dây
-		_basket_loaf = Node3D.new()
-		_basket.add_child(_basket_loaf)
-		Blocks.box(_basket_loaf, Vector3(0.26, 0.08, 0.1), Vector3(0, 0.12, 0), Color("#D98E2B"))
+		# Giỏ nhựa kèm 4 dây chụm và đoạn dây 0,3 m (cao 0,66 m, gốc ở đáy); dây chính nối lên ban công
+		_basket_empty = _model("gio_rong", _basket)
+		_basket_loaf = _model("gio_co_banh", _basket)
 		_basket_loaf.visible = false
 		_set_rope(0.0)
 
@@ -298,31 +381,28 @@ func _ready() -> void:
 	for t in _tables.size():
 		var tb: Dictionary = _tables[t]
 		for g in 2:
+			# Ly cà phê sữa đá: phần cà phê + vỏ thủy tinh trong; bản đổ (kèm vũng cà phê) nằm sẵn, ẩn
 			var node := Node3D.new()
-			var base: Vector3 = tb.pos + Vector3(-0.12 + g * 0.24, tb.size.y, 0.05 - g * 0.1)
+			var base: Vector3 = tb.pos + Vector3(-0.14 + g * 0.28, tb.size.y, 0.06 - g * 0.12)
 			node.position = base
+			node.rotation.y = g * 1.3
 			add_child(node)
-			var cup := CylinderMesh.new()
-			cup.top_radius = 0.04
-			cup.bottom_radius = 0.032
-			cup.height = 0.13
-			cup.radial_segments = 8
-			cup.rings = 1
-			Blocks.mesh(node, cup, Vector3(0, 0.065, 0), COFFEE)
-			Blocks.box(node, Vector3(0.05, 0.02, 0.05), Vector3(0, 0.12, 0), Color("#F2E3B8"))  # bọt sữa
-			_glasses.append({"node": node, "table": t, "base": base, "wobble": 0.0, "fallen": false})
+			_model("ly_caphe", node)
+			_model("ly_caphe_vo", node, Vector3.ZERO, true)
+			var spilt := Node3D.new()
+			add_child(spilt)
+			_model("ly_caphe_do", spilt)
+			_model("ly_caphe_do_vo", spilt, Vector3.ZERO, true)
+			spilt.visible = false
+			_glasses.append({"node": node, "spilt": spilt, "table": t, "base": base, "wobble": 0.0, "fallen": false})
 
 	if _counter_top != Vector3.ZERO:
 		_milk = Node3D.new()
 		_milk.position = _counter_top + Vector3(0, 0, 0.12)
 		add_child(_milk)
-		var bowl := CylinderMesh.new()
-		bowl.top_radius = 0.06
-		bowl.bottom_radius = 0.04
-		bowl.height = 0.04
-		bowl.radial_segments = 10
-		bowl.rings = 1
-		Blocks.mesh(_milk, bowl, Vector3(0, 0.02, 0), Color("#FFF8EA"))
+		_model("chen_sua", _milk)
+		_milk_empty = _model("chen_het", _milk)
+		_milk_empty.visible = false
 		_milk.visible = false
 
 	_prompt = Blocks.label(self, "", Vector3.ZERO, 28, Color("#F2C14E"))
@@ -330,17 +410,6 @@ func _ready() -> void:
 	_prompt.visible = false
 	_speech = Blocks.label(self, "", Vector3.ZERO, 44, Color("#FFF8EA"))
 	_speech.visible = false
-
-
-func _newspaper(parent: Node3D, pos: Vector3, scale_k := 1.0) -> Node3D:
-	var n := Node3D.new()
-	n.position = pos
-	n.scale = Vector3.ONE * scale_k
-	parent.add_child(n)
-	Blocks.box(n, Vector3(0.24, 0.015, 0.17), Vector3.ZERO, PAPER)
-	for k in 3:
-		Blocks.box(n, Vector3(0.18, 0.004, 0.012), Vector3(0, 0.01, -0.05 + k * 0.04), INK)
-	return n
 
 
 ## Gọi sau khi add_child: nối Bơ, Chó Mực, HUD.
@@ -351,6 +420,70 @@ func setup(p: CharacterBody3D, d: Node, h: CanvasLayer, is_autotest := false) ->
 	autotest = is_autotest
 	if dog and dog.has_signal("bit_player"):
 		dog.bit_player.connect(func(): _bites += 1)
+	_mouth = _make_mouth()
+
+
+## Điểm miệng Bơ: BoneAttachment3D theo xương "head" của bo.glb, lệch tới điểm MOUTH.
+## Không tìm thấy xương (Bơ khối cũ) thì gắn thẳng vào hình Bơ ở trước mặt.
+func _make_mouth() -> Node3D:
+	var mouth := Node3D.new()
+	mouth.name = "MiengBo"
+	var skels: Array[Node] = player.visual.find_children("*", "Skeleton3D", true, false)
+	var skel: Skeleton3D = skels[0] if skels.size() > 0 else null
+	var idx: int = skel.find_bone("head") if skel else -1
+	if idx < 0:
+		player.visual.add_child(mouth)
+		mouth.position = Vector3(0, 0.37, -0.3)
+		mouth.rotation.y = PI
+		return mouth
+	# Gốc model bo.glb: tổ tiên của skeleton nằm ngay dưới thân Bơ
+	var model: Node3D = skel
+	while model.get_parent() and model.get_parent().get_parent() != player.visual:
+		model = model.get_parent()
+	var att := BoneAttachment3D.new()
+	att.bone_name = "head"
+	skel.add_child(att)
+	att.add_child(mouth)
+	var skel_from_model := skel.global_transform.affine_inverse() * model.global_transform
+	mouth.transform = skel.get_bone_global_rest(idx).affine_inverse() * skel_from_model * Transform3D(Basis(), MOUTH)
+	return mouth
+
+
+## Bơ rút ổ bánh gói giấy ra ngậm, tới lúc nhả thì ổ bánh bay tới `to` (tay khách, giỏ, quầy) rồi gọi done.
+## Player có tín hiệu bread_released (tự vẽ ổ bánh ngậm) thì đợi tín hiệu đó; chưa có thì tự gắn ổ bánh
+## vào miệng và nhả sau RELEASE_AT giây.
+func _hand_bread(to: Vector3, done := Callable()) -> void:
+	var loaf: Node3D
+	if player.has_signal("bread_released"):
+		await player.bread_released
+		loaf = _model("banh_goi", self)
+		loaf.global_transform = _mouth.global_transform * Transform3D(Basis(), Vector3(0, -0.03, 0))
+	else:
+		loaf = _model("banh_goi", _mouth, Vector3(0, -0.03, 0))
+		_body_layer(loaf)
+		await get_tree().create_timer(RELEASE_AT).timeout
+		if not is_instance_valid(loaf):
+			return
+		var at := loaf.global_transform
+		loaf.get_parent().remove_child(loaf)
+		add_child(loaf)
+		loaf.global_transform = at
+	var tw := create_tween()
+	tw.tween_property(loaf, "global_position", to, 0.25).set_ease(Tween.EASE_OUT)
+	tw.tween_callback(func():
+		if done.is_valid():
+			done.call()
+	)
+	tw.tween_interval(1.5)
+	tw.tween_callback(loaf.queue_free)
+
+
+## Đồ Bơ ngậm cũng ẩn ở góc nhìn thứ nhất như thân Bơ.
+func _body_layer(n: Node3D) -> void:
+	if not "LAYER_BO_BODY" in player:
+		return
+	for mi: MeshInstance3D in n.find_children("*", "MeshInstance3D", true, false):
+		mi.layers = player.LAYER_BO_BODY
 
 
 # ---------------------------------------------------------------- vòng đơn
@@ -360,6 +493,14 @@ func stand_point(i: int) -> Vector3:
 	if _kind[i] == "basket":
 		return _moto_na
 	return orders[i].pos
+
+
+## Bàn tay khách lúc nhận bánh (ổ bánh Bơ nhả ra bay tới đây).
+func hand_point(i: int) -> Vector3:
+	if _kind[i] == "under_car":
+		return _hand_hung + Vector3(0, 0.02, 0.33)
+	var arm: Node3D = _arm_nodes.get(i)
+	return arm.global_transform * Vector3(0, -0.5, 0) if arm else orders[i].pos + Vector3.UP
 
 
 ## Tên nhiệm vụ phụ của đơn i.
@@ -377,6 +518,7 @@ func on_pick_up(i: int) -> void:
 			_retry = 0.0
 			_basket_done = false
 			_basket_loaf.visible = false
+			_basket_empty.visible = true
 		"counter":
 			_glass_broken = false
 			_milk.visible = false
@@ -435,6 +577,7 @@ func step(i: int, in_zone: bool, _delta: float) -> bool:
 		"under_car":
 			side_ok[i] = not _oiled
 			_play_deliver(kind)
+			_hand_bread(hand_point(i))
 		"chair":
 			_deliver_sau(i)
 		_:
@@ -446,10 +589,14 @@ func step(i: int, in_zone: bool, _delta: float) -> bool:
 func _deliver_tu(i: int) -> void:
 	_play_deliver("hand")
 	side_ok[i] = false  # chỉ thành công khi tờ báo về tới lò
-	_tu_paper.visible = false
-	_paper_state = "carry"
-	_mouth_paper = _newspaper(player.visual, Vector3(0, 0.2, -0.3), 0.9)
-	_mouth_paper.rotation.x = -0.6
+	_hand_bread(hand_point(i), func():
+		# Nhận bánh xong Chú Tư gấp báo đưa cho Bơ ngậm về
+		_tu_paper.visible = false
+		_paper_state = "carry"
+		_mouth_paper = _model("bao_gap", _mouth, Vector3(0, -0.02, 0.09))
+		_mouth_paper.rotation.x = 0.12  # mép gấp trong miệng, tờ báo chúi nhẹ ra trước
+		_body_layer(_mouth_paper)
+	)
 	_toast("Chú Tư gửi tờ báo cho Cô Ba. Về lò đừng chạy nhanh qua vũng nước nha!", 3.0, 1.8)
 
 
@@ -458,8 +605,11 @@ func _deliver_basket() -> void:
 	_play_deliver("basket")
 	side_ok[i] = _misses == 0
 	_basket_done = true
-	_basket_loaf.visible = true
-	_sfx("basket_drop", _basket.global_position)
+	_hand_bread(_basket.global_position + Vector3(0, 0.08, 0), func():
+		_basket_loaf.visible = true
+		_basket_empty.visible = false
+		_sfx("basket_drop", _basket.global_position)
+	)
 	if side_ok[i]:
 		_toast("Trúng ngay nhịp đầu! Bé Na kéo giỏ lên.", 2.0, 1.8)
 	current = -1
@@ -468,11 +618,19 @@ func _deliver_basket() -> void:
 func _deliver_may(i: int) -> void:
 	_play_deliver("counter")
 	side_ok[i] = not _glass_broken
-	# Chị Mây đẩy lại cho Bơ một chén sữa nhỏ (chỉ để xem)
+	_hand_bread(_counter_top + Vector3(-0.3, 0, 0))
+	# Chị Mây đẩy lại cho Bơ một chén sữa nhỏ (chỉ để xem), lát sau Bơ liếm sạch
 	_milk.visible = true
+	_milk_empty.visible = false
+	_milk.get_child(0).visible = true
 	_milk.global_position = _counter_top + Vector3(0, 0, 0.12)
 	var tw := create_tween()
-	tw.tween_property(_milk, "global_position", _counter_top + Vector3(-0.15, 0, -0.18), 0.6).set_delay(0.4)
+	tw.tween_property(_milk, "global_position", _counter_top + Vector3(-0.1, 0, -0.2), 0.6).set_delay(1.0)
+	tw.tween_interval(3.0)
+	tw.tween_callback(func():
+		_milk.get_child(0).visible = false
+		_milk_empty.visible = true
+	)
 	_toast("Chị Mây đẩy cho Bơ chén sữa nhỏ.", 2.0, 1.8)
 
 
@@ -480,6 +638,7 @@ func _deliver_sau(i: int) -> void:
 	_play_deliver("chair")
 	side_ok[i] = not _dog_woke()
 	var arm: Node3D = _arm_nodes.get(i)
+	_hand_bread(hand_point(i))
 	_speech.text = "\"Mực, đừng làm bé mèo sợ!\""
 	_speech.global_position = (arm.global_position if arm else orders[i].pos) + Vector3(0, 0.8, 0)
 	_speech.visible = true
@@ -550,8 +709,12 @@ func _drop_mouth_paper() -> void:
 	var at := _mouth_paper.global_position
 	_mouth_paper.get_parent().remove_child(_mouth_paper)
 	add_child(_mouth_paper)
-	_mouth_paper.global_position = Vector3(at.x, 0.04, at.z)
+	_mouth_paper.global_position = Vector3(at.x, 0.06, at.z)
 	_mouth_paper.rotation = Vector3(0, randf() * TAU, 0)
+	_mouth_paper.scale = Vector3.ONE
+	for mi: MeshInstance3D in _mouth_paper.find_children("*", "MeshInstance3D", true, false):
+		mi.material_override = _mat_wet
+		mi.layers = 1
 	_mouth_paper = null
 
 
@@ -570,6 +733,7 @@ func _update_basket(delta: float) -> void:
 	_set_rope(_lower)
 	if _lower <= 0.0 and _basket_done:
 		_basket_loaf.visible = false  # Bé Na lấy bánh rồi
+		_basket_empty.visible = true
 
 
 func _set_rope(k: float) -> void:
@@ -578,8 +742,10 @@ func _set_rope(k: float) -> void:
 	var amp := asin(clampf(BASKET_SWING / full, 0.0, 0.9)) * k
 	# Trật thì giỏ bị giật lệch ra xa một chút
 	_pivot.rotation.z = sin(_swing_t * TAU / BASKET_PERIOD) * amp + (0.06 if _retry > 0.0 else 0.0)
-	_rope.scale.y = length
-	_rope.position.y = -length / 2.0
+	# Dây chính từ lan can xuống tới nút dây của giỏ (giỏ cao GIO_H, gốc ở đáy)
+	var rope := maxf(length - GIO_H, 0.05)
+	_rope.scale.y = rope
+	_rope.position.y = -rope / 2.0
 	_basket.position.y = -length
 
 
@@ -616,7 +782,7 @@ func _update_glasses(delta: float) -> void:
 						_tip_glass(g)
 						knocked = true
 					else:
-						g.wobble = 0.9
+						g.wobble = GLASS_WOBBLE
 			_sfx("glass_tip" if knocked else "glass_rattle", tb.pos)
 		tb.touching = touching
 	for g in _glasses:
@@ -624,9 +790,10 @@ func _update_glasses(delta: float) -> void:
 			continue
 		g.wobble = maxf(g.wobble - delta, 0.0)
 		var n: Node3D = g.node
-		var w: float = g.wobble
-		n.rotation.z = sin(w * 40.0) * 0.18 * w
-		n.rotation.x = cos(w * 33.0) * 0.12 * w
+		# Lắc ±6° rồi tắt dần trong 0,5 s
+		var w: float = g.wobble / GLASS_WOBBLE
+		n.rotation.z = sin(w * 30.0) * deg_to_rad(6.0) * w
+		n.rotation.x = cos(w * 24.0) * deg_to_rad(4.0) * w
 
 
 func _tip_glass(g: Dictionary) -> void:
@@ -635,9 +802,18 @@ func _tip_glass(g: Dictionary) -> void:
 	var away := (n.global_position - player.global_position)
 	away.y = 0
 	away = away.normalized() if away.length() > 0.01 else Vector3.FORWARD
+	# Ly ngả ra rồi rơi xuống đất, chạm đất thì thay bằng ly đổ có vũng cà phê
+	var spilt: Node3D = g.spilt
+	var land := Vector3(n.global_position.x, 0.045, n.global_position.z) + away * 0.45
 	var tw := create_tween().set_parallel()
-	tw.tween_property(n, "global_position", Vector3(n.global_position.x, 0.04, n.global_position.z) + away * 0.4, 0.35).set_ease(Tween.EASE_IN)
-	tw.tween_property(n, "rotation", Vector3(PI / 2, atan2(away.x, away.z), 0), 0.35)
+	tw.tween_property(n, "global_position", land, 0.3).set_ease(Tween.EASE_IN)
+	tw.tween_property(n, "rotation", Vector3(PI / 2, atan2(away.x, away.z), 0), 0.3)
+	tw.chain().tween_callback(func():
+		n.visible = false
+		spilt.global_position = land
+		spilt.rotation.y = atan2(away.x, away.z)
+		spilt.visible = true
+	)
 	if current == _kind.find("counter") and player.carrying:
 		_glass_broken = true
 		_toast("Xoảng! Đổ một ly cà phê rồi.", 1.8)
@@ -649,6 +825,8 @@ func _reset_glass(g: Dictionary) -> void:
 	g.wobble = 0.0
 	n.position = g.base
 	n.rotation = Vector3.ZERO
+	n.visible = true
+	g.spilt.visible = false
 
 
 ## Vũng dầu: chân dính dầu in dấu trên đường vài giây; chạy nhanh qua thì trượt.
@@ -683,24 +861,36 @@ func _slip() -> void:
 	player.knockback(player.global_position - v.normalized(), 7.0)
 
 
+var _paw_mesh: Mesh
+
+## Dấu chân dầu (như ảnh renders/vung_top): đệm chân + 4 ngón, mờ dần rồi biến mất.
 func _paw_print(at: Vector3, strength: float) -> void:
-	var side := Vector3(player.velocity.z, 0, -player.velocity.x).normalized() * 0.05 * _print_side
+	var fwd := Vector3(player.velocity.x, 0, player.velocity.z).normalized()
+	var side := Vector3(fwd.z, 0, -fwd.x) * 0.05 * _print_side
 	_print_side = -_print_side
-	var c := CylinderMesh.new()
-	c.top_radius = 0.035
-	c.bottom_radius = 0.035
-	c.height = 0.005
-	c.radial_segments = 8
-	c.rings = 1
+	if _paw_mesh == null:
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		st.set_normal(Vector3.UP)
+		for d in [[Vector2(0, 0.012), 0.024], [Vector2(-0.027, -0.022), 0.01], [Vector2(-0.01, -0.033), 0.01],
+				[Vector2(0.01, -0.033), 0.01], [Vector2(0.027, -0.022), 0.01]]:
+			var c: Vector2 = d[0]
+			var r: float = d[1]
+			for k in 10:
+				var a0 := TAU * k / 10.0
+				var a1 := TAU * (k + 1) / 10.0
+				st.add_vertex(Vector3(c.x, 0, c.y))
+				st.add_vertex(Vector3(c.x + cos(a1) * r, 0, c.y + sin(a1) * r))
+				st.add_vertex(Vector3(c.x + cos(a0) * r, 0, c.y + sin(a0) * r))
+		_paw_mesh = st.commit()
 	var m := MeshInstance3D.new()
-	m.mesh = c
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(OIL.r, OIL.g, OIL.b, 0.7 * strength + 0.2)
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.mesh = _paw_mesh
+	var mat := _oil_mat(0.6 * strength + 0.3)
 	m.material_override = mat
 	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(m)
 	m.global_position = Vector3(at.x, 0.07, at.z) + side
+	m.rotation.y = atan2(-fwd.x, -fwd.z)  # ngón chân chỉ về hướng đi (-Z cục bộ)
 	var tw := create_tween()
 	tw.tween_property(mat, "albedo_color:a", 0.0, 2.0).set_delay(6.0)
 	tw.tween_callback(m.queue_free)

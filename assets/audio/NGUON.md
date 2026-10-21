@@ -1,6 +1,6 @@
 # Nguồn và giấy phép âm thanh
 
-Mọi file trong thư mục này do `tools/sound/synth.py` tự tổng hợp bằng toán (numpy, scipy), **không lấy mẫu, không ghi âm, không tải từ thư viện nào**. Vì vậy chúng thuộc về dự án và được phát hành theo **CC0 1.0** (tự do dùng, sửa, bán, không cần ghi công). Code tạo ra chúng theo giấy phép MIT của repo.
+Mọi file trong thư mục này do `tools/sound/synth.py` (giọng người: `tools/sound/voice.py`) tự tổng hợp bằng toán (numpy, scipy), **không lấy mẫu, không ghi âm, không tải từ thư viện nào**. Vì vậy chúng thuộc về dự án và được phát hành theo **CC0 1.0** (tự do dùng, sửa, bán, không cần ghi công). Code tạo ra chúng theo giấy phép MIT của repo.
 
 Muốn sửa một tiếng: chỉnh hàm tương ứng trong `synth.py` rồi chạy `python3 tools/sound/synth.py ten_file`. Mỗi file có hạt ngẫu nhiên riêng nên làm lại bao nhiêu lần cũng ra y hệt.
 
@@ -22,6 +22,8 @@ Khi thêm tiếng lấy từ nơi khác, ghi thêm một dòng vào bảng cuố
 | File | Mô tả | Nguồn |
 |---|---|---|
 | amb_street.ogg | 40 giây phố: ù xa, rì rầm người, 6 xe máy chạy ngang (có Doppler, trái phải), còi "tin tin", chim sẻ, hai tiếng rao xa không lời | tự tổng hợp, CC0 |
+| amb_morning.ogg | 40 giây phố buổi sáng (Thứ Hai): chim sẻ ríu rít, chổi tre quét vỉa hè, gà gáy xa, ít xe, rao bánh mì xa | tự tổng hợp, CC0 |
+| amb_market.ogg | 40 giây chợ sáng (Thứ Ba): rì rầm mua bán nhiều giọng, bốn tiếng rao, cân đĩa, túi nilon, chặt thớt, xe máy xa | tự tổng hợp, CC0 |
 | amb_kitchen.ogg | 20 giây bếp: tủ lạnh ù, đồng hồ treo tường, xe máy xa ngoài đường | tự tổng hợp, CC0 |
 
 ## Hiệu ứng (.wav, ngắn)
@@ -60,6 +62,31 @@ Khi thêm tiếng lấy từ nơi khác, ghi thêm một dòng vào bảng cuố
 | basket_lower.wav, basket_drop.wav | Thứ Hai: Bé Na thòng giỏ nhựa, thả bánh vào giỏ | tự tổng hợp, CC0 |
 | glass_rattle.wav, glass_tip.wav | Thứ Hai: ly cà phê rung, ly đổ | tự tổng hợp, CC0 |
 | oil_slip.wav | Thứ Hai: giẫm vũng dầu trượt | tự tổng hợp, CC0 |
+| step_metal_1..3.wav | bước trên mái tôn, rung "boong" | tự tổng hợp, CC0 |
+| step_wood_1..3.wav | bước trên thùng gỗ, ghế, ổ chó | tự tổng hợp, CC0 |
+| step_grass_1..3.wav | bước trên cỏ công viên | tự tổng hợp, CC0 |
+| splash.wav | tờ báo rơi xuống vũng nước | tự tổng hợp, CC0 |
+| stamp.wav | nhặt tem Cô Ba: con dấu "cộp" + lấp lánh | tự tổng hợp, CC0 |
+| coin.wav | có tiền boa | tự tổng hợp, CC0 |
+| record.wav | kỷ lục mới | tự tổng hợp, CC0 |
+| bike_hit.wav | xe máy thắng gấp rồi tông Bơ | tự tổng hợp, CC0 |
+| meow_startle.wav | Bơ giật mình (bị đớp, bị xe tông) | tự tổng hợp, CC0 |
+| squish.wav | bánh bị dập khi rơi cao | tự tổng hợp, CC0 |
+| paper_slip.wav | Cô Ba đưa phiếu đơn | tự tổng hợp, CC0 |
+| coba_hello.ogg, coba_order_1..3.ogg, coba_good.ogg, coba_ok.ogg | Cô Ba: chào đầu ca, giao đơn, tổng kết cuối ngày (giọng tổng hợp từ chữ) | tự tổng hợp, CC0 |
+| thanks_chu_tu/be_na/chi_may/anh_hung/ba_sau.ogg | khách cảm ơn khi nhận bánh, mỗi người một giọng | tự tổng hợp, CC0 |
+| scale_clank.wav | Thứ Ba: cân đĩa ở sạp chợ | tự tổng hợp, CC0 |
+| chess_slap_1..3.wav | Thứ Ba: quân cờ tướng đập xuống bàn | tự tổng hợp, CC0 |
+| chess_rattle.wav | Thứ Ba: đụng bàn cờ, quân nảy và rớt | tự tổng hợp, CC0 |
+| shush.wav | Thứ Ba: "suỵt!" | tự tổng hợp, CC0 |
+| scold_1..4.ogg | Thứ Ba: Ông Bảy (1, 2) và Ông Tám (3, 4) mắng | tự tổng hợp, CC0 |
+| check_cheer.ogg | Thứ Ba: "Chiếu tướng!", người xem "ồ" và vỗ tay | tự tổng hợp, CC0 |
+| egg_crack.wav | Thứ Ba: một quả trứng vỡ trong túi | tự tổng hợp, CC0 |
+| nylon_1..3.wav | Thứ Ba: túi nilon sột soạt | tự tổng hợp, CC0 |
+| cart_rattle.ogg | Thứ Ba: xe đẩy hàng rong lăn lạch cạch (lặp 2 giây) | tự tổng hợp, CC0 |
+| cart_bump.wav | Thứ Ba: đụng xe đẩy | tự tổng hợp, CC0 |
+| basket_topple.wav | Thứ Ba: thúng tre đổ, rau củ lăn | tự tổng hợp, CC0 |
+| oops_1..2.ogg | Thứ Ba: người đi chợ bị đụng "Ối!", "Ui cha!" | tự tổng hợp, CC0 |
 
 ## Tiếng lấy từ nguồn ngoài
 

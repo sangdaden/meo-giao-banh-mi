@@ -54,6 +54,9 @@ jobs:
           mkdir -p build/web
           ~/godot/godot --headless --path . --export-release "Web" build/web/index.html
           test -f build/web/index.wasm
+          # Ghi mã phiên bản để trang tự nhắc tải lại khi có bản mới (web/update-check.js)
+          sed "s/__BUILD_VERSION__/${GITHUB_SHA}/" web/update-check.js > build/web/update-check.js
+          echo "{\"version\": \"${GITHUB_SHA}\"}" > build/web/version.json
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

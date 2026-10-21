@@ -2,7 +2,7 @@
 
 Game 3D góc nhìn thứ ba làm bằng **Godot 4** (ráp game) và **Blender** (model, rig, animation). Mèo cam Bơ nhận bánh ở lò Cô Ba rồi chạy nhảy khắp khu phố để giao kịp giờ cho 5 khách.
 
-Đây là **bản khối thô (block-out) của tuần 1**: mọi thứ đều là khối hộp tạm, chưa có model Blender. Mục tiêu là thử cảm giác chạy nhảy và vòng giao đơn trước khi làm đồ họa thật.
+Đây là **bản chơi thử**: mèo Bơ đã dùng model kiểu D "Chững chạc" (bản tạm rút gọn từ model phác thảo), còn phố, khách và Chó Mực vẫn là khối hộp tạm. Mục tiêu là thử cảm giác chạy nhảy và vòng giao đơn trước khi làm đồ họa thật.
 
 ![Toàn cảnh khu phố](docs/toan-canh.png)
 
@@ -17,6 +17,8 @@ Game 3D góc nhìn thứ ba làm bằng **Godot 4** (ráp game) và **Blender** 
 Mở bằng Chrome, Edge hoặc Firefox trên máy tính. Lần đầu tải khoảng 35 MB. Bấm vào khung game để camera bắt chuột; Esc trả chuột lại.
 
 Bản web tự cập nhật mỗi lần nhánh `main` thay đổi (GitHub Actions trong `.github/workflows/pages.yml` xuất bản web rồi đăng lên GitHub Pages). Bản web dùng renderer Compatibility (WebGL 2) nên ánh sáng hơi khác bản chạy trong Godot.
+
+Khi có bản mới, trang đang mở tự biết (mỗi phút hỏi file `version.json` một lần, và mỗi khi quay lại tab). Trang tải sẵn file mới rồi hiện thông báo "Có bản mới!" và tự tải lại sau 10 giây; bấm **Để sau** nếu đang chơi dở. Mã nằm ở `web/update-check.js`; GitHub Actions ghi mã commit vào file này và vào `version.json` mỗi lần đăng.
 
 ## Mở và chơi trong Godot 4
 
@@ -76,11 +78,16 @@ scripts/
   city.gd              dựng khu phố 6 khối theo bản đồ trong sổ phác thảo
   hud.gd               thẻ đơn, đồng hồ, 5 chấm tiến độ, màn bắt đầu, tạm dừng, kết thúc
   timer_ring.gd        đồng hồ vòng tròn
-  blocks.gd            hàm tiện ích dựng khối hộp tạm
+  blocks.gd            hàm tiện ích dựng khối hộp tạm, gộp mesh cho nhẹ
+assets/models/bo.glb   mèo Bơ kiểu D: ~5,8k tam giác, 9 xương (bản tạm)
+tools/bo_game.py       tạo bo.glb từ model phác thảo bằng Blender (pip install bpy)
+web/update-check.js    bản web tự nhắc tải lại khi có bản mới
 docs/                  ảnh chụp cho README (Godot bỏ qua thư mục này)
 ```
 
-Khu phố rộng 96 × 60 m, gốc tọa độ ở giữa ngã tư; trục X là đông, trục Z là nam, đúng với bản đồ 2D trong sổ phác thảo (1 điểm ảnh = 0,1 m). Mèo nằm ở layer va chạm 2, Chó Mực layer 4, thế giới layer 1.
+Khu phố rộng 96 × 60 m, gốc tọa độ ở giữa ngã tư; trục X là đông, trục Z là nam, đúng với bản đồ 2D trong sổ phác thảo (1 điểm ảnh = 0,1 m). Layer va chạm: 1 thế giới (đất, nhà), 2 mèo, 4 Chó Mực, 8 đồ vật (thùng, xe, cột, ghế, cây, người). Camera chỉ né layer 1 nên không giật khi mèo chạy qua đồ vật nhỏ.
+
+Model Bơ hiện tại tạo bằng `python3 tools/bo_game.py chung2.glb assets/models/bo.glb`: giảm tam giác, dồn màu lông vào màu đỉnh, gắn 9 xương (đầu, 4 chân, 2 đốt đuôi). Game tự xoay các xương này bằng code để mèo chạy, vẫy đuôi. Model chính thức 22 xương có animation làm trong Blender sẽ thay vào sau.
 
 Bản khối thô dựng mọi thứ bằng code để dễ đọc từ trên xuống. Khi model Blender xong (tuần 2 và 3), mèo, chó và các mảnh phố sẽ thành scene `.tscn` riêng, thay cho các khối hộp.
 
@@ -99,7 +106,7 @@ godot --headless --path . -- --autotest
 
 ## Bước tiếp theo
 
-- Tuần 2: model, rig và animation mèo Bơ và Chó Mực trong Blender (theo model sheet đã duyệt), thay khối hộp bằng file `.glb`.
+- Tuần 2: model chính thức, rig 22 xương và animation của Bơ; Chó Mực kiểu D (theo model sheet đã duyệt).
 - Tuần 3: bộ mảnh phố modular.
 - Lộ trình đầy đủ ở sổ phác thảo của dự án.
 

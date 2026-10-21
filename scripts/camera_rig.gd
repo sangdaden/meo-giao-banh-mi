@@ -20,7 +20,7 @@ func _ready() -> void:
 	arm = SpringArm3D.new()
 	arm.spring_length = distance
 	arm.margin = 0.15
-	arm.collision_mask = 1  # chỉ va với thế giới, bỏ qua mèo (layer 2) và chó (layer 4)
+	arm.collision_mask = Blocks.LAYER_WORLD  # chỉ né nhà và mặt đất, bỏ qua mèo, chó và đồ nhỏ
 	var sphere := SphereShape3D.new()
 	sphere.radius = 0.2
 	arm.shape = sphere

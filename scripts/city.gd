@@ -43,10 +43,10 @@ static func build(parent: Node3D) -> void:
 		else:
 			_block(parent, BLOCKS[i], rng, i == 0)
 	for c in CRATES:
-		Blocks.solid_box(parent, Vector3(0.8, 0.8, 0.8), c + Vector3(0, 0.4, 0), CRATE)
+		Blocks.solid_box(parent, Vector3(0.8, 0.8, 0.8), c + Vector3(0, 0.4, 0), CRATE, Blocks.LAYER_PROP)
 	# Chồng thùng bậc thang gần lò bánh: tập nhảy
-	Blocks.solid_box(parent, Vector3(0.8, 0.8, 0.8), Vector3(-25.8, 0.4, -2), CRATE)
-	Blocks.solid_box(parent, Vector3(0.8, 0.8, 0.8), Vector3(-25.8, 1.2, -2), CRATE)
+	Blocks.solid_box(parent, Vector3(0.8, 0.8, 0.8), Vector3(-25.8, 0.4, -2), CRATE, Blocks.LAYER_PROP)
+	Blocks.solid_box(parent, Vector3(0.8, 0.8, 0.8), Vector3(-25.8, 1.2, -2), CRATE, Blocks.LAYER_PROP)
 	_street_props(parent, rng)
 	_bounds(parent)
 
@@ -122,6 +122,7 @@ static func _park(parent: Node3D, r: Rect2, rng: RandomNumberGenerator) -> void:
 		if Vector2(p.x - center.x, p.z - center.y).length() < 2.5:
 			continue
 		var trunk := StaticBody3D.new()
+		trunk.collision_layer = Blocks.LAYER_PROP
 		trunk.position = p
 		parent.add_child(trunk)
 		var cyl := CylinderMesh.new()
@@ -146,15 +147,15 @@ static func _park(parent: Node3D, r: Rect2, rng: RandomNumberGenerator) -> void:
 		trunk.add_child(shape)
 	# Ghế đá để nhảy lên
 	for b in [Vector3(-38, 0, 10), Vector3(-28, 0, 22), Vector3(-40, 0, 20)]:
-		Blocks.solid_box(parent, Vector3(1.8, 0.45, 0.6), b + Vector3(0, 0.225, 0), Color("#B8B2A2"))
+		Blocks.solid_box(parent, Vector3(1.8, 0.45, 0.6), b + Vector3(0, 0.225, 0), Color("#B8B2A2"), Blocks.LAYER_PROP)
 	# Hàng rào thấp dọc hẻm phía đông công viên (chỗ Chó Mực canh)
-	Blocks.solid_box(parent, Vector3(0.2, 0.7, 12.0), Vector3(-22.3, 0.35, 15.5), Color("#5E6F6C"))
+	Blocks.solid_box(parent, Vector3(0.2, 0.7, 12.0), Vector3(-22.3, 0.35, 15.5), Color("#5E6F6C"), Blocks.LAYER_PROP)
 
 
 static func _street_props(parent: Node3D, rng: RandomNumberGenerator) -> void:
 	# Cột điện ở các góc ngã tư
 	for p in [Vector3(-23, 0, -6), Vector3(-13, 0, 6), Vector3(11, 0, -6), Vector3(21, 0, 6), Vector3(3, 0, -6), Vector3(31, 0, 6)]:
-		var pole := Blocks.solid_box(parent, Vector3(0.25, 7.0, 0.25), p + Vector3(0, 3.5, 0), Color("#5E6F6C"))
+		var pole := Blocks.solid_box(parent, Vector3(0.25, 7.0, 0.25), p + Vector3(0, 3.5, 0), Color("#5E6F6C"), Blocks.LAYER_PROP)
 		pole.name = "CotDien"
 	# Xe máy đậu trên vỉa hè: khối thấp nhảy lên được
 	for i in 10:
@@ -163,7 +164,7 @@ static func _street_props(parent: Node3D, rng: RandomNumberGenerator) -> void:
 			continue
 		var along := rng.randf_range(r.position.x + 3, r.end.x - 3)
 		var z := r.end.y - 1.0 if rng.randf() < 0.5 else r.position.y + 1.0
-		var bike := Blocks.solid_box(parent, Vector3(0.5, 0.9, 1.6), Vector3(along, 0.45, z), Color("#C8412F") if i % 2 == 0 else Color("#3D5A80"))
+		var bike := Blocks.solid_box(parent, Vector3(0.5, 0.9, 1.6), Vector3(along, 0.45, z), Color("#C8412F") if i % 2 == 0 else Color("#3D5A80"), Blocks.LAYER_PROP)
 		bike.rotation.y = deg_to_rad(rng.randf_range(-15, 15))
 
 

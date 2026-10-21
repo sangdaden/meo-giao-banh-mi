@@ -267,7 +267,7 @@ func _setup_environment() -> void:
 func _build_bakery() -> void:
 	var p := City.BAKERY_POINT
 	# Xe/tủ kính bánh mì trước lò
-	var cart := Blocks.solid_box(self, Vector3(1.6, 0.9, 0.7), Vector3(p.x + 2.4, 0.45, p.z - 0.2), Color("#2E7C80"))
+	var cart := Blocks.solid_box(self, Vector3(1.6, 0.9, 0.7), Vector3(p.x + 2.4, 0.45, p.z - 0.2), Color("#2E7C80"), Blocks.LAYER_PROP)
 	Blocks.box(cart, Vector3(1.5, 0.5, 0.6), Vector3(0, 0.7, 0), Color(0.75, 0.9, 0.91, 0.5))
 	var loaf := CapsuleMesh.new()
 	loaf.radius = 0.07
@@ -296,6 +296,7 @@ func _build_customers() -> void:
 ## Người khối tạm: thân hộp, đầu cầu, cao khoảng 1,6 m (to gần 3 lần mèo Bơ)
 func _person(pos: Vector3, shirt: Color, title: String) -> void:
 	var body := StaticBody3D.new()
+	body.collision_layer = Blocks.LAYER_PROP
 	body.position = pos
 	add_child(body)
 	Blocks.box(body, Vector3(0.45, 0.8, 0.3), Vector3(0, 0.4, 0), Color("#3D4A4A"))     # quần

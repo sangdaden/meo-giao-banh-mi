@@ -5,7 +5,7 @@ extends SceneTree
 ##
 ## Chạy giống bản web (renderer Compatibility, OpenGL), máy đám mây không có màn hình dùng xvfb-run:
 ##   xvfb-run -a godot --path . --rendering-method gl_compatibility --rendering-driver opengl3 \
-##     -s tools/do_hieu_nang.gd -- [--chup=<thư_mục_ảnh>] [--canh=pho|bep|menu]
+##     -s tools/do_hieu_nang.gd -- [--chup=<thư_mục_ảnh>] [--canh=pho|bep|menu] [--can-canh]
 ## Chạy giống bản PC (Forward+, cần Vulkan; máy đám mây cài mesa-vulkan-drivers):
 ##   xvfb-run -a godot --path . -s tools/do_hieu_nang.gd -- --chup=<thư_mục_ảnh>
 ##
@@ -98,6 +98,12 @@ func _scene(path: String, shots: Array) -> void:
 	cam.cull_mask = 0xFFFFF & ~(1 << 11)  # như camera sau lưng mèo: không vẽ chân trước góc thứ nhất
 	scene.add_child(cam)
 	var vp := root.get_viewport()
+	if "stations" in scene and "--can-canh" in OS.get_cmdline_user_args():
+		# Thêm góc cận cảnh từng trạm bếp (camera lướt vào khi Bơ làm), chỉ để soát ánh sáng
+		shots = shots.duplicate()
+		for id in scene.stations:
+			var st: Dictionary = scene.stations[id]
+			shots.append(["tham_khao_bep_" + str(id), st.cam, st.look])
 	for s in shots:
 		if s[1] != null:
 			cam.make_current()

@@ -1971,7 +1971,8 @@ func _setup_environment() -> void:
 		var lamp := OmniLight3D.new()
 		lamp.position = p
 		lamp.light_color = Color("#FFC98A")
-		lamp.light_energy = 0.7
+		lamp.light_energy = 0.22 if AnhSang.is_compat() else 0.4  # đèn bàn chỉ ấm nhẹ, mạnh hơn thì mặt bàn và sàn kem bị lóa
+		lamp.light_specular = 0.2
 		lamp.omni_range = 2.6
 		add_child(lamp)
 	fire_light = OmniLight3D.new()

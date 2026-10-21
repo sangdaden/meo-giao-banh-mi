@@ -4,6 +4,11 @@ class_name Blocks
 
 static var _materials := {}
 
+## Lớp va chạm: 1 = thế giới lớn (đất, nhà), 2 = mèo, 4 = chó, 8 = đồ nhỏ (thùng, xe, cột, người).
+## Camera chỉ né lớp 1, nên đi ngang qua thùng hàng camera không bị giật sát vào lưng mèo.
+const LAYER_WORLD := 1
+const LAYER_PROP := 8
+
 
 ## Vật liệu màu trơn, dùng chung cho các khối cùng màu để đỡ tốn bộ nhớ.
 static func mat(color: Color, unshaded := false) -> StandardMaterial3D:
@@ -34,8 +39,9 @@ static func box(parent: Node, size: Vector3, pos: Vector3, color: Color) -> Mesh
 
 
 ## Thêm một khối hộp đặc: nhìn thấy và có va chạm (tường, thùng hàng...).
-static func solid_box(parent: Node, size: Vector3, pos: Vector3, color: Color) -> StaticBody3D:
+static func solid_box(parent: Node, size: Vector3, pos: Vector3, color: Color, layer := LAYER_WORLD) -> StaticBody3D:
 	var body := StaticBody3D.new()
+	body.collision_layer = layer
 	body.position = pos
 	parent.add_child(body)
 	box(body, size, Vector3.ZERO, color)

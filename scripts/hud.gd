@@ -90,7 +90,7 @@ func _ready() -> void:
 
 	start_screen = _overlay(
 		"Mèo Giao Bánh Mì",
-		"Bản khối thô · tuần 1\n\nLò bánh Cô Ba đã mở! 5 đơn đang chờ.\nChạy tới lò để nhận bánh, rồi theo mũi tên đỏ đi giao trước khi hết giờ.\nĐơn 5 có Chó Mực canh hẻm: nhảy qua đầu nó, đừng để bị đớp.",
+		"Bản chơi thử · Bơ kiểu D\n\nLò bánh Cô Ba đã mở! 5 đơn đang chờ.\nChạy tới lò để nhận bánh, rồi theo mũi tên đỏ đi giao trước khi hết giờ.\nĐơn 5 có Chó Mực canh hẻm: nhảy qua đầu nó, đừng để bị đớp.",
 		"Bắt đầu (Enter)", func(): start_pressed.emit())
 	root.add_child(start_screen)
 

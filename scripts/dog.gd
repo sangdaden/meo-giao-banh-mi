@@ -37,7 +37,7 @@ const TAG := Color("#F2C14E")
 
 func _ready() -> void:
 	collision_layer = 4
-	collision_mask = 1
+	collision_mask = Blocks.LAYER_WORLD | Blocks.LAYER_PROP
 	home = global_position
 	var shape := CollisionShape3D.new()
 	var bs := BoxShape3D.new()

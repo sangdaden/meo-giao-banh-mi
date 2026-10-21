@@ -40,9 +40,15 @@ var _curr_pos := Vector3.ZERO
 
 var visual: Node3D
 var _body: Node3D
-var _legs: Array[Node3D] = []
-var _tail: Node3D
 var bread: Node3D
+var _skel: Skeleton3D
+var _bone_idx := {}
+var _bone_rest := {}
+var _legs := [0.0, 0.0, 0.0, 0.0]  # góc vung chân: trước trái, trước phải, sau trái, sau phải
+
+const BO_MODEL := preload("res://assets/models/bo.glb")
+const BONE_NAMES := ["head", "leg_FL", "leg_FR", "leg_BL", "leg_BR", "tail_1", "tail_2"]
+const LEG_BONES := ["leg_FL", "leg_FR", "leg_BL", "leg_BR"]
 
 const ORANGE := Color("#E8913A")
 const ORANGE_DARK := Color("#C96F1C")
@@ -51,11 +57,12 @@ const SCARF := Color("#C8412F")
 const BAG := Color("#2E7C80")
 const INK := Color("#1F2A2A")
 const PINK := Color("#F6B8A0")
+const LEG_SWING_SIGN := 1.0  ## đổi thành -1 nếu chân vung ngược chiều chạy
 
 
 func _ready() -> void:
 	collision_layer = 2
-	collision_mask = 1
+	collision_mask = Blocks.LAYER_WORLD | Blocks.LAYER_PROP
 	floor_snap_length = 0.3
 	var shape := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
@@ -72,8 +79,9 @@ func _ready() -> void:
 	_curr_pos = global_position
 
 
-## Mèo dựng bằng khối hộp, mặt quay về -Z (hướng "trước" của Godot).
-## Tỉ lệ theo bản phác: Bơ cao khoảng 0,6 m tính tới đỉnh tai... ở đây hơi to hơn cho dễ nhìn.
+## Mèo Bơ kiểu D "Chững chạc" (bản tạm từ model phác thảo, xem tools/bo_game.py).
+## Model có 9 xương; game tự xoay xương chân, đuôi, đầu bằng code thay cho animation.
+## Tuần 2 sẽ thay bằng model dựng tay 22 xương cùng animation làm trong Blender.
 func _build_visual() -> void:
 	visual = Node3D.new()
 	visual.name = "CatVisual"
@@ -81,48 +89,73 @@ func _build_visual() -> void:
 	_body = Node3D.new()
 	visual.add_child(_body)
 
-	Blocks.box(_body, Vector3(0.36, 0.30, 0.56), Vector3(0, 0.34, 0.02), ORANGE)       # thân
-	Blocks.box(_body, Vector3(0.26, 0.06, 0.40), Vector3(0, 0.20, 0.0), CREAM)         # bụng
-	# Đầu sát vai (cổ rất ngắn, giấu dưới khăn)
-	Blocks.box(_body, Vector3(0.36, 0.30, 0.30), Vector3(0, 0.58, -0.26), ORANGE)
-	Blocks.box(_body, Vector3(0.18, 0.10, 0.04), Vector3(0, 0.50, -0.42), CREAM)        # mõm
-	Blocks.box(_body, Vector3(0.05, 0.04, 0.02), Vector3(0, 0.54, -0.445), PINK)        # mũi
-	Blocks.box(_body, Vector3(0.05, 0.07, 0.02), Vector3(-0.09, 0.62, -0.415), INK)     # mắt
-	Blocks.box(_body, Vector3(0.05, 0.07, 0.02), Vector3(0.09, 0.62, -0.415), INK)
-	for side in [-1.0, 1.0]:
-		var ear := PrismMesh.new()
-		ear.size = Vector3(0.11, 0.13, 0.06)
-		Blocks.mesh(_body, ear, Vector3(0.11 * side, 0.79, -0.24), ORANGE)
-	Blocks.box(_body, Vector3(0.40, 0.08, 0.14), Vector3(0, 0.45, -0.17), SCARF)        # khăn
-	Blocks.box(_body, Vector3(0.10, 0.16, 0.05), Vector3(0.12, 0.38, -0.25), SCARF)     # đuôi khăn
-	Blocks.box(_body, Vector3(0.12, 0.20, 0.26), Vector3(0.24, 0.32, 0.04), BAG)        # túi bánh
-	Blocks.box(_body, Vector3(0.40, 0.03, 0.03), Vector3(0.0, 0.50, 0.04), BAG)         # quai túi
+	var model: Node3D = BO_MODEL.instantiate()
+	model.rotation.y = PI  # model quay mặt về +Z (glTF), Godot coi -Z là phía trước
+	_body.add_child(model)
+	_skel = model.find_children("*", "Skeleton3D", true, false)[0]
+	for bone_name in BONE_NAMES:
+		var idx := _skel.find_bone(bone_name)
+		_bone_idx[bone_name] = idx
+		_bone_rest[bone_name] = _skel.get_bone_rest(idx).basis.get_rotation_quaternion()
+	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
+		_apply_style(mi)
+
+	# Túi bánh đeo bên hông phải, quai vắt qua lưng
+	Blocks.box(_body, Vector3(0.07, 0.13, 0.18), Vector3(0.14, 0.27, 0.02), BAG)
+	Blocks.box(_body, Vector3(0.26, 0.02, 0.03), Vector3(0.02, 0.37, 0.02), BAG)
 
 	# Ổ bánh mì ló ra khỏi túi khi đang giao
 	bread = Node3D.new()
 	_body.add_child(bread)
 	var loaf := CapsuleMesh.new()
-	loaf.radius = 0.06
-	loaf.height = 0.34
+	loaf.radius = 0.035
+	loaf.height = 0.2
 	loaf.radial_segments = 8
 	loaf.rings = 2
-	var loaf_mi := Blocks.mesh(bread, loaf, Vector3(0.25, 0.46, 0.04), Color("#D98E2B"))
+	var loaf_mi := Blocks.mesh(bread, loaf, Vector3(0.14, 0.36, 0.03), Color("#D98E2B"))
 	loaf_mi.rotation_degrees = Vector3(70, 0, 0)
 	bread.visible = false
 
-	# Bốn chân: gốc xoay ở hông để vung khi chạy
-	for p in [Vector3(-0.11, 0.2, -0.16), Vector3(0.11, 0.2, -0.16), Vector3(-0.11, 0.2, 0.18), Vector3(0.11, 0.2, 0.18)]:
-		var pivot := Node3D.new()
-		pivot.position = p
-		_body.add_child(pivot)
-		Blocks.box(pivot, Vector3(0.10, 0.20, 0.10), Vector3(0, -0.10, 0), ORANGE)
-		Blocks.box(pivot, Vector3(0.11, 0.04, 0.12), Vector3(0, -0.19, -0.01), CREAM)
-		_legs.append(pivot)
 
-	_tail = Node3D.new()
-	_tail.position = Vector3(0, 0.42, 0.28)
-	_body.add_child(_tail)
-	Blocks.box(_tail, Vector3(0.07, 0.07, 0.40), Vector3(0, 0, 0.20), ORANGE_DARK)
+## Vật liệu theo style guide D: lông Roughness .8 Rim .3, vải Roughness .9 Rim .4, mắt Clearcoat.
+## Màu lông, vằn, khăn, mắt đều nằm trong màu đỉnh (vertex color) của model.
+func _apply_style(mi: MeshInstance3D) -> void:
+	if RenderingServer.get_rendering_device() == null:
+		_vertex_colors_to_srgb(mi)
+	for i in mi.mesh.get_surface_count():
+		var src := mi.get_active_material(i)
+		var mat_name := src.resource_name if src else ""
+		var m := StandardMaterial3D.new()
+		m.vertex_color_use_as_albedo = true
+		if mat_name.begins_with("Sang"):
+			# Đốm sáng trong mắt: luôn trắng, không bị bóng đổ làm tối
+			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		elif mat_name.begins_with("Mat"):
+			m.roughness = 0.3
+			m.clearcoat_enabled = true
+			m.clearcoat = 1.0
+		else:
+			var fabric := mat_name.begins_with("Khan")
+			m.roughness = 0.9 if fabric else 0.8
+			m.rim_enabled = true
+			m.rim = 0.4 if fabric else 0.3
+		mi.set_surface_override_material(i, m)
+
+
+## Bản web (Compatibility) không đổi màu đỉnh từ linear sang sRGB như Forward+,
+## nên lông bị sậm và đỏ hơn. Đổi sẵn màu một lần lúc tạo để hai bản trông giống nhau.
+func _vertex_colors_to_srgb(mi: MeshInstance3D) -> void:
+	var src: ArrayMesh = mi.mesh
+	var dst := ArrayMesh.new()
+	for i in src.get_surface_count():
+		var arrays := src.surface_get_arrays(i)
+		var cols: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+		for k in cols.size():
+			cols[k] = cols[k].linear_to_srgb()
+		arrays[Mesh.ARRAY_COLOR] = cols
+		dst.add_surface_from_arrays(src.surface_get_primitive_type(i), arrays)
+		dst.surface_set_material(i, src.surface_get_material(i))
+	mi.mesh = dst
 
 
 func _physics_process(delta: float) -> void:
@@ -193,22 +226,33 @@ func _process(delta: float) -> void:
 		_phase += delta * (4.0 + hspeed * 2.2)
 		var k := clampf(hspeed / sprint_speed, 0.0, 1.0)
 		var swing := sin(_phase) * 0.9 * k
-		_legs[0].rotation.x = swing
-		_legs[3].rotation.x = swing
-		_legs[1].rotation.x = -swing
-		_legs[2].rotation.x = -swing
+		_legs = [swing, -swing, -swing, swing]
 		_body.position.y = absf(sin(_phase)) * 0.04 * k
 		_body.rotation.x = 0.0
 	else:
 		# Trên không: chân trước duỗi, chân sau co
 		var t := 1.0 - exp(-10.0 * delta)
-		_legs[0].rotation.x = lerpf(_legs[0].rotation.x, 0.8, t)
-		_legs[1].rotation.x = lerpf(_legs[1].rotation.x, 0.8, t)
-		_legs[2].rotation.x = lerpf(_legs[2].rotation.x, -0.8, t)
-		_legs[3].rotation.x = lerpf(_legs[3].rotation.x, -0.8, t)
+		for i in 4:
+			_legs[i] = lerpf(_legs[i], 0.8 if i < 2 else -0.8, t)
 		_body.rotation.x = clampf(velocity.y * 0.04, -0.3, 0.3)
-	_tail.rotation.x = 0.7 + sin(Time.get_ticks_msec() * 0.004) * 0.15
-	_tail.rotation.y = sin(Time.get_ticks_msec() * 0.006) * 0.4
+	_apply_bones(hspeed)
+
+
+## Xoay xương theo góc tính ở trên. Trục X của xương chân là trục vung trước/sau.
+func _apply_bones(hspeed: float) -> void:
+	var t := Time.get_ticks_msec() * 0.001
+	for i in 4:
+		_pose(LEG_BONES[i], Vector3.RIGHT, _legs[i] * LEG_SWING_SIGN)
+	var wag := sin(t * 3.5) * (0.25 + 0.15 * clampf(hspeed / sprint_speed, 0.0, 1.0))
+	_pose("tail_1", Vector3.FORWARD, wag)
+	_pose("tail_2", Vector3.FORWARD, wag * 1.4)
+	_pose("head", Vector3.RIGHT, sin(_phase * 2.0) * 0.04 * clampf(hspeed / sprint_speed, 0.0, 1.0))
+
+
+func _pose(bone_name: String, axis: Vector3, angle: float) -> void:
+	var idx: int = _bone_idx[bone_name]
+	if idx >= 0:
+		_skel.set_bone_pose_rotation(idx, _bone_rest[bone_name] * Quaternion(axis, angle))
 
 
 ## Bị Chó Mực đớp: văng ra và khựng lại một chút.

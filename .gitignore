@@ -1,6 +1,7 @@
 # Godot 4
 .godot/
 /android/
+build/
 *.translation
 export/
 *.tmp

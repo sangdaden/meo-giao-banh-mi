@@ -106,6 +106,9 @@ Vòng sáng cam dưới đất chỉ trạm nên tới tiếp; đứng trong vò
 | Space | A | nhảy (giữ lâu nhảy cao, bấm nhanh nhảy thấp) |
 | Chuột | cần phải | xoay camera |
 | V | | đổi góc nhìn thứ ba / thứ nhất |
+| Ctrl hoặc C (giữ) | B | chui (tự chui khi chạy vào gầm thấp) |
+| Alt hoặc Z (giữ) | bấm cần trái | rón rén (tiếng động nhỏ) |
+| E | Y | giao bánh |
 | Esc | Start | tạm dừng, trả chuột |
 | E hoặc Enter | B | làm việc ở trạm trong bếp |
 | Enter | | bắt đầu, chơi lại |

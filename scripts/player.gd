@@ -11,6 +11,10 @@ signal deliver_finished(kind: String)   ## xong động tác giao bánh
 signal bread_released(kind: String)     ## lúc nhả ổ bánh khỏi miệng (0,8 s khi giao cao, 0,7 s khi giao thấp)
 signal startled                         ## giật mình (bị đớp, xe tông)
 signal slipped                          ## bắt đầu trượt trên vũng dầu
+## Va vào người, xe đẩy, sạp chợ, xe máy (kind: "person" | "cart" | "stall" | "bike")
+signal bumped(kind: String)
+## Đồ dễ vỡ đang ngậm (túi trứng) mất một món; remaining là số còn lại
+signal fragile_damaged(remaining: int)
 
 @export_group("Chạy")
 @export var walk_speed := 5.0
@@ -32,6 +36,10 @@ signal slipped                          ## bắt đầu trượt trên vũng d�
 @export var noise_sprint := 10.0
 @export var noise_land := 8.0         ## đáp đất từ cao hơn 1 m
 @export var noise_bump := 8.0         ## đụng thùng, đồ nhỏ khi đang chạy
+
+@export_group("Đồ dễ vỡ")
+@export var fragile_fall := 1.0       ## đáp đất từ cao hơn mức này (mét) là vỡ một món
+@export var fragile_bump_speed := 2.2 ## va người/xe đẩy nhanh hơn mức này (m/s) là vỡ một món
 
 @export_group("Nhảy")
 @export var jump_velocity := 8.5      ## cao khoảng 1,3 m khi giữ nút nhảy
@@ -62,6 +70,13 @@ var _oil := 0                     ## số vũng dầu đang đứng lên (các v
 var _sliding := false
 var _fall_from := 0.0             ## độ cao lúc bắt đầu rơi, để biết đáp đất từ bao cao
 var _bump_cooldown := 0.0
+## Đồ dễ vỡ Bơ đang ngậm (gói T3-3): "" là không ngậm gì, "trung6" là túi 6 trứng của Cô Hai
+var fragile_item := ""
+var fragile_count := 0
+var _fragile_cd := 0.0            ## vừa vỡ một quả thì chờ chút, một cú va không vỡ liền hai quả
+var _hit_cd := 0.0                ## đứng ép vào người thì chỉ tính một lần va
+var _fragile_bag: BoneAttachment3D
+var _fragile_eggs: Array[Node3D] = []
 var _step_side := 1.0             ## dấu của nhịp bước trước, đổi dấu là một bước chân
 var _act := ""                    ## động tác đang diễn: "" | "deliver" | "startle"
 var _act_kind := ""
@@ -429,6 +444,8 @@ func _physics_process(delta: float) -> void:
 	_coyote = coyote_time if on_floor else _coyote - delta
 	_buffer = jump_buffer if (can_move and Input.is_action_just_pressed("jump")) else _buffer - delta
 	_stun = maxf(_stun - delta, 0.0)
+	_fragile_cd = maxf(_fragile_cd - delta, 0.0)
+	_hit_cd = maxf(_hit_cd - delta, 0.0)
 
 	if not on_floor:
 		var g := gravity
@@ -480,6 +497,8 @@ func _physics_process(delta: float) -> void:
 		landed.emit()
 		if _fall_from - global_position.y > 1.0:
 			noise_made.emit(global_position, noise_land)
+		if _fall_from - global_position.y > fragile_fall:
+			_damage_fragile()
 	_was_on_floor = is_on_floor()
 	_act_t += delta
 	if _act == "deliver" and not _released and _act_t >= (0.7 if _act_kind == "under_car" else 0.8):
@@ -587,6 +606,15 @@ func _shape_hits(cs: CollisionShape3D, xf: Transform3D) -> bool:
 ## Đụng thùng, đồ nhỏ khi đang chạy (không phải rón rén/chui) thì kêu lớn.
 func _check_bump(speed_before: float, delta: float) -> void:
 	_bump_cooldown = maxf(_bump_cooldown - delta, 0.0)
+	# Người, xe đẩy, sạp có meta "bump_kind": va vào đủ mạnh thì phát bumped (kể cả lúc đi thường)
+	if _hit_cd <= 0.0 and speed_before > fragile_bump_speed and stance not in ["sneak", "crouch"]:
+		for i in get_slide_collision_count():
+			var c := get_slide_collision(i)
+			var o := c.get_collider()
+			if o and o.has_meta("bump_kind") and absf(c.get_normal().y) < 0.5:
+				_hit_cd = 0.8
+				bump(str(o.get_meta("bump_kind")))
+				break
 	if _bump_cooldown > 0.0 or speed_before < walk_speed * 0.6 or stance in ["sneak", "crouch"]:
 		return
 	for i in get_slide_collision_count():
@@ -939,6 +967,61 @@ func _pose(bone_name: String, axis: Vector3, angle: float) -> void:
 	var idx: int = _bone_idx[bone_name]
 	if idx >= 0:
 		_skel.set_bone_pose_rotation(idx, _bone_rest[bone_name] * Quaternion(axis, angle))
+
+
+## Bơ va vào thứ gì đó (người, xe đẩy, sạp, xe máy). Gói chợ gọi thẳng hàm này khi đụng
+## người đi chợ (họ không có thân va chạm). Đang ngậm đồ dễ vỡ thì vỡ một món.
+func bump(kind: String) -> void:
+	bumped.emit(kind)
+	_damage_fragile()
+
+
+## Ngậm đồ dễ vỡ: item_id "trung6" là túi nilon 6 trứng. count 0 hoặc item "" là nhả ra.
+## Bơ vẫn đeo túi bánh bên hông; túi trứng ngậm ở miệng (khối tạm, chờ phác thảo Thứ Ba).
+func carry_fragile(item_id: String, count: int) -> void:
+	fragile_item = item_id if count > 0 else ""
+	fragile_count = count if item_id != "" else 0
+	_fragile_cd = 0.0
+	if _fragile_bag:
+		_fragile_bag.queue_free()
+		_fragile_bag = null
+	_fragile_eggs.clear()
+	if fragile_item == "":
+		return
+	# Gắn theo xương đầu để túi đi theo lúc Bơ ngó quanh; quai ngậm ở miệng, túi thòng dưới cằm
+	_fragile_bag = BoneAttachment3D.new()
+	_fragile_bag.name = "TuiTrung"
+	_fragile_bag.bone_name = "head"
+	_skel.add_child(_fragile_bag)
+	_fragile_bag.global_transform = _skel.global_transform * _skel.get_bone_global_pose(_skel.find_bone("head"))
+	var hang := Node3D.new()
+	_fragile_bag.add_child(hang)
+	hang.global_transform = Transform3D(visual.global_basis.orthonormalized(), visual.global_transform.orthonormalized() * Vector3(0, 0.29, -0.33))
+	var bag_root := hang
+	# Quai túi trong miệng, túi nilon trong lủng lẳng bên dưới, 6 quả xếp 2 hàng 3
+	Blocks.box(bag_root, Vector3(0.012, 0.06, 0.012), Vector3(0, 0.05, 0), Color("#F4F1EA"))
+	Blocks.box(bag_root, Vector3(0.11, 0.07, 0.075), Vector3(0, -0.01, 0), Color(0.96, 0.95, 0.92, 0.45))
+	var egg := SphereMesh.new()
+	egg.radius = 0.016
+	egg.height = 0.042
+	egg.radial_segments = 8
+	egg.rings = 4
+	for k in count:
+		var e := Blocks.mesh(bag_root, egg, Vector3(-0.034 + (k % 3) * 0.034, -0.022, -0.016 + int(k / 3.0) * 0.032), Color("#F2E3C8"))
+		_fragile_eggs.append(e)
+	for mi: MeshInstance3D in _fragile_bag.find_children("*", "MeshInstance3D", true, false):
+		mi.layers = LAYER_BO_BODY
+
+
+func _damage_fragile() -> void:
+	if fragile_item == "" or fragile_count <= 0 or _fragile_cd > 0.0:
+		return
+	_fragile_cd = 0.5
+	fragile_count -= 1
+	if fragile_count < _fragile_eggs.size():
+		_fragile_eggs[fragile_count].visible = false
+	_sfx("egg_crack")
+	fragile_damaged.emit(fragile_count)
 
 
 ## Bị Chó Mực đớp: văng ra và khựng lại một chút.

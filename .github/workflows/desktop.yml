@@ -161,6 +161,9 @@ jobs:
           # Chạy thử logic game trước (bản macOS không chạy được trên máy Linux)
           timeout 600 ~/godot/godot --headless --path . -- --autotest 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee autotest.log
           grep -q "AUTOTEST OK" autotest.log
+          # Đơn mua trứng Thứ Ba: túi trứng dễ vỡ, tạp hóa Cô Hai
+          timeout 300 ~/godot/godot --headless --path . --script res://tools/egg_test.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee egg_test.log
+          grep -q "EGG TEST OK" egg_test.log
           mkdir -p export
           ~/godot/godot --headless --path . --export-release "macOS" "export/$ZIP_NAME"
           unzip -l "export/$ZIP_NAME" | grep -q "_CodeSignature/CodeResources"

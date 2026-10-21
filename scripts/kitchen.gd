@@ -24,7 +24,8 @@ const LOAVES := 2
 const USE_RADIUS := 0.32
 const STAR_SECONDS := 2.0
 
-const DOUGH_TINT := Color(1, 1, 1)
+const DOUGH_TINT := Color("#F2CF98")  ## bột sống ấm màu kem bơ, tách khỏi khay và sàn kem
+const TRAY_TINT := Color("#9C958C")   ## khay nướng: xám ấm như thép đã ám, không cháy trắng dưới đèn
 const BAKE_TINT := Color(1.0, 0.82, 0.6)
 const PATE := Color("#9B6A4A")
 const WATER := Color(0.62, 0.82, 0.92, 0.6)
@@ -173,6 +174,7 @@ func _ready() -> void:
 	cam.main_pos = Vector3(0, 2.6, 4.3)
 	cam.main_look = Vector3(0, 0.0, -0.3)
 	cam.target = player
+	AnhSang.watch_close_up(self, cam)  # cận cảnh: bóng nét hơn, bớt chói
 	add_child(cam)
 	player.camera_rig = cam
 
@@ -730,7 +732,7 @@ func _update_oven(delta: float) -> void:
 		"nuong", "chin", "chay":
 			oven_t += delta
 			if oven_t < bake_time:
-				_loaf_look("song", BAKE_TINT.lerp(Color.WHITE, 1.0 - oven_t / bake_time))
+				_loaf_look("song", BAKE_TINT.lerp(DOUGH_TINT, 1.0 - oven_t / bake_time))
 				oven_label.text = "Đang nướng %d" % ceili(bake_time - oven_t)
 				oven_label.modulate = Color("#FFE2A8")
 			elif oven_t < bake_time + burn_after:
@@ -1068,7 +1070,7 @@ func _on_begin(id: String) -> void:
 				n.tray_raw.visible = true
 		"lo":
 			if holding == "khay_song":
-				_loaf_look("song", Color.WHITE)   # khay hiện lúc bắt đầu đẩy vào lò
+				_loaf_look("song", DOUGH_TINT)   # khay hiện lúc bắt đầu đẩy vào lò
 		"rua":
 			n.wash_cuke.visible = true
 			n.wash_herb.visible = true
@@ -1744,13 +1746,13 @@ func _build_stations(room: Node3D) -> void:
 	n.tray_raw = Node3D.new()
 	add_child(n.tray_raw)
 	n.tray_raw.global_position = NHOI + Vector3(0.08, 0, 0.0)
-	KM.place(n.tray_raw, "khay_inox", Vector3.ZERO, 0, 1.25)
+	KM.own(n.tray_raw, "khay_inox", Vector3.ZERO, 0, 1.25, TRAY_TINT)
 	for i in LOAVES:
 		var lp := Vector3(0.0, 0.02, -0.06 + i * 0.12)
 		var b := KM.place(n.tray_raw, "bot_khoi_nhao", lp, 0, 0.55)
 		b.visible = false
 		balls.append(b)
-		var l := KM.place(n.tray_raw, "bot_phoi", lp, 0, 0.75)
+		var l := KM.own(n.tray_raw, "bot_phoi", lp, 0, 0.75, DOUGH_TINT)
 		l.visible = false
 		raw_loaves.append(l)
 		var sl := Node3D.new()
@@ -1774,12 +1776,12 @@ func _build_stations(room: Node3D) -> void:
 	n.oven_tray = Node3D.new()
 	add_child(n.oven_tray)
 	n.oven_tray.position = Vector3(LO.x, 0.25, TRAY_OUT)
-	KM.place(n.oven_tray, "lo_khay", Vector3.ZERO)
+	KM.own(n.oven_tray, "lo_khay", Vector3.ZERO, 0, 1.0, TRAY_TINT)  # khay sẫm hơn để bột kem nổi lên
 	for i in LOAVES:
 		var d := {}
 		for k in ["song", "vang", "chay"]:
 			var model: String = {"song": "bot_phoi", "vang": "banh_vang", "chay": "banh_chay"}[k]
-			d[k] = KM.own(n.oven_tray, model, Vector3(0, 0.012, -0.08 + i * 0.16), 0, 0.8 if k == "song" else 0.75)
+			d[k] = KM.own(n.oven_tray, model, Vector3(0, 0.012, -0.08 + i * 0.16), 0, 0.8 if k == "song" else 0.75, DOUGH_TINT if k == "song" else Color.WHITE)
 		oven_loaves.append(d)
 	n.oven_tray.visible = false
 	oven_label = Blocks.label(self, "", LO + Vector3(0, 1.35, 0.2), 28)

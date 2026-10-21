@@ -103,9 +103,24 @@ func _scene(path: String, shots: Array) -> void:
 		shots = shots.duplicate()
 		for id in scene.stations:
 			var st: Dictionary = scene.stations[id]
-			shots.append(["tham_khao_bep_" + str(id), st.cam, st.look])
+			shots.append(["tham_khao_bep_" + str(id), st.cam, st.look, "can_canh"])
+		# Bày khay bột sống ở bàn nhồi và trên cửa lò như lúc đang làm, để soát màu khay và bột
+		if "n" in scene and scene.n is Dictionary and scene.n.has("oven_tray"):
+			scene.n.oven_tray.visible = true
+			scene._loaf_look("song", scene.DOUGH_TINT)
+			scene.n.tray_raw.visible = true
+			for l in scene.raw_loaves:
+				l.visible = true
 	for s in shots:
-		if s[1] != null:
+		if s.size() > 3 and s[3] == "can_canh":
+			# Dùng camera bếp thật lướt vào cận cảnh, để ánh sáng cận cảnh (AnhSang.watch_close_up) bật như lúc chơi
+			scene.cam.close_up(s[1], s[2])
+			scene.cam.camera.make_current()
+			for i in 40:
+				await process_frame
+		elif s[1] != null:
+			if "cam" in scene and scene.cam and scene.cam.has_method("back_to_main"):
+				scene.cam.back_to_main()
 			cam.make_current()
 			cam.position = s[1]
 			cam.look_at(s[2])

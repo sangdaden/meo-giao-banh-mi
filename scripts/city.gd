@@ -2,7 +2,7 @@ class_name City
 ## Khu phố bản khối thô, dựng theo bản đồ trong sổ phác thảo.
 ## Bản đồ 2D rộng 960 x 600 điểm ảnh, ở đây 1 điểm ảnh = 0,1 m nên khu phố 96 x 60 m.
 ## Gốc tọa độ ở giữa ngã tư: trục X sang phải (đông), trục Z xuống dưới bản đồ (nam).
-## Tuần 3 sẽ thay các khối hộp bằng bộ mảnh modular từ Blender.
+## Nhà, cây, cột điện, xe đậu, thùng hàng là model Blender (PhoModels); va chạm vẫn là hộp như bản khối.
 
 const SIZE := Vector2(96, 60)
 
@@ -27,10 +27,7 @@ const CRATES := [
 const ROAD := Color("#8F8B80")
 const SIDEWALK := Color("#C9C3B3")
 const LANE := Color("#FFF8EA")
-const FACADES := [Color("#E8C98A"), Color("#7FB7A4"), Color("#E39C7A"), Color("#BFD8D2"), Color("#F2E3B8"), Color("#D7A9C4"), Color("#A9C7E8")]
-const SHUTTER := Color("#2E7C80")
 const GRASS := Color("#7DB46C")
-const CRATE := Color("#9B6A3A")
 
 
 static func build(parent: Node3D) -> void:
@@ -43,10 +40,10 @@ static func build(parent: Node3D) -> void:
 		else:
 			_block(parent, BLOCKS[i], rng, i)
 	for c in CRATES:
-		Blocks.solid_box(parent, Vector3(0.8, 0.8, 0.8), c + Vector3(0, 0.4, 0), CRATE, Blocks.LAYER_PROP)
+		CityProps.crate(parent, c)
 	# Chồng thùng bậc thang gần lò bánh: tập nhảy
-	Blocks.solid_box(parent, Vector3(0.8, 0.8, 0.8), Vector3(-25.8, 0.4, -2), CRATE, Blocks.LAYER_PROP)
-	Blocks.solid_box(parent, Vector3(0.8, 0.8, 0.8), Vector3(-25.8, 1.2, -2), CRATE, Blocks.LAYER_PROP)
+	CityProps.crate(parent, Vector3(-25.8, 0, -2))
+	CityProps.crate(parent, Vector3(-25.8, 0.8, -2))
 	_street_props(parent, rng)
 	CityProps.build(parent)
 	_bounds(parent)
@@ -76,9 +73,9 @@ static func _ground(parent: Node3D) -> void:
 
 
 ## Một khối nhà: vỉa hè bao quanh, hai dãy nhà ống quay lưng vào nhau, giữa có hẻm nhỏ.
-## Chỗ nào có nhà đặc biệt (CityProps.SLOTS: chung cư, tiệm xe) thì chừa ô đó cho CityProps dựng.
+## Chỗ nào có nhà đặc biệt (CityProps.SLOTS: lò bánh, cà phê, chung cư, tiệm xe) thì chừa ô đó cho CityProps dựng.
+## Còn lại ghép nhà lấp (PhoModels.FILLERS) theo bề ngang thật; nhà cuối dãy giãn nhẹ cho kín.
 static func _block(parent: Node3D, r: Rect2, rng: RandomNumberGenerator, block_index: int) -> void:
-	var is_bakery_block := block_index == 0
 	var center := r.get_center()
 	# Vỉa hè (chỉ để nhìn, không có bậc để mèo khỏi vấp)
 	Blocks.box(parent, Vector3(r.size.x, 0.04, r.size.y), Vector3(center.x, 0.02, center.y), SIDEWALK)
@@ -89,40 +86,44 @@ static func _block(parent: Node3D, r: Rect2, rng: RandomNumberGenerator, block_i
 		{"z0": r.position.y + inset, "faces_south": false},
 		{"z0": r.position.y + inset + depth + alley, "faces_south": true},
 	]
+	var names: Array = PhoModels.FILLERS.keys()
 	for row_index in rows.size():
 		var row: Dictionary = rows[row_index]
 		var x := r.position.x + inset
 		var x_end := r.end.x - inset
+		var prev := ""
 		while x < x_end - 0.5:
 			var slot := CityProps.slot_at(block_index, row_index, x)
 			if not slot.is_empty():
 				CityProps.build_slot(parent, slot, row.z0, depth)
 				x = slot.x1
+				prev = ""
 				continue
-			var w := minf(rng.randf_range(3.6, 6.0), x_end - x)
 			# Nhà không được lấn sang ô đặc biệt kế bên
-			var next_slot := CityProps.next_slot_x(block_index, row_index, x)
-			if next_slot < x + w:
-				w = next_slot - x
-			var h := rng.randf_range(5.0, 13.0)
-			var col: Color = FACADES[rng.randi() % FACADES.size()]
-			var pos := Vector3(x + w / 2.0, h / 2.0, row.z0 + depth / 2.0)
-			var is_bakery: bool = is_bakery_block and row.faces_south and x + w > -36.0 and x < -30.0
-			if is_bakery:
-				col = Color("#F2E3B8")
-			Blocks.solid_box(parent, Vector3(w - 0.15, h, depth), pos, col)
-			# Cửa cuốn và mái hiên phía mặt đường
-			var face_z: float = row.z0 + (depth if row.faces_south else 0.0)
-			var out := 1.0 if row.faces_south else -1.0
-			Blocks.box(parent, Vector3(w - 0.9, 2.4, 0.06), Vector3(pos.x, 1.2, face_z + 0.04 * out), SHUTTER.darkened(0.1) if not is_bakery else Color("#C8412F"))
-			# Mái hiên cao 2,9 m nối liền nhau, có va chạm để Bơ chạy trên đó
-			CityProps.awning(parent, w, Vector3(pos.x, 2.9, face_z + 0.5 * out), col.darkened(0.25))
-			# Cửa sổ các tầng trên
-			var y := 4.2
-			while y < h - 1.0:
-				Blocks.box(parent, Vector3(w * 0.5, 1.0, 0.06), Vector3(pos.x, y, face_z + 0.04 * out), Color("#3D4A4A"))
-				y += 3.0
+			var room := minf(x_end, CityProps.next_slot_x(block_index, row_index, x)) - x
+			var model: String = names[rng.randi() % names.size()]
+			if model == prev:  # hai nhà giống hệt đứng sát nhau trông lặp
+				model = names[(names.find(model) + 1) % names.size()]
+			var w: float = PhoModels.FILLERS[model]
+			if room < w + 3.6:
+				# Chỗ còn lại không đủ hai nhà: chọn ngẫu nhiên trong ba nhà có bề ngang gần nhất (khác nhà bên cạnh) rồi giãn cho kín
+				var near: Array = names.filter(func(n): return n != prev)
+				near.sort_custom(func(a, b): return absf(PhoModels.FILLERS[a] - room) < absf(PhoModels.FILLERS[b] - room))
+				model = near[rng.randi() % 3]
+				w = room
+			_house(parent, model, x, w, row.z0, depth, row.faces_south, rng)
+			prev = model
 			x += w
+
+
+## Nhà ống lấp chỗ trống: model + hộp va chạm thân nhà + mái hiên 2,9 m (có va chạm, nối liền nhà bên).
+static func _house(parent: Node3D, model: String, x: float, w: float, z0: float, depth: float, faces_south: bool, rng: RandomNumberGenerator) -> void:
+	var face_z: float = z0 + (depth if faces_south else 0.0)
+	var out := 1.0 if faces_south else -1.0
+	PhoModels.put_house(parent, model, x, w, PhoModels.FILLERS[model], face_z, faces_south)
+	var h := PhoModels.aabb(model).end.y - 1.0  # thân nhà, chừa phần mái
+	Blocks.collider(parent, Vector3(w - 0.15, h, depth), Vector3(x + w / 2.0, h / 2.0, z0 + depth / 2.0))
+	CityProps.awning(parent, w, Vector3(x + w / 2.0, 2.9, face_z + 0.5 * out), CityProps.AWNINGS[rng.randi() % CityProps.AWNINGS.size()], out)
 
 
 static func _park(parent: Node3D, r: Rect2, rng: RandomNumberGenerator) -> void:
@@ -131,28 +132,28 @@ static func _park(parent: Node3D, r: Rect2, rng: RandomNumberGenerator) -> void:
 	# Lối đi chéo
 	var path := Blocks.box(parent, Vector3(2.0, 0.06, r.size.length()), Vector3(center.x, 0.03, center.y), SIDEWALK)
 	path.rotation.y = atan2(r.size.x, r.size.y)
-	# Cây: thân trụ + tán cầu
+	# Bàn cờ tướng trang trí (cách góc cờ Thứ Ba của thread "Góc cờ tướng" ở (-29, 8.5) hơn 4 m)
+	var chess_sets := [Vector3(-35, 0, 14), Vector3(-32, 0, 19.5), Vector3(-38, 0, 24)]
+	for c: Vector3 in chess_sets:
+		CityProps.chess_set(parent, c)
+	# Cây vỉa hè (model cay_xanh): thân có va chạm
 	for i in 9:
 		var p := Vector3(rng.randf_range(r.position.x + 2, r.end.x - 2), 0, rng.randf_range(r.position.y + 2, r.end.y - 2))
 		if Vector2(p.x - center.x, p.z - center.y).length() < 2.5:
+			continue
+		# Chừa chỗ góc cờ Thứ Ba (CityProps.CHESS_CORNER bên thread "Góc cờ tướng") và các bàn cờ trang trí
+		if Vector2(p.x + 29.0, p.z - 8.5).length() < 3.5:
+			continue
+		var near_chess := false
+		for c: Vector3 in chess_sets:
+			near_chess = near_chess or Vector2(p.x - c.x, p.z - c.z).length() < 2.0
+		if near_chess:
 			continue
 		var trunk := StaticBody3D.new()
 		trunk.collision_layer = Blocks.LAYER_PROP
 		trunk.position = p
 		parent.add_child(trunk)
-		var cyl := CylinderMesh.new()
-		cyl.top_radius = 0.18
-		cyl.bottom_radius = 0.25
-		cyl.height = 2.6
-		cyl.radial_segments = 10
-		cyl.rings = 1
-		Blocks.mesh(trunk, cyl, Vector3(0, 1.3, 0), Color("#7A5235"))
-		var crown := SphereMesh.new()
-		crown.radius = 1.6
-		crown.height = 2.8
-		crown.radial_segments = 12
-		crown.rings = 6
-		Blocks.mesh(trunk, crown, Vector3(0, 3.4, 0), Color("#4E8F4A"))
+		PhoModels.put(trunk, "cay_xanh", Vector3.ZERO, rng.randf() * TAU)
 		var shape := CollisionShape3D.new()
 		var cs := CylinderShape3D.new()
 		cs.radius = 0.25
@@ -169,8 +170,9 @@ static func _park(parent: Node3D, r: Rect2, rng: RandomNumberGenerator) -> void:
 static func _street_props(parent: Node3D, rng: RandomNumberGenerator) -> void:
 	# Cột điện ở các góc ngã tư
 	for p in [Vector3(-23, 0, -6), Vector3(-13, 0, 6), Vector3(11, 0, -6), Vector3(21, 0, 6), Vector3(3, 0, -6), Vector3(31, 0, 6)]:
-		var pole := Blocks.solid_box(parent, Vector3(0.25, 7.0, 0.25), p + Vector3(0, 3.5, 0), Color("#5E6F6C"), Blocks.LAYER_PROP)
+		var pole := Blocks.collider(parent, Vector3(0.25, 7.0, 0.25), p + Vector3(0, 3.5, 0), Blocks.LAYER_PROP)
 		pole.name = "CotDien"
+		PhoModels.put(pole, "cot_dien", Vector3(0, -3.5, 0), PI / 2.0)  # xà ngang vuông góc đường lớn
 	# Xe máy đậu trên vỉa hè: khối thấp nhảy lên được
 	for i in 10:
 		var r: Rect2 = BLOCKS[rng.randi() % BLOCKS.size()]
@@ -180,8 +182,9 @@ static func _street_props(parent: Node3D, rng: RandomNumberGenerator) -> void:
 		var z := r.end.y - 1.0 if rng.randf() < 0.5 else r.position.y + 1.0
 		if CityProps.keep_clear(Vector2(along, z)):
 			continue  # chỗ này đã có bàn quán cà phê hoặc đồ đặt sẵn
-		var bike := Blocks.solid_box(parent, Vector3(0.5, 0.9, 1.6), Vector3(along, 0.45, z), Color("#C8412F") if i % 2 == 0 else Color("#3D5A80"), Blocks.LAYER_PROP)
+		var bike := Blocks.collider(parent, Vector3(0.5, 0.9, 1.6), Vector3(along, 0.45, z), Blocks.LAYER_PROP)
 		bike.rotation.y = deg_to_rad(rng.randf_range(-15, 15))
+		PhoModels.put(bike, CityProps.BIKES[i % CityProps.BIKES.size()], Vector3(0, -0.45, 0), PI / 2.0 if i % 3 else -PI / 2.0)
 
 
 static func _bounds(parent: Node3D) -> void:

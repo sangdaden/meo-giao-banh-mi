@@ -201,7 +201,7 @@ func _ready() -> void:
 	keys.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_place(keys, 1.0, 1.0, Rect2(-560, -80, 532, 50))
 	play_root.add_child(keys)
-	keys.add_child(_key_line([["W A S D", "chạy"], ["E", "làm việc ở trạm"], ["Space", "nhảy"], ["Esc", "tạm dừng"]]))
+	keys.add_child(_key_line([["W A S D", "chạy"], ["E", "làm việc ở trạm"], ["Space", "nhảy"], ["Esc", "menu"]]))
 	hint = keys
 
 	fps_label = T.outlined("", 16, PAPER, 6)

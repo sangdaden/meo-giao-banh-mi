@@ -452,7 +452,7 @@ func _build_progress() -> void:
 		row.add_child(d)
 		dots.append(d)
 	set_progress([])
-	pause_button = T.icon_button("pause", "Tạm dừng (Esc)")
+	pause_button = T.icon_button("pause", "Menu (Esc)")
 	pause_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	pause_button.focus_mode = Control.FOCUS_NONE
 	pause_button.pressed.connect(func(): toggle_pause())
@@ -698,7 +698,7 @@ func _build_hints() -> void:
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	play_root.add_child(v)
 	v.add_child(_key_line([["W A S D", "chạy"], ["Shift", "nhanh"], ["Space", "nhảy"]]))
-	v.add_child(_key_line([["V", "góc nhìn"], ["Esc", "tạm dừng"], ["F1", "ẩn gợi ý"]]))
+	v.add_child(_key_line([["V", "góc nhìn"], ["Esc", "menu"], ["F1", "ẩn gợi ý"]]))
 	hint = v
 
 
@@ -781,7 +781,7 @@ func _build_pause(help := HELP_PHO, note := HELP_NOTE_PHO) -> Control:
 	var pick := T.button("  Chọn màn chơi", "secondary", 56, 19)
 	pick.pressed.connect(_on_menu_select)
 	col.add_child(pick)
-	var home := T.button("  Về trang chủ", "ghost", 56, 19)
+	var home := T.button("  Về trang chủ", "secondary", 56, 19)
 	home.pressed.connect(func(): PlayMode.go_home(get_tree()))
 	col.add_child(home)
 	scr.set_meta("first", resume)

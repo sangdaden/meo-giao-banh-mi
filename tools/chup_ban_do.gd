@@ -15,6 +15,10 @@ const SHOTS := [
 	["tiem_xe_mat_tien", Vector3(32.2, 2.4, 29.0), Vector3(32.2, 1.0, 19.0), 60.0],
 	["chung_cu_ban_cong_be_na", Vector3(31.0, 4.0, -14.8), Vector3(24.5, 3.0, -16.0), 65.0],
 	["mai_hien_khoi_2", Vector3(-14.0, 4.5, -2.0), Vector3(-4.0, 2.9, -6.5), 60.0],
+	["lo_banh_co_ba", Vector3(-33.0, 1.6, 1.5), Vector3(-33.0, 3.0, -7.0), 65.0],
+	["duong_lon_nhin_dong", Vector3(-40.0, 1.2, 0.0), Vector3(0.0, 3.0, 0.0), 60.0],
+	["nha_ba_sau_cuoi_hem", Vector3(-18.5, 1.0, 16.0), Vector3(-18.5, 2.5, 26.0), 65.0],
+	["tren_cao_khoi_5", Vector3(0.0, 22.0, -8.0), Vector3(0.0, 0.0, 12.0), 60.0],
 ]
 
 
@@ -31,6 +35,7 @@ func _run() -> void:
 	var world := Node3D.new()
 	root.add_child(world)
 	City.build(world)
+	Blocks.merge_static(world, 24.0)
 	var env := WorldEnvironment.new()
 	env.environment = Environment.new()
 	env.environment.background_mode = Environment.BG_COLOR

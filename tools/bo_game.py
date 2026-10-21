@@ -6,7 +6,7 @@ Chạy:  python3 tools/bo_game.py <chung2.glb> assets/models/bo.glb
 Việc script làm:
 1. Giảm số tam giác từ ~115k xuống ~6k cho nhẹ (style guide: Bơ 4–6k).
 2. Dồn màu lông, khăn, mắt vào một lớp màu đỉnh (COLOR_0) để Godot đọc được.
-3. Gắn bộ xương đơn giản 11 xương: root, spine, head, 4 chân, 4 đốt đuôi.
+3. Gắn bộ xương 16 xương: root, spine, head, 4 chân, 4 đốt đuôi, 2 tai, 2 mắt, khăn.
    Trọng số (weight) tính theo vị trí từng đỉnh, không cần vẽ tay.
 4. Xuất .glb có xương (chưa có animation; game tự xoay xương bằng code).
 
@@ -80,6 +80,45 @@ BONES = {
 }
 TAIL = [n for n in BONES if n.startswith('tail')]
 
+# Vật liệu của từng đỉnh (sau khi gộp mesh), để tìm mắt, khăn
+mat_of = {}
+for poly in cat.data.polygons:
+    name = cat.data.materials[poly.material_index].name
+    for vi in poly.vertices:
+        mat_of[vi] = name
+
+
+def center(pts):
+    return sum(pts, Vector()) / len(pts)
+
+
+# Mắt: một xương cho mỗi mắt (tròng + đốm sáng), dựng đứng để co trục Y là chớp mắt
+eye_pts = {'eye_L': [], 'eye_R': []}
+for v in cat.data.vertices:
+    m = mat_of.get(v.index, '')
+    if m.startswith('Mat') or m.startswith('Sang'):
+        eye_pts['eye_L' if v.co.x < .035 else 'eye_R'].append(v.co.copy())
+for n, pts in eye_pts.items():
+    c = center(pts)
+    BONES[n] = (tuple(c), tuple(c + Vector((0, 0, .03))), 'head')
+
+# Tai: hai chóp nhọn trên đỉnh đầu; xương mọc từ chân tai lên chóp tai
+ear_pts = [v.co.copy() for v in cat.data.vertices if v.co.z > .53 and v.co.y < -.1]
+mid_x = center(ear_pts).x
+for n, side in (('ear_L', -1), ('ear_R', 1)):
+    pts = [p for p in ear_pts if (p.x - mid_x) * side > 0]
+    c = center(pts)
+    tip = max(pts, key=lambda p: p.z)
+    BONES[n] = ((c.x, c.y, .5), tuple(tip), 'head')
+
+# Khăn: phần nút và hai mép rủ trước ngực đung đưa theo quán tính
+knot = [v.co.copy() for v in cat.data.vertices if mat_of.get(v.index) == 'Khan' and v.co.z < .32]
+kc = center(knot)
+BONES['scarf'] = ((kc.x, kc.y, .32), (kc.x, kc.y - .01, min(p.z for p in knot)), 'spine')
+print('eyes', [tuple(round(c, 3) for c in BONES[n][0]) for n in ('eye_L', 'eye_R')],
+      'ears', [tuple(round(c, 3) for c in BONES[n][1]) for n in ('ear_L', 'ear_R')],
+      'scarf', tuple(round(c, 3) for c in BONES['scarf'][0]))
+
 arm_data = bpy.data.armatures.new('BoRig')
 arm = bpy.data.objects.new('BoRig', arm_data)
 bpy.context.scene.collection.objects.link(arm)
@@ -106,6 +145,20 @@ for v in cat.data.vertices:
     # Đầu: phía trước và cao hơn cổ
     if y < -.05 and z > .3:
         w['head'] = ramp(z, .31, .37) * ramp(y, -.05, -.11)
+    m = mat_of.get(v.index, '')
+    # Mắt: theo trọn xương mắt
+    if m.startswith('Mat') or m.startswith('Sang'):
+        w = {'eye_L' if x < .035 else 'eye_R': 1.0}
+    # Tai: phần trên chân tai theo xương tai
+    elif z > .5 and y < -.1 and abs(x - mid_x) > .035:
+        ear = 'ear_L' if x < mid_x else 'ear_R'
+        k = ramp(z, .5, .545)
+        w = {ear: k, 'head': 1.0 - k}
+    # Khăn: phần dưới cổ (nút, mép rủ) theo xương khăn
+    elif m == 'Khan' and z < .32:
+        k = ramp(z, .32, .28)
+        w = {n: val * (1 - k) for n, val in w.items()}
+        w['scarf'] = k
     # Đuôi: mỗi đỉnh chia trọng số cho đốt gần nhất và đốt kề nó, để chỗ gập mềm
     if y > .17 and z > .18:
         p = Vector((x, y, z))

@@ -249,8 +249,8 @@ def folding_gate(x0, x1, z0, z1, y):
             curve([(xa, y - .015, z), (xb, y - .015, z + .2)], .008, m)
             curve([(xa, y - .015, z + .2), (xb, y - .015, z)], .008, m)
 
-def interior_box(x0, x1, z0, z1, y, d=2.5, wall='#6D6152', floor='#9A8C78'):
-    boxab((x0, y + d - .05, z0), (x1, y + d, z1), M(wall, .9), 0)
+def interior_box(x0, x1, z0, z1, y, d=2.5, wall='#6D6152', floor='#9A8C78', back=True):
+    if back: boxab((x0, y + d - .05, z0), (x1, y + d, z1), M(wall, .9), 0)
     boxab((x0, y, z0 - .02), (x1, y + d, z0 + .01), M(floor, .8), 0)
     boxab((x0, y, z1 - .02), (x1, y + d, z1), M('#5A5045', .9), 0)
     for sx in (x0, x1 - .05): boxab((sx, y, z0), (sx + .05, y + d, z1), M(wall, .9), 0)
@@ -332,16 +332,27 @@ def roof_pediment(w, z, wall, year='1968'):
     text(year, .28, (w / 2, -.07, z + 1.15), M(C['white'], .6), extrude=.01)
 
 # ---------------------------------------------------------------- nhà ống
-def nha_ong(name, loc, w=4.0, floors=3, depth=7.3, wall='mustard', ground='shutter', uppers=None, roof='flat', sign=None, awn=None, seed=1, rot=0.0):
+def nha_ong(name, loc, w=4.0, floors=3, depth=7.3, wall='mustard', ground='shutter', uppers=None, roof='flat', sign=None, awn=None, seed=1, rot=0.0,
+            shop_d=None, back_door=None):
+    """shop_d: tầng trệt rỗng sâu tới đó (tiệm đi vào được, vd. tạp hóa), mặc định chỉ sâu 2,7 m.
+    back_door: (x0, x1, cao) cửa sau trổ qua tường sau tầng trệt khi có shop_d."""
     g = group(name, loc, rot); wallc = C.get(wall, wall)
     rnd = random.Random(seed)
     with at(g):
         G0 = 3.4; F = 3.1; H = G0 + F * (floors - 1)
-        boxab((.12, 2.7, 0), (w - .12, depth, G0), M(wallc, .88), .02)                    # khối chính (trệt lùi sau gian hàng)
+        if shop_d is None:
+            boxab((.12, 2.7, 0), (w - .12, depth, G0), M(wallc, .88), .02)                    # khối chính (trệt lùi sau gian hàng)
+        elif back_door is None:
+            boxab((.12, shop_d, 0), (w - .12, depth, G0), M(wallc, .88), .02)                 # tường sau tiệm
+        else:
+            dx0, dx1, dh = back_door
+            boxab((.12, shop_d, 0), (dx0, depth, G0), M(wallc, .88), .02)
+            boxab((dx1, shop_d, 0), (w - .12, depth, G0), M(wallc, .88), .02)
+            boxab((dx0, shop_d, dh), (dx1, depth, G0), M(wallc, .88), .02)
         boxab((.12, .3, G0 - .32), (w - .12, depth, H), M(wallc, .88), .02)
         for sx in (0, w - .28): boxab((sx, 0, 0), (sx + .28, .45, H + .02), M(wallc, .88), .025)   # hai trụ
         # tầng trệt
-        interior_box(.28, w - .28, 0, G0 - .3, .3, 2.4)
+        interior_box(.28, w - .28, 0, G0 - .3, .3, 2.4 if shop_d is None else shop_d - .3, back=shop_d is None)
         if ground == 'shutter': rolling_shutter(.35, w - .35, 0, G0 - .4, .2, open_frac=.62)
         elif ground == 'gate': folding_gate(.35, w - .35, 0, G0 - .4, .22)
         boxab((0, 0, G0 - .4), (w, .45, G0), M(wallc, .88), .02)

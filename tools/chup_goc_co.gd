@@ -66,6 +66,11 @@ func _run() -> void:
 	chess.checkmate_now()
 	await _secs(0.6)
 	_shot("4_chieu_tuong")
+	await _secs(2.5)
+	cam.global_position = C + Vector3(0.9, 1.3, -1.3)
+	cam.look_at(C + Vector3(0, 0.45, 0))
+	await _secs(0.3)
+	_shot("5_can_ban_co")
 	quit()
 
 

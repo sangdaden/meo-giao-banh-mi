@@ -11,9 +11,7 @@ const AMBIENT := [
 	{"id": "cohai", "pos": Vector3(8.6, 0.04, -6.35), "yaw": 0.0, "idle": "viec_rieng"},
 	# Chú Năm xe ôm ngồi chờ khách ở góc công viên, đầu hẻm 42
 	{"id": "chunam", "pos": Vector3(-22.9, 0.04, 6.4), "yaw": deg_to_rad(-30.0), "idle": "viec_rieng", "seat": true},
-	# Ông Bảy, Ông Tám đánh cờ ở góc công viên (chỗ của chess_corner.gd; ngày có đơn góc cờ thì góc cờ tự dựng)
-	{"id": "ongbay", "pos": CityProps.CHESS_CORNER + Vector3(-0.62, 0.04, 0), "yaw": deg_to_rad(90.0), "idle": "viec_rieng", "seat": true, "chess": true},
-	{"id": "ongtam", "pos": CityProps.CHESS_CORNER + Vector3(0.62, 0.04, 0), "yaw": deg_to_rad(-90.0), "idle": "viec_rieng", "seat": true, "chess": true, "table": CityProps.CHESS_CORNER + Vector3(0, 0.04, 0)},
+	# Ông Bảy, Ông Tám đánh cờ ở góc công viên: ngày nào cũng do chess_corner.gd dựng (bàn đá, ghế đá, người xem)
 ]
 ## Tên khách trong days.gd -> id người dân, để không dựng hai lần người đang là khách của ngày.
 const WHO_ID := {"Chú Tư": "chutu", "Bé Na": "bena", "Chị Mây": "may", "Anh Hùng": "hung", "Bà Sáu": "basau",

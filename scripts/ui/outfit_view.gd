@@ -105,8 +105,18 @@ static func attach(skel: Skeleton3D, id: String, breed := "bo") -> Array:
 
 
 ## Vật liệu cho phụ kiện: màu đỉnh, độ nhám theo loại chất liệu như blend.py.
+## Đồ vải bay (có "cloth" trong skin.json) dùng shader vai_bay; player.gd đẩy tốc độ vào qua cloth_drive().
 static func style(mi: MeshInstance3D, oi: Dictionary) -> void:
 	var kind: String = oi.get("kind", "cloth")
+	if oi.has("cloth"):
+		var sm := ShaderMaterial.new()
+		sm.shader = preload("res://shaders/vai_bay.gdshader")
+		sm.set_shader_parameter("hinge", _v(oi.cloth.get("hinge", [0, 0.056, 0.12])))
+		for i in mi.mesh.get_surface_count():
+			mi.set_surface_override_material(i, sm)
+		mi.set_meta("cloth", sm)
+		mi.extra_cull_margin = 0.3  # áo bay ra khỏi khung bao của mesh nghỉ
+		return
 	var rough := {"fur": .78, "cloth": .9, "skin": .55, "plastic": .35, "rubber": .6, "metal": .4, "glass": .05,
 		"wood": .7, "gloss": .2, "paper": .85}
 	for i in mi.mesh.get_surface_count():
@@ -139,3 +149,23 @@ static func srgb_mesh(src: Mesh) -> ArrayMesh:
 			arrays[Mesh.ARRAY_COLOR] = cols
 		dst.add_surface_from_arrays(src.surface_get_primitive_type(i), arrays)
 	return dst
+
+
+## Các vật liệu vải bay trong những node phụ kiện đã gắn.
+static func cloth_mats(nodes: Array) -> Array:
+	var out := []
+	for n in nodes:
+		if not is_instance_valid(n):
+			continue
+		for mi: MeshInstance3D in n.find_children("*", "MeshInstance3D", true, false):
+			if mi.has_meta("cloth"):
+				out.append(mi.get_meta("cloth"))
+	return out
+
+
+## Đẩy chuyển động của mèo vào vải bay: speed 0..1, fall -1..1 (dương là đang rơi), turn -1..1.
+static func cloth_drive(mats: Array, speed: float, fall: float, turn: float) -> void:
+	for m: ShaderMaterial in mats:
+		m.set_shader_parameter("speed", speed)
+		m.set_shader_parameter("fall", fall)
+		m.set_shader_parameter("turn", turn)

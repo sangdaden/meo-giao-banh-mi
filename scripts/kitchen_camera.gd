@@ -30,10 +30,28 @@ func close_up(pos: Vector3, look: Vector3) -> void:
 	_close = true
 	_close_pos = pos
 	_close_look = look
+	if _blocked(camera.global_position, pos):
+		_cut_to(Transform3D(Basis.looking_at(look - pos), pos), 50.0)
+
+
+## Đường lướt bị vật cản (vd mái tủ kính) thì cắt cảnh thẳng tới chỗ mới, khỏi xuyên qua vật.
+func _blocked(from: Vector3, to: Vector3) -> bool:
+	if not is_inside_tree():
+		return false
+	var q := PhysicsRayQueryParameters3D.create(from, to)
+	return not get_world_3d().direct_space_state.intersect_ray(q).is_empty()
+
+
+func _cut_to(xform: Transform3D, fov: float) -> void:
+	camera.global_transform = xform
+	camera.fov = fov
 
 
 func back_to_main() -> void:
 	_close = false
+	var goal := _main_xform()
+	if _blocked(camera.global_position, goal.origin):
+		_cut_to(goal, 46.0)
 
 
 func is_close() -> bool:

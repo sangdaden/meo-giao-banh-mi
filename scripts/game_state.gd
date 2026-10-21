@@ -11,6 +11,8 @@ static var from_kitchen := false
 static var kitchen_bonus := 0.0
 ## Số sao màn bếp (0–3), mỗi sao 2 giây.
 static var kitchen_stars := 0
+## Số đơn giao mỗi ngày (bằng số phần tử kitchen_stars_per_bread khi màn bếp đã ghi).
+const ORDERS_PER_DAY := 5
 ## Sao bếp của từng ổ (5 phần tử, 0–3), màn bếp ghi. Rỗng = chưa có, dùng kitchen_stars cho mọi ổ.
 static var kitchen_stars_per_bread: Array[int] = []
 ## Ngày đang chơi, dùng làm tên mục trong file lưu.

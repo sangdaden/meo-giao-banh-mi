@@ -7,7 +7,7 @@ uniform vec3 fur : source_color = vec3(0.91, 0.57, 0.23);
 uniform vec3 stripe : source_color = vec3(0.70, 0.36, 0.15);
 uniform vec3 cream : source_color = vec3(0.98, 0.90, 0.78);
 uniform float sock = 0.14;           // phần kem ở cổ chân (theo UV.y)
-uniform float stripe_count = 9.0;    // số vằn dọc chân
+uniform float stripe_count = 6.0;    // số vằn dọc chân
 uniform float all_cream = 0.0;       // 1 = cả khối màu kem (bàn chân)
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -26,9 +26,9 @@ void fragment() {
 	// Vằn: dải ngang mảnh, mép mờ, uốn lượn, chỉ ở mặt ngoài và nhạt dần sang hai bên
 	float wave = noise(vec2(u * 6.0, v * 4.0)) * 1.8;
 	float s = sin(v * stripe_count * 6.2831853 + wave);
-	float band = smoothstep(0.72, 0.95, s) * smoothstep(0.3, 0.75, top) * step(sock + 0.06, v);
+	float band = smoothstep(0.8, 0.97, s) * smoothstep(0.3, 0.75, top) * step(sock + 0.06, v);
 	band *= 0.55 + 0.45 * noise(vec2(u * 20.0, v * 30.0));
-	c = mix(c, stripe, band * 0.6);
+	c = mix(c, stripe, band * 0.5);
 	// Mặt trong chân nhạt màu kem
 	c = mix(c, cream, smoothstep(0.65, 1.0, 1.0 - top) * 0.55);
 	// Tất kem ở cổ chân, mép lởm chởm như lông

@@ -14,3 +14,13 @@ python3 bo_blender.py out q34,side,front,back,face 64 1000 --glb
 - `bo_blender.py`: nạp lưới vào Blender, thêm mắt, ria, vật liệu, đèn, camera; render và xuất.
 
 Đây là bản phác để duyệt dáng. Model chơi game vẫn tự dựng tay trong Blender (lưới thưa + rig 22 xương).
+
+## Phong cách D · Chững chạc (bản Sang duyệt)
+
+```bash
+apt-get install -y libegl1 libegl-mesa0 libgl1-mesa-dri libgbm1   # để Eevee chạy ngầm
+python3 mature.py chung2 out q34,side,front,face --glb
+```
+
+- `mature.py`: hai hướng chững chạc (`chung`, `thuc`) và bản duyệt `chung2` (mắt cười). Hướng dẫn phong cách: `docs/huong-dan-phong-cach.md`.
+- `cute.py`: ba bản dễ thương đã thử và bị loại (chibi, thú bông, hoạt hình tròn), giữ lại để tham khảo.

@@ -1,0 +1,140 @@
+# Xuất bản Windows (.exe) bằng Godot rồi đăng lên GitHub Releases.
+# - Mỗi lần cập nhật main: thay file trong bản phát hành "ban-moi-nhat" (link tải cố định).
+# - Mỗi lần tạo tag v* (ví dụ v0.2.0): tạo bản phát hành riêng mang số phiên bản đó.
+# - Pull request: chỉ xuất và chạy thử, file .zip nằm ở mục Artifacts của lượt chạy.
+# Godot 4.3 cần rcedit (chạy qua wine) để gắn icon và thông tin phiên bản vào .exe.
+name: Bản Windows (Releases)
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: "4.3"
+  RCEDIT_VERSION: "2.0.0"
+  ZIP_NAME: MeoGiaoBanhMi-windows.zip
+  LANG: C.UTF-8
+  LC_ALL: C.UTF-8
+  WINEDEBUG: -all
+
+jobs:
+  windows:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot, template Windows và rcedit
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}-windows-rcedit-${{ env.RCEDIT_VERSION }}
+
+      - name: Tải Godot, template Windows và rcedit
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          base=https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable
+          mkdir -p ~/godot
+          curl -sSL -o godot.zip "$base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip -d ~/godot
+          mv ~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64 ~/godot/godot
+          curl -sSL -o templates.tpz "$base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          dest=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          mkdir -p "$dest"
+          unzip -q -j templates.tpz 'templates/windows_*x86_64*' 'templates/version.txt' -d "$dest"
+          curl -sSL -o ~/godot/rcedit-x64.exe \
+            "https://github.com/electron/rcedit/releases/download/v${RCEDIT_VERSION}/rcedit-x64.exe"
+          rm godot.zip templates.tpz
+
+      - name: Cài wine (cho rcedit và để chạy thử .exe)
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends wine64 wine >/dev/null
+          wineboot -i >/dev/null 2>&1 || true
+
+      - name: Nhập project và chỉ đường rcedit cho Godot
+        run: |
+          ~/godot/godot --headless --path . --import || true
+          f=~/.config/godot/editor_settings-${GODOT_VERSION}.tres
+          sed -i "s|^export/windows/rcedit = .*|export/windows/rcedit = \"$HOME/godot/rcedit-x64.exe\"|; s|^export/windows/wine = .*|export/windows/wine = \"$(command -v wine)\"|" "$f"
+          grep -q "rcedit-x64.exe" "$f"
+
+      - name: Ghi số phiên bản theo tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          # v0.2 -> 0.2.0.0, v1.2.3 -> 1.2.3.0
+          v=$(echo "${GITHUB_REF_NAME#v}" | sed 's/[^0-9.].*//')
+          IFS=. read -r a b c d <<< "$v"
+          v4="${a:-0}.${b:-0}.${c:-0}.${d:-0}"
+          sed -i "s|^application/file_version=.*|application/file_version=\"$v4\"|; s|^application/product_version=.*|application/product_version=\"$v4\"|" export_presets.cfg
+          grep _version= export_presets.cfg
+
+      - name: Xuất bản Windows
+        run: |
+          mkdir -p export
+          ~/godot/godot --headless --path . --export-release "Windows Desktop" export/MeoGiaoBanhMi.exe 2>&1 | tee export.log
+          test -s export/MeoGiaoBanhMi.exe
+          if grep -q "Resources Modification" export.log; then echo "::error::Không gắn được icon bằng rcedit"; exit 1; fi
+
+      - name: Chạy thử .exe bằng wine (tự chơi 5 đơn)
+        run: |
+          timeout 600 wine export/MeoGiaoBanhMi.exe --headless -- --autotest 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee autotest.log
+          grep -q "AUTOTEST OK" autotest.log
+
+      - name: Đóng gói zip
+        run: |
+          cat > export/DOC-TRUOC.txt <<EOF
+          Mèo Giao Bánh Mì - bản chơi thử cho Windows 10/11 (64-bit)
+          Mã commit: ${GITHUB_SHA::7}
+
+          1. Giải nén cả thư mục này ra (không chạy thẳng trong file zip).
+          2. Bấm đúp MeoGiaoBanhMi.exe.
+          3. Nếu Windows hiện "Windows protected your PC": bấm "More info" rồi "Run anyway".
+             Game chưa ký số nên Windows cảnh báo vậy, không phải virus.
+
+          Phím: WASD chạy, Shift chạy nhanh, Space nhảy, chuột xoay camera, Esc tạm dừng.
+          EOF
+          sed -i 's/^ *//; s/$/\r/' export/DOC-TRUOC.txt
+          cd export && zip -q -9 "../$ZIP_NAME" MeoGiaoBanhMi.exe DOC-TRUOC.txt
+          ls -la "../$ZIP_NAME"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MeoGiaoBanhMi-windows
+          path: ${{ env.ZIP_NAME }}
+          retention-days: 14
+
+      - name: Đăng lên "Bản mới nhất" (main)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag=ban-moi-nhat
+          git tag -f "$tag"
+          git push -f origin "refs/tags/$tag"
+          notes="Bản Windows tự build từ nhánh main, commit ${GITHUB_SHA::7} ($(date -u +'%d/%m/%Y %H:%M') UTC). Tải $ZIP_NAME, giải nén, bấm đúp MeoGiaoBanhMi.exe."
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release edit "$tag" --notes "$notes"
+          else
+            gh release create "$tag" --prerelease --title "Bản mới nhất (tự động)" --notes "$notes"
+          fi
+          gh release upload "$tag" "$ZIP_NAME" --clobber
+
+      - name: Tạo bản phát hành theo tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "$ZIP_NAME" --title "Mèo Giao Bánh Mì $GITHUB_REF_NAME" --generate-notes

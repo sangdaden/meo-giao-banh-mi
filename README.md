@@ -20,6 +20,26 @@ Bản web tự cập nhật mỗi lần nhánh `main` thay đổi (GitHub Action
 
 Khi có bản mới, trang đang mở tự biết (mỗi phút hỏi file `version.json` một lần, và mỗi khi quay lại tab). Trang tải sẵn file mới rồi hiện thông báo "Có bản mới!" và tự tải lại sau 10 giây; bấm **Để sau** nếu đang chơi dở. Mã nằm ở `web/update-check.js`; GitHub Actions ghi mã commit vào file này và vào `version.json` mỗi lần đăng.
 
+## Tải bản Windows
+
+**https://github.com/sangdaden/meo-giao-banh-mi/releases/download/ban-moi-nhat/MeoGiaoBanhMi-windows.zip**
+
+Link này luôn trỏ tới bản mới nhất của nhánh `main`, gửi cho bạn bè chơi thử được ngay. Chạy trên Windows 10/11 64-bit, card đồ họa hỗ trợ Vulkan (hầu hết máy từ 2016 trở lại đây).
+
+1. Tải file zip (khoảng 30 MB), **giải nén** ra một thư mục.
+2. Bấm đúp **MeoGiaoBanhMi.exe**.
+3. Nếu Windows hiện "Windows protected your PC", bấm **More info** rồi **Run anyway**. Game chưa ký số nên Windows cảnh báo vậy.
+
+Các bản đã đánh số nằm ở trang [Releases](https://github.com/sangdaden/meo-giao-banh-mi/releases).
+
+Cách bản Windows được làm ra (`.github/workflows/windows.yml`):
+
+- Mỗi lần nhánh `main` thay đổi, GitHub Actions xuất `.exe` bằng Godot 4.3, gắn icon `icon.ico` (qua rcedit chạy bằng wine), cho `.exe` tự chơi hết 5 đơn bằng `--autotest` để chắc nó chạy được, rồi thay file trong bản phát hành **Bản mới nhất** (tag `ban-moi-nhat`).
+- Muốn có một bản đánh số riêng: tạo tag `v` + số, ví dụ `git tag v0.1.0 && git push origin v0.1.0`. Actions tạo bản phát hành `v0.1.0`, số này cũng được ghi vào thông tin file `.exe`.
+- Mỗi pull request cũng được xuất và chạy thử; file zip nằm ở mục **Artifacts** của lượt chạy.
+
+Trong `export_presets.cfg` còn có sẵn preset **Android** (arm64, chưa ký) cho tuần làm bản điện thoại. Muốn xuất Android cần cài Android SDK và bật `rendering/textures/vram_compression/import_etc2_astc` trong Project Settings.
+
 ## Mở và chơi trong Godot 4
 
 1. Tải **Godot 4.3** trở lên (bản Standard, không cần bản .NET) ở [godotengine.org/download](https://godotengine.org/download). Giải nén là chạy được, không cần cài.

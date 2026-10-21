@@ -182,7 +182,8 @@ func add_collision(size: Vector3, center: Vector3) -> StaticBody3D:
 
 ## Vật liệu theo style guide D: da/vải mờ (màu ở màu đỉnh), tròng mắt bóng, đốm sáng luôn trắng.
 func _apply_style(mi: MeshInstance3D) -> void:
-	mi.visibility_range_end = 40.0  # xa hơn thì nhà che hết, khỏi vẽ
+	mi.visibility_range_end = 30.0  # xa hơn chỉ còn vài điểm ảnh, khỏi vẽ
+	mi.lod_bias = 0.5  # đổi sang mức LOD thấp sớm hơn (người nhỏ trong khung)
 	if RenderingServer.get_rendering_device() == null:
 		if not _srgb_meshes.has(id):
 			_srgb_meshes[id] = _srgb_copy(mi.mesh)
@@ -218,14 +219,15 @@ static func _material(mat_name: String) -> StandardMaterial3D:
 
 
 ## Bản web (Compatibility) không đổi màu đỉnh linear sang sRGB như Forward+ (giống Bơ trong player.gd).
+## Bản sao dựng lại các mức LOD (không có thì người ở xa vẫn vẽ đủ ~3,8k tam giác).
 static func _srgb_copy(src: ArrayMesh) -> ArrayMesh:
-	var dst := ArrayMesh.new()
+	var im := ImporterMesh.new()
 	for i in src.get_surface_count():
 		var arrays := src.surface_get_arrays(i)
 		var cols: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
 		for k in cols.size():
 			cols[k] = cols[k].linear_to_srgb()
 		arrays[Mesh.ARRAY_COLOR] = cols
-		dst.add_surface_from_arrays(src.surface_get_primitive_type(i), arrays, [], {}, src.surface_get_format(i) & Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS)
-		dst.surface_set_material(i, src.surface_get_material(i))
-	return dst
+		im.add_surface(src.surface_get_primitive_type(i), arrays, [], {}, src.surface_get_material(i), "", src.surface_get_format(i) & Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS)
+	im.generate_lods(25.0, 60.0, [])
+	return im.get_mesh()

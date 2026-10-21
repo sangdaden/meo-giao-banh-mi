@@ -86,7 +86,7 @@ jobs:
           mkdir -p export
           ~/godot/godot --headless --path . --export-release "Windows Desktop" export/MeoGiaoBanhMi.exe 2>&1 | tee export.log
           test -s export/MeoGiaoBanhMi.exe
-          if grep -q "rcedit" export.log; then echo "::error::Không gắn được icon bằng rcedit"; exit 1; fi
+          if grep -q "Resources Modification" export.log; then echo "::error::Không gắn được icon bằng rcedit"; exit 1; fi
 
       - name: Chạy thử .exe bằng wine (tự chơi 5 đơn)
         run: |

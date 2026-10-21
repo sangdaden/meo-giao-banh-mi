@@ -1,18 +1,28 @@
 extends Node3D
 ## 5 tem Cô Ba giấu trên đường về lò (chỉ hiện khi Bơ không mang bánh).
-## Hình tạm: ổ bánh có nơ đỏ bằng khối, chờ phác thảo tem ở luồng "Phác thảo đồ và động tác Thứ Hai".
+## Model đã duyệt (luồng "Phác thảo đồ và động tác Thứ Hai"): tem.glb lúc chờ, tem_nhat.glb lúc nhặt.
+## Gốc model ở mặt đất (vòng sáng Ø 14 cm), ổ bánh 18 cm đã lơ lửng sẵn 12 cm trong model.
 ## Vị trí tạm trên các chồng thùng và góc bản đồ có sẵn; luồng Bản đồ Thứ Hai dời vào mái hiên, cuối hẻm, sau bể nước.
 
 signal collected(index: int, count: int)
 
+const STAMP_MODEL := preload("res://assets/models/tem.glb")
+const PICKED_MODEL := preload("res://assets/models/tem_nhat.glb")
+## Vị trí mặt đất đặt tem
 const SPOTS := [
-	Vector3(-25.8, 1.9, -2),   # đỉnh chồng thùng bậc thang gần lò
-	Vector3(26, 1.1, 27.5),    # trên thùng gần tiệm sửa xe
-	Vector3(14, 1.1, 18),      # trên thùng trong khối 5
-	Vector3(-41, 0.4, 28),     # góc xa công viên, sau hàng rào
-	Vector3(41, 0.4, -28.5),   # cuối đường phía bắc khối 3
+	Vector3(-25.8, 1.6, -2),   # đỉnh chồng thùng bậc thang gần lò
+	Vector3(26, 0.8, 27.5),    # trên thùng gần tiệm sửa xe
+	Vector3(14, 0.8, 18),      # trên thùng trong khối 5
+	Vector3(-41, 0, 28),       # góc xa công viên, sau hàng rào
+	Vector3(41, 0, -28.5),     # cuối đường phía bắc khối 3
 ]
 const PICK_RADIUS := 0.8
+const LOAF_HEIGHT := 0.15  # tâm ổ bánh so với gốc model
+const SPIN_SPEED := PI / 2.0  # 90° mỗi giây
+const BOB_AMOUNT := 0.02  # nhấp nhô ±2 cm
+const PICK_SCALE := 1.25
+const PICK_TIME := 0.4
+const GLOW := Color("#F2C94C")
 
 var player: Node3D
 var _items: Array[Node3D] = []
@@ -45,12 +55,13 @@ func _process(delta: float) -> void:
 	for s in _items.duplicate():
 		if not s.visible:
 			continue
-		s.rotation.y += delta * 1.6
-		s.get_child(0).position.y = sin(t * 3.0 + s.position.x) * 0.06
-		if s.global_position.distance_to(player.global_position + Vector3.UP * 0.2) < PICK_RADIUS:
+		var model: Node3D = s.get_child(0)
+		model.rotation.y += delta * SPIN_SPEED
+		model.position.y = sin(t * 2.5 + s.position.x) * BOB_AMOUNT
+		if (s.global_position + Vector3.UP * LOAF_HEIGHT).distance_to(player.global_position + Vector3.UP * 0.2) < PICK_RADIUS:
 			var i: int = s.get_meta("index")
 			_items.erase(s)
-			s.queue_free()
+			_play_pick(s)
 			collected.emit(i, Scoring.collect_stamp(i))
 
 
@@ -61,27 +72,36 @@ func remaining() -> Array:
 
 func _make_stamp() -> Node3D:
 	var root := Node3D.new()
-	var bob := Node3D.new()
-	root.add_child(bob)
-	var loaf := CapsuleMesh.new()
-	loaf.radius = 0.09
-	loaf.height = 0.42
-	loaf.radial_segments = 10
-	loaf.rings = 3
-	var m := Blocks.mesh(bob, loaf, Vector3.ZERO, Color("#E0A040"))
-	m.rotation_degrees.z = 90
-	# Nơ đỏ buộc giữa ổ
-	Blocks.box(bob, Vector3(0.05, 0.2, 0.2), Vector3(0, 0, 0), Color("#C8412F"))
-	var wing := Blocks.box(bob, Vector3(0.12, 0.07, 0.03), Vector3(-0.06, 0.12, 0.0), Color("#C8412F"))
-	wing.rotation_degrees.z = 25
-	wing = Blocks.box(bob, Vector3(0.12, 0.07, 0.03), Vector3(0.06, 0.12, 0.0), Color("#C8412F"))
-	wing.rotation_degrees.z = -25
-	# Quầng sáng nhẹ để thấy từ xa
-	var glow := SphereMesh.new()
-	glow.radius = 0.32
-	glow.height = 0.64
-	glow.radial_segments = 12
-	glow.rings = 6
-	var g := Blocks.mesh(bob, glow, Vector3.ZERO, Color(1.0, 0.85, 0.4, 0.22), true)
-	g.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(_model(STAMP_MODEL))
 	return root
+
+
+## Nhặt: đổi sang model có đốm lấp lánh, phóng 1,25 lần trong 0,4 giây rồi ẩn.
+func _play_pick(s: Node3D) -> void:
+	var old: Node3D = s.get_child(0)
+	var picked := _model(PICKED_MODEL)
+	picked.transform = old.transform
+	s.remove_child(old)
+	old.queue_free()
+	s.add_child(picked)
+	var tw := s.create_tween()
+	tw.tween_property(picked, "scale", Vector3.ONE * PICK_SCALE, PICK_TIME).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(picked, "rotation:y", picked.rotation.y + PI, PICK_TIME)
+	tw.tween_callback(s.queue_free)
+
+
+## Tạo model và thêm phát sáng nhẹ màu vàng để thấy tem từ xa.
+func _model(scene: PackedScene) -> Node3D:
+	var m: Node3D = scene.instantiate()
+	for mi in m.find_children("*", "MeshInstance3D", true, false):
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		for k in mi.mesh.get_surface_count():
+			var base := mi.mesh.surface_get_material(k) as BaseMaterial3D
+			if base == null:
+				continue
+			var mat := base.duplicate() as BaseMaterial3D
+			mat.emission_enabled = true
+			mat.emission = GLOW
+			mat.emission_energy_multiplier = 0.25
+			mi.set_surface_override_material(k, mat)
+	return m

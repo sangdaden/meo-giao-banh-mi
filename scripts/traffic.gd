@@ -2,8 +2,9 @@ extends Node3D
 ## Giao thông ở hai ngã tư: đèn xanh vàng đỏ, xe máy chạy theo đèn, người đi bộ, xe đẩy hàng rong.
 ## Xe tông Bơ thì hất Bơ văng khoảng 2 m và Bơ đứng hình 1 giây.
 ## main.gd chỉ cần một dòng: add_child(preload("res://scripts/traffic.gd").new()) sau khi tạo mèo.
-## Bản khối tạm: xe, người lái và người đi bộ vẽ bằng MultiMesh nên cả phố chỉ tốn vài lệnh vẽ.
-## Model xe máy thật chờ Sang duyệt phác thảo ở trang khu phố (luồng "Khu phố, nhà cửa và người dân").
+## Xe máy và xe bánh mì là model Blender đã duyệt (assets/models/pho/, luồng "Nhà và đồ phố vào game").
+## Người lái và người đi bộ còn là khối tạm, chờ người qua đường có rig từ luồng "Người dân vào game".
+## Xe, người lái và người đi bộ vẽ bằng MultiMesh nên cả phố chỉ tốn vài lệnh vẽ.
 
 signal bike_hit_player(bike_pos: Vector3)  ## luồng âm thanh nghe để phát tiếng phanh, tiếng va
 signal honked(bike_pos: Vector3)           ## xe bóp còi khi Bơ đứng chắn đường phía trước
@@ -45,6 +46,8 @@ const HONK_RANGE := 7.0
 const PASS_RANGE := 9.0       ## xe chạy ngang trong tầm này thì nghe tiếng xe vụt qua
 const IDLE_RANGE := 14.0      ## xe đứng chờ đèn đỏ trong tầm này thì nghe tiếng máy nổ
 
+const BIKE_GLB := "res://assets/models/pho/xe_may_son.glb"   ## mặt "son" là màu sơn, tô riêng từng xe
+const CART_GLB := "res://assets/models/pho/xe_banh_mi.glb"
 const PAINTS := [Color("#C8412F"), Color("#3D5A80"), Color("#E8C98A"), Color("#2E2E2E"), Color("#F2F0EA"), Color("#7FB7A4")]
 const SHIRTS := [Color("#E39C7A"), Color("#5E8FB8"), Color("#F2E3B8"), Color("#8DB36F"), Color("#D7A9C4"), Color("#C9C3B3")]
 const HELMETS := [Color("#F2C230"), Color("#C8412F"), Color("#FFFFFF"), Color("#2F6FA8"), Color("#3E8E5A")]
@@ -114,6 +117,7 @@ var _honk_time := 0.0
 
 var _mm_paint: MultiMesh
 var _mm_dark: MultiMesh
+var _mm_rider: MultiMesh
 var _mm_shirt: MultiMesh
 var _mm_helmet: MultiMesh
 var _mm_walker_shirt: MultiMesh
@@ -232,18 +236,20 @@ func _build_routes(rng: RandomNumberGenerator) -> void:
 			b.prev_xf = b.xf
 			_bikes.append(b)
 
-	var paint := _bike_paint_mesh()
-	_mm_paint = _multimesh(paint, _bikes.size(), true)
-	_mm_dark = _multimesh(_bike_dark_mesh(), _bikes.size(), false)
+	# Model xe dài theo trục +X, đầu xe ở +X: xoay 90° cho đầu xe về -Z như hướng chạy
+	var parts := _glb_parts(BIKE_GLB, Basis(Vector3.UP, PI / 2), ["son"])
+	_mm_paint = _multimesh(parts[0], _bikes.size(), true)
+	_mm_dark = _multimesh(parts[1], _bikes.size(), false)
+	_mm_rider = _multimesh(_rider_mesh(), _bikes.size(), false)
 	var torso := BoxMesh.new()
-	torso.size = Vector3(0.4, 0.52, 0.26)
-	_mm_shirt = _multimesh(_offset_mesh(torso, Vector3(0, 1.16, 0.12)), _bikes.size(), true)
+	torso.size = Vector3(0.4, 0.5, 0.26)
+	_mm_shirt = _multimesh(_offset_mesh(torso, Vector3(0, 1.3, 0.24)), _bikes.size(), true)
 	var helmet := SphereMesh.new()
 	helmet.radius = 0.16
 	helmet.height = 0.3
 	helmet.radial_segments = 10
 	helmet.rings = 5
-	_mm_helmet = _multimesh(_offset_mesh(helmet, Vector3(0, 1.6, 0.1)), _bikes.size(), true)
+	_mm_helmet = _multimesh(_offset_mesh(helmet, Vector3(0, 1.74, 0.2)), _bikes.size(), true)
 	for i in _bikes.size():
 		_mm_paint.set_instance_color(i, PAINTS[rng.randi() % PAINTS.size()])
 		_mm_shirt.set_instance_color(i, SHIRTS[rng.randi() % SHIRTS.size()])
@@ -417,33 +423,58 @@ func _check_player(b: Bike) -> void:
 		hud.show_toast("Xe máy tông Bơ! Nhìn đèn rồi hãy qua đường.", 2.0)
 
 
-func _bike_paint_mesh() -> Mesh:
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	_add_box(st, Vector3(0.34, 0.38, 1.2), Vector3(0, 0.52, 0.05), Color.WHITE)    # thân xe tay ga
-	_add_box(st, Vector3(0.4, 0.62, 0.16), Vector3(0, 0.66, -0.56), Color.WHITE)   # yếm trước
-	_add_box(st, Vector3(0.22, 0.12, 0.36), Vector3(0, 0.62, -0.62), Color.WHITE)  # chắn bùn trước
-	return st.commit()
+## Lấy mesh từ file .glb, gộp mọi mảnh về một mesh, xoay theo `turn`.
+## Trả về [mesh các mặt có tên trong `split`, mesh các mặt còn lại] để tô màu riêng từng xe.
+func _glb_parts(path: String, turn: Basis, split: Array) -> Array:
+	var scene: Node = load(path).instantiate()
+	var picked := SurfaceTool.new()
+	var rest := SurfaceTool.new()
+	for st in [picked, rest]:
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for mi: MeshInstance3D in scene.find_children("*", "MeshInstance3D", true, false):
+		var xf := Transform3D(turn, Vector3.ZERO) * _local_to(scene, mi)
+		for i in mi.mesh.get_surface_count():
+			var mat := mi.mesh.surface_get_material(i)
+			var is_picked := mat != null and mat.resource_name in split
+			(picked if is_picked else rest).append_from(mi.mesh, i, xf)
+	scene.free()
+	return [_srgb(picked.commit()), _srgb(rest.commit())]
 
 
-## Phần không đổi màu: bánh, yên, tay lái, chân người lái, đèn trước và đèn hậu (màu theo đỉnh).
-func _bike_dark_mesh() -> Mesh:
+func _local_to(root: Node, n: Node3D) -> Transform3D:
+	var xf := n.transform
+	var p := n.get_parent()
+	while p != root and p is Node3D:
+		xf = p.transform * xf
+		p = p.get_parent()
+	return xf
+
+
+## Bản web (Compatibility) không tự đổi màu đỉnh linear sang sRGB như Forward+ (giống player.gd).
+func _srgb(m: ArrayMesh) -> ArrayMesh:
+	if RenderingServer.get_rendering_device() != null or m.get_surface_count() == 0:
+		return m
+	var arrays := m.surface_get_arrays(0)
+	var cols: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+	for k in cols.size():
+		cols[k] = cols[k].linear_to_srgb()
+	arrays[Mesh.ARRAY_COLOR] = cols
+	var out := ArrayMesh.new()
+	out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return out
+
+
+## Người lái khối tạm ngồi trên yên model xe (yên cao 0,93 m, ghi đông ở z = -0,3, cao 1,08 m).
+func _rider_mesh() -> Mesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var tyre := Color("#1E2222")
-	_add_box(st, Vector3(0.12, 0.5, 0.5), Vector3(0, 0.25, -0.6), tyre)
-	_add_box(st, Vector3(0.12, 0.5, 0.5), Vector3(0, 0.25, 0.62), tyre)
-	_add_box(st, Vector3(0.32, 0.1, 0.62), Vector3(0, 0.76, 0.18), Color("#2A2522"))   # yên
-	_add_box(st, Vector3(0.66, 0.06, 0.06), Vector3(0, 1.02, -0.6), Color("#3A3F3E"))  # tay lái
-	_add_box(st, Vector3(0.06, 0.3, 0.06), Vector3(0, 0.88, -0.6), Color("#3A3F3E"))
-	_add_box(st, Vector3(0.18, 0.1, 0.04), Vector3(0, 0.8, -0.65), Color("#FFF6C8"))   # đèn trước
-	_add_box(st, Vector3(0.16, 0.06, 0.04), Vector3(0, 0.72, 0.66), Color("#D8332A"))  # đèn hậu
 	var pants := Color("#3B4252")
-	for x in [-0.12, 0.12]:
-		_add_box(st, Vector3(0.13, 0.13, 0.42), Vector3(x, 0.86, -0.04), pants)  # đùi
-		_add_box(st, Vector3(0.12, 0.4, 0.12), Vector3(x, 0.62, -0.24), pants)   # ống chân
-		_add_box(st, Vector3(0.09, 0.09, 0.42), Vector3(x * 1.9, 1.18, -0.36), Color("#D9A57E"))  # tay cầm lái
-	_add_box(st, Vector3(0.2, 0.08, 0.18), Vector3(0, 1.5, -0.04), Color("#D9A57E"))  # mặt dưới mũ
+	var skin := Color("#D9A57E")
+	for x in [-0.13, 0.13]:
+		_add_box(st, Vector3(0.13, 0.13, 0.42), Vector3(x, 1.0, 0.1), pants)    # đùi
+		_add_box(st, Vector3(0.12, 0.5, 0.12), Vector3(x * 1.2, 0.72, -0.08), pants)  # ống chân xuống gác chân
+		_add_box(st, Vector3(0.09, 0.09, 0.5), Vector3(x * 1.9, 1.24, -0.06), skin)  # tay cầm ghi đông
+	_add_box(st, Vector3(0.2, 0.08, 0.18), Vector3(0, 1.64, 0.16), skin)  # mặt dưới mũ
 	return st.commit()
 
 
@@ -563,7 +594,20 @@ func _build_carts(rng: RandomNumberGenerator) -> void:
 	# Vỉa hè khối lò bánh và khối 5 đã kín đồ (tủ bánh Cô Ba, bàn ghế cà phê) nên xe không đi ở đó.
 	# Hai làn này nằm trong CityProps.KEEP_CLEAR để xe máy đậu không chắn đường xe đẩy.
 	var picks := [CityProps.CART_LANES[0], CityProps.CART_LANES[1]]
-	var kinds := [["Bánh mì", Color("#E8C98A")], ["Chè", Color("#7FB7A4")]]
+	# Xe bánh mì tủ kính dài theo +X, bảng hiệu quay +Z: xoay cho xe đẩy theo chiều dọc,
+	# bảng hiệu nhìn ra đường; người bán (khối tạm) đứng sau tay đẩy.
+	var parts := _glb_parts(CART_GLB, Basis(Vector3.UP, PI / 2), [])
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.append_from(parts[1], 0, Transform3D())
+	_add_box(st, Vector3(0.4, 0.6, 0.24), Vector3(0, 1.15, 1.12), Color("#C9C3B3"))
+	_add_box(st, Vector3(0.24, 0.26, 0.24), Vector3(0, 1.62, 1.12), Color("#D9A57E"))
+	_add_box(st, Vector3(0.5, 0.06, 0.5), Vector3(0, 1.8, 1.12), Color("#E8D9A8"))  # nón lá
+	_add_box(st, Vector3(0.3, 0.85, 0.16), Vector3(0, 0.42, 1.12), Color("#3B4252"))
+	var cart_mesh := st.commit()
+	var mat := StandardMaterial3D.new()
+	mat.vertex_color_use_as_albedo = true
+	mat.roughness = 0.75
 	for k in picks.size():
 		var w := Walker.new()
 		w.a = picks[k][0]
@@ -574,36 +618,16 @@ func _build_carts(rng: RandomNumberGenerator) -> void:
 		body.collision_layer = Blocks.LAYER_PROP
 		body.sync_to_physics = true
 		add_child(body)
-		var st := SurfaceTool.new()
-		st.begin(Mesh.PRIMITIVE_TRIANGLES)
-		var col: Color = kinds[k][1]
-		_add_box(st, Vector3(0.8, 0.6, 1.3), Vector3(0, 0.75, 0), col)                     # thùng
-		_add_box(st, Vector3(0.7, 0.4, 1.1), Vector3(0, 1.25, 0), Color("#CFE6EA"))         # tủ kính
-		_add_box(st, Vector3(0.9, 0.06, 1.4), Vector3(0, 1.48, 0), col.darkened(0.3))       # nóc
-		_add_box(st, Vector3(0.1, 0.44, 0.44), Vector3(-0.42, 0.22, 0.3), Color("#1E2222"))  # bánh xe
-		_add_box(st, Vector3(0.1, 0.44, 0.44), Vector3(0.42, 0.22, 0.3), Color("#1E2222"))
-		_add_box(st, Vector3(0.06, 0.6, 0.06), Vector3(0, 0.3, -0.5), Color("#3A3F3E"))     # chân chống
-		_add_box(st, Vector3(0.7, 0.05, 0.05), Vector3(0, 1.0, 0.85), Color("#3A3F3E"))     # tay đẩy
-		# Người bán đứng sau tay đẩy
-		_add_box(st, Vector3(0.4, 0.6, 0.24), Vector3(0, 1.15, 1.15), Color("#C9C3B3"))
-		_add_box(st, Vector3(0.24, 0.26, 0.24), Vector3(0, 1.62, 1.15), Color("#D9A57E"))
-		_add_box(st, Vector3(0.5, 0.06, 0.5), Vector3(0, 1.8, 1.15), Color("#E8D9A8"))       # nón lá
-		_add_box(st, Vector3(0.3, 0.85, 0.16), Vector3(0, 0.42, 1.15), Color("#3B4252"))
 		var mi := MeshInstance3D.new()
-		mi.mesh = st.commit()
-		var mat := StandardMaterial3D.new()
-		mat.vertex_color_use_as_albedo = true
-		mat.roughness = 0.8
+		mi.mesh = cart_mesh
 		mi.material_override = mat
 		body.add_child(mi)
 		var shape := CollisionShape3D.new()
 		var bs := BoxShape3D.new()
-		bs.size = Vector3(0.9, 1.5, 1.4)
+		bs.size = Vector3(0.74, 1.3, 1.64)
 		shape.shape = bs
-		shape.position.y = 0.76
+		shape.position.y = 0.65
 		body.add_child(shape)
-		var board := Blocks.label(body, kinds[k][0], Vector3(0, 2.0, 0), 36, Color("#FFF8EA"))
-		board.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 		_place_walker(w, 0.0)
 		body.global_transform = w.xf
 		_carts.append({"body": body, "walker": w})
@@ -770,6 +794,7 @@ func _draw(f: float) -> void:
 			xf = hidden
 		_mm_paint.set_instance_transform(i, xf)
 		_mm_dark.set_instance_transform(i, xf)
+		_mm_rider.set_instance_transform(i, xf)
 		_mm_shirt.set_instance_transform(i, xf)
 		_mm_helmet.set_instance_transform(i, xf)
 	for i in _walkers.size():

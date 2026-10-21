@@ -114,6 +114,7 @@ func _ready() -> void:
 	hud.start_pressed.connect(start_game)
 	hud.restart_pressed.connect(restart)
 	add_child(preload("res://scripts/sound_director.gd").new())  # nhạc và tiếng động
+	add_child(FirstHints.new())  # mẹo lần đầu: gầm thấp, gần Chó Mực, tới khách
 	hud.menu_pressed.connect(_to_menu)
 	deliveries.setup(player, dog, hud, "--autotest" in OS.get_cmdline_user_args())
 

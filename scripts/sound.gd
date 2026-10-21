@@ -30,9 +30,22 @@ const LEVEL := {
 	"basket_lower": -6.0, "basket_drop": -5.0, "glass_rattle": -7.0, "glass_tip": -4.0, "oil_slip": -5.0,
 	"oven_open": -5.0, "oven_ding": -6.0, "sizzle": -10.0, "oven_fire": -10.0,
 	"jingle_win": -3.0, "jingle_lose": -3.0,
+	# Thứ Hai lượt 2: mặt đất, sự kiện, giọng người
+	"step_metal": -14.0, "step_wood": -16.0, "step_grass": -19.0,
+	"splash": -5.0, "stamp": -4.0, "coin": -7.0, "record": -5.0, "bike_hit": -3.0,
+	"meow_startle": -5.0, "squish": -5.0, "paper_slip": -8.0,
+	"coba_hello": -5.0, "coba_order": -6.0, "coba_good": -5.0, "coba_ok": -5.0, "thanks": -7.0,
+	# Thứ Ba: chợ, góc cờ, tạp hóa
+	"scale_clank": -8.0, "chess_slap": -3.0, "chess_rattle": -3.0, "shush": -6.0, "scold": -5.0,
+	"check_cheer": -4.0, "egg_crack": -2.0, "nylon": -14.0, "cart_rattle": -8.0, "cart_bump": -4.0,
+	"basket_topple": -3.0, "oops": -8.0,
 }
 ## Tiếng có nhiều bản: play("step") chọn ngẫu nhiên step_1..step_4, đổi cao độ nhẹ cho đỡ lặp.
-const VARIANTS := {"step": 4, "knead": 3, "chop": 3, "sneak": 3, "moto_pass": 2}
+const VARIANTS := {"step": 4, "knead": 3, "chop": 3, "sneak": 3, "moto_pass": 2,
+	"step_metal": 3, "step_wood": 3, "step_grass": 3, "coba_order": 3,
+	"chess_slap": 3, "nylon": 3, "scold": 4, "oops": 2}
+## Cùng một tiếng gọi hai lần sát nhau (hai script cùng bắt một sự kiện) thì chỉ phát một lần.
+const REPEAT_GAP_MS := 60
 const SFX_VOICES := 16
 const FADE := 1.2
 
@@ -51,6 +64,7 @@ var _loops := {}
 var _tweens := {}
 var _sfx_root: Node
 var _panel: CanvasLayer
+var _last_start := {}
 var _debug := "--sound-log" in OS.get_cmdline_user_args()
 
 
@@ -95,6 +109,10 @@ func _unhandled_input(event: InputEvent) -> void:
 
 ## Phát một hiệu ứng. volume_db cộng thêm vào mức trong bảng LEVEL.
 func play(sound_name: String, volume_db := 0.0, pitch := 1.0) -> void:
+	var now := Time.get_ticks_msec()
+	if now - int(_last_start.get(sound_name, -REPEAT_GAP_MS)) < REPEAT_GAP_MS:
+		return
+	_last_start[sound_name] = now
 	var file := sound_name
 	if VARIANTS.has(sound_name):
 		file = "%s_%d" % [sound_name, randi_range(1, VARIANTS[sound_name])]
@@ -266,7 +284,7 @@ func _stream(file: String, looping := false) -> AudioStream:
 			_warned[file] = true
 			push_warning("Sound: chưa có file âm thanh '%s'" % file)
 		return null
-	if looping or file.begins_with("music_") or file.begins_with("amb_") or file in ["sizzle", "oven_fire", "snore", "moto_idle"]:
+	if looping or file.begins_with("music_") or file.begins_with("amb_") or file in ["sizzle", "oven_fire", "snore", "moto_idle", "cart_rattle"]:
 		if stream is AudioStreamOggVorbis:
 			stream.loop = true
 		elif stream is AudioStreamWAV:

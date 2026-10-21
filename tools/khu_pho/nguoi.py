@@ -303,7 +303,7 @@ def build(c, posed):
                 k2 = hp + (kn - hp) * .82
                 add('pant', (lambda hp, k2: lambda p: roundcone(p, hp, k2, .094 * lr * s, .078 * lr * s))(hp, k2), 'bottom', 'world', k=.01)
         # bàn chân + dép
-        fdir = nrm(v(0, 0, 1) + v(side * .12, 0, 0)); fc = an + v(0, -an[1] + .034 * s, 0) + fdir * .05 * s
+        fdir = nrm(v(0, 0, 1) + v(side * .12, 0, 0)); fc = an + v(0, (-an[1] + .034 * s) if an[1] < .2 * s else -.04 * s, 0) + fdir * .05 * s   # chân gác lên gác chân xe: theo cổ chân
         add('foot', (lambda fc: lambda p: ellipsoid(p, fc, v(.05 * s, .036 * s, .105 * s)))(fc), 'skin' if c.get('sandal', True) else 'shoe', 'world', k=.025 * s)
         add('sole', (lambda fc: lambda p: ellipsoid(p, fc + v(0, -.02 * s, .004 * s), v(.06 * s, .016 * s, .118 * s)))(fc), 'shoe', 'world', k=.004)
         add('strap', (lambda fc: lambda p: smax(ellipsoid(p, fc + v(0, -.004 * s, .03 * s), v(.05 * s, .036 * s, .028 * s)), -(p[..., 1] - (fc[1] - .01 * s)), .004))(fc), 'shoe', 'world', k=.004)

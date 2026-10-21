@@ -57,6 +57,8 @@ ROLES = {
     'dicho1':   dict(base='dung', tempo=.8, energy=.8),
     'dicho2':   dict(base='dung', tempo=1.1, energy=1.1),
     'dicho3':   dict(base='dung', tempo=1.0, energy=1.0),
+    # Chị Thảo khách xe ôm: ngồi yên sau xe Chú Năm (hông 0,95), xuống xe thì đứng
+    'khachxeom': dict(base='dung', tempo=1.0, energy=1.0),
 }
 
 HEAD_PARTS = {'head', 'brow', 'hair', 'tie', 'must', 'goatee', 'cap', 'helmet', 'earring', 'nonla', 'quai'}
@@ -1027,9 +1029,10 @@ def chess_clips(R, role, cid):
             ('reo', 2.0, anim_dang_once(R, role, cid, 'reo', 2.0, .25, .35, bob))]
 
 
-def bike_legs(R):
-    """Chú Năm tựa yên xe cao 0,93 m (hông 0,86), hai chân chống xuống đất (knee, ankle trong DANG chunam:choxe)."""
-    g = N3.DANG('chunam:choxe')
+def bike_legs(R, key='chunam:choxe'):
+    """Ngồi trên xe máy theo knee, ankle trong DANG: Chú Năm tựa yên (hông 0,86) chân chống đất,
+    Chị Thảo ngồi yên sau (khachxeom:ngoisau, hông 0,95) chân gác lên gác chân."""
+    g = N3.DANG(key)
     s = R.G['s']
     hip = R.head['thigh.L']
     p = {'hips': {'pos': (0, -(hip.z - g['sit']), -.04 * s)}}
@@ -1103,6 +1106,50 @@ def anim_bike_ride(R, role, cid):
             'forearm.L': {'aim': (.05, -.15, 1), 'aim_ref': 'chest'}, 'forearm.R': {'aim': (.05, -.15, 1), 'aim_ref': 'chest'},
             'hand.L': {'fw': 10}, 'hand.R': {'fw': 10},
         }
+    return f
+
+
+# Hai tay đặt trên đùi khi ngồi yên sau (dang_pose tính tay từ vai lúc đứng nên tay nổi lên ngực)
+PILLION_HANDS = {
+    'upperarm.L': {'aim': (.12, -1, .25), 'aim_ref': 'chest'}, 'forearm.L': {'aim': (-.1, -.45, 1), 'aim_ref': 'chest'},
+    'upperarm.R': {'aim': (.12, -1, .25), 'aim_ref': 'chest'}, 'forearm.R': {'aim': (-.1, -.45, 1), 'aim_ref': 'chest'},
+}
+
+
+def anim_pillion(R, role, cid):
+    """Chị Thảo ngồi sau (3 s lặp): hai tay vịn đùi, thở, ngó quanh, xe xóc nhẹ."""
+    legs = bike_legs(R, 'khachxeom:ngoisau')
+    g = add(dp(R, cid, 'ngoisau'), PILLION_HANDS)
+
+    def f(t):
+        br = osc(t, 3.0)
+        return add(legs, g, {
+            'hips': {'pos': (0, abs(osc(t, 1.5)) * .004, 0)},  # pos cộng dồn với dáng ngồi
+            'spine': {'fw': br * .8}, 'chest': {'fw': br * 1.5},
+            'head': {'tw': osc(t, 3.0, .2) * 18, 'fw': osc(t, 1.5) * 2},
+        })
+    return f
+
+
+def anim_pillion_receive(R, role, cid):
+    """Nhận bánh trên yên sau (1,2 s): quay người sang phải, ngửa tay phải đón ổ bánh (cầm ở 0,8 s), về ngồi."""
+    legs = bike_legs(R, 'khachxeom:ngoisau')
+    sit = add(legs, dp(R, cid, 'ngoisau'), PILLION_HANDS)
+    take = add(legs, dp(R, cid, 'nhanbanh'), {k: PILLION_HANDS[k] for k in ('upperarm.L', 'forearm.L')}, {'chest': {'tw': -12}})
+
+    def f(t):
+        k = smooth(t / .4) * (1 - smooth((t - .85) / .35))
+        return mix(sit, take, k)
+    return f
+
+
+def anim_pillion_off(R, role, cid):
+    """Xuống xe (1,6 s): từ yên sau bước xuống đứng bên phải xe (xe ở bên trái như trang phác thảo), tay phải tháo quai nón."""
+    sit = add(bike_legs(R, 'khachxeom:ngoisau'), dp(R, cid, 'ngoisau'), PILLION_HANDS)
+
+    def f(t):
+        stand = add(base(t, R, role), dp(R, cid, 'xuongxe'), {'hips': {'pos': (-.45, 0, .1)}})
+        return mix(sit, stand, smooth(t / .9))
     return f
 
 
@@ -1216,6 +1263,10 @@ def thu_ba_clips(R, role, cid):
         return [('cho_khach', 4.0, anim_bike_wait(R, role, cid), True),
                 ('nhan_xe', 1.2, anim_bike_receive(R, role, cid), False),
                 ('cho_di', 2.0, anim_bike_ride(R, role, cid), True)]
+    if cid == 'khachxeom':
+        return [('ngoi_sau', 3.0, anim_pillion(R, role, cid), True),
+                ('nhan_banh', 1.2, anim_pillion_receive(R, role, cid), False),
+                ('xuong_xe', 1.6, anim_pillion_off(R, role, cid), False)]
     if cid in ('xemco', 'dicho1', 'dicho2', 'dicho3'):
         out = [('xem', 4.0, anim_watch(R, role, cid), True), ('reo', 2.0, anim_watch_cheer(R, role, cid), False)]
         if cid != 'xemco':
@@ -1243,7 +1294,8 @@ def build_anims(info, cid):
     R.keyframe('vui', L(1.8 / tp), anim_happy(R, role))
     R.keyframe('sot_ruot', L(6.4 / tp), anim_impatient(R, role))
     R.keyframe('cho_banh', L(2.2 / tp), anim_reach(R, role, cid))
-    R.keyframe('nhan_banh', L(2.6 / tp), anim_receive(R, role, cid), loop=False)
+    if cid != 'khachxeom':  # Chị Thảo nhận bánh trên yên sau (thu_ba_clips)
+        R.keyframe('nhan_banh', L(2.6 / tp), anim_receive(R, role, cid), loop=False)
     if role['base'] == 'dung':
         R.keyframe('di_bo', L(1.05 / tp), anim_walk(R, role))
     if cid in ('ongbay', 'ongtam'):

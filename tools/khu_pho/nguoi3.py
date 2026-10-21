@@ -27,6 +27,9 @@ N.CHARS.update({
  'dicho3': dict(name='Chị Hồng đi chợ', role='Người đi chợ', h=1.58, build=dict(bw=.92, belly=.92, hip=1.0, legr=.92, armr=.9),
    skin='#EDBB95', hair=dict(style='ponytail', col='#2C1E18'), top=dict(kind='tee', col='#E58AA0', sleeve='long'), bottom=dict(kind='pants', col='#F1ECE2'),
    shoe='#E9E2D2', eye=('#A06A34', '#4A2A14'), extras=[], pose={}),
+ 'khachxeom': dict(name='Chị Thảo', role='Khách xe ôm của Chú Năm (đi làm buổi sáng)', h=1.58, build=dict(bw=.92, belly=.92, hip=1.0, legr=.95, armr=.9),
+   skin='#E3AE88', hair=dict(style='ponytail', col='#2C1E18', helmet='#E58AA0'), top=dict(kind='shirt', col='#F4F1EA', sleeve='long'), bottom=dict(kind='pants', col='#2F3B57'),
+   shoe='#5A3A2E', eye=('#A06A34', '#4A2A14'), extras=['earring'], pose={}),
  'xemco': dict(fem=False, name='Ông Chín xem cờ', role='Người đứng xem cờ', h=1.62, old=True, build=dict(bw=.95, belly=1.15, hip=1.0, legr=.92, armr=.92),
    skin='#C99272', hair=dict(style='short', col='#BEB8B0'), top=dict(kind='shirt', col='#C9B48A', sleeve='short'), bottom=dict(kind='pants', col='#5A4E44'),
    shoe='#7A5A3A', eye=('#8A5A36', '#3E2416'), extras=['glasses_round'], pose={}),
@@ -83,6 +86,14 @@ def DANG(key):
      # --- Chú Năm ngồi nghiêng trên yên xe chờ khách ---
      'chunam:choxe': lambda: pose('chunam', sit=.86, bend=-.04, nod=.05, yaw=.35, mouth='smile', knee=(.6, .3), ankle=(.07, .26), kx=.1,
                                   aR=((-.24, .72, .12), (-.12, .62, .3), (0, -1, 0)), aL=((.26, .74, .08), (.16, .62, .3), (0, -1, 0)), bike=True),
+     # --- Chị Thảo, khách xe ôm (ngồi yên sau, quay mặt về đầu xe) ---
+     'khachxeom:dang': lambda: pose('khachxeom', bend=.02, nod=.04, yaw=.15, mouth='smile', aL=((.26, .95, -.02), (.3, .74, .04), (-1, 0, 0)), aR=((-.26, .95, -.02), (-.3, .74, .04), (1, 0, 0))),
+     'khachxeom:ngoisau': lambda: pose('khachxeom', sit=.95, bend=.04, nod=.04, yaw=0, mouth='smile', knee=(.84, .36), ankle=(.34, .14), kx=.2,
+                                    aR=((-.24, .78, .0), (-.2, .9, .2), (0, -1, 0)), aL=((.24, .78, .0), (.2, .9, .2), (0, -1, 0)), bike2=True),
+     'khachxeom:nhanbanh': lambda: pose('khachxeom', sit=.95, bend=-.02, nod=.12, yaw=-.45, tilt=.05, mouth='open', brow=-.4, knee=(.84, .36), ankle=(.34, .14), kx=.2,
+                                        aR=((-.3, .92, .14), (-.38, .98, .38), (0, 1, 0)), aL=((.24, .78, .0), (.2, .9, .2), (0, -1, 0)), bike2=True),
+     'khachxeom:xuongxe': lambda: pose('khachxeom', bend=.08, nod=.06, yaw=.25, mouth='smile', legs=dict(L=((.43, .1), (.08, .2)), R=((.42, -.06), (.12, -.2))),
+                                       aL=((.26, .95, -.02), (.34, .78, .08), (-1, 0, 0)), aR=((-.24, 1.18, .08), (-.12, 1.42, .1), (1, 0, 0)), bike3=True),
      # --- người mới ---
      'xemco:dang': lambda: pose('xemco', bend=.14, nod=.32, yaw=.1, mouth='smile', aR=((-.22, 1.0, -.1), (-.06, .86, -.16), (0, 0, -1)), aL=((.22, 1.0, -.1), (.06, .86, -.16), (0, 0, -1))),
      'xemco:reo': lambda: pose('xemco', bend=-.05, nod=-.1, yaw=.15, mouth='open', brow=-.6, aR=((-.32, 1.36, .08), (-.27, 1.6, .16), (0, 0, 1)), aL=((.24, 1.0, -.1), (.08, .86, -.16), (0, 0, -1))),
@@ -102,7 +113,7 @@ _orig_build = N.build
 def build(c, posed):
     parts, G, FR, headw = _orig_build(c, posed)
     if not posed: return parts, G, FR, headw
-    if c['pose'].get('ghe') or c['pose'].get('bike'): parts[:] = [p for p in parts if p['name'] != 'stool']
+    if c['pose'].get('ghe') or c['pose'].get('bike') or c['pose'].get('bike2'): parts[:] = [p for p in parts if p['name'] != 'stool']
     P = c['pose']; s = G['s']; WR = {sd: G['arms'][sd][2] for sd in (1, -1)}; EL = {sd: G['arms'][sd][1] for sd in (1, -1)}
     def add(name, fn, mat, frame='up'): parts.append(dict(name=name, fn=fn, mat=mat, frame=frame, k=.002, sep=True))
     pr = P.get('prop')
@@ -138,7 +149,7 @@ N.build = build
 # ---------------------------------------------------------------- vật gắn thêm bằng Blender (túi trứng, xe máy, gánh)
 def hook(scn, coll, G, headw, B):
     P = CUR['P']
-    if not (P.get('prop') == 'eggbag' or P.get('bike') or P.get('ganh') or P.get('ghe')): return
+    if not (P.get('prop') == 'eggbag' or P.get('bike') or P.get('bike2') or P.get('bike3') or P.get('ganh') or P.get('ghe')): return
     import bpy, pk, dscene, do3, kit
     from mathutils import Vector
     pk.sc = scn; pk.item(None); pk._mats.clear()
@@ -153,9 +164,13 @@ def hook(scn, coll, G, headw, B):
     if P.get('ghe'): do3.ghe_da((0, .02, 0))
     if P.get('bike'):
         kit.PARENT[0] = None; kit.xe_may((.3, -.02, 0), rot=0.0, col='#2E6FA8')
+    if P.get('bike2'):   # yên sau dưới hông, đầu xe phía trước mặt
+        kit.PARENT[0] = None; kit.xe_may((0, -.72, 0), rot=-math.pi / 2, col='#2E6FA8')
+    if P.get('bike3'):   # đứng cạnh xe bên trái
+        kit.PARENT[0] = None; kit.xe_may((.5, -.1, 0), rot=-math.pi / 2, col='#2E6FA8')
     new = [o for o in bpy.data.objects if o not in before]
     for o in new:
-        if P.get('bike') or P.get('ghe'): continue        # xe máy, ghế đá chỉ để render, không xuất vào .glb người
+        if P.get('bike') or P.get('bike2') or P.get('bike3') or P.get('ghe'): continue        # xe máy, ghế đá chỉ để render, không xuất vào .glb người
         for cl in list(o.users_collection): cl.objects.unlink(o)
         coll.objects.link(o)
 N.HOOKS.append(hook)

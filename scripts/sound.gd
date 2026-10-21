@@ -262,18 +262,26 @@ func _crossfade(pair: Array[AudioStreamPlayer], file: String, fade: float) -> vo
 	var old := pair[0]
 	var new := pair[1]
 	pair.reverse()
+	# Bản web phát kiểu "sample": đổi volume_db lúc đang phát không có tác dụng,
+	# nên không chuyển mượt mà dừng/phát thẳng ở đúng mức.
+	if OS.has_feature("web"):
+		fade = 0.0
 	if old.playing:
-		var tw := _fresh_tween(old)
-		tw.tween_property(old, "volume_db", -60.0, fade)
-		tw.tween_callback(old.stop)
+		if fade <= 0.0:
+			old.stop()
+		else:
+			var tw := _fresh_tween(old)
+			tw.tween_property(old, "volume_db", -60.0, fade)
+			tw.tween_callback(old.stop)
 	var stream := _stream(file) if file != "" else null
 	if stream == null:
 		return
 	new.stream = stream
-	new.volume_db = -40.0
+	new.volume_db = _level(file) if fade <= 0.0 else -40.0
 	new.play()
 	if OS.is_debug_build() and _debug: print("[music] ", file)
-	_fresh_tween(new).tween_property(new, "volume_db", _level(file), fade * 0.6)
+	if fade > 0.0:
+		_fresh_tween(new).tween_property(new, "volume_db", _level(file), fade * 0.6)
 
 
 ## Mỗi máy phát chỉ một tween, để đổi nhạc qua lại nhanh không bị tween cũ tắt nhầm.

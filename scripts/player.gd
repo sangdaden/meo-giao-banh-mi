@@ -141,21 +141,56 @@ func _build_visual() -> void:
 	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
 		_apply_style(mi)
 
-	# Túi bánh đeo bên hông phải, quai vắt qua lưng
-	Blocks.box(_body, Vector3(0.07, 0.13, 0.18), Vector3(0.14, 0.27, 0.02), BAG)
-	Blocks.box(_body, Vector3(0.26, 0.02, 0.03), Vector3(0.02, 0.37, 0.02), BAG)
+	_build_bag()
 
-	# Ổ bánh mì ló ra khỏi túi khi đang giao
+
+## Túi bánh đeo sát hông phải, quai vắt chéo qua lưng ôm theo thân.
+## Số đo lấy từ thân Bơ chỗ đeo túi: nửa bề ngang ~0,108 m ở độ cao 0,24 m, sống lưng cao 0,35 m.
+func _build_bag() -> void:
+	var bag := Node3D.new()
+	bag.name = "TuiBanh"
+	_body.add_child(bag)
+	# Thân túi áp sát hông (mặt trong ở x = 0,105), nắp túi phủ nửa trên, khoá cài nhỏ
+	Blocks.box(bag, Vector3(0.05, 0.11, 0.16), Vector3(0.13, 0.235, 0.03), BAG)
+	Blocks.box(bag, Vector3(0.056, 0.05, 0.168), Vector3(0.132, 0.272, 0.03), BAG.darkened(0.25))
+	Blocks.box(bag, Vector3(0.008, 0.022, 0.03), Vector3(0.162, 0.255, 0.03), Color("#E8C15A"))
+	# Quai: dải vải uốn theo mặt cắt elip của thân, từ miệng túi vắt qua lưng xuống hông trái
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var c := Vector2(0.0, 0.235)
+	var a := 0.116
+	var b := 0.124
+	var steps := 18
+	for i in steps + 1:
+		var th := deg_to_rad(lerpf(30.0, 200.0, float(i) / steps))
+		var pt := Vector3(c.x + cos(th) * a, c.y + sin(th) * b, 0.0)
+		var n := Vector3(cos(th) / a, sin(th) / b, 0.0).normalized()
+		st.set_normal(n)
+		st.add_vertex(pt + Vector3(0, 0, 0.016))
+		st.set_normal(n)
+		st.add_vertex(pt + Vector3(0, 0, 0.044))
+	for i in steps:
+		var k := i * 2
+		st.add_index(k)
+		st.add_index(k + 1)
+		st.add_index(k + 2)
+		st.add_index(k + 1)
+		st.add_index(k + 3)
+		st.add_index(k + 2)
+	var strap := Blocks.mesh(bag, st.commit(), Vector3.ZERO, BAG.darkened(0.25))
+	strap.material_override.cull_mode = BaseMaterial3D.CULL_DISABLED
+
+	# Ổ bánh mì ló ra khỏi miệng túi khi đang giao
 	bread = Node3D.new()
-	_body.add_child(bread)
+	bag.add_child(bread)
 	var loaf := CapsuleMesh.new()
-	loaf.radius = 0.035
-	loaf.height = 0.2
+	loaf.radius = 0.03
+	loaf.height = 0.17
 	loaf.radial_segments = 8
 	loaf.rings = 2
-	var loaf_mi := Blocks.mesh(bread, loaf, Vector3(0.14, 0.36, 0.03), Color("#D98E2B"))
-	loaf_mi.rotation_degrees = Vector3(70, 0, 0)
-	bread.visible = false
+	var loaf_mi := Blocks.mesh(bread, loaf, Vector3(0.128, 0.3, 0.0), Color("#D98E2B"))
+	loaf_mi.rotation_degrees = Vector3(60, 0, 0)
+	bread.visible = carrying
 
 
 ## Vật liệu theo style guide D: lông Roughness .8 Rim .3, vải Roughness .9 Rim .4, mắt Clearcoat.

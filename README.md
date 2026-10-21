@@ -79,7 +79,7 @@ scripts/
   hud.gd               thẻ đơn, đồng hồ, 5 chấm tiến độ, màn bắt đầu, tạm dừng, kết thúc
   timer_ring.gd        đồng hồ vòng tròn
   blocks.gd            hàm tiện ích dựng khối hộp tạm, gộp mesh cho nhẹ
-assets/models/bo.glb   mèo Bơ kiểu D: ~5,8k tam giác, 16 xương (bản tạm)
+assets/models/bo.glb   mèo Bơ kiểu D: ~6,3k tam giác, 16 xương (bản tạm)
 tools/bo_game.py       tạo bo.glb từ model phác thảo bằng Blender (pip install bpy)
 web/update-check.js    bản web tự nhắc tải lại khi có bản mới
 docs/                  ảnh chụp cho README (Godot bỏ qua thư mục này)

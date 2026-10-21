@@ -35,7 +35,23 @@ func _run() -> void:
 	await _shot("2_cai_dat")
 	menu.settings.close()
 	menu.wardrobe.open()
+	await _wait(30)
 	await _shot("3_tu_do")
+	var wd: WardrobePanel = menu.wardrobe
+	wd.preview.yaw += PI * 0.6
+	await _shot("3b_tu_do_xoay")
+	wd.show_tab(1)
+	await _shot("3c_phu_kien")
+	wd.show_tab(1, "neck")
+	Outfit.toggle("khando")
+	wd._refresh()
+	await _wait(10)
+	await _shot("3d_thao_khan")
+	Outfit.toggle("khando")
+	wd.show_tab(2)
+	await _shot("3e_bo_do")
+	wd.show_tab(0)
+	wd.close()
 
 	change_scene_to_file("res://scenes/main.tscn")
 	await _wait(60)

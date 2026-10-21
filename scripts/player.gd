@@ -28,6 +28,8 @@ var carrying := false:
 		carrying = v
 		if bread:
 			bread.visible = v
+		if _bag:
+			_bag.visible = v or _wear_bag
 
 var _coyote := 0.0
 var _buffer := 0.0
@@ -47,6 +49,13 @@ var _fp_paws := []               ## khớp vai của hai chân trước BoPaw (t
 var first_person := false        ## camera_rig gán: góc nhìn thứ nhất thì người quay theo camera
 var _body: Node3D
 var bread: Node3D
+var preview := false             ## tủ đồ: đứng yên trên bục xem trước, không có vật lý
+var _bag: Node3D
+var _wear_bag := true
+var _scarf_mesh: MeshInstance3D  # khăn là một mặt (surface) của mesh Bơ, tháo khăn thì thay vật liệu ẩn
+var _scarf_surface := -1
+var _scarf_mat: Material
+var _hidden_mat: StandardMaterial3D
 var _skel: Skeleton3D
 var _bone_idx := {}
 var _bone_rest := {}
@@ -148,6 +157,7 @@ func _build_visual() -> void:
 		_apply_style(mi)
 
 	_build_bag()
+	apply_outfit()
 	# Thân, khăn, túi và quai: góc nhìn thứ nhất không vẽ (vẫn đổ bóng), thay bằng hai chân trước riêng
 	for mi: MeshInstance3D in _body.find_children("*", "MeshInstance3D", true, false):
 		mi.layers = LAYER_BO_BODY
@@ -160,6 +170,7 @@ func _build_bag() -> void:
 	var bag := Node3D.new()
 	bag.name = "TuiBanh"
 	_body.add_child(bag)
+	_bag = bag
 	# Thân túi áp sát hông (mặt trong ở x = 0,105), nắp túi phủ nửa trên, khoá cài nhỏ
 	Blocks.box(bag, Vector3(0.05, 0.11, 0.16), Vector3(0.13, 0.235, 0.03), BAG)
 	Blocks.box(bag, Vector3(0.056, 0.05, 0.168), Vector3(0.132, 0.272, 0.03), BAG.darkened(0.25))
@@ -226,6 +237,25 @@ func _apply_style(mi: MeshInstance3D) -> void:
 			m.rim_enabled = true
 			m.rim = 0.4 if fabric else 0.3
 		mi.set_surface_override_material(i, m)
+		if mat_name.begins_with("Khan"):
+			_scarf_mesh = mi
+			_scarf_surface = i
+			_scarf_mat = m
+
+
+## Mặc đồ theo tủ đồ (Outfit): khăn quàng đỏ và túi bánh tháo ra được.
+## Túi bánh tháo rồi thì chỉ hiện lúc đang mang bánh đi giao.
+func apply_outfit() -> void:
+	_wear_bag = Outfit.worn("back") == "tuibanh"
+	if _bag:
+		_bag.visible = carrying or _wear_bag
+	if _scarf_mesh:
+		if _hidden_mat == null:
+			_hidden_mat = StandardMaterial3D.new()
+			_hidden_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+			_hidden_mat.albedo_color = Color(1, 1, 1, 0)
+		var on := Outfit.worn("neck") == "khando"
+		_scarf_mesh.set_surface_override_material(_scarf_surface, _scarf_mat if on else _hidden_mat)
 
 
 ## Bản web (Compatibility) không đổi màu đỉnh từ linear sang sRGB như Forward+,
@@ -335,7 +365,7 @@ func smooth_position() -> Vector3:
 func _process(delta: float) -> void:
 	visual.global_position = smooth_position()
 	visual.scale = visual.scale.lerp(Vector3.ONE, 1.0 - exp(-12.0 * delta))
-	_animate(delta, Vector2(velocity.x, velocity.z).length(), velocity.y, is_on_floor())
+	_animate(delta, Vector2(velocity.x, velocity.z).length(), velocity.y, preview or is_on_floor())
 
 
 ## Animation tạm bằng code cho cả người, không chỉ chân.

@@ -138,10 +138,10 @@ func _build_tu(parent: Node3D, i: int, p: Vector3, shirt: Color, title: String) 
 	_seated(parent, pos, PI, shirt, Color("#3D7FC1"))
 	_arms.append({"order": i, "pos": pos + Vector3(0.2, 1.05, 0.05), "yaw": PI, "color": shirt})
 	_tu_paper_pos = pos + Vector3(-0.05, 1.15, 0.38)
-	# Sạp báo: kệ thấp sau lưng
-	Blocks.solid_box(parent, Vector3(1.6, 1.0, 0.5), p + Vector3(0, 0.5, -1.4), Color("#9B6A3A"), Blocks.LAYER_PROP)
+	# Sạp báo: kệ thấp sát mặt tiền bên cạnh ghế (sau lưng Chú Tư đã là tường nhà, z = -7)
+	Blocks.solid_box(parent, Vector3(1.6, 1.0, 0.5), p + Vector3(1.4, 0.5, -0.72), Color("#9B6A3A"), Blocks.LAYER_PROP)
 	for k in 4:
-		Blocks.box(parent, Vector3(0.3, 0.02, 0.22), p + Vector3(-0.55 + k * 0.37, 1.02, -1.4), PAPER)
+		Blocks.box(parent, Vector3(0.3, 0.02, 0.22), p + Vector3(0.85 + k * 0.37, 1.02, -0.72), PAPER)
 	Blocks.label(parent, title, pos + Vector3(0, 1.9, 0), 40)
 
 

@@ -717,7 +717,7 @@ func _build_results(rows: Array, summary := {}) -> Control:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 6)
 	panel.add_child(v)
-	v.add_child(T.label("Năm đơn sáng nay", 28, INK, "display"))
+	v.add_child(T.label(summary.get("rows_title", "Năm đơn sáng nay"), 28, INK, "display"))
 	for i in rows.size():
 		v.add_child(_result_row(rows[i], i, has_tip))
 

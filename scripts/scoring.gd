@@ -182,28 +182,7 @@ static func end_day(stars_max := 15) -> Dictionary:
 		GameState.set_day("hang_cao_nhat", rank)
 	GameState.set_day("so_lan_choi", int(GameState.get_day("so_lan_choi", 0)) + 1)
 
-	# Kỷ lục từng đơn (giây nhanh nhất, -1 là chưa có) và bóng mờ đi kèm
-	var times: Array = _best_times().duplicate()
-	var ghosts: Dictionary = (GameState.get_day("bong_mo", {}) as Dictionary).duplicate()
-	for r in orders:
-		var i: int = r.get("index", 0)
-		while times.size() <= i:
-			times.append(-1.0)
-		if r.get("new_best", false):
-			times[i] = r.time
-			if _ghosts.has(i):
-				ghosts[i] = _ghosts[i]
-	GameState.set_day("ky_luc_don", times)
-	GameState.set_day("bong_mo", ghosts)
-
-	# Huy hiệu nhiệm vụ phụ (giữ qua mọi lần chơi) và ví tiền boa để mở phụ kiện
-	var badges: Array = (GameState.get_day("huy_hieu", []) as Array).duplicate()
-	for r in orders:
-		if r.get("side_ok", false) and r.side_quest not in badges:
-			badges.append(r.side_quest)
-	GameState.set_day("huy_hieu", badges)
-	var wallet: int = int(GameState.get_global("vi_tien_boa", 0)) + tip
-	GameState.set_global("vi_tien_boa", wallet)
+	var wallet := _save_orders(tip)
 	GameState.write_save()
 	GameState.write_star_record(stars)
 
@@ -220,6 +199,73 @@ static func end_day(stars_max := 15) -> Dictionary:
 		"day": GameState.DAY_NAMES.get(GameState.day, GameState.day),
 		"wallet": wallet,
 	}
+
+
+## Lưu phần riêng từng đơn (kỷ lục giây, bóng mờ, sao cao nhất, huy hiệu) và cộng ví. Trả về ví mới.
+static func _save_orders(tip: int) -> int:
+	# Kỷ lục từng đơn (giây nhanh nhất, -1 là chưa có) và bóng mờ đi kèm
+	var times: Array = _best_times().duplicate()
+	var ghosts: Dictionary = (GameState.get_day("bong_mo", {}) as Dictionary).duplicate()
+	for r in orders:
+		var i: int = r.get("index", 0)
+		while times.size() <= i:
+			times.append(-1.0)
+		if r.get("new_best", false):
+			times[i] = r.time
+			if _ghosts.has(i):
+				ghosts[i] = _ghosts[i]
+	GameState.set_day("ky_luc_don", times)
+	# Sao cao nhất từng đơn, màn Chọn màn hiện cạnh từng đơn
+	var best_stars: Array = (GameState.get_day("sao_don", []) as Array).duplicate()
+	for r in orders:
+		if r.is_empty():
+			continue
+		var i: int = r.get("index", 0)
+		while best_stars.size() <= i:
+			best_stars.append(0)
+		best_stars[i] = maxi(int(best_stars[i]), int(r.get("stars", 0)))
+	GameState.set_day("sao_don", best_stars)
+	GameState.set_day("bong_mo", ghosts)
+
+	# Huy hiệu nhiệm vụ phụ (giữ qua mọi lần chơi) và ví tiền boa để mở phụ kiện
+	var badges: Array = (GameState.get_day("huy_hieu", []) as Array).duplicate()
+	for r in orders:
+		if r.get("side_ok", false) and r.side_quest not in badges:
+			badges.append(r.side_quest)
+	GameState.set_day("huy_hieu", badges)
+	var wallet: int = int(GameState.get_global("vi_tien_boa", 0)) + tip
+	GameState.set_global("vi_tien_boa", wallet)
+	return wallet
+
+
+## Chơi một đơn lẻ ở màn Chọn màn: lưu kỷ lục đơn và tiền boa, không tính kỷ lục cả ngày.
+static func end_practice() -> Dictionary:
+	var played := orders.filter(func(r): return not r.is_empty())  # order_done chừa chỗ trống cho các đơn trước
+	var stars := total_stars()
+	var tip := 0
+	for r in played:
+		tip += int(r.get("tip", 0))
+	var wallet := _save_orders(tip)
+	GameState.write_save()
+	var one: Dictionary = played[0] if played.size() == 1 else {}
+	return {
+		"stars": stars,
+		"stars_max": STARS_PER_ORDER * played.size(),
+		"tip": tip,
+		"rank": (["thuong", "thuong", "gion", "vang"][clampi(stars, 0, 3)]) if not one.is_empty() else rank_of(stars),
+		"stamps": stamps_today.size(),
+		"stamps_total": STAMPS_PER_DAY,
+		"stamps_all": GameState.stamps_all(),
+		"new_record": one.get("new_best", false) and float(one.get("best_time", -1.0)) >= 0.0,
+		"day": GameState.DAY_NAMES.get(GameState.day, GameState.day),
+		"wallet": wallet,
+	}
+
+
+## Sao cao nhất đã đạt ở đơn i (0 nếu chưa giao lần nào).
+static func best_stars(order_index: int, which := "thu_hai") -> int:
+	var a: Array = GameState.get_day("sao_don", [], which)
+	return int(a[order_index]) if order_index < a.size() else 0
 
 
 static func _rank_value(rank: String) -> int:

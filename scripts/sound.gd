@@ -25,11 +25,14 @@ const LEVEL := {
 	"ui_click": -10.0, "ui_start": -5.0,
 	"knead": -6.0, "chop": -6.0, "crunch": -4.0, "sauce": -6.0, "wrap": -8.0,
 	"burn": -5.0, "water": -7.0, "spray": -9.0,
+	"snore": -10.0, "sniff": -8.0, "tag_jingle": -12.0, "sneak": -22.0,
+	"moto_pass": -4.0, "moto_idle": -12.0, "horn": -8.0,
+	"basket_lower": -6.0, "basket_drop": -5.0, "glass_rattle": -7.0, "glass_tip": -4.0, "oil_slip": -5.0,
 	"oven_open": -5.0, "oven_ding": -6.0, "sizzle": -10.0, "oven_fire": -10.0,
 	"jingle_win": -3.0, "jingle_lose": -3.0,
 }
 ## Tiếng có nhiều bản: play("step") chọn ngẫu nhiên step_1..step_4, đổi cao độ nhẹ cho đỡ lặp.
-const VARIANTS := {"step": 4, "knead": 3, "chop": 3}
+const VARIANTS := {"step": 4, "knead": 3, "chop": 3, "sneak": 3, "moto_pass": 2}
 const SFX_VOICES := 16
 const FADE := 1.2
 
@@ -108,6 +111,20 @@ func play(sound_name: String, volume_db := 0.0, pitch := 1.0) -> void:
 
 
 ## Hiệu ứng giao diện: vẫn phát khi game đang tạm dừng.
+## Phát tiếng có vị trí trong thế giới 3D: càng xa camera càng nhỏ, quá max_dist thì không phát.
+## Âm lượng tính một lần lúc bắt đầu (bản web không đổi được âm lượng khi đang phát),
+## nên hợp với tiếng ngắn như sủa, còi, xe chạy ngang.
+func play_at(sound_name: String, pos: Vector3, max_dist := 30.0, volume_db := 0.0, pitch := 1.0) -> void:
+	var cam := get_viewport().get_camera_3d()
+	var d := cam.global_position.distance_to(pos) if cam else 0.0
+	if d > max_dist:
+		return
+	# Giảm 6 dB mỗi khi khoảng cách gấp đôi, tính từ 3 m; gần mép max_dist thì nhỏ dần về 0
+	var atten := -20.0 * log(maxf(d, 3.0) / 3.0) / log(10.0)
+	var edge := clampf((max_dist - d) / (max_dist * 0.25), 0.0, 1.0)
+	play(sound_name, volume_db + atten + linear_to_db(maxf(edge, 0.001)), pitch)
+
+
 func play_ui(sound_name := "ui_click") -> void:
 	var stream := _stream(sound_name)
 	if stream:
@@ -249,7 +266,7 @@ func _stream(file: String, looping := false) -> AudioStream:
 			_warned[file] = true
 			push_warning("Sound: chưa có file âm thanh '%s'" % file)
 		return null
-	if looping or file.begins_with("music_") or file.begins_with("amb_") or file in ["sizzle", "oven_fire"]:
+	if looping or file.begins_with("music_") or file.begins_with("amb_") or file in ["sizzle", "oven_fire", "snore", "moto_idle"]:
 		if stream is AudioStreamOggVorbis:
 			stream.loop = true
 		elif stream is AudioStreamWAV:

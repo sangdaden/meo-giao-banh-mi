@@ -43,6 +43,8 @@ const SHIRT := Color("#E8C15A")
 ## Độ cao mặt các tầng kệ ke_cao (đo trên model) và một bao gạo nằm
 const SHELF_TIERS := [0.12, 0.55, 0.98, 1.41, 1.98]
 const RICE_H := 0.2225
+## Xa hơn chừng này (mét) thì không vẽ đồ trong tiệm
+const PROP_RANGE := 22.0
 
 var player: CharacterBody3D
 var hud: CanvasLayer
@@ -96,15 +98,14 @@ static func build(parent: Node3D, x0: float, x1: float, z0: float, depth: float)
 		for i in n:
 			var side := -0.2 if i % 2 == 0 else 0.2
 			var jitter := 0.03 * float((i + k) % 3 - 1)
-			PhoModels.put(parent, "bao_gao", Vector3(x1 - 0.65 + side, int(i / 2.0) * RICE_H, bz + jitter), PI / 2.0 + jitter)
+			_prop(parent, "bao_gao", Vector3(x1 - 0.65 + side, int(i / 2.0) * RICE_H, bz + jitter), PI / 2.0 + jitter)
 	# Tủ kem nắp kính (tu_kem 1,1 × 0,63 × 0,81 m) dọc vách phải, mặt chữ KEM quay vào lòng tiệm.
 	# Nắp kính trơn như vũng dầu, đứng lên là trượt
 	var fz := z0 + 2.55
 	var fx := x1 - 0.52
 	_solid(parent, Vector3(0.63, 0.81, 1.1), Vector3(fx, 0.405, fz), FREEZER, true, Blocks.LAYER_PROP)
-	PhoModels.put(parent, "tu_kem", Vector3(fx, 0, fz), -PI / 2.0)
-	var glass := PhoModels.put(parent, "tu_kem_vo", Vector3(fx, 0.81 - 0.042, fz), -PI / 2.0)
-	glass.material_override = _glass_material()
+	_prop(parent, "tu_kem", Vector3(fx, 0, fz), -PI / 2.0)
+	_prop(parent, "tu_kem_vo", Vector3(fx, 0.81 - 0.042, fz), -PI / 2.0, _glass_material())
 	var lid := Area3D.new()
 	lid.name = "NapTuKem"
 	lid.collision_layer = 0
@@ -120,13 +121,13 @@ static func build(parent: Node3D, x0: float, x1: float, z0: float, depth: float)
 	parent.add_child(lid)
 	# Quầy (quay 1,6 × 0,55 m, mặt gỗ cao 0,93 m, tủ kính, 3 hũ kẹo, cân đồng hồ), mặt trước nhìn ra cửa
 	_solid(parent, Vector3(1.6, COUNTER_TOP.y, 0.55), Vector3(COUNTER_TOP.x, COUNTER_TOP.y / 2.0, COUNTER_TOP.z), COUNTER, true, Blocks.LAYER_PROP)
-	PhoModels.put(parent, "quay", Vector3(COUNTER_TOP.x, 0, COUNTER_TOP.z), PI)
+	_prop(parent, "quay", Vector3(COUNTER_TOP.x, 0, COUNTER_TOP.z), PI)
 	# Kệ sau lưng Cô Hai, quay ra cửa
 	for k in 2:
 		_shelf(parent, Vector3(cx - 0.6 + k * 1.2, 0, zb - 0.42), PI)
 	# Dây snack treo dưới mái hiên hai bên cửa
 	for sx in [cx - 1.6, cx - 1.35, cx + 1.35, cx + 1.6]:
-		PhoModels.put(parent, "day_snack", Vector3(sx, GROUND_H - 1.25, z0 + 0.15), PI)
+		_prop(parent, "day_snack", Vector3(sx, GROUND_H - 1.25, z0 + 0.15), PI)
 	var co_hai := StaticBody3D.new()
 	co_hai.collision_layer = Blocks.LAYER_PROP
 	co_hai.position = CO_HAI
@@ -167,7 +168,7 @@ static func _solid(parent: Node3D, size: Vector3, pos: Vector3, color: Color, hi
 ## Kệ sắt ke_cao: pos là giữa đáy, rot_y quay mặt trước kệ (mặt +Z của model) vào lòng tiệm.
 ## Va chạm từng tầng kệ để Bơ nhảy lên được; hàng trên kệ chỉ để nhìn.
 static func _shelf(parent: Node3D, pos: Vector3, rot_y: float) -> void:
-	PhoModels.put(parent, "ke_cao", pos, rot_y)
+	_prop(parent, "ke_cao", pos, rot_y)
 	var basis := Basis(Vector3.UP, rot_y)
 	for y in SHELF_TIERS:
 		var body := _solid(parent, Vector3(1.2, 0.04, 0.4), pos + Vector3(0, y - 0.02, 0), SHELF, true, Blocks.LAYER_PROP)
@@ -175,6 +176,19 @@ static func _shelf(parent: Node3D, pos: Vector3, rot_y: float) -> void:
 	for end in [-1.0, 1.0]:
 		var post := _solid(parent, Vector3(0.05, 2.0, 0.4), pos + basis * Vector3(end * 0.575, 1.0, 0), SHELF, true, Blocks.LAYER_PROP)
 		post.basis = basis
+
+
+## Đồ trong tiệm: thêm sau Blocks.merge_static nên không gộp vào mảng phố, không đổ bóng (trong nhà có mái)
+## và chỉ vẽ khi tới gần, để các góc nhìn ngoài phố không tốn thêm tam giác (ngân sách 400 nghìn).
+static func _prop(parent: Node3D, model: String, pos: Vector3, rot_y := 0.0, mat: Material = null) -> void:
+	var mi := MeshInstance3D.new()
+	mi.mesh = PhoModels.mesh(model)
+	mi.material_override = mat if mat else PhoModels.material()
+	mi.position = pos
+	mi.rotation.y = rot_y
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.visibility_range_end = PROP_RANGE
+	parent.add_child.call_deferred(mi)
 
 
 ## Nắp kính tủ kem: màu đỉnh của model, trong suốt một phần

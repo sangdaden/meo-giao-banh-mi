@@ -38,7 +38,9 @@ var _was_on_floor := true
 var _prev_pos := Vector3.ZERO
 var _curr_pos := Vector3.ZERO
 
+const LAYER_BO_BODY := 1 << 10   ## lớp hình thân Bơ: camera góc thứ nhất bỏ qua lớp này
 var visual: Node3D
+var first_person := false        ## camera_rig gán: góc nhìn thứ nhất thì người quay theo camera
 var _body: Node3D
 var bread: Node3D
 var _skel: Skeleton3D
@@ -140,6 +142,7 @@ func _build_visual() -> void:
 		_bone_rest[bone_name] = _skel.get_bone_rest(idx).basis.get_rotation_quaternion()
 	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
 		_apply_style(mi)
+		mi.layers = LAYER_BO_BODY
 
 	_build_bag()
 
@@ -277,7 +280,10 @@ func _physics_process(delta: float) -> void:
 		landed.emit()
 	_was_on_floor = is_on_floor()
 
-	if dir.length() > 0.1:
+	if first_person:
+		# Góc nhìn thứ nhất: người (và bóng) luôn quay theo hướng nhìn, đi tới là đi theo mắt
+		visual.rotation.y = lerp_angle(visual.rotation.y, yaw, 1.0 - exp(-turn_speed * 2.0 * delta))
+	elif dir.length() > 0.1:
 		visual.rotation.y = lerp_angle(visual.rotation.y, atan2(-dir.x, -dir.z), 1.0 - exp(-turn_speed * delta))
 
 	# Rơi khỏi bản đồ thì đưa về chỗ cũ
@@ -285,6 +291,13 @@ func _physics_process(delta: float) -> void:
 		global_position = Vector3(-33, 1, -2)
 		velocity = Vector3.ZERO
 	_curr_pos = global_position
+
+
+## Góc nhìn thứ nhất: camera không vẽ thân Bơ, nhưng bóng đổ của Bơ vẫn đủ cả đầu lẫn đuôi.
+func set_first_person(v: bool, cam: Camera3D = null) -> void:
+	first_person = v
+	if cam:
+		cam.cull_mask = (0xFFFFF & ~LAYER_BO_BODY) if v else 0xFFFFF
 
 
 ## Vị trí mèo đã nội suy giữa hai nhịp vật lý: camera và mũi tên bám theo vị trí này.

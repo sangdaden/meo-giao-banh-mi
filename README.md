@@ -105,6 +105,7 @@ Vòng sáng cam dưới đất chỉ trạm nên tới tiếp; đứng trong vò
 | Shift (giữ) | RB hoặc X | chạy nhanh |
 | Space | A | nhảy (giữ lâu nhảy cao, bấm nhanh nhảy thấp) |
 | Chuột | cần phải | xoay camera |
+| V | | đổi góc nhìn thứ ba / thứ nhất |
 | Esc | Start | tạm dừng, trả chuột |
 | E hoặc Enter | B | làm việc ở trạm trong bếp |
 | Enter | | bắt đầu, chơi lại |
@@ -132,7 +133,7 @@ Vòng chơi:
 Mọi con số chỉnh được đều nằm ở đầu file script, có chú thích tiếng Việt:
 
 - `scripts/player.gd`: tốc độ chạy, tăng tốc, độ cao nhảy, trọng lực, coyote time (vẫn nhảy được ngay sau khi rời mép), jump buffer (bấm nhảy hơi sớm vẫn tính).
-- `scripts/camera_rig.gd`: độ nhạy chuột, khoảng cách camera.
+- `scripts/camera_rig.gd`: độ nhạy chuột, khoảng cách camera, góc nhìn thứ ba/thứ nhất (phím V; menu cài đặt gán `first_person`, `invert_y`, `mouse_sensitivity`).
 - `scripts/dog.gd`: tốc độ đuổi và tầm nhìn của Chó Mực.
 - `scripts/main.gd`: danh sách 5 đơn (vị trí, thời gian), phạt khi bị đớp, `time_multiplier` để nới giờ cho mọi đơn.
 

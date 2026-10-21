@@ -63,6 +63,7 @@ jobs:
       - name: Đo lệnh vẽ, vật thể, tam giác (renderer Compatibility như bản web)
         run: |
           mkdir -p anh-hieu-nang
+          touch anh-hieu-nang/.gdignore  # ảnh chụp nằm trong thư mục project: không cho Godot nhập và đóng vào index.pck
           timeout 900 xvfb-run -a ~/godot/godot --path . --rendering-method gl_compatibility --rendering-driver opengl3 \
             -s tools/do_hieu_nang.gd -- --chup=anh-hieu-nang 2>&1 | tee hieu-nang.log | grep "hieu nang"
           {

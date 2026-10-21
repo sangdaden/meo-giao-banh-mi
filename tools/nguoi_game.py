@@ -1,6 +1,7 @@
 """Người dân khu phố vào game: model nhẹ + bộ xương người 19 xương + animation, xuất .glb cho Godot.
 
-Chạy:  python3 tools/nguoi_game.py <id,...|all> assets/models/nguoi
+Chạy:  python3 tools/nguoi_game.py <id,...|all> assets/models/nguoi [--ban=nhe|dong]
+       (--ban: bản ít tam giác cho người chợ / đám đông, xem BAN)
 Soát:  xvfb-run godot --path . --rendering-driver opengl3 -s tools/chup_nguoi.gd -- <thư mục ảnh> [id,...] [anim,...]
 Cần:   pip install bpy numpy scikit-image   (Blender chạy headless; bản đang dùng: bpy 5.2)
 
@@ -60,6 +61,19 @@ ROLES = {
     # Chị Thảo khách xe ôm: ngồi yên sau xe Chú Năm (hông 0,95), xuống xe thì đứng
     'khachxeom': dict(base='dung', tempo=1.0, energy=1.0),
 }
+
+# Bản dựng: '' đủ chi tiết (~3,8k tam giác, người gần camera); 'nhe' ~1,4k cho người chợ, phố đông;
+# 'dong' ~600 cho đám đông xa (không đốm sáng mắt, mắt chỉ là chấm tối). Xuất <id>_nhe.glb / <id>_dong.glb.
+# body: số mặt sau khi giảm lưới; mat, sang: (segments, rings) cầu mắt và đốm sáng (None = không có);
+# giu_mat: giữ lưới dày quanh mặt khi giảm.
+BAN = {
+    '':     dict(body=2950, mat=(16, 10), sang=(8, 5), giu_mat=True),
+    'nhe':  dict(body=1100, mat=(10, 6), sang=(6, 4), giu_mat=True),
+    'dong': dict(body=500, mat=(6, 4), sang=None, giu_mat=False),
+}
+Q = BAN['']
+# Người ở chợ sáng Thứ Ba: ai cũng có 'va' (bị Bơ va) và 'di_bo' (người bán đi khỏi khi dọn sạp)
+CHO = {'xemco', 'bancho', 'hangrong', 'ganhhang', 'dicho1', 'dicho2', 'dicho3'}
 
 HEAD_PARTS = {'head', 'brow', 'hair', 'tie', 'must', 'goatee', 'cap', 'helmet', 'earring', 'nonla', 'quai'}
 ARM_PARTS = {'delt', 'arm', 'sleeve', 'hand', 'towel'}
@@ -226,10 +240,12 @@ def build_person(cid):
         if -d.y / hr[2] > .3 and d.length < hr[1] * 1.1:
             keep.add([vt.index], .45, 'REPLACE')
     md = body.modifiers.new('Dec', 'DECIMATE')
-    md.ratio = (2800 if any(e in c.get('extras', []) for e in ('glasses', 'glasses_round')) else 2950) / len(body.data.polygons)
-    md.vertex_group = 'giu_mat'
-    md.vertex_group_factor = 1.0
-    md.invert_vertex_group = True
+    glasses = any(e in c.get('extras', []) for e in ('glasses', 'glasses_round'))
+    md.ratio = (Q['body'] - (150 if glasses else 0)) / len(body.data.polygons)
+    if Q['giu_mat']:
+        md.vertex_group = 'giu_mat'
+        md.vertex_group_factor = 1.0
+        md.invert_vertex_group = True
     bpy.ops.object.modifier_apply(modifier=md.name)
     body.vertex_groups.remove(body.vertex_groups['giu_mat'])
     hr = G['head_r']
@@ -246,7 +262,7 @@ def build_person(cid):
         xr = upB.cross(fwd).normalized()
         zu = fwd.cross(xr).normalized()
         q = Quaternion(fwd, sd * .14) @ Matrix((xr, -fwd, zu)).transposed().to_quaternion()
-        bpy.ops.mesh.primitive_uv_sphere_add(segments=16, ring_count=10, radius=1, location=B(cw))
+        bpy.ops.mesh.primitive_uv_sphere_add(segments=Q['mat'][0], ring_count=Q['mat'][1], radius=1, location=B(cw))
         o = bpy.context.active_object
         o.scale = (er[0], er[2], er[1])
         o.rotation_euler = q.to_euler()
@@ -274,8 +290,8 @@ def build_person(cid):
         loc = B(cw)
         up = q @ Vector((0, 0, 1))
         rt = q @ Vector((1, 0, 0))
-        for off, rad in (((.32, .3), .2), ((-.28, -.22), .12)):
-            bpy.ops.mesh.primitive_uv_sphere_add(segments=8, ring_count=5, radius=er[0] * rad,
+        for off, rad in (((.32, .3), .2), ((-.28, -.22), .12)) if Q['sang'] else ():
+            bpy.ops.mesh.primitive_uv_sphere_add(segments=Q['sang'][0], ring_count=Q['sang'][1], radius=er[0] * rad,
                                                  location=loc + fwd * er[2] * .95 + up * er[1] * off[0] + rt * er[0] * off[1])
             h_ = bpy.context.active_object
             h_.data.materials.append(M_SANG)
@@ -1296,14 +1312,17 @@ def build_anims(info, cid):
     R.keyframe('cho_banh', L(2.2 / tp), anim_reach(R, role, cid))
     if cid != 'khachxeom':  # Chị Thảo nhận bánh trên yên sau (thu_ba_clips)
         R.keyframe('nhan_banh', L(2.6 / tp), anim_receive(R, role, cid), loop=False)
-    if role['base'] == 'dung':
+    if role['base'] == 'dung' or cid in CHO:  # người bán ngồi cũng phải đứng dậy đi khi dọn sạp
         R.keyframe('di_bo', L(1.05 / tp), anim_walk(R, role))
     if cid in ('ongbay', 'ongtam'):
         fn, sec = anim_chess(R, role, cid), 3.0  # đánh cờ theo dáng "đi cờ" đã duyệt
     else:
         fn, sec = anim_special(R, role, cid)
     R.keyframe('viec_rieng', L(sec), fn)
-    for name, sec, fn, loop in thu_ba_clips(R, role, cid):
+    clips = thu_ba_clips(R, role, cid)
+    if cid in CHO and 'va' not in [n for n, *_ in clips]:  # người chợ nào cũng giật mình khi bị Bơ va
+        clips.append(('va', .6, anim_startle(R, role, cid), False))
+    for name, sec, fn, loop in clips:
         R.keyframe(name, L(sec), fn, loop=loop)
     if cid == 'bena':
         R.keyframe('keo_day', L(1.6 / tp), anim_rope(R, role))
@@ -1326,7 +1345,10 @@ def export(info, path):
 
 
 def main():
-    args = [a for a in sys.argv[1:]]
+    global Q
+    args = [a for a in sys.argv[1:] if not a.startswith('--ban=')]
+    ban = next((a[6:] for a in sys.argv[1:] if a.startswith('--ban=')), '')
+    Q = BAN[ban]
     ids = args[0]
     out = args[1]
     ids = list(N.CHARS) if ids == 'all' else ids.split(',')
@@ -1335,7 +1357,7 @@ def main():
     for cid in ids:
         info = build_person(cid)
         R = build_anims(info, cid)
-        path = os.path.join(out, cid + '.glb')
+        path = os.path.join(out, cid + ('_' + ban if ban else '') + '.glb')
         export(info, path)
         report[cid] = dict(tris=info['tris'], kb=os.path.getsize(path) // 1024,
                            anims=[t.name for t in info['arm'].animation_data.nla_tracks], h=info['c']['h'])

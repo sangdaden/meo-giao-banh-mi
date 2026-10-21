@@ -43,6 +43,9 @@ static var _scenes := {}
 static var _srgb_meshes := {}
 
 var id := ""
+## Bản model: "" đủ chi tiết (~3,8k tam giác), "nhe" ~1,4k (người chợ, phố đông), "dong" ~600 (đám đông xa).
+## Đặt trước khi thêm vào cây cảnh: n.ban = "nhe". Cùng xương và animation với bản đủ.
+var ban := ""
 ## Animation khi rảnh; play_once xong thì quay về đây.
 var idle_anim := "viec_rieng"
 ## Đầu quay nhìn theo node này khi trong tầm look_range mét (null = không nhìn).
@@ -76,9 +79,10 @@ static func in_scene(tree: SceneTree, person_id: String) -> bool:
 
 
 func _ready() -> void:
-	if not _scenes.has(id):
-		_scenes[id] = load("res://assets/models/nguoi/%s.glb" % id)
-	var model: Node3D = _scenes[id].instantiate()
+	var key := id + ("_" + ban if ban != "" else "")
+	if not _scenes.has(key):
+		_scenes[key] = load("res://assets/models/nguoi/%s.glb" % key)
+	var model: Node3D = _scenes[key].instantiate()
 	add_child(model)
 	skeleton = model.find_child("*", true, false) as Skeleton3D
 	if skeleton == null:
@@ -206,9 +210,10 @@ func _apply_style(mi: MeshInstance3D) -> void:
 	mi.visibility_range_end = 30.0  # xa hơn chỉ còn vài điểm ảnh, khỏi vẽ
 	mi.lod_bias = 0.5  # đổi sang mức LOD thấp sớm hơn (người nhỏ trong khung)
 	if RenderingServer.get_rendering_device() == null:
-		if not _srgb_meshes.has(id):
-			_srgb_meshes[id] = _srgb_copy(mi.mesh)
-		mi.mesh = _srgb_meshes[id]
+		var key := id + ("_" + ban if ban != "" else "")
+		if not _srgb_meshes.has(key):
+			_srgb_meshes[key] = _srgb_copy(mi.mesh)
+		mi.mesh = _srgb_meshes[key]
 	for i in mi.mesh.get_surface_count():
 		var src := mi.mesh.surface_get_material(i)
 		var mat_name := src.resource_name if src else ""

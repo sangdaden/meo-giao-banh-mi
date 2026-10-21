@@ -1,6 +1,6 @@
 extends SceneTree
 ## Chụp người dân trong Godot (đúng model và animation game dùng) để soát rig, tư thế.
-## Chạy: xvfb-run godot --path . --rendering-driver opengl3 -s tools/chup_nguoi.gd -- <thư_mục_ra> [id,id...] [anim,anim...]
+## Chạy: xvfb-run godot --path . --rendering-driver opengl3 -s tools/chup_nguoi.gd -- <thư_mục_ra> [id,id:nhe,id:dong...] [anim,anim...]
 ## Mỗi animation một ảnh, mỗi ảnh xếp các người cạnh nhau, chụp ở 3 thời điểm (20%, 50%, 80%).
 
 var out := "user://chup_nguoi"
@@ -39,11 +39,12 @@ func _run(args: Array) -> void:
 	Blocks.solid_box(root3d, Vector3(40, 0.1, 10), Vector3(0, -0.05, 0), Color("#8CBFB4"))
 	var people: Array[Nguoi] = []
 	for i in ids.size():
-		var p := Nguoi.make(ids[i], "dung_yen")
+		var p := Nguoi.make(ids[i].get_slice(":", 0), "dung_yen")  # "id:nhe" chụp bản nhẹ
+		p.ban = ids[i].get_slice(":", 1) if ":" in ids[i] else ""
 		p.position = Vector3((i - (ids.size() - 1) / 2.0) * 1.0, 0, 0)
 		root3d.add_child(p)
-		if Nguoi.SEAT.has(ids[i]):
-			Blocks.box(root3d, Vector3(0.36, Nguoi.SEAT[ids[i]], 0.36), p.position + Vector3(0, Nguoi.SEAT[ids[i]] / 2.0, -0.1), Color("#C8412F"))
+		if Nguoi.SEAT.has(p.id):
+			Blocks.box(root3d, Vector3(0.36, Nguoi.SEAT[p.id], 0.36), p.position + Vector3(0, Nguoi.SEAT[p.id] / 2.0, -0.1), Color("#C8412F"))
 		people.append(p)
 	var cam := Camera3D.new()
 	root3d.add_child(cam)

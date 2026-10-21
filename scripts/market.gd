@@ -692,6 +692,7 @@ func _cast_people() -> void:
 
 func _give_person(s: Shopper, id: String, stand: String) -> void:
 	var p := Nguoi.make(id, stand)
+	p.ban = "nhe"  # bản ~1,4k tam giác: chợ đông, giữ ngân sách web
 	p.look_target = player
 	s.person = p
 	s.stand_anim = stand

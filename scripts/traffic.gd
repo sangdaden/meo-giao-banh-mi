@@ -716,6 +716,7 @@ func _make_alley_cart(title: String, _col: Color) -> AnimatableBody3D:
 	Market.put(body, "ro_rau", Vector3(0, 0.38, -1.45))
 	# Chú Sáu đứng sau tay đẩy, nhìn về đầu xe (model người nhìn +Z nên xoay nửa vòng)
 	var seller := Nguoi.make("hangrong", "quat_than")
+	seller.ban = "nhe"
 	seller.position = Vector3(0, 0, 0.62)
 	seller.rotation.y = PI
 	seller.look_target = player

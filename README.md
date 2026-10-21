@@ -79,7 +79,7 @@ scripts/
   hud.gd               thẻ đơn, đồng hồ, 5 chấm tiến độ, màn bắt đầu, tạm dừng, kết thúc
   timer_ring.gd        đồng hồ vòng tròn
   blocks.gd            hàm tiện ích dựng khối hộp tạm, gộp mesh cho nhẹ
-assets/models/bo.glb   mèo Bơ kiểu D: ~5,8k tam giác, 9 xương (bản tạm)
+assets/models/bo.glb   mèo Bơ kiểu D: ~5,8k tam giác, 11 xương (bản tạm)
 tools/bo_game.py       tạo bo.glb từ model phác thảo bằng Blender (pip install bpy)
 web/update-check.js    bản web tự nhắc tải lại khi có bản mới
 docs/                  ảnh chụp cho README (Godot bỏ qua thư mục này)
@@ -87,7 +87,7 @@ docs/                  ảnh chụp cho README (Godot bỏ qua thư mục này)
 
 Khu phố rộng 96 × 60 m, gốc tọa độ ở giữa ngã tư; trục X là đông, trục Z là nam, đúng với bản đồ 2D trong sổ phác thảo (1 điểm ảnh = 0,1 m). Layer va chạm: 1 thế giới (đất, nhà), 2 mèo, 4 Chó Mực, 8 đồ vật (thùng, xe, cột, ghế, cây, người). Camera chỉ né layer 1 nên không giật khi mèo chạy qua đồ vật nhỏ.
 
-Model Bơ hiện tại tạo bằng `python3 tools/bo_game.py chung2.glb assets/models/bo.glb`: giảm tam giác, dồn màu lông vào màu đỉnh, gắn 9 xương (đầu, 4 chân, 2 đốt đuôi). Game tự xoay các xương này bằng code để mèo chạy, vẫy đuôi. Model chính thức 22 xương có animation làm trong Blender sẽ thay vào sau.
+Model Bơ hiện tại tạo bằng `python3 tools/bo_game.py chung2.glb assets/models/bo.glb`: giảm tam giác, dồn màu lông vào màu đỉnh, gắn 11 xương (đầu, 4 chân, 4 đốt đuôi). Game tự xoay các xương này bằng code để mèo chạy; đuôi (dài ~0,30 m, khoảng 0,55 lần đầu + thân như mèo thật) là chuỗi lò xo nên tự đổi dáng khi đứng, đi, chạy, nhảy, quẹo. Model chính thức 22 xương có animation làm trong Blender sẽ thay vào sau.
 
 Bản khối thô dựng mọi thứ bằng code để dễ đọc từ trên xuống. Khi model Blender xong (tuần 2 và 3), mèo, chó và các mảnh phố sẽ thành scene `.tscn` riêng, thay cho các khối hộp.
 

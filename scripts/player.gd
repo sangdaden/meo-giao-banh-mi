@@ -44,10 +44,21 @@ var bread: Node3D
 var _skel: Skeleton3D
 var _bone_idx := {}
 var _bone_rest := {}
-var _legs := [0.0, 0.0, 0.0, 0.0]  # góc vung chân: trước trái, trước phải, sau trái, sau phải
+var _legs := [0.0, 0.0, 0.0, 0.0]
+# Đuôi: góc ngẩng/cụp (pitch) và góc lệch trái phải (yaw) của 4 đốt, cùng vận tốc góc
+var _tail_p := [0.0, 0.0, 0.0, 0.0]
+var _tail_pv := [0.0, 0.0, 0.0, 0.0]
+var _tail_y := [0.0, 0.0, 0.0, 0.0]
+var _tail_yv := [0.0, 0.0, 0.0, 0.0]
+var _last_yaw := 0.0
+var _yaw_rate := 0.0  # góc vung chân: trước trái, trước phải, sau trái, sau phải
 
 const BO_MODEL := preload("res://assets/models/bo.glb")
-const BONE_NAMES := ["head", "leg_FL", "leg_FR", "leg_BL", "leg_BR", "tail_1", "tail_2"]
+const BONE_NAMES := ["head", "leg_FL", "leg_FR", "leg_BL", "leg_BR", "tail_1", "tail_2", "tail_3", "tail_4"]
+const TAIL_BONES := ["tail_1", "tail_2", "tail_3", "tail_4"]
+## Độ cứng lò xo từng đốt đuôi: gốc cứng, chóp mềm nên chóp đuôi đi trễ và phất theo sau
+const TAIL_STIFF := [90.0, 60.0, 42.0, 30.0]
+const TAIL_DAMP := 0.55
 const LEG_BONES := ["leg_FL", "leg_FR", "leg_BL", "leg_BR"]
 
 const ORANGE := Color("#E8913A")
@@ -80,7 +91,7 @@ func _ready() -> void:
 
 
 ## Mèo Bơ kiểu D "Chững chạc" (bản tạm từ model phác thảo, xem tools/bo_game.py).
-## Model có 9 xương; game tự xoay xương chân, đuôi, đầu bằng code thay cho animation.
+## Model có 11 xương (4 đốt đuôi); game tự xoay xương chân, đuôi, đầu bằng code thay cho animation.
 ## Tuần 2 sẽ thay bằng model dựng tay 22 xương cùng animation làm trong Blender.
 func _build_visual() -> void:
 	visual = Node3D.new()
@@ -235,18 +246,62 @@ func _process(delta: float) -> void:
 		for i in 4:
 			_legs[i] = lerpf(_legs[i], 0.8 if i < 2 else -0.8, t)
 		_body.rotation.x = clampf(velocity.y * 0.04, -0.3, 0.3)
+	_update_tail(delta, hspeed, velocity.y, is_on_floor())
 	_apply_bones(hspeed)
 
 
 ## Xoay xương theo góc tính ở trên. Trục X của xương chân là trục vung trước/sau.
 func _apply_bones(hspeed: float) -> void:
-	var t := Time.get_ticks_msec() * 0.001
 	for i in 4:
 		_pose(LEG_BONES[i], Vector3.RIGHT, _legs[i] * LEG_SWING_SIGN)
-	var wag := sin(t * 3.5) * (0.25 + 0.15 * clampf(hspeed / sprint_speed, 0.0, 1.0))
-	_pose("tail_1", Vector3.FORWARD, wag)
-	_pose("tail_2", Vector3.FORWARD, wag * 1.4)
 	_pose("head", Vector3.RIGHT, sin(_phase * 2.0) * 0.04 * clampf(hspeed / sprint_speed, 0.0, 1.0))
+	for i in 4:
+		var idx: int = _bone_idx[TAIL_BONES[i]]
+		if idx >= 0:
+			_skel.set_bone_pose_rotation(idx, _bone_rest[TAIL_BONES[i]]
+				* Quaternion(Vector3.RIGHT, -_tail_p[i]) * Quaternion(Vector3.BACK, _tail_y[i]))
+
+
+## Đuôi mèo thật đổi dáng theo việc mèo đang làm:
+## - Đứng yên: đuôi rủ xuống rồi cong lên, chóp đung đưa chậm.
+## - Đi: đuôi hạ xuống ngang lưng rồi cong lên; chạy nhanh: duỗi thẳng ra sau để giữ thăng bằng.
+## - Nhảy lên: đuôi cụp xuống; rơi xuống: đuôi vểnh lên như bánh lái.
+## - Quẹo: đuôi văng ra phía ngoài vòng quẹo.
+## Mỗi đốt là một lò xo đuổi theo góc đích; chóp mềm hơn gốc nên tự có độ trễ, phất theo sau.
+func _update_tail(delta: float, hspeed: float, vy: float, on_floor: bool) -> void:
+	var k := clampf(hspeed / sprint_speed, 0.0, 1.0)
+	var t := Time.get_ticks_msec() * 0.001
+	var yaw := visual.rotation.y
+	var rate := wrapf(yaw - _last_yaw, -PI, PI) / maxf(delta, 0.001)
+	_last_yaw = yaw
+	_yaw_rate = lerpf(_yaw_rate, rate, 1.0 - exp(-8.0 * delta))
+
+	# Góc đích (radian, dương là cụp xuống/ra sau). Đứng yên là dáng gốc của model: rủ xuống rồi cong lên.
+	var idle := [0.0, 0.0, sin(t * 1.3) * 0.12, sin(t * 1.3 - 0.8) * 0.25]
+	var walk := [0.1, 0.1, 0.25, 0.1]      # hạ thấp hơn, chóp vẫn cong lên nhẹ
+	var run := [-0.1, 0.25, 0.7, 0.45]     # duỗi ra sau
+	var targets := []
+	for i in 4:
+		var a: float
+		if hspeed < walk_speed:
+			a = lerpf(idle[i], walk[i], hspeed / walk_speed)
+		else:
+			a = lerpf(walk[i], run[i], clampf((hspeed - walk_speed) / (sprint_speed - walk_speed), 0.0, 1.0))
+		if not on_floor:
+			# Lên: cụp (+), xuống: vểnh (-). Chủ yếu ở gốc đuôi.
+			a += clampf(vy * 0.07, -0.6, 0.5) * (1.0 if i < 2 else 0.5)
+		targets.append(a)
+
+	# Lắc ngang: đứng yên vẫy chậm, chạy thì vẫy nhẹ theo bước; quẹo thì văng ra ngoài
+	var sway := sin(t * (1.6 + k * 4.0)) * lerpf(0.18, 0.08, k)
+	for i in 4:
+		var yaw_target := sway * (0.4 + i * 0.3) - clampf(_yaw_rate * 0.12, -0.5, 0.5) * (0.5 + i * 0.25)
+		var stiff: float = TAIL_STIFF[i]
+		var damp := 2.0 * sqrt(stiff) * TAIL_DAMP
+		_tail_pv[i] += ((targets[i] - _tail_p[i]) * stiff - _tail_pv[i] * damp) * delta
+		_tail_p[i] += _tail_pv[i] * delta
+		_tail_yv[i] += ((yaw_target - _tail_y[i]) * stiff - _tail_yv[i] * damp) * delta
+		_tail_y[i] += _tail_yv[i] * delta
 
 
 func _pose(bone_name: String, axis: Vector3, angle: float) -> void:

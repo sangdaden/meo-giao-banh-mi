@@ -6,7 +6,7 @@ Chạy:  python3 tools/bo_game.py <chung2.glb> assets/models/bo.glb
 Việc script làm:
 1. Giảm số tam giác từ ~115k xuống ~6k cho nhẹ (style guide: Bơ 4–6k).
 2. Dồn màu lông, khăn, mắt vào một lớp màu đỉnh (COLOR_0) để Godot đọc được.
-3. Gắn bộ xương đơn giản 9 xương: root, spine, head, 4 chân, 2 đốt đuôi.
+3. Gắn bộ xương đơn giản 11 xương: root, spine, head, 4 chân, 4 đốt đuôi.
    Trọng số (weight) tính theo vị trí từng đỉnh, không cần vẽ tay.
 4. Xuất .glb có xương (chưa có animation; game tự xoay xương bằng code).
 
@@ -55,6 +55,12 @@ cat.name = 'Bo'
 cat.data.color_attributes.active_color = cat.data.color_attributes['Color']
 print('tris', sum(len(p.vertices) - 2 for p in cat.data.polygons))
 
+def ramp(v, a, b):
+    """0 khi v ở a, 1 khi v ở b, mượt ở giữa."""
+    t = max(0.0, min(1.0, (v - a) / (b - a)))
+    return t * t * (3 - 2 * t)
+
+
 # Toạ độ Blender: X phải, -Y là phía trước mặt mèo, Z lên trên.
 BONES = {
     # tên: (đầu, đuôi, cha)
@@ -65,9 +71,15 @@ BONES = {
     'leg_FR': ((.056, -.1, .27), (.056, -.1, .01), 'spine'),
     'leg_BL': ((-.064, .15, .23), (-.064, .15, .01), 'spine'),
     'leg_BR': ((.064, .15, .23), (.064, .15, .01), 'spine'),
-    'tail_1': ((0, .2, .3), (0, .27, .42), 'spine'),
-    'tail_2': ((0, .27, .42), (0, .3, .62), 'tail_1'),
+    # Đuôi 4 đốt (~7,5 cm mỗi đốt, tổng ~0,30 m) theo đường cong của đuôi phác thảo:
+    # mọc ở mông, rủ xuống ra sau, rồi cong lên ở chóp
+    'tail_1': ((0, .2, .27), (0, .28, .25), 'spine'),
+    'tail_2': ((0, .28, .25), (0, .35, .28), 'tail_1'),
+    'tail_3': ((0, .35, .28), (.01, .38, .35), 'tail_2'),
+    'tail_4': ((.01, .38, .35), (.02, .375, .42), 'tail_3'),
 }
+TAIL = [n for n in BONES if n.startswith('tail')]
+
 arm_data = bpy.data.armatures.new('BoRig')
 arm = bpy.data.objects.new('BoRig', arm_data)
 bpy.context.scene.collection.objects.link(arm)
@@ -82,12 +94,6 @@ for name, (h, t, parent) in BONES.items():
 bpy.ops.object.mode_set(mode='OBJECT')
 
 
-def ramp(v, a, b):
-    """0 khi v ở a, 1 khi v ở b, mượt ở giữa."""
-    t = max(0.0, min(1.0, (v - a) / (b - a)))
-    return t * t * (3 - 2 * t)
-
-
 groups = {n: cat.vertex_groups.new(name=n) for n in BONES if n != 'root'}
 for v in cat.data.vertices:
     x, y, z = v.co
@@ -100,12 +106,21 @@ for v in cat.data.vertices:
     # Đầu: phía trước và cao hơn cổ
     if y < -.05 and z > .3:
         w['head'] = ramp(z, .31, .37) * ramp(y, -.05, -.11)
-    # Đuôi: phía sau mông
-    if y > .17 and z > .24:
-        t = ramp(y, .17, .23)
-        hi = ramp(z, .38, .48)
-        w['tail_1'] = t * (1 - hi)
-        w['tail_2'] = t * hi
+    # Đuôi: mỗi đỉnh chia trọng số cho đốt gần nhất và đốt kề nó, để chỗ gập mềm
+    if y > .17 and z > .18:
+        p = Vector((x, y, z))
+        d = []
+        for n in TAIL:
+            h, t = Vector(BONES[n][0]), Vector(BONES[n][1])
+            seg = t - h
+            k = max(0.0, min(1.0, (p - h).dot(seg) / seg.length_squared))
+            d.append(((p - (h + seg * k)).length, n, k))
+        d.sort()
+        if d[0][0] < (.08 if d[0][1] in ('tail_1', 'tail_2') else .09):
+            inv = [1.0 / (dist + .004) ** 3 for dist, _, _ in d[:2]]
+            base = ramp(y, .17, .21) if d[0][1] == 'tail_1' else 1.0
+            for (dist, n, _), iv in zip(d[:2], inv):
+                w[n] = w.get(n, 0) + base * iv / sum(inv)
     rest = max(0.0, 1.0 - sum(w.values()))
     w['spine'] = w.get('spine', 0) + rest
     for n, val in w.items():

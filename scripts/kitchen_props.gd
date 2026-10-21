@@ -220,22 +220,10 @@ static func tray(parent: Node, pos: Vector3) -> Node3D:
 	return n
 
 
-## Chân trước của Bơ cho cận cảnh: cánh tay lông cam, bàn chân kem.
-## Gốc node ở giữa bàn chân; cánh tay chĩa về +Z (phía camera) và hơi xuống.
-static func paw(parent: Node) -> Node3D:
-	var n := Node3D.new()
+## Chân trước của Bơ cho cận cảnh (model dùng chung, xem scripts/bo_paw.gd).
+static func paw(parent: Node, side := 1.0) -> Node3D:
+	var n := BoPaw.create(side)
 	parent.add_child(n)
-	var axis := Vector3(0, -0.34, 0.94)
-	var arm := capsule(n, 0.04, 0.42, axis * 0.21, ORANGE)
-	arm.rotation_degrees.x = -70
-	# Vằn cam sẫm trên tay
-	for i in 3:
-		var band := cylinder(n, 0.042, 0.018, axis * (0.12 + i * 0.09), ORANGE.darkened(0.2), 12)
-		band.rotation_degrees.x = -70
-	sphere(n, 0.048, Vector3.ZERO, MITT, Vector3(1.0, 0.75, 1.15))
-	for i in 3:
-		sphere(n, 0.016, Vector3(-0.025 + i * 0.025, -0.012, -0.045), Color("#F6B8A0"))
-	n.scale = Vector3.ONE * 0.8
 	return n
 
 

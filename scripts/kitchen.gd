@@ -84,9 +84,10 @@ var sauce: Node3D
 var case_slots: Array[Node3D] = []
 var paper: MeshInstance3D
 
-const PAW_L_REST := Vector3(-0.12, 0.08, 0.24)
-const PAW_R_REST := Vector3(0.12, 0.08, 0.24)
-const CLOSE_DIST := 1.35  ## camera cận cảnh lùi xa điểm làm việc bao nhiêu lần so với cam_off
+const PAW_L_REST := Vector3(-0.11, 0.08, 0.26)
+const PAW_R_REST := Vector3(0.11, 0.08, 0.26)
+const CLOSE_DIST := 1.1   ## camera cận cảnh lùi xa điểm làm việc bao nhiêu lần so với cam_off
+const CLOSE_YAW := 0.75   ## camera cận cảnh lệch sang bên bao nhiêu (radian) so với hướng Bơ đứng
 
 # Tự chơi: --autotest-bep (kiểm tra, thoát khi xong) hoặc --demo-bep (để quay clip)
 var _bot := false
@@ -469,6 +470,9 @@ func _end(success: bool) -> void:
 	lines += "\n%d/3 sao · mỗi đơn giao được cộng thêm %d giây" % [stars, int(GameState.kitchen_bonus)]
 	hud.show_end(lines)
 	_sound("stop_loop", "oven_fire")
+	_sound("music", "jingle_win" if success else "jingle_lose")
+	for i in stars:
+		get_tree().create_timer(0.5 + 0.45 * i).timeout.connect(_sound.bind("play", "star_%d" % (i + 1)))
 	print("[bep] xong=%d/%d sao=%d con_lai=%.1fs chay=%s" % [made, LOAVES, stars, time_left, bread_burnt])
 	if _bot_quit:
 		print("AUTOTEST BEP ", "OK" if success else "FAIL")
@@ -490,6 +494,7 @@ func _set_holding(kind: String) -> void:
 		carry_node.queue_free()
 		carry_node = null
 	if kind != "":
+		_sound("play", "pickup")
 		carry_node = P.carry_item(kind)
 		carry_node.position = Vector3(0, 0.42, 0.04)
 		player.visual.add_child(carry_node)
@@ -582,15 +587,15 @@ func _build_paws() -> void:
 	paw_rig = Node3D.new()
 	paw_rig.name = "ChanBo"
 	add_child(paw_rig)
-	paw_l = P.paw(paw_rig)
-	paw_r = P.paw(paw_rig)
+	paw_l = P.paw(paw_rig, -1.0)
+	paw_r = P.paw(paw_rig, 1.0)
 	paw_rig.visible = false
 
 
-## Đặt hai chân trước ở điểm làm việc của trạm; +Z cục bộ hướng về camera cận cảnh.
+## Đặt hai chân trước ở điểm làm việc của trạm; +Z cục bộ hướng về chỗ Bơ đứng.
 func _place_paws(st: Dictionary) -> void:
 	var work: Vector3 = st.work
-	var d: Vector3 = work - (st.cam as Vector3)
+	var d: Vector3 = work - (st.use as Vector3)
 	d.y = 0
 	paw_rig.global_transform = Transform3D(Basis.looking_at(d.normalized()), work)
 	paw_l.position = PAW_L_REST
@@ -1024,7 +1029,12 @@ func _station(id: String, title: String, use: Vector3, work: Vector3, cam_off: V
 	ring.material_override = m
 	ring.position = use + Vector3(0, 0.02, 0)
 	add_child(ring)
-	stations[id] = {"name": title, "use": use, "work": work, "cam": work + cam_off * CLOSE_DIST, "ring": ring}
+	# Camera cận cảnh đứng chéo một bên phía Bơ (không ngay sau lưng) để thấy chân trước nghiêng
+	# như chân mèo thật, không bị nhìn dọc thành hai ống.
+	var back := Vector3(use.x - work.x, 0, use.z - work.z).normalized()
+	var horiz := Vector2(cam_off.x, cam_off.z).length() * CLOSE_DIST
+	var cam := work + back.rotated(Vector3.UP, CLOSE_YAW) * horiz + Vector3.UP * cam_off.y * CLOSE_DIST
+	stations[id] = {"name": title, "use": use, "work": work, "cam": cam, "ring": ring}
 
 
 func _build_stations(room: Node3D) -> void:

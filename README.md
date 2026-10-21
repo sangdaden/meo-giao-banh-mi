@@ -142,9 +142,12 @@ Mọi con số chỉnh được đều nằm ở đầu file script, có chú th
 project.godot          cấu hình project
 scenes/kitchen.tscn    màn bếp (scene chạy đầu tiên), gắn script kitchen.gd
 scenes/main.tscn       màn giao bánh, gắn script main.gd
+scenes/bo_paw.tscn     một chân trước của Bơ (đặt side = -1 trái, 1 phải)
+shaders/bo_fur.gdshader  lông chân Bơ: cam, vằn mảnh, tất kem, sợi lông
 scripts/
   kitchen.gd           màn bếp: trạm, luật làm bánh, đồng hồ 2:30, cận cảnh từng bước, bot tự chơi
-  kitchen_props.gd     đồ bếp dựng tạm bằng khối, chân trước của Bơ cho cận cảnh
+  kitchen_props.gd     đồ bếp dựng tạm bằng khối
+  bo_paw.gd            chân trước của Bơ (BoPaw), dùng chung cho cận cảnh bếp và góc nhìn thứ nhất
   kitchen_camera.gd    camera cố định ngoài tủ kính, lướt vào cận cảnh
   kitchen_hud.gd       giao diện bếp (dùng lại khung của hud.gd)
   game_state.gd        điểm bếp chuyền sang màn giao bánh
@@ -162,6 +165,7 @@ scripts/
 assets/audio/          nhạc và tiếng động, nguồn và giấy phép ở assets/audio/NGUON.md
 tools/sound/synth.py   tự tổng hợp toàn bộ file âm thanh (pip install numpy scipy, cần ffmpeg)
 assets/models/bo.glb   mèo Bơ kiểu D: ~6,3k tam giác, 16 xương (bản tạm)
+tools/paw_preview.gd   chụp ảnh chân trước Bơ từ 5 góc (godot -s tools/paw_preview.gd -- <thư mục>)
 tools/bo_game.py       tạo bo.glb từ model phác thảo bằng Blender (pip install bpy)
 web/update-check.js    bản web tự nhắc tải lại khi có bản mới
 docs/                  ảnh chụp cho README (Godot bỏ qua thư mục này)

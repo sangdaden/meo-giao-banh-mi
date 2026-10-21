@@ -12,6 +12,14 @@ extends Node3D
 ##   Phụ: qua hẻm mà Chó Mực không hề thức.
 ## - beside_tea (Thứ Ba): rón rén tới góc cờ, đặt túi cạnh ấm trà của Ông Bảy và Ông Tám
 ##   (scripts/chess_corner.gd). Phụ: đặt đúng lúc chiếu tướng. Bị mắng thì đơn mất 1 sao.
+## Thứ Ba (gói T3-6 và phần giao của đơn 4, 5; trang thiết kế màn mục 13):
+## - on_seat: Chú Năm xe ôm ngồi trên xe máy ở đầu hẻm 42. Bơ nhảy lên yên sau, bấm E đưa bánh.
+##   Hết giờ thì chú chở khách đi mất, một lúc sau mới quay lại nhận (trễ, 1 sao).
+##   Phụ: giao khi đồng hồ còn ít nhất một nửa (trước khi khách xe ôm tới). Mực ngủ cạnh xe cho vui.
+## - Đơn có khóa "basket_period" thì giỏ đưa theo nhịp đó (Bé Na Thứ Ba nhanh hơn).
+## - Nhiệm vụ phụ theo chợ sáng (market.gd, nhóm "cho_sang"): "khong_dung_nguoi" (không đụng người
+##   đi chợ nào, đếm player.bumped("person")) và "khong_do_thung" (không làm đổ thúng nào,
+##   đếm basket_spilled). Hai khóa này thay cho nhiệm vụ phụ mặc định của cách giao.
 ##
 ## Cách dùng trong main.gd:
 ##   build_static(self, orders) trước Blocks.merge_static (phần đứng yên được gộp lệnh vẽ),
@@ -29,6 +37,9 @@ const QUESTS := {
 	"khong_dau": "Không giẫm vũng dầu nào",
 	"muc_ngu_yen": "Qua hẻm mà Chó Mực không thức",
 	"dat_luc_chieu": "Đặt túi đúng lúc chiếu tướng",
+	"kip_xe_om": "Giao trước khi khách xe ôm tới",
+	"khong_dung_nguoi": "Không đụng người đi chợ nào",
+	"khong_do_thung": "Không làm đổ thúng nào",
 }
 
 const PAPER := Color("#E8E2D0")
@@ -55,6 +66,12 @@ const BASKET_SWING := 0.6       ## giỏ lệch xa nhất bao nhiêu mét so v�
 const BASKET_REACH := 0.42      ## giỏ cách Bơ dưới mức này thì bỏ bánh vào được
 const BASKET_RETRY := 1.5       ## trật thì phải đợi
 const BASKET_HANG_Y := 1.25     ## đáy giỏ khi thòng xuống hẳn (yên xe 0,9 m)
+
+const XE_OM_SEAT := 0.78        ## mặt yên xe ôm Chú Năm
+const XE_OM_AWAY := 9.0         ## hết giờ thì Chú Năm chở khách đi bao lâu mới quay lại
+const XE_OM_HALF := 0.5         ## nhiệm vụ phụ: giao khi đồng hồ còn ít nhất phần này
+const XE_OM_ROAD_Z := 1.5       ## làn đường lớn Chú Năm chạy ra khi chở khách
+const DOG_BY_XE_OM := Vector3(-1.4, 0, -0.6)  ## chỗ Mực nằm ngủ, tính từ xe ôm (trong miệng hẻm 42)
 
 var orders: Array = []
 var player: CharacterBody3D
@@ -121,6 +138,22 @@ var _speech: Label3D
 
 # Thứ Ba đơn 3: góc cờ tướng
 var chess: ChessCorner
+# Chú Năm xe ôm (Thứ Ba)
+var _main: Node                  # main.gd: đọc time_left và late
+var _xe_om_home := Vector3.ZERO  # chỗ đậu đầu hẻm 42
+var _xe_om_color := Color.WHITE
+var _xe_om_title := ""
+var _xe_om: AnimatableBody3D     # xe + Chú Năm, chạy đi chở khách khi hết giờ
+var _passenger: Node3D
+var _xe_om_state := ""           # "wait" | "away" (đang chở khách) | "back" (đang quay về)
+var _xe_om_left := false         # đơn này chú đã chở khách đi một lần rồi (về thì đợi Bơ)
+var _start_time := 0.0           # đồng hồ lúc nhận bánh
+
+# Chợ sáng (Thứ Ba): đếm va người đi chợ và thúng đổ trong đơn hiện tại
+var _market: Node
+var _bumps := 0
+var _spills := 0
+var _basket_period := BASKET_PERIOD
 
 
 # ---------------------------------------------------------------- dựng cảnh
@@ -139,6 +172,7 @@ func build_static(parent: Node3D, order_list: Array) -> void:
 				_build_tu(parent, i, p, o.color, title)
 			"basket":
 				_build_na(parent, i, p, o.color, title)
+				_basket_period = float(o.get("basket_period", BASKET_PERIOD))
 			"counter":
 				_build_may(parent, i, p, o.color, title)
 			"under_car":
@@ -149,6 +183,11 @@ func build_static(parent: Node3D, order_list: Array) -> void:
 				if chess == null:
 					ChessCorner.build_static(parent)
 					chess = ChessCorner.new()
+			"on_seat":
+				# Xe và Chú Năm chạy đi được nên dựng trong _ready (không gộp lệnh vẽ)
+				_xe_om_home = p
+				_xe_om_color = o.color
+				_xe_om_title = title
 			_:
 				_build_generic(parent, i, p, o.color, title)
 	var water := StandardMaterial3D.new()
@@ -224,6 +263,63 @@ func _build_generic(parent: Node3D, i: int, p: Vector3, shirt: Color, title: Str
 	_standing(parent, p + Vector3(0, 0, -0.6), PI, shirt)
 	_arms.append({"order": i, "pos": p + Vector3(0.2, 1.05, -0.45), "yaw": PI, "color": shirt})
 	Blocks.label(parent, title, p + Vector3(0, 2.2, -0.6), 40)
+
+
+## Chú Năm xe ôm: xe máy đậu dọc vỉa hè đầu hẻm 42, đầu xe quay ra đường lớn (-Z), Chú Năm ngồi
+## yên trước, đội nón bảo hiểm, chừa yên sau cho Bơ nhảy lên. Cả xe là AnimatableBody3D để chạy đi được.
+func _build_xe_om() -> void:
+	var i := _kind.find("on_seat")
+	_xe_om = AnimatableBody3D.new()
+	_xe_om.name = "XeOmChuNam"
+	_xe_om.collision_layer = Blocks.LAYER_PROP
+	_xe_om.sync_to_physics = false
+	_xe_om.position = _xe_om_home
+	add_child(_xe_om)
+	var red := Color("#2F5E9E")
+	var y := XE_OM_SEAT
+	Blocks.box(_xe_om, Vector3(0.36, y - 0.36, 1.2), Vector3(0, (y + 0.36) / 2.0, 0.05), red)       # thân xe
+	Blocks.box(_xe_om, Vector3(0.34, 0.08, 0.95), Vector3(0, y - 0.04, 0.2), Color("#2B2622"))     # yên dài
+	Blocks.box(_xe_om, Vector3(0.3, 0.5, 0.2), Vector3(0, y + 0.05, -0.62), red)                    # đầu xe
+	Blocks.box(_xe_om, Vector3(0.7, 0.04, 0.04), Vector3(0, y + 0.32, -0.66), Color("#5E6F6C"))    # tay lái
+	for wz in [-0.6, 0.62]:
+		Blocks.box(_xe_om, Vector3(0.1, 0.46, 0.46), Vector3(0, 0.23, wz), Color("#2B2622"))        # bánh xe
+	# Chú Năm ngồi yên trước: đùi trên yên, chân thả xuống gác chân, áo, nón bảo hiểm
+	Blocks.box(_xe_om, Vector3(0.44, 0.15, 0.42), Vector3(0, y + 0.07, -0.18), PANTS)
+	for sx in [-0.24, 0.24]:
+		Blocks.box(_xe_om, Vector3(0.12, 0.5, 0.14), Vector3(sx, y - 0.2, -0.36), PANTS)
+	Blocks.box(_xe_om, Vector3(0.48, 0.55, 0.3), Vector3(0, y + 0.42, -0.1), _xe_om_color)
+	_head(_xe_om, Vector3(0, y + 0.86, -0.12))
+	Blocks.box(_xe_om, Vector3(0.38, 0.18, 0.4), Vector3(0, y + 0.98, -0.12), Color("#F2C14E"))   # nón bảo hiểm
+	Blocks.box(_xe_om, Vector3(0.1, 0.45, 0.1), Vector3(0.3, y + 0.4, -0.3), _xe_om_color)        # tay phải cầm lái
+	# Tay trái chìa ra sau nhận bánh (quay ra phía yên sau)
+	var arm := Node3D.new()
+	arm.position = Vector3(-0.3, y + 0.62, -0.05)
+	arm.rotation.y = PI
+	_xe_om.add_child(arm)
+	Blocks.box(arm, Vector3(0.1, 0.45, 0.1), Vector3(0, -0.22, 0), _xe_om_color)
+	Blocks.box(arm, Vector3(0.1, 0.1, 0.1), Vector3(0, -0.48, 0), SKIN)
+	_arm_nodes[i] = arm
+	# Khách xe ôm: chỉ hiện khi chú chở khách đi
+	_passenger = Node3D.new()
+	_xe_om.add_child(_passenger)
+	Blocks.box(_passenger, Vector3(0.44, 0.15, 0.42), Vector3(0, y + 0.07, 0.35), Color("#5E4A3A"))
+	Blocks.box(_passenger, Vector3(0.46, 0.55, 0.3), Vector3(0, y + 0.42, 0.4), Color("#E39C7A"))
+	_head(_passenger, Vector3(0, y + 0.86, 0.42))
+	_passenger.visible = false
+	var shape := CollisionShape3D.new()
+	var bs := BoxShape3D.new()
+	bs.size = Vector3(0.42, y, 1.6)
+	shape.shape = bs
+	shape.position = Vector3(0, y / 2.0, 0)
+	_xe_om.add_child(shape)
+	var rider := CollisionShape3D.new()  # Chú Năm, chừa yên sau trống
+	var rb := BoxShape3D.new()
+	rb.size = Vector3(0.5, 1.1, 0.5)
+	rider.shape = rb
+	rider.position = Vector3(0, y + 0.55, -0.2)
+	_xe_om.add_child(rider)
+	Blocks.label(_xe_om, _xe_om_title, Vector3(0, 2.4, 0), 40)
+	_xe_om_state = "wait"
 
 
 ## Người ngồi ghế, quay mặt về -Z cục bộ (yaw xoay cả người). Có màu ghế thì dựng ghế bên dưới.
@@ -427,6 +523,9 @@ func _ready() -> void:
 		_milk_empty.visible = false
 		_milk.visible = false
 
+	if _xe_om_home != Vector3.ZERO:
+		_build_xe_om()
+
 	_prompt = Blocks.label(self, "", Vector3.ZERO, 28, Color("#F2C14E"))
 	_prompt.no_depth_test = true  # không bị tường che
 	_prompt.visible = false
@@ -440,8 +539,18 @@ func setup(p: CharacterBody3D, d: Node, h: CanvasLayer, is_autotest := false) ->
 	dog = d
 	hud = h
 	autotest = is_autotest
+	_main = get_parent()
 	if dog and dog.has_signal("bit_player"):
 		dog.bit_player.connect(func(): _bites += 1)
+	if player.has_signal("bumped"):
+		player.bumped.connect(func(kind):
+			if kind == "person" and _market == null:
+				_bumps += 1  # chưa có chợ thì tự đếm; có chợ thì nghe person_bumped của chợ
+		)
+	if _xe_om and dog:
+		# Thứ Ba không đơn nào qua hẻm 42: Mực ngủ say ở miệng hẻm cạnh xe ôm cho vui
+		dog.position = _xe_om_home + DOG_BY_XE_OM
+		dog.home = dog.position
 	_mouth = _make_mouth()
 	if chess:
 		chess.setup(player, hud)
@@ -516,6 +625,8 @@ func _body_layer(n: Node3D) -> void:
 func stand_point(i: int) -> Vector3:
 	if _kind[i] == "basket":
 		return _moto_na
+	if _kind[i] == "on_seat":
+		return _xe_om_home + Vector3(0, XE_OM_SEAT + 0.05, 0.45)
 	return orders[i].pos
 
 
@@ -546,6 +657,11 @@ func quest_title(i: int) -> String:
 func on_pick_up(i: int) -> void:
 	current = i
 	_bites = 0
+	_bumps = 0
+	_spills = 0
+	_xe_om_left = false
+	_find_market()
+	_start_time = float(_main.get("time_left")) if _main and _main.get("time_left") != null else 0.0
 	match _kind[i]:
 		"basket":
 			_misses = 0
@@ -586,7 +702,7 @@ func step(i: int, in_zone: bool, _delta: float) -> bool:
 					pass
 				elif _basket_hittable():
 					_prompt.visible = false
-					_deliver_basket()
+					_deliver_basket(i)
 					return true
 				else:
 					_misses += 1
@@ -598,6 +714,13 @@ func step(i: int, in_zone: bool, _delta: float) -> bool:
 			hint = "[E] Đưa vào tay Anh Hùng"
 		"beside_tea":
 			hint = "[E] Đặt túi cạnh ấm trà"
+		"on_seat":
+			var on_seat := _on_xe_om()
+			in_zone = on_seat and _xe_om_state == "wait"
+			ready = in_zone or (_near_xe_om() and _xe_om_state == "wait")
+			hint = "[E] Đưa bánh cho Chú Năm" if on_seat else "Nhảy lên yên sau xe ôm"
+			if _xe_om_state != "wait" and pressed:
+				_toast("Chú Năm chở khách đi rồi, đợi chú quay lại nha!", 2.0)
 	if autotest and kind != "basket":
 		pressed = in_zone
 		if kind == "beside_tea":
@@ -627,9 +750,12 @@ func step(i: int, in_zone: bool, _delta: float) -> bool:
 			_hand_bread(chess.bag_point(), chess.show_bag)
 			if side_ok[i]:
 				_toast("Đặt túi đúng lúc chiếu tướng, chẳng ai để ý!", 2.0, 1.8)
+		"on_seat":
+			_deliver_nam(i)
 		_:
 			_play_deliver(kind)
 			_hand_bread(hand_point(i))
+	_market_quest(i)
 	current = -1
 	return true
 
@@ -649,10 +775,10 @@ func _deliver_tu(i: int) -> void:
 	_toast("Chú Tư gửi tờ báo cho Cô Ba. Về lò đừng chạy nhanh qua vũng nước nha!", 3.0, 1.8)
 
 
-func _deliver_basket() -> void:
-	var i := current
+func _deliver_basket(i: int) -> void:
 	_play_deliver("basket")
 	side_ok[i] = _misses == 0
+	_market_quest(i)
 	_basket_done = true
 	_hand_bread(_basket.global_position + Vector3(0, 0.08, 0), func():
 		_basket_loaf.visible = true
@@ -695,6 +821,38 @@ func _deliver_sau(i: int) -> void:
 	_toast("Bà Sáu gọi với ra hẻm: \"Mực, đừng làm bé mèo sợ!\"", 3.0, 1.8)
 
 
+func _deliver_nam(i: int) -> void:
+	_play_deliver("hand")
+	var late: bool = _main != null and _main.get("late") == true
+	var left: float = float(_main.get("time_left")) if _main and _main.get("time_left") != null else 0.0
+	side_ok[i] = not late and _start_time > 0.0 and left >= _start_time * XE_OM_HALF
+	_hand_bread(hand_point(i))
+	if side_ok[i]:
+		_toast("Kịp rồi! Chú Năm ăn xong mới có khách.", 2.0, 1.8)
+
+
+## Nhiệm vụ phụ theo chợ sáng: thay kết quả mặc định của cách giao.
+func _market_quest(i: int) -> void:
+	match orders[i].get("side_quest", ""):
+		"khong_dung_nguoi":
+			side_ok[i] = _bumps == 0
+		"khong_do_thung":
+			side_ok[i] = _spills == 0
+
+
+## Chợ sáng (market.gd của gói T3-4) chỉ có trong ngày họp chợ; tìm một lần rồi nghe tín hiệu.
+func _find_market() -> void:
+	if _market and is_instance_valid(_market):
+		return
+	_market = get_tree().get_first_node_in_group("cho_sang")
+	if _market == null:
+		return
+	if _market.has_signal("person_bumped"):
+		_market.connect("person_bumped", func(_pos): _bumps += 1)
+	if _market.has_signal("basket_spilled"):
+		_market.connect("basket_spilled", func(_pos): _spills += 1)
+
+
 # ---------------------------------------------------------------- mỗi nhịp
 
 func _physics_process(delta: float) -> void:
@@ -706,6 +864,7 @@ func _physics_process(delta: float) -> void:
 	_update_basket(delta)
 	_update_glasses(delta)
 	_update_oil(delta, hspeed)
+	_update_xe_om()
 	_e_prev = Input.is_physical_key_pressed(KEY_E)
 	_hspeed_prev = hspeed
 
@@ -767,6 +926,58 @@ func _drop_mouth_paper() -> void:
 	_mouth_paper = null
 
 
+## Hết giờ mà Bơ chưa tới: Chú Năm đón khách chạy ra đường lớn, XE_OM_AWAY giây sau quay về đậu chỗ cũ.
+func _update_xe_om() -> void:
+	if _xe_om == null or _xe_om_state != "wait" or _xe_om_left:
+		return
+	var i := _kind.find("on_seat")
+	if current != i or _main == null or _main.get("late") != true:
+		return
+	_xe_om_state = "away"
+	_xe_om_left = true
+	_passenger.visible = true
+	_prompt.visible = false
+	_sfx("moto_pass", _xe_om.global_position)
+	var road := Vector3(_xe_om_home.x, 0, XE_OM_ROAD_Z)
+	var far := road + Vector3(-28, 0, 0)
+	var tw := create_tween()
+	tw.tween_interval(0.8)  # khách leo lên yên sau
+	tw.tween_property(_xe_om, "position", road, 1.0).set_ease(Tween.EASE_IN)
+	tw.tween_property(_xe_om, "rotation:y", PI / 2.0, 0.3)
+	tw.tween_property(_xe_om, "position", far, 2.0)
+	tw.tween_callback(func():
+		_xe_om.visible = false
+		_passenger.visible = false
+	)
+	tw.tween_interval(XE_OM_AWAY)
+	tw.tween_callback(func():
+		_xe_om_state = "back"
+		_xe_om.visible = true
+		_xe_om.rotation.y = -PI / 2.0
+	)
+	tw.tween_property(_xe_om, "position", road, 2.0)
+	tw.tween_property(_xe_om, "rotation:y", 0.0, 0.3)
+	tw.tween_property(_xe_om, "position", _xe_om_home, 1.0).set_ease(Tween.EASE_OUT)
+	tw.tween_callback(func():
+		_xe_om_state = "wait"
+		if current == i:
+			_toast("Chú Năm về rồi, đưa bánh đi!", 2.0)
+	)
+	_toast("Hết giờ, Chú Năm chở khách đi rồi! Đợi chú quay lại...", 2.5)
+
+
+## Bơ đứng trên yên sau xe ôm (sau lưng Chú Năm).
+func _on_xe_om() -> bool:
+	if _xe_om == null:
+		return false
+	var local := _xe_om.global_transform.affine_inverse() * player.global_position
+	return local.y > XE_OM_SEAT - 0.15 and absf(local.x) < 0.3 and local.z > 0.1 and local.z < 0.8
+
+
+func _near_xe_om() -> bool:
+	return _xe_om != null and player.global_position.distance_to(_xe_om.global_position) < 2.5
+
+
 ## Giỏ thòng xuống khi đang giao đơn Bé Na, đung đưa, xong thì kéo lên.
 func _update_basket(delta: float) -> void:
 	if _pivot == null:
@@ -790,7 +1001,7 @@ func _set_rope(k: float) -> void:
 	var length := lerpf(0.5, full, k)
 	var amp := asin(clampf(BASKET_SWING / full, 0.0, 0.9)) * k
 	# Trật thì giỏ bị giật lệch ra xa một chút
-	_pivot.rotation.z = sin(_swing_t * TAU / BASKET_PERIOD) * amp + (0.06 if _retry > 0.0 else 0.0)
+	_pivot.rotation.z = sin(_swing_t * TAU / _basket_period) * amp + (0.06 if _retry > 0.0 else 0.0)
 	# Dây chính từ lan can xuống tới nút dây của giỏ (giỏ cao GIO_H, gốc ở đáy)
 	var rope := maxf(length - GIO_H, 0.05)
 	_rope.scale.y = rope

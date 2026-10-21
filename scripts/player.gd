@@ -44,17 +44,47 @@ var bread: Node3D
 var _skel: Skeleton3D
 var _bone_idx := {}
 var _bone_rest := {}
-var _legs := [0.0, 0.0, 0.0, 0.0]
+var _legs := [0.0, 0.0, 0.0, 0.0]  # góc vung chân: trước trái, trước phải, sau trái, sau phải
 # Đuôi: góc ngẩng/cụp (pitch) và góc lệch trái phải (yaw) của 4 đốt, cùng vận tốc góc
 var _tail_p := [0.0, 0.0, 0.0, 0.0]
 var _tail_pv := [0.0, 0.0, 0.0, 0.0]
 var _tail_y := [0.0, 0.0, 0.0, 0.0]
 var _tail_yv := [0.0, 0.0, 0.0, 0.0]
 var _last_yaw := 0.0
-var _yaw_rate := 0.0  # góc vung chân: trước trái, trước phải, sau trái, sau phải
+var _yaw_rate := 0.0
+# Toàn thân: tốc độ lúc trước (để tính gia tốc), các lò xo cho chuyển động phụ
+var _last_hspeed := 0.0
+var _accel := 0.0
+var _was_floor_anim := true
+var _lean := Spring.new()        # nghiêng người khi quẹo
+var _pitch := Spring.new()       # chúi/ngả người khi tăng tốc, phanh, nhảy
+var _head_yaw := Spring.new()
+var _head_pitch := Spring.new()
+var _ear := [Spring.new(), Spring.new()]      # cụp ra sau
+var _ear_flick := [0.0, 0.0]                  # giật tai (giảm dần về 0)
+var _scarf_p := Spring.new()
+var _scarf_r := Spring.new()
+var _idle_time := 0.0
+var _look_target := Vector2.ZERO              # đứng yên lâu thì ngó quanh
+var _look_timer := 2.0
+var _blink_timer := 3.0
+var _blink := 0.0                             # 1 = mắt nhắm
+var _flick_timer := 4.0
+
+
+## Lò xo giảm chấn một chiều: đuổi theo đích, có quán tính nên chuyển động không bị giật cục.
+class Spring:
+	var x := 0.0
+	var v := 0.0
+
+	func step(target: float, stiff: float, damping: float, dt: float) -> float:
+		v += ((target - x) * stiff - v * 2.0 * sqrt(stiff) * damping) * dt
+		x += v * dt
+		return x
 
 const BO_MODEL := preload("res://assets/models/bo.glb")
-const BONE_NAMES := ["head", "leg_FL", "leg_FR", "leg_BL", "leg_BR", "tail_1", "tail_2", "tail_3", "tail_4"]
+const BONE_NAMES := ["head", "leg_FL", "leg_FR", "leg_BL", "leg_BR", "tail_1", "tail_2", "tail_3", "tail_4",
+	"ear_L", "ear_R", "eye_L", "eye_R", "scarf"]
 const TAIL_BONES := ["tail_1", "tail_2", "tail_3", "tail_4"]
 ## Độ cứng lò xo từng đốt đuôi: gốc cứng, chóp mềm nên chóp đuôi đi trễ và phất theo sau
 const TAIL_STIFF := [90.0, 60.0, 42.0, 30.0]
@@ -91,7 +121,7 @@ func _ready() -> void:
 
 
 ## Mèo Bơ kiểu D "Chững chạc" (bản tạm từ model phác thảo, xem tools/bo_game.py).
-## Model có 11 xương (4 đốt đuôi); game tự xoay xương chân, đuôi, đầu bằng code thay cho animation.
+## Model có 16 xương (chân, đầu, 4 đốt đuôi, tai, mắt, khăn); game tự xoay xương bằng code thay cho animation.
 ## Tuần 2 sẽ thay bằng model dựng tay 22 xương cùng animation làm trong Blender.
 func _build_visual() -> void:
 	visual = Node3D.new()
@@ -222,8 +252,6 @@ func _physics_process(delta: float) -> void:
 	_curr_pos = global_position
 
 
-## Animation tạm bằng code: vung chân, nhún người, vẫy đuôi.
-## Tuần 2 sẽ thay bằng AnimationTree với animation làm trong Blender.
 ## Vị trí mèo đã nội suy giữa hai nhịp vật lý: camera và mũi tên bám theo vị trí này.
 func smooth_position() -> Vector3:
 	return _prev_pos.lerp(_curr_pos, Engine.get_physics_interpolation_fraction())
@@ -231,35 +259,116 @@ func smooth_position() -> Vector3:
 
 func _process(delta: float) -> void:
 	visual.global_position = smooth_position()
-	var hspeed := Vector2(velocity.x, velocity.z).length()
 	visual.scale = visual.scale.lerp(Vector3.ONE, 1.0 - exp(-12.0 * delta))
-	if is_on_floor():
+	_animate(delta, Vector2(velocity.x, velocity.z).length(), velocity.y, is_on_floor())
+
+
+## Animation tạm bằng code cho cả người, không chỉ chân.
+## Tuần 2 sẽ thay bằng AnimationTree với animation làm trong Blender; phần lò xo phụ vẫn giữ.
+## - Chân vung theo bước, thân nhún.
+## - Thân nghiêng vào trong khi quẹo, chúi tới khi tăng tốc, ngả ra sau khi phanh, thở khi đứng.
+## - Đầu gật nhẹ theo bước, nhìn trước về hướng quẹo, giữ thăng bằng khi thân nghiêng;
+##   đứng yên lâu thì ngó quanh.
+## - Tai cụp ra sau khi chạy nhanh, dựng lên khi nhảy, thỉnh thoảng giật tai.
+## - Mắt chớp mỗi vài giây, chớp khi tiếp đất.
+## - Khăn đung đưa theo quán tính. Đuôi xem _update_tail.
+func _animate(delta: float, hspeed: float, vy: float, on_floor: bool) -> void:
+	var t := Time.get_ticks_msec() * 0.001
+	var k := clampf(hspeed / sprint_speed, 0.0, 1.0)
+	var acc := (hspeed - _last_hspeed) / maxf(delta, 0.001)
+	_last_hspeed = hspeed
+	_accel = lerpf(_accel, acc, 1.0 - exp(-10.0 * delta))
+	var landed_now := on_floor and not _was_floor_anim
+	_was_floor_anim = on_floor
+
+	# Chân và nhún người
+	if on_floor:
 		_phase += delta * (4.0 + hspeed * 2.2)
-		var k := clampf(hspeed / sprint_speed, 0.0, 1.0)
 		var swing := sin(_phase) * 0.9 * k
 		_legs = [swing, -swing, -swing, swing]
 		_body.position.y = absf(sin(_phase)) * 0.04 * k
-		_body.rotation.x = 0.0
 	else:
 		# Trên không: chân trước duỗi, chân sau co
-		var t := 1.0 - exp(-10.0 * delta)
+		var tl := 1.0 - exp(-10.0 * delta)
 		for i in 4:
-			_legs[i] = lerpf(_legs[i], 0.8 if i < 2 else -0.8, t)
-		_body.rotation.x = clampf(velocity.y * 0.04, -0.3, 0.3)
-	_update_tail(delta, hspeed, velocity.y, is_on_floor())
-	_apply_bones(hspeed)
+			_legs[i] = lerpf(_legs[i], 0.8 if i < 2 else -0.8, tl)
+
+	_update_tail(delta, hspeed, vy, on_floor)
+
+	# Thân: nghiêng khi quẹo (vào phía trong vòng), chúi/ngả theo gia tốc, ngẩng khi bay lên
+	var lean_target := clampf(_yaw_rate * k * 0.07, -0.22, 0.22)
+	var pitch_target := clampf(-_accel * 0.012, -0.12, 0.12)
+	if not on_floor:
+		pitch_target = clampf(vy * 0.04, -0.3, 0.3)
+	_body.rotation.z = _lean.step(lean_target, 120.0, 0.7, delta)
+	_body.rotation.x = _pitch.step(pitch_target, 150.0, 0.6, delta)
+	if landed_now:
+		_pitch.v -= 2.5  # tiếp đất: thân khựng chúi tới rồi bật lại
+
+	# Thở khi đứng yên: ngực phồng nhẹ
+	var breath := sin(t * 2.4) * (1.0 - k)
+	_body.scale = Vector3(1.0 + 0.012 * breath, 1.0 + 0.008 * breath, 1.0 + 0.006 * breath)
+
+	# Đầu: nhìn về hướng quẹo, gật ngược nhịp nhún, giữ thăng bằng khi thân chúi
+	_idle_time = _idle_time + delta if (hspeed < 0.3 and on_floor) else 0.0
+	_look_timer -= delta
+	if _look_timer <= 0.0:
+		_look_timer = randf_range(1.8, 4.0)
+		_look_target = Vector2(randf_range(-0.55, 0.55), randf_range(-0.12, 0.18)) if randf() < 0.7 else Vector2.ZERO
+	var look := _look_target if _idle_time > 1.5 else Vector2.ZERO
+	var yaw_target := clampf(_yaw_rate * 0.13, -0.45, 0.45) + look.x
+	var nod := sin(_phase * 2.0 + 0.6) * 0.06 * k if on_floor else 0.0
+	var head_pitch_target := look.y + nod - _body.rotation.x * 0.7
+	if not on_floor:
+		head_pitch_target += clampf(-vy * 0.03, -0.25, 0.2)  # rơi thì cúi nhìn chỗ đáp
+	_head_yaw.step(yaw_target, 60.0, 0.8, delta)
+	_head_pitch.step(head_pitch_target, 90.0, 0.65, delta)
+
+	# Tai: chạy nhanh thì cụp ra sau, bay lên thì dựng; nảy khi tiếp đất; thỉnh thoảng giật
+	var ear_target := k * 0.55 - (0.25 if not on_floor and vy > 0.0 else 0.0)
+	for i in 2:
+		_ear[i].step(ear_target, 140.0, 0.35, delta)
+		if landed_now:
+			_ear[i].v += 4.0
+		_ear_flick[i] = move_toward(_ear_flick[i], 0.0, delta * 6.0)
+	_flick_timer -= delta
+	if _flick_timer <= 0.0:
+		_flick_timer = randf_range(2.5, 6.0)
+		_ear_flick[randi() % 2] = 1.0
+
+	# Mắt: chớp nhanh (0,15 s), thỉnh thoảng chớp hai lần
+	_blink_timer -= delta
+	if _blink_timer <= 0.0 or landed_now:
+		_blink_timer = randf_range(2.5, 5.0) if randf() < 0.8 else 0.25
+		_blink = 1.0
+	_blink = move_toward(_blink, 0.0, delta / 0.15)
+
+	# Khăn: văng ngược hướng tăng tốc, lệch ra ngoài khi quẹo, nảy theo bước
+	var scarf_p_target := clampf(_accel * 0.03, -0.5, 0.5) + k * 0.25
+	_scarf_p.step(scarf_p_target, 45.0, 0.25, delta)
+	_scarf_r.step(clampf(-_yaw_rate * 0.1, -0.5, 0.5), 45.0, 0.25, delta)
+	if on_floor and k > 0.05:
+		_scarf_p.v += cos(_phase * 2.0) * k * 6.0 * delta
+
+	_apply_bones()
 
 
-## Xoay xương theo góc tính ở trên. Trục X của xương chân là trục vung trước/sau.
-func _apply_bones(hspeed: float) -> void:
+## Xoay xương theo các góc tính ở trên. Trục X của xương là trục gập trước/sau.
+func _apply_bones() -> void:
 	for i in 4:
 		_pose(LEG_BONES[i], Vector3.RIGHT, _legs[i] * LEG_SWING_SIGN)
-	_pose("head", Vector3.RIGHT, sin(_phase * 2.0) * 0.04 * clampf(hspeed / sprint_speed, 0.0, 1.0))
-	for i in 4:
-		var idx: int = _bone_idx[TAIL_BONES[i]]
+	_pose_q("head", Quaternion(Vector3.UP, _head_yaw.x) * Quaternion(Vector3.RIGHT, _head_pitch.x))
+	for i in 2:
+		var side := -1.0 if i == 0 else 1.0
+		var flick := sin(_ear_flick[i] * PI) * 0.5
+		_pose_q(["ear_L", "ear_R"][i], Quaternion(Vector3.RIGHT, _ear[i].x + flick) * Quaternion(Vector3.FORWARD, side * flick * 0.6))
+	for eye in ["eye_L", "eye_R"]:
+		var idx: int = _bone_idx[eye]
 		if idx >= 0:
-			_skel.set_bone_pose_rotation(idx, _bone_rest[TAIL_BONES[i]]
-				* Quaternion(Vector3.RIGHT, -_tail_p[i]) * Quaternion(Vector3.BACK, _tail_y[i]))
+			_skel.set_bone_pose_scale(idx, Vector3(1.0, 1.0 - 0.9 * sin(_blink * PI * 0.5), 1.0))
+	_pose_q("scarf", Quaternion(Vector3.RIGHT, _scarf_p.x) * Quaternion(Vector3.FORWARD, _scarf_r.x))
+	for i in 4:
+		_pose_q(TAIL_BONES[i], Quaternion(Vector3.RIGHT, -_tail_p[i]) * Quaternion(Vector3.BACK, _tail_y[i]))
 
 
 ## Đuôi mèo thật đổi dáng theo việc mèo đang làm:
@@ -302,6 +411,12 @@ func _update_tail(delta: float, hspeed: float, vy: float, on_floor: bool) -> voi
 		_tail_p[i] += _tail_pv[i] * delta
 		_tail_yv[i] += ((yaw_target - _tail_y[i]) * stiff - _tail_yv[i] * damp) * delta
 		_tail_y[i] += _tail_yv[i] * delta
+
+
+func _pose_q(bone_name: String, q: Quaternion) -> void:
+	var idx: int = _bone_idx[bone_name]
+	if idx >= 0:
+		_skel.set_bone_pose_rotation(idx, _bone_rest[bone_name] * q)
 
 
 func _pose(bone_name: String, axis: Vector3, angle: float) -> void:

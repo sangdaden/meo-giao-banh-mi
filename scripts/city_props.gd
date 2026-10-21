@@ -33,6 +33,7 @@ const SLOTS := [
 	{"block": 2, "row": 0, "x0": 22.0, "x1": 42.0, "kind": "chung_cu"},
 	{"block": 4, "row": 0, "x0": 4.0, "x1": 10.0, "kind": "cafe_may"},
 	{"block": 5, "row": 1, "x0": 29.5, "x1": 35.0, "kind": "tiem_xe"},
+	{"block": 1, "row": 0, "x0": 5.6, "x1": 10.0, "kind": "tap_hoa"},  # tạp hóa Cô Hai (ShopTapHoa), mặt tiền nhìn ra phía bắc
 ]
 
 ## Bốn màu bạt mái hiên và bốn màu xe máy đậu (model)
@@ -147,6 +148,8 @@ static func build_slot(parent: Node3D, slot: Dictionary, z0: float, depth: float
 			_chung_cu(parent, slot.x0, slot.x1, z0, depth)
 		"tiem_xe":
 			_tiem_xe(parent, slot.x0, slot.x1, z0, depth)
+		"tap_hoa":
+			ShopTapHoa.build(parent, slot.x0, slot.x1, z0, depth)
 
 
 # ------------------------------------------------------------------ hẻm 42

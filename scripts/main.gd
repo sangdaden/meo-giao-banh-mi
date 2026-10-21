@@ -319,7 +319,7 @@ func _deliver(order: Dictionary) -> void:
 		"time_ratio": 0.0 if late else time_left / _time_limit(order),
 		"late": late,
 		"intact": intact and not deliveries.star_lost(order_index),  # góc cờ: bị mắng thì mất 1 sao
-		"kitchen_star": Scoring.kitchen_star_for(order_index),
+		"kitchen_star": -1 if _is_errand(order) else Scoring.kitchen_star_for(order_index),  # đơn mua trứng không có ổ bánh
 		"side_quest": order.get("side_quest", ""),
 		"side_quest_ok": side_quest_ok,
 		"time": carry_time,
@@ -357,7 +357,8 @@ func _track_fall() -> void:
 	var on_floor := player.is_on_floor()
 	var y := player.global_position.y
 	if on_floor:
-		if not _was_on_floor and _air_top - y > FALL_BREAK_HEIGHT and intact:
+		# Đơn mua trứng tính vỡ trứng riêng (ShopTapHoa), không có ổ bánh để dập
+		if not _was_on_floor and _air_top - y > FALL_BREAK_HEIGHT and intact and not _is_errand(orders[order_index]):
 			intact = false
 			hud.show_toast("Rơi cao quá, bánh bị dập mất rồi!")
 		_air_top = y
@@ -544,11 +545,15 @@ func _update_hud_errand(order: Dictionary) -> void:
 	if hud.has_method("set_kitchen_stars"):
 		hud.set_kitchen_stars(-1)
 	if player.carrying:
-		hud.set_order(order_index, orders.size(), "Lò bánh Cô Ba", "Mang %s về lò" % order.item, Color("#D98E2B"), "B")
+		var detail := "Mang %s về lò" % order.item
+		var eggs: int = deliveries.errand_eggs(order_index)
+		if eggs >= 0:
+			detail += " · còn %d/%d quả" % [eggs, ShopTapHoa.EGGS]
+		hud.set_order(order_index, orders.size(), "Lò bánh Cô Ba", detail, Color("#D98E2B"), "B")
 		hud.set_timer(time_left, _time_limit(order), true)
 		hud.set_distance(player.global_position.distance_to(City.BAKERY_POINT), "Lò bánh Cô Ba")
 		hud.set_goal(City.BAKERY_POINT + Vector3.UP)
-		hud.set_bread(true, order.item, 1.0)
+		hud.set_bread(false)  # không mang ổ bánh; số trứng hiện trên thẻ đơn (và hud.set_eggs nếu có)
 	else:
 		hud.set_order(order_index, orders.size(), "%s · %s" % [order.who, order.place], "Tới lấy " + order.item, order.color)
 		hud.set_timer(0, 1, false)
@@ -588,6 +593,7 @@ func _person(pos: Vector3, shirt: Color, title: String) -> void:
 	var body := StaticBody3D.new()
 	body.collision_layer = Blocks.LAYER_PROP
 	body.position = pos
+	body.set_meta("bump_kind", "person")
 	add_child(body)
 	Blocks.box(body, Vector3(0.45, 0.8, 0.3), Vector3(0, 0.4, 0), Color("#3D4A4A"))     # quần
 	Blocks.box(body, Vector3(0.5, 0.6, 0.32), Vector3(0, 1.1, 0), shirt)                # áo

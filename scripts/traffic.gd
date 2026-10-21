@@ -419,6 +419,8 @@ func _check_player(b: Bike) -> void:
 	_sound_at("horn", b.pos)
 	var away := right * (signf(side) if absf(side) > 0.05 else 1.0)
 	player.knockback(player.global_position - (b.dir + away) * 0.7, HIT_STRENGTH, HIT_STUN)
+	if player.has_method("bump"):
+		player.bump("bike")  # đang ngậm túi trứng thì vỡ một quả
 	b.speed *= 0.3
 	bike_hit_player.emit(b.pos)
 	if hud and hud.has_method("show_toast"):
@@ -625,6 +627,7 @@ func _build_carts(rng: RandomNumberGenerator) -> void:
 		var body := AnimatableBody3D.new()
 		body.collision_layer = Blocks.LAYER_PROP
 		body.sync_to_physics = true
+		body.set_meta("bump_kind", "cart")  # va xe đẩy khi ngậm túi trứng là vỡ một quả
 		add_child(body)
 		var model: Node3D = src.instantiate()
 		model.rotation.y = -PI / 2

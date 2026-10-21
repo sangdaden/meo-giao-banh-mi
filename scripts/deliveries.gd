@@ -36,6 +36,7 @@ const QUESTS := {
 	"khong_do_ly": "Không làm đổ ly cà phê nào",
 	"khong_dau": "Không giẫm vũng dầu nào",
 	"muc_ngu_yen": "Qua hẻm mà Chó Mực không thức",
+	"du_6_trung": "Về lò còn đủ 6 quả trứng",
 	"dat_luc_chieu": "Đặt túi đúng lúc chiếu tướng",
 	"kip_xe_om": "Giao trước khi khách xe ôm tới",
 	"khong_dung_nguoi": "Không đụng người đi chợ nào",
@@ -82,6 +83,8 @@ var autotest := false
 var current := -1                ## đơn đang làm (main gán lúc nhận bánh)
 var side_ok: Array[bool] = [false, false, false, false, false]
 var _kind: Array[String] = []
+## Đơn ngược ("kind": "errand", gói T3-3): tạp hóa Cô Hai, chỉ tạo khi trong ngày có đơn này
+var shop: ShopTapHoa
 
 # Vị trí từng phần, tính ở build_static để _ready dựng phần chuyển động
 var _arms: Array = []            # {"order", "pos", "yaw", "color"} → pivot vai
@@ -163,7 +166,7 @@ func build_static(parent: Node3D, order_list: Array) -> void:
 	orders = order_list
 	for i in orders.size():
 		var o: Dictionary = orders[i]
-		var kind: String = o.get("delivery", "hand")
+		var kind: String = "errand" if o.get("kind", "deliver") == "errand" else o.get("delivery", "hand")
 		_kind.append(kind)
 		var p: Vector3 = o.pos
 		var title := "%d. %s\n%s" % [i + 1, o.who, o.place]
@@ -179,6 +182,8 @@ func build_static(parent: Node3D, order_list: Array) -> void:
 				_build_hung(parent, i, p, o.color, title)
 			"chair":
 				_build_sau(parent, i, p, o.color, title)
+			"errand":
+				pass  # tiệm và Cô Hai do CityProps dựng (ô "tap_hoa"), phần chuyển động ở ShopTapHoa
 			"beside_tea":
 				if chess == null:
 					ChessCorner.build_static(parent)
@@ -350,6 +355,7 @@ func _seated(parent: Node3D, pos: Vector3, yaw: float, shirt: Color, chair := Co
 func _standing(parent: Node3D, pos: Vector3, yaw: float, shirt: Color, height := 1.0) -> void:
 	var root := StaticBody3D.new()
 	root.collision_layer = Blocks.LAYER_PROP
+	root.set_meta("bump_kind", "person")
 	root.position = pos
 	root.rotation.y = yaw
 	root.scale = Vector3.ONE * height
@@ -554,6 +560,10 @@ func setup(p: CharacterBody3D, d: Node, h: CanvasLayer, is_autotest := false) ->
 	_mouth = _make_mouth()
 	if chess:
 		chess.setup(player, hud)
+	if "errand" in _kind:
+		shop = ShopTapHoa.new()
+		add_child(shop)
+		shop.setup(p, h, is_autotest)
 
 
 ## Điểm miệng Bơ: BoneAttachment3D theo xương "head" của bo.glb, lệch tới điểm MOUTH.
@@ -648,6 +658,15 @@ func hand_point(i: int) -> Vector3:
 	return arm.global_transform * Vector3(0, -0.5, 0) if arm else orders[i].pos + Vector3.UP
 
 
+func is_errand(i: int) -> bool:
+	return _kind[i] == "errand"
+
+
+## Số trứng còn trong túi (đơn ngược), -1 nếu không phải đơn ngược.
+func errand_eggs(i: int) -> int:
+	return shop.eggs() if _kind[i] == "errand" else -1
+
+
 ## Tên nhiệm vụ phụ của đơn i.
 func quest_title(i: int) -> String:
 	return QUESTS.get(orders[i].get("side_quest", ""), "")
@@ -676,6 +695,9 @@ func on_pick_up(i: int) -> void:
 				_reset_glass(g)
 		"under_car":
 			_oiled = false
+		"errand":
+			shop.begin(i)
+			side_ok[i] = true  # vỡ quả nào là trượt (ShopTapHoa)
 		"beside_tea":
 			chess.begin_order()
 	if _kind[i] == "chair" and _speech:

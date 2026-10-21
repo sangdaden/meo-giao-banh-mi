@@ -182,7 +182,7 @@ Bản khối thô dựng mọi thứ bằng code để dễ đọc từ trên xu
 
 Toàn bộ nhạc và tiếng động do `tools/sound/synth.py` tự tổng hợp, không dùng mẫu của ai nên không vướng giấy phép (CC0, chi tiết ở `assets/audio/NGUON.md`). Có 4 bài nhạc nền lặp (menu, giao bánh, bị Chó Mực đuổi, bếp), 2 nhạc kết, tiếng nền phố và bếp, cùng khoảng 35 hiệu ứng.
 
-- Gọi từ code: `Sound.play("jump")`, `Sound.music("chase")`, `Sound.ambience("street")`, `Sound.loop("sizzle")` / `Sound.stop_loop("sizzle")`. Tên không có file thì bỏ qua.
+- Gọi từ code: `Sound.play("jump")`, `Sound.play_at("bark", vi_tri_3d)` (nhỏ dần theo khoảng cách tới camera), `Sound.music("chase")`, `Sound.ambience("street")`, `Sound.loop("sizzle")` / `Sound.stop_loop("sizzle")`. Tên không có file thì bỏ qua.
 - Âm lượng: menu **Cài đặt** (màn hình chính và màn tạm dừng); phím **M** tắt/bật tiếng bất cứ lúc nào. Lưu vào `user://am_thanh.cfg`.
 - Cân to nhỏ giữa các tiếng: bảng `LEVEL` đầu file `scripts/sound.gd`. Nhịp bước chân, mấy giây cuối kêu tích tắc, tầm sủa của chó: hằng số đầu `scripts/sound_director.gd`.
 - Bản web: trình duyệt chặn âm thanh cho tới cú bấm hoặc phím đầu tiên; Godot tự mở lại khi người chơi bấm, nên nhạc menu bắt đầu ngay khi chạm vào trang.

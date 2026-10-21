@@ -145,13 +145,9 @@ func _on_dog_state(s: int) -> void:
 			_bark = 0.0
 
 
-## Tiếng của Chó Mực: nhỏ dần theo khoảng cách (play_at nếu bản Sound có, không thì tự giảm).
+## Tiếng của Chó Mực: nhỏ dần theo khoảng cách tới camera.
 func _dog_sound(sound_name: String, pos: Vector3, pitch := 1.0, volume_db := 0.0) -> void:
-	if Sound.has_method("play_at"):
-		Sound.call("play_at", sound_name, pos, 30.0, volume_db, pitch)
-	else:
-		var dist: float = pos.distance_to(main.player.global_position)
-		Sound.play(sound_name, volume_db - dist * 0.8, pitch)
+	Sound.play_at(sound_name, pos, 30.0, volume_db, pitch)
 
 
 func _on_bite() -> void:

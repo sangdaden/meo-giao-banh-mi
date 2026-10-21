@@ -2,7 +2,8 @@ class_name Outfit
 extends RefCounted
 ## Đồ Bơ đang mặc, lưu ở user://tu_do.cfg. Danh mục 19 giống, 35 phụ kiện, 6 ô gắn và 8 bộ đồ
 ## chép từ luồng "Skin mèo và phụ kiện" (meo-3d/skins/olddata.js).
-## Món nào đã có hình trong game thì ghi vào IN_GAME; món khác hiện "Sắp có" cho tới khi có model.
+## Món mặc được trong game = đã có (mặc định hoặc mua ở Shop) và có hình (IN_GAME hoặc model ở OutfitView).
+## Giống mèo đang dùng cũng lưu ở đây.
 
 const PATH := "user://tu_do.cfg"
 const SLOTS := [["head", "Đầu"], ["face", "Mặt"], ["neck", "Cổ"], ["back", "Lưng"], ["tail", "Đuôi"], ["feet", "Chân"]]
@@ -46,7 +47,7 @@ const ACCS := [
 	["denlong", "Đèn lồng ông sao", "sukien", "tail"],
 	["bongbay", "Bóng bay buộc đuôi", "sukien", "tail"],
 ]
-## Phụ kiện đã có hình trong game (player.gd vẽ được)
+## Phụ kiện Bơ vẽ sẵn bằng code (player.gd), không cần model phụ kiện
 const IN_GAME := ["khando", "tuibanh"]
 
 # tên bộ, mô tả, các món
@@ -83,12 +84,11 @@ const BREEDS := [
 	["thongoc", "Thỏ Ngọc", "Mèo trắng tai thỏ", "sukien", "#F2F2F6", "#FFFFFF", "#C8412F", "Mở dịp Trung thu"],
 	["bingo", "Bí Ngô", "Mèo đen vằn cam", "sukien", "#26242A", "#E8913A", "#7CFF6A", "Mở dịp Halloween"],
 ]
-## Giống đã có model trong game
-const BREEDS_IN_GAME := ["bo"]
 
 const DEFAULT_WORN := {"neck": "khando", "back": "tuibanh"}
 
 static var _worn := {}
+static var _breed := "bo"
 static var _loaded := false
 
 
@@ -106,8 +106,28 @@ static func slot_name(slot: String) -> String:
 	return slot
 
 
+## Đã có và mặc được trong màn chơi.
 static func in_game(id: String) -> bool:
-	return id in IN_GAME
+	return Shop.owned(id) and (id in IN_GAME or OutfitView.has_model(id))
+
+
+## Giống đã có (mặc định, mua hoặc mở bằng thành tích) và có model.
+static func breed_ready(id: String) -> bool:
+	return id == "bo" or (Shop.owned(id) and OutfitView.has_breed(id))
+
+
+## Giống mèo đang dùng.
+static func breed() -> String:
+	_ensure()
+	return _breed
+
+
+static func choose_breed(id: String) -> void:
+	if not breed_ready(id):
+		return
+	_ensure()
+	_breed = id
+	_save()
 
 
 ## Món đang gắn ở một ô ("" = để trống).
@@ -161,6 +181,8 @@ static func _ensure() -> void:
 	_worn = DEFAULT_WORN.duplicate()
 	var cfg := ConfigFile.new()
 	if cfg.load(PATH) == OK:
+		var b := str(cfg.get_value("giong", "dang_dung", "bo"))
+		_breed = b if breed_ready(b) else "bo"
 		for s in SLOTS:
 			var id: String = str(cfg.get_value("worn", s[0], _worn.get(s[0], "")))
 			_worn[s[0]] = id if (id == "" or in_game(id)) else ""
@@ -170,4 +192,5 @@ static func _save() -> void:
 	var cfg := ConfigFile.new()
 	for s in SLOTS:
 		cfg.set_value("worn", s[0], _worn.get(s[0], ""))
+	cfg.set_value("giong", "dang_dung", _breed)
 	cfg.save(PATH)

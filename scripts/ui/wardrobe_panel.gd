@@ -4,6 +4,7 @@ extends Control
 ## lăn chuột để phóng to; sáu ô gắn phụ kiện. Bên phải: ba tab Giống mèo, Phụ kiện, Bộ đồ.
 ## Danh mục và đồ đang mặc nằm ở Outfit. Món khoá mà đã có model (assets/models/skin, xem OutfitView)
 ## thì bấm để mặc thử trên bục: chỉ xem trước, "Xong" trả Bơ về đồ đã có. Món chưa xuất model hiện "Đang dựng".
+## Đang thử món mua được thì nút "Mua · giá" ở chân trang mua bằng tiền boa trong ví (Shop).
 
 signal closed
 
@@ -17,8 +18,8 @@ const TAGS := {
 }
 const TAB_NAMES := ["Giống mèo · 19", "Phụ kiện · 35", "Bộ đồ · 8"]
 const NOTES := [
-	"Bấm giống mèo khoá để xem thử trên bục. Chỉ xem trước, chưa chơi được.",
-	"Bấm món đã có để đeo hoặc tháo. Món khoá bấm để mặc thử, bấm lần nữa để bỏ.",
+	"Bấm giống mèo khoá để xem thử trên bục, đủ tiền boa thì bấm Mua. Giống đã có bấm để chọn.",
+	"Bấm món đã có để đeo hoặc tháo. Món khoá bấm để mặc thử, đủ tiền boa thì bấm Mua.",
 	"Bộ còn khoá thì mặc thử cả bộ trên bục. Bấm Xong để trả về đồ đã có.",
 ]
 
@@ -34,7 +35,11 @@ var _worn_label: Label
 var _note: Label
 var _done: Button
 var _untry: Button
+var _buy: Button
+var _wallet: Label
 var _name: Label
+## Món vừa bấm thử (giống hoặc phụ kiện), nút Mua mua món này.
+var _buy_id := ""
 ## Đồ mặc thử trên bục theo ô (chưa sở hữu, không mang vào màn chơi) và giống đang xem thử ("" = Bơ).
 var _try := {}
 var _try_breed := ""
@@ -76,6 +81,15 @@ func _ready() -> void:
 	var title := T.label("Tủ đồ của Bơ", 40, T.INK, "display")
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	head.add_child(title)
+
+	var purse := PanelContainer.new()
+	purse.add_theme_stylebox_override("panel", T.box(T.PAPER, 999, 14, T.INK, 3))
+	purse.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	T.place(purse, 0.0, 0.0, Rect2(28, 96, 0, 0))
+	_wallet = T.label("", 16, T.INK, "bold")
+	_wallet.tooltip_text = "Tiền boa và sao kiếm được khi giao bánh, dùng mua đồ trong tủ"
+	purse.add_child(_wallet)
+	add_child(purse)
 
 	var name_card := PanelContainer.new()
 	name_card.add_theme_stylebox_override("panel", T.box(T.PAPER, 14, 14, T.INK, 3))
@@ -139,6 +153,10 @@ func _ready() -> void:
 		_refresh()
 		_note.text = "Đã bỏ đồ mặc thử.")
 	foot.add_child(_untry)
+	_buy = T.button("Mua", "primary", 60, 17)
+	_buy.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_buy.pressed.connect(_buy_tried)
+	foot.add_child(_buy)
 	_done = T.button("Xong", "primary", 60, 20)
 	_done.custom_minimum_size.x = 150
 	_done.alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -184,6 +202,33 @@ func _trying() -> bool:
 func _clear_try() -> void:
 	_try.clear()
 	_try_breed = ""
+	_buy_id = ""
+
+
+## Mua món đang thử rồi mặc luôn.
+func _buy_tried() -> void:
+	var id := _buy_id
+	if id == "" or not Shop.buy(id):
+		return
+	if Shop.is_breed(id):
+		_try_breed = ""
+		Outfit.choose_breed(id)
+		_note.text = "Đã mua %s! Bơ đổi sang giống này khi vào chơi." % _breed(id)[1]
+	else:
+		var a := Outfit.acc(id)
+		_try.erase(a[3])
+		Outfit.wear(id)
+		_note.text = "Đã mua và đeo %s!" % a[1].to_lower()
+	_buy_id = ""
+	_refresh()
+
+
+## Chữ trên dải khoá: giá nếu bán, không thì "bấm để thử".
+func _lock_text(id: String, model: bool) -> String:
+	if not model:
+		return "đang dựng"
+	var p := Shop.price(id)
+	return Shop.money(p) if p > 0 else "bấm để thử"
 
 
 func _breed(id: String) -> Array:
@@ -195,7 +240,7 @@ func _breed(id: String) -> Array:
 
 func _refresh() -> void:
 	_build_slots()
-	var br := _breed(_try_breed if _try_breed != "" else "bo")
+	var br := _breed(_try_breed if _try_breed != "" else Outfit.breed())
 	_name.text = "%s · %s%s" % [br[1], br[2].to_lower(), " · xem thử" if _try_breed != "" else ""]
 	var names := Outfit.worn_names()
 	var txt := "Đực · " + ("đang đeo: " + ", ".join(names) if names.size() > 0 else "chưa đeo gì")
@@ -206,8 +251,15 @@ func _refresh() -> void:
 		txt += " · thử: " + ", ".join(tried)
 	_worn_label.text = txt
 	_untry.visible = _trying()
+	_wallet.text = "Ví %s · %d sao" % [Shop.money(Shop.wallet()), Shop.total_stars()]
+	var still_tried := _buy_id != "" and (_try_breed == _buy_id or _try.values().has(_buy_id))
+	_buy.visible = still_tried and not Shop.owned(_buy_id)
+	if _buy.visible:
+		var c := Shop.check(_buy_id)
+		_buy.text = c.text
+		_buy.disabled = not c.ok
 	if preview.cat:
-		var want := _try_breed if _try_breed != "" else "bo"
+		var want := _try_breed if _try_breed != "" else Outfit.breed()
 		if preview.cat.breed != want:
 			preview.cat.set_breed(want, _shown())
 		else:
@@ -388,10 +440,10 @@ func _lock_cover(b: Button, body: Control, text: String, tried := false) -> void
 
 
 func _breed_tile(br: Array) -> Button:
-	var ready: bool = br[0] in Outfit.BREEDS_IN_GAME
+	var ready: bool = Outfit.breed_ready(br[0])
 	var model := OutfitView.has_breed(br[0])
 	var tried: bool = _try_breed == br[0]
-	var b := _tile_button(Vector2(104, 150), br[0] == "bo" and _try_breed == "")
+	var b := _tile_button(Vector2(104, 150), br[0] == Outfit.breed() and _try_breed == "")
 	b.tooltip_text = "%s · %s" % [br[1], br[2]]
 	var v := _tile_body(b)
 	var face := CatFace.new()
@@ -405,14 +457,16 @@ func _breed_tile(br: Array) -> Button:
 	v.add_child(_name_label(br[1]))
 	v.add_child(_tag(br[3]))
 	if not ready:
-		_lock_cover(b, v, "bấm để thử" if model else "đang dựng", tried)
+		_lock_cover(b, v, _lock_text(br[0], model), tried)
 	b.pressed.connect(func():
 		if ready:
 			_try_breed = ""
+			Outfit.choose_breed(br[0])
 			_note.text = "%s · %s · đang chọn." % [br[1], br[2]]
 		elif model:
 			_try_breed = "" if tried else br[0]
-			_note.text = ("Đã bỏ xem thử %s." % br[1]) if tried else ("Đang xem thử %s · %s. Mở khoá: %s." % [br[1], br[2], br[7].to_lower()])
+			_buy_id = "" if tried else br[0]
+			_note.text = ("Đã bỏ xem thử %s." % br[1]) if tried else ("Đang xem thử %s · %s. %s." % [br[1], br[2], Shop.check(br[0]).text])
 		else:
 			_note.text = "%s · %s · đang dựng trong Blender. %s." % [br[1], br[2], br[7]]
 		_refresh())
@@ -449,7 +503,7 @@ func _acc_tile(a: Array) -> Button:
 		p.add_child(badge)
 		b.add_child(p)
 	if not ready:
-		_lock_cover(b, v, "bấm để thử" if model else "đang dựng", tried)
+		_lock_cover(b, v, _lock_text(a[0], model), tried)
 	b.pressed.connect(func():
 		if ready:
 			_try.erase(a[3])
@@ -461,8 +515,9 @@ func _acc_tile(a: Array) -> Button:
 				_try.erase(a[3])
 			else:
 				_try[a[3]] = a[0]
+			_buy_id = "" if tried else a[0]
 			_refresh()
-			_note.text = ("Đã bỏ thử %s." % a[1].to_lower()) if tried else ("Đang mặc thử %s. Chỉ xem trên bục, chưa mang vào màn chơi." % a[1].to_lower())
+			_note.text = ("Đã bỏ thử %s." % a[1].to_lower()) if tried else ("Đang mặc thử %s · %s." % [a[1].to_lower(), Shop.check(a[0]).text])
 		else:
 			_note.text = "%s (ô %s) đang được dựng trong Blender, sắp có." % [a[1], Outfit.slot_name(a[3])])
 	return b

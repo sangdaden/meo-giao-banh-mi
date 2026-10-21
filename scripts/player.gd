@@ -289,6 +289,7 @@ func _build_visual() -> void:
 	_body = Node3D.new()
 	visual.add_child(_body)
 
+	breed = Outfit.breed()  # giống mèo đã chọn trong tủ đồ
 	_load_model()
 	_build_bag()
 	_attach_bag()

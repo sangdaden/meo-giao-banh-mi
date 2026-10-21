@@ -486,6 +486,7 @@ func _end_game() -> void:
 		print("[autotest] Chó Mực: ", _dog_states.map(func(s): return dog.STATE_NAMES[s]))
 		var ok := results.size() == 5 and results.all(func(s): return s > 0) and _bitten and dog_ok
 		ok = ok and summary.tip > 0 and summary.stamps >= 1 and Scoring.self_test()
+		ok = ok and Shop.total_stars() == summary.stars and Shop.self_test()
 		ok = ok and GameState.get_day("so_lan_choi", 0) == 1 and Scoring.best_time(0) > 0.0
 		# Autotest bị Chó Mực đớp ở đơn 5 nên nhiệm vụ phụ đơn đó trượt; 4 đơn đầu phải đạt cả
 		ok = ok and deliveries.side_ok.slice(0, 4).all(func(v): return v) and score_rows[0].side_ok

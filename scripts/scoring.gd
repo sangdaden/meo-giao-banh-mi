@@ -190,6 +190,8 @@ static func end_day(stars_max := 15) -> Dictionary:
 	GameState.set_day("so_lan_choi", int(GameState.get_day("so_lan_choi", 0)) + 1)
 
 	var wallet := _save_orders(tip)
+	var all_on_time := orders.size() >= GameState.ORDERS_PER_DAY and orders.all(func(r): return not r.is_empty() and not r.late)
+	Shop.add_stats(stars, _on_time(orders), all_on_time)
 	GameState.write_save()
 	GameState.write_star_record(stars)
 
@@ -253,6 +255,7 @@ static func end_practice() -> Dictionary:
 	for r in played:
 		tip += int(r.get("tip", 0))
 	var wallet := _save_orders(tip)
+	Shop.add_stats(stars, _on_time(played), false)
 	GameState.write_save()
 	var one: Dictionary = played[0] if played.size() == 1 else {}
 	return {
@@ -273,6 +276,10 @@ static func end_practice() -> Dictionary:
 static func best_stars(order_index: int, which := "") -> int:
 	var a: Array = GameState.get_day("sao_don", [], which)  # which rỗng = ngày đang chơi
 	return int(a[order_index]) if order_index < a.size() else 0
+
+
+static func _on_time(list: Array) -> int:
+	return list.filter(func(r): return not r.is_empty() and not r.get("late", true)).size()
 
 
 static func _rank_value(rank: String) -> int:

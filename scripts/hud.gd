@@ -121,11 +121,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.physical_keycode == KEY_F3:
 			fps_label.visible = not fps_label.visible
 			GameSettings.set_value("show_fps", fps_label.visible)
-		elif event.physical_keycode == KEY_F1:
+		elif event.physical_keycode == KEY_F1 and hint:
 			GameSettings.set_value("hints", not GameSettings.get_value("hints"))
 			hint.visible = _playing and GameSettings.get_value("hints")
 	# Lúc đang tạm dừng, main.gd bị dừng theo nên HUD tự bắt phím Esc để chơi tiếp
-	if get_tree().paused and pause_screen.visible and not settings.visible and event.is_action_pressed("pause"):
+	if get_tree().paused and pause_screen.visible and not (settings and settings.visible) and event.is_action_pressed("pause"):
 		toggle_pause()
 		get_viewport().set_input_as_handled()
 
@@ -138,6 +138,8 @@ func _process(delta: float) -> void:
 	if _toast_time > 0.0:
 		_toast_time -= delta
 		toast.modulate.a = clampf(_toast_time / 0.4, 0.0, 1.0)
+	if edge_arrow == null:
+		return
 	edge_arrow.visible = _playing and _has_goal
 	if edge_arrow.visible:
 		edge_arrow.update_goal(get_viewport().get_camera_3d(), _goal)
@@ -147,10 +149,14 @@ func _process(delta: float) -> void:
 
 func show_playing_ui(on: bool) -> void:
 	_playing = on
-	for n in [order_card, timer_ring, progress_row, distance_pill, bag_card]:
-		n.visible = on
-	hint.visible = on and GameSettings.get_value("hints")
-	if not on:
+	# Kiểm tra null: script kế thừa (HUD bếp cũ) tự dựng giao diện riêng, chỉ có vài node này.
+	for n in [order_card, timer_ring, progress_row, distance_pill,
+			order_label.get_parent() if order_label else null, distance_label.get_parent() if distance_label else null]:
+		if n:
+			n.visible = on
+	if hint:
+		hint.visible = on and (GameSettings.get_value("hints") or bag_card == null)
+	if bag_card and not on:
 		bag_card.visible = false
 
 
@@ -216,15 +222,25 @@ func show_toast(text: String, seconds := 2.0) -> void:
 	toast.modulate.a = 1.0
 
 
-## info: dòng tóm tắt hiện dưới chữ "Tạm dừng" (vd. "Đơn 3/5 · Chị Mây · đồng hồ đứng ở 0:09").
-func toggle_pause(info := "") -> void:
+var _pause_text := ""
+
+
+## Dòng tóm tắt hiện dưới chữ "Tạm dừng" (vd. "Đơn 3/5 · Chị Mây · đồng hồ đứng ở 0:09").
+## Gọi trước toggle_pause(); để trống thì lấy theo thẻ đơn.
+func set_pause_info(info: String) -> void:
+	_pause_text = info
+
+
+func toggle_pause() -> void:
+	var info := _pause_text
+	_pause_text = ""
 	var tree := get_tree()
 	tree.paused = not tree.paused
 	pause_screen.visible = tree.paused
-	if tree.paused:
+	if tree.paused and pause_info:
 		pause_info.text = info if info != "" else "%s · %s" % [order_chip.text, order_label.text]
 		pause_screen.get_meta("first").grab_focus.call_deferred()
-	else:
+	elif settings:
 		settings.visible = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if tree.paused else Input.MOUSE_MODE_CAPTURED
 
@@ -232,6 +248,10 @@ func toggle_pause(info := "") -> void:
 ## Kiểu cũ: một khối chữ. Màn chơi hiện dùng show_results.
 func show_end(lines: String) -> void:
 	show_playing_ui(false)
+	if bag_card == null:  # script kế thừa đã tự dựng end_screen có sẵn end_text
+		end_text.text = lines
+		end_screen.visible = true
+		return
 	for c in end_screen.get_children():
 		c.queue_free()
 	var o := _overlay("Hết ca giao bánh!", lines, "Chơi lại (Enter)", func(): restart_pressed.emit())

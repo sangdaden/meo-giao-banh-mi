@@ -104,7 +104,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				restart()
 		State.PLAY:
 			if event.is_action_pressed("pause"):
-				hud.toggle_pause(_pause_info())
+				hud.set_pause_info(_pause_info())
+				hud.toggle_pause()
 			elif event is InputEventMouseButton and event.pressed and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 				Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 

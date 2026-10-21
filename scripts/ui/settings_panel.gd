@@ -57,9 +57,14 @@ func _ready() -> void:
 	_volume_row(left, "Nhạc nền", "Music")
 	_volume_row(left, "Hiệu ứng", "SFX")
 	_volume_row(left, "Tiếng phố", "Ambience")
+	var snd := get_node_or_null("/root/Sound")
 	_switch_row(left, "Tắt tiếng (M)", "",
-		func() -> bool: return AudioServer.is_bus_mute(0),
-		func(on: bool) -> void: AudioServer.set_bus_mute(0, on))
+		func() -> bool: return snd.muted if snd and "muted" in snd else AudioServer.is_bus_mute(0),
+		func(on: bool) -> void:
+			if snd and snd.has_method("set_muted"):
+				snd.set_muted(on)
+			else:
+				AudioServer.set_bus_mute(0, on))
 
 	# --- Điều khiển
 	var h2 := _heading("Điều khiển")

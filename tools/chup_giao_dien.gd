@@ -54,7 +54,8 @@ func _run() -> void:
 	main.rig.yaw += PI * 0.8
 	await _wait(20)
 	await _shot("5b_mui_ten_mep")
-	main.hud.toggle_pause(main._pause_info())
+	main.hud.set_pause_info(main._pause_info())
+	main.hud.toggle_pause()
 	await _shot("6_tam_dung")
 	main.hud.toggle_pause()
 	main.results = [3, 2, 3, 0]

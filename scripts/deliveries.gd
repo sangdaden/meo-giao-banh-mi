@@ -200,6 +200,10 @@ func build_static(parent: Node3D, order_list: Array) -> void:
 				_xe_om_title = title
 			_:
 				_build_generic(parent, i, p, o.color, title)
+	if chess == null:
+		# Ngày không có đơn góc cờ thì hai ông vẫn ngồi đánh cờ ở công viên cho phố đông vui
+		ChessCorner.build_static(parent)
+		chess = ChessCorner.new()
 	var water := StandardMaterial3D.new()
 	water.albedo_color = Color(WATER_TOP, 0.6)
 	water.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA

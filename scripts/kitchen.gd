@@ -317,6 +317,7 @@ func _begin(id: String, steps: Array) -> void:
 	player.visual.rotation.y = atan2(-to.x, -to.z)
 	cam.close_up(st.cam, st.work)
 	_place_paws(st)
+	player.visual.visible = false  # cận cảnh chỉ thấy hai chân trước, thân Bơ không che camera
 	_on_begin(id)
 	_show_step()
 
@@ -350,6 +351,7 @@ func _beat_done() -> void:
 	hud.hide_step()
 	cam.back_to_main()
 	paw_rig.visible = false
+	player.visual.visible = true
 	player.can_move = true
 	_finish(id)
 

@@ -59,6 +59,11 @@ var deliveries: Node3D
 var stamps: Node3D
 var ghost: Node3D
 
+## Tiến độ ngày cất lại khi sang bếp ráp nhanh ổ trứng giữa ca (Thứ Hai đơn 2 xong), main.tscn nạp lại thì lấy ra.
+## Biến static nên còn nguyên khi đổi scene. Hợp đồng: thiet-ke-man/hop-dong-bep-thu-ba.md.
+static var _resume := {}
+var _leaving := false  # đang chờ đổi sang bếp ráp nhanh
+
 ## Một đơn lẻ đã giao xong nhưng nhiệm vụ phụ còn dở (tờ báo Chú Tư chưa về lò): chờ về lò rồi mới tổng kết.
 var _finishing := false
 
@@ -165,6 +170,11 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func start_game() -> void:
 	state = State.PLAY
+	if GameState.from_quick_assemble and not _resume.is_empty():
+		_resume_after_kitchen()
+		return
+	GameState.from_quick_assemble = false
+	_resume = {}
 	order_index = PlayMode.first_order()  # màn Chọn màn có thể cho vào thẳng một đơn
 	results.clear()
 	result_notes.clear()
@@ -191,6 +201,38 @@ func start_game() -> void:
 		hud.show_toast("Chạy tới %s nhận đơn %d!" % [_pickup_name(orders[order_index]), order_index + 1])
 
 
+## Ráp nhanh xong quay về: lấy lại tiến độ ngày (Scoring giữ đơn đã chấm trong biến static) và chơi tiếp.
+func _resume_after_kitchen() -> void:
+	GameState.from_quick_assemble = false
+	order_index = _resume.order_index
+	results = _resume.results
+	result_notes = _resume.result_notes
+	score_rows = _resume.score_rows
+	var ok: Array = _resume.side_ok
+	for i in mini(ok.size(), deliveries.side_ok.size()):
+		deliveries.side_ok[i] = ok[i]
+	_resume = {}
+	player.carrying = false
+	player.can_move = true
+	if not _autotest:
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	hud.start_screen.visible = false
+	hud.show_playing_ui(true)
+	_show_progress()
+	hud.show_toast("Ổ trứng ráp xong! Tới lò nhận bánh đơn %d." % (order_index + 1), 3.0)
+
+
+## Đơn mua trứng vừa về lò và còn đơn sau: cất tiến độ, sang bếp ráp gấp ổ trứng cho đơn kế.
+func _go_quick_assemble() -> void:
+	_resume = {"order_index": order_index, "results": results.duplicate(), "result_notes": result_notes.duplicate(),
+		"score_rows": score_rows.duplicate(), "side_ok": deliveries.side_ok.duplicate()}
+	GameState.quick_assemble_request = order_index
+	player.can_move = false
+	_leaving = true
+	hud.show_toast("Cô Ba: \"Có trứng rồi! Vô ráp gấp ổ trứng nha Bơ.\"", 2.0)
+	get_tree().create_timer(1.2).timeout.connect(func(): get_tree().change_scene_to_file("res://scenes/kitchen.tscn"))
+
+
 func _to_menu() -> void:
 	PlayMode.back_to_menu(get_tree())
 
@@ -210,7 +252,7 @@ func restart() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if state != State.PLAY:
+	if state != State.PLAY or _leaving:
 		return
 	if _autotest:
 		_autotest_step()
@@ -318,7 +360,8 @@ func _deliver(order: Dictionary) -> void:
 	var r := Scoring.order_done(order_index, {
 		"time_ratio": 0.0 if late else time_left / _time_limit(order),
 		"late": late,
-		"intact": intact and not deliveries.star_lost(order_index),  # góc cờ: bị mắng thì mất 1 sao
+		# Góc cờ: bị mắng thì mất 1 sao. Ổ ráp sai phiếu ghi món cũng mất sao nguyên vẹn.
+		"intact": intact and not deliveries.star_lost(order_index) and _note_ok(order_index),
 		"kitchen_star": Scoring.kitchen_star_for(order_index),
 		"side_quest": order.get("side_quest", ""),
 		"side_quest_ok": side_quest_ok,
@@ -394,6 +437,10 @@ func _next_order() -> void:
 	ghost.stop()
 	order_index += 1
 	_show_progress()
+	var prev: Dictionary = orders[order_index - 1]
+	if order_index <= PlayMode.last_order(orders.size()) and prev.get("errand_item", "") == "trung6" and ResourceLoader.exists(PlayMode.KITCHEN_SCENE):
+		_go_quick_assemble()
+		return
 	if order_index > PlayMode.last_order(orders.size()):
 		if PlayMode.single_order() and deliveries.side_pending():
 			# Đơn lẻ: cho Bơ mang nốt tờ báo về lò rồi mới tổng kết
@@ -513,6 +560,9 @@ func _update_hud() -> void:
 	if "stance" in player:  # dáng rón rén/chui do luồng động tác của Bơ thêm vào player.gd
 		hud.set_stance(player.stance)
 	var order: Dictionary = orders[order_index]
+	if hud.has_method("set_order_note"):
+		var note: String = order.get("note", "")
+		hud.set_order_note(Days.note_name(note) if note != "" else "", _note_ok(order_index))
 	if _is_errand(order):
 		_update_hud_errand(order)
 		return
@@ -532,6 +582,11 @@ func _update_hud() -> void:
 		hud.set_bread(false)
 		if hud.has_method("set_kitchen_stars"):
 			hud.set_kitchen_stars(-1)
+
+
+## Ổ của đơn i có ráp đúng phiếu ghi món không (màn bếp ghi; chưa có thì coi như đúng).
+func _note_ok(i: int) -> bool:
+	return GameState.bread_note_ok[i] if i < GameState.bread_note_ok.size() else true
 
 
 ## Thẻ đơn của đơn errand: trước khi lấy đồ chỉ tới chỗ khách, lấy rồi thì chỉ về lò.

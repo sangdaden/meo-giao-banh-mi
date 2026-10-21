@@ -126,11 +126,12 @@ const GRID_ORIGIN := Vector2(-2.6, -1.7)
 
 func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
-	if "--autotest" in args:
-		# Kiểm tra vòng giao bánh như cũ: bỏ qua bếp
+	if "--autotest" in args and GameState.quick_assemble_request < 0:
+		# Kiểm tra vòng giao bánh như cũ: bỏ qua bếp (trừ lúc main gửi sang ráp nhanh ổ trứng giữa ca)
 		get_tree().change_scene_to_file.call_deferred("res://scenes/main.tscn")
 		return
 	_bot = "--autotest-bep" in args or "--demo-bep" in args or "--autotest-rap-nhanh" in args or "--demo-rap-nhanh" in args
+	_bot = _bot or "--autotest" in args  # autotest Thứ Ba của main: bot ráp nhanh rồi tự về phố
 	_bot_quit = "--autotest-bep" in args or "--autotest-rap-nhanh" in args
 	for a in args:
 		if a.begins_with("--ngay="):   # bot thử bếp của ngày khác, vd --ngay=thu_ba (phiếu ghi món)

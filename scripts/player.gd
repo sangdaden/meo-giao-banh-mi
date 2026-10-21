@@ -159,6 +159,10 @@ var preview := false             ## tủ đồ/màn hình chính: đứng yên t
 var breed := "bo"                ## giống mèo đang dùng (tủ đồ cho mặc thử giống khác)
 var _model: Node3D
 var _acc_nodes := []             # phụ kiện đang gắn (OutfitView.attach)
+var _cloth_mats := []            # vật liệu đồ vải bay (áo choàng) trong _acc_nodes
+var _cloth_s := Spring.new()     # tốc độ gió lên áo, có quán tính
+var _cloth_fall := Spring.new()
+var _cloth_turn := Spring.new()
 var _ears_down := false          # đội nón che tai: tai cụp xuống
 var _action := ""                # động tác chờ khi preview: "sit" | "lick" | ""
 var _sit_w := Spring.new()
@@ -504,6 +508,7 @@ func apply_outfit(worn := {}) -> void:
 			continue
 		_acc_nodes.append_array(OutfitView.attach(_skel, id, breed))
 		_ears_down = _ears_down or OutfitView.ears_down(id)
+	_cloth_mats = OutfitView.cloth_mats(_acc_nodes)
 
 
 ## Bản web (Compatibility) không đổi màu đỉnh từ linear sang sRGB như Forward+,
@@ -1040,6 +1045,11 @@ func _animate(delta: float, hspeed: float, vy: float, on_floor: bool) -> void:
 	elif climb == "pull":
 		pitch_target = lerpf(1.15, -0.1, climb_u)
 	_body.rotation.z = _lean.step(lean_target, 120.0, 0.7, delta)
+	if not _cloth_mats.is_empty():
+		# Áo choàng: gió theo tốc độ (đi bay nhẹ, chạy nhanh bay thẳng ra sau), rơi thì hất lên, quẹo thì văng ra
+		var fall_t := clampf(-vy / 8.0, -1.0, 1.0) if not on_floor else 0.0
+		OutfitView.cloth_drive(_cloth_mats, clampf(_cloth_s.step(k, 30.0, 0.8, delta), 0.0, 1.2),
+			_cloth_fall.step(fall_t, 40.0, 0.5, delta), _cloth_turn.step(clampf(-_yaw_rate * k * 0.25, -1.0, 1.0), 30.0, 0.6, delta))
 	_body.rotation.y = deg_to_rad(6.0) * _slide_amt
 	_pitch.step(pitch_target, 150.0, 0.6, delta)
 	if landed_now:

@@ -81,6 +81,16 @@ def export(path, objs, skins=False):
 
 # ---------------------------------------------------------------- phụ kiện
 
+def add_uvs(o, uv):
+    """Gán UV theo đỉnh (mảng N×2 mỗi lớp) vào từng góc mặt."""
+    me = o.data
+    vi = np.zeros(len(me.loops), np.int64)
+    me.loops.foreach_get('vertex_index', vi)
+    for name, arr in zip(('UVMap', 'UV2'), uv):
+        lay = me.uv_layers.new(name=name)
+        lay.data.foreach_set('uv', arr[vi].ravel())
+
+
 def export_acc(ids):
     S = cc.make_S(BREEDS['bo'], 'duc')
     cc.configure(S)
@@ -127,10 +137,16 @@ def export_acc(ids):
                 select_only([ob])
                 for md in list(ob.modifiers):
                     bpy.ops.object.modifier_apply(modifier=md.name)
-                decimate(ob, 1500 if s != 'feet' else 600)
+                uv = getattr(pt, 'uv', None)
+                if uv is None:
+                    decimate(ob, 1500 if s != 'feet' else 600)
+                else:
+                    add_uvs(ob, uv)  # đồ vải (áo choàng): giữ nguyên lưới để shader uốn theo UV
                 bake_color(ob)
                 objs.append(ob)
                 info[ob.name] = dict(sock=sk, kind=pt.kind, alpha=pt.alpha, emit=pt.emit, metal=pt.metal)
+                if uv is not None:
+                    info[ob.name]['cloth'] = dict(hinge=[round(float(a - b), 4) for a, b in zip(pt.hinge, org)])
         if not objs:
             continue
         export(f'{OUT}/phu_kien/{aid}.glb', objs)

@@ -1,0 +1,27 @@
+; Engine configuration file.
+; Mở file này bằng Godot 4.3 trở lên.
+
+config_version=5
+
+[application]
+
+config/name="Mèo Giao Bánh Mì"
+config/description="Bản khối thô (block-out) tuần 1: mèo Bơ chạy nhảy và giao 5 đơn bánh mì."
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.3", "Forward Plus")
+config/icon="res://icon.svg"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+
+[physics]
+
+common/physics_ticks_per_second=60
+
+[rendering]
+
+anti_aliasing/quality/msaa_3d=2

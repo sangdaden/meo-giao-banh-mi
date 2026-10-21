@@ -82,7 +82,7 @@ func _ready() -> void:
 	deliveries.name = "Deliveries"
 	deliveries.build_static(self, orders)  # người dân, ghế, xe, quầy... đứng yên nên được gộp
 	_build_customers()
-	Blocks.merge_static(self)  # gộp khối tĩnh để giảm lệnh vẽ, phải gọi trước khi thêm mèo, chó
+	Blocks.merge_static(self, 24.0)  # gộp khối tĩnh (model nhà theo ô 24 m) để giảm lệnh vẽ, phải gọi trước khi thêm mèo, chó
 	add_child(deliveries)  # phần chuyển động (giỏ, ly, tay, tờ báo) thêm sau khi gộp
 
 	player = PlayerScript.new()
@@ -105,6 +105,7 @@ func _ready() -> void:
 	dog.bit_player.connect(_on_dog_bite)
 	dog.state_changed.connect(_on_dog_state)
 	add_child(preload("res://scripts/traffic.gd").new())  # xe máy, đèn giao thông, người đi bộ
+	add_child(preload("res://scripts/market.gd").new())  # chợ sáng Thứ Ba (ngày khác tự gỡ)
 
 	stamps = StampsScript.new()
 	stamps.name = "TemCoBa"
@@ -317,7 +318,7 @@ func _deliver(order: Dictionary) -> void:
 	var r := Scoring.order_done(order_index, {
 		"time_ratio": 0.0 if late else time_left / _time_limit(order),
 		"late": late,
-		"intact": intact,
+		"intact": intact and not deliveries.star_lost(order_index),  # góc cờ: bị mắng thì mất 1 sao
 		"kitchen_star": -1 if _is_errand(order) else Scoring.kitchen_star_for(order_index),  # đơn mua trứng không có ổ bánh
 		"side_quest": order.get("side_quest", ""),
 		"side_quest_ok": side_quest_ok,
@@ -331,6 +332,8 @@ func _deliver(order: Dictionary) -> void:
 		note = "qua mặt Chó Mực" + (", bị đớp %d lần" % bites if bites > 0 else "")
 	elif not intact:
 		note += ", bánh bị dập"
+	if deliveries.star_lost(order_index):
+		note += ", bị hai ông mắng"
 	result_notes.append(note)
 	var to: String = "Cô Ba" if _is_errand(order) else order.who
 	if late:
@@ -486,8 +489,13 @@ func _end_game() -> void:
 		ok = ok and GameState.get_day("so_lan_choi", 0) == 1 and Scoring.best_time(0) > 0.0
 		# Autotest bị Chó Mực đớp ở đơn 5 nên nhiệm vụ phụ đơn đó trượt; 4 đơn đầu phải đạt cả
 		ok = ok and deliveries.side_ok.slice(0, 4).all(func(v): return v) and score_rows[0].side_ok
-		print("AUTOTEST ", "OK" if ok else "FAIL")
-		get_tree().quit(0 if ok else 1)
+		if not ok:
+			print("AUTOTEST FAIL")
+			get_tree().quit(1)
+			return
+		# Màn giao đạt: chạy tiếp cảnh leo chung cư (Thứ Năm), cảnh đó in "AUTOTEST OK" khi xong
+		print("AUTOTEST GIAO OK")
+		get_tree().change_scene_to_file.call_deferred(PlayMode.CHUNG_CU_SCENE)
 
 
 func _on_dog_bite() -> void:
@@ -562,20 +570,11 @@ func _setup_environment() -> void:
 
 func _build_bakery() -> void:
 	var p := City.BAKERY_POINT
-	# Xe/tủ kính bánh mì trước lò
-	var cart := Blocks.solid_box(self, Vector3(1.6, 0.9, 0.7), Vector3(p.x + 2.4, 0.45, p.z + 0.2), Color("#2E7C80"), Blocks.LAYER_PROP)
-	Blocks.box(cart, Vector3(1.5, 0.5, 0.6), Vector3(0, 0.7, 0), Color(0.75, 0.9, 0.91, 0.5))
-	var loaf := CapsuleMesh.new()
-	loaf.radius = 0.07
-	loaf.height = 0.4
-	for i in 3:
-		loaf.radial_segments = 8
-		loaf.rings = 2
-		var m := Blocks.mesh(cart, loaf, Vector3(-0.45 + i * 0.45, 0.55, 0), Color("#D98E2B"))
-		m.rotation_degrees.z = 90
+	# Xe tủ kính bánh mì trước lò (model xe_banh_mi, kính cao 1,3 m nên hộp va chạm cao bằng)
+	var cart := Blocks.collider(self, Vector3(1.6, 1.3, 0.7), Vector3(p.x + 2.4, 0.65, p.z + 0.2), Blocks.LAYER_PROP)
+	PhoModels.put(cart, "xe_banh_mi", Vector3(0, -0.65, 0))
 	# Cô Ba đứng sau tủ, cách mặt tiền lò gần nửa mét (mặt tiền ở z = -7, trước đây lưng Cô Ba dính vào cửa cuốn)
 	_person(Vector3(p.x + 2.4, 0, p.z - 0.55), Color("#C8412F"), "Cô Ba")
-	Blocks.label(self, "LÒ BÁNH CÔ BA", Vector3(p.x, 4.2, p.z - 1.0), 96, Color("#D98E2B"))
 	bakery_zone = _zone(p, 1.8)
 	# Vòng tròn đánh dấu chỗ nhận bánh
 	_ring(p, Color("#D98E2B"))
@@ -661,7 +660,8 @@ func _build_arrow() -> void:
 
 ## Phím điều khiển được khai báo bằng code để mở project là chơi được ngay.
 ## Muốn đổi phím: sửa ở đây, hoặc vào Project > Project Settings > Input Map.
-func _setup_input() -> void:
+## Static để cảnh khác (chung cư) dùng chung bộ phím.
+static func _setup_input() -> void:
 	_action("move_forward", [KEY_W, KEY_UP], [], [[JOY_AXIS_LEFT_Y, -1.0]])
 	_action("move_back", [KEY_S, KEY_DOWN], [], [[JOY_AXIS_LEFT_Y, 1.0]])
 	_action("move_left", [KEY_A, KEY_LEFT], [], [[JOY_AXIS_LEFT_X, -1.0]])
@@ -679,7 +679,7 @@ func _setup_input() -> void:
 	_action("cam_down", [], [], [[JOY_AXIS_RIGHT_Y, 1.0]])
 
 
-func _action(action: String, keys: Array, buttons: Array, axes: Array) -> void:
+static func _action(action: String, keys: Array, buttons: Array, axes: Array) -> void:
 	if InputMap.has_action(action):
 		return
 	InputMap.add_action(action, 0.2)

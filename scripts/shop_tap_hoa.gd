@@ -76,7 +76,7 @@ static func build(parent: Node3D, x0: float, x1: float, z0: float, depth: float)
 	if not has_model:
 		Blocks.box(parent, Vector3(w - 0.4, 0.02, depth - 0.2), Vector3(cx, 0.03, zc), Color("#CFC6B2"))  # nền gạch bông
 		Blocks.label(parent, "TẠP HÓA CÔ HAI", Vector3(cx, 3.6, z0 - 0.2), 52, Color("#C8412F"))
-	CityProps.awning(parent, w, Vector3(cx, 2.9, z0 - 0.5), WALL.darkened(0.25))
+	CityProps.awning(parent, w, Vector3(cx, 2.9, z0 - 0.5), "mai_hien_xanh", -1.0)
 	# Kệ hàng cao gần sát trần dọc vách trái (leo được: các tầng kệ cách nhau 0,6 m)
 	_shelf(parent, Vector3(x0 + 0.45, 0, z0 + 0.6), Vector2(0.45, 4.6), 2.8)
 	# Kệ thấp hơn dọc vách phải, phía trong

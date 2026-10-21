@@ -17,6 +17,16 @@ const ORDERS_PER_DAY := 5
 static var kitchen_stars_per_bread: Array[int] = []
 ## Ngày đang chơi, dùng làm tên mục trong file lưu.
 static var day := "thu_hai"
+## Phiếu ghi món của từng đơn trong ngày ("" | "khong_ot" | "them_pate" | "nhieu_do_chua", như Days)
+## và ổ của đơn đó ráp đúng phiếu chưa. Màn bếp điền lúc vào bếp và ghi kết quả sau khi ráp.
+static var bread_notes: Array[String] = []
+static var bread_note_ok: Array[bool] = []
+## Ráp nhanh: số thứ tự đơn (0–4) cần một ổ trứng ráp gấp, -1 = không. main.gd đặt rồi chuyển sang
+## màn bếp; bếp mở thẳng cận cảnh bàn ráp, ghi sao ổ đó, đặt lại -1, bật from_quick_assemble rồi về phố.
+static var quick_assemble_request := -1
+static var from_quick_assemble := false
+## Số trứng còn nguyên Bơ mang về từ tạp hóa (luồng Tạp hóa ghi). ≤ 3 quả thì ổ trứng tối đa 1 sao bếp.
+static var eggs_brought := 6
 
 const SAVE_PATH := "user://luu_game.cfg"
 ## File kỷ lục cũ, màn hình chính vẫn đọc khóa [ky_luc] sao.

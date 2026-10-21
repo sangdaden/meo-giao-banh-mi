@@ -164,6 +164,9 @@ jobs:
           # Đơn mua trứng Thứ Ba: túi trứng dễ vỡ, tạp hóa Cô Hai
           timeout 300 ~/godot/godot --headless --path . --script res://tools/egg_test.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee egg_test.log
           grep -q "EGG TEST OK" egg_test.log
+          # Góc cờ tướng Thứ Ba: suỵt, mắng, chiếu tướng, giao cạnh ấm trà
+          timeout 300 ~/godot/godot --headless --path . --script res://tools/chess_test.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee chess.log
+          grep -q "CHESS TEST OK" chess.log
           mkdir -p export
           ~/godot/godot --headless --path . --export-release "macOS" "export/$ZIP_NAME"
           unzip -l "export/$ZIP_NAME" | grep -q "_CodeSignature/CodeResources"

@@ -11,8 +11,10 @@ signal deliver_finished(kind: String)   ## xong động tác giao bánh
 signal bread_released(kind: String)     ## lúc nhả ổ bánh khỏi miệng (0,8 s khi giao cao, 0,7 s khi giao thấp)
 signal startled                         ## giật mình (bị đớp, xe tông)
 signal slipped                          ## bắt đầu trượt trên vũng dầu
-## Va vào người, xe đẩy, sạp chợ, xe máy (kind: "person" | "cart" | "stall" | "bike")
-signal bumped(kind: String)
+signal ledge_grabbed                    ## bám được mép (Thứ Năm)
+signal ledge_climbed                    ## leo lên xong mép
+signal wall_kicked(count: int)          ## bật tường lần thứ count trong một lần bay
+signal bumped(kind: String)              ## va "person" | "cart" | "stall" (chợ Thứ Ba); đồ dễ vỡ nghe để vỡ
 ## Đồ dễ vỡ đang ngậm (túi trứng) mất một món; remaining là số còn lại
 signal fragile_damaged(remaining: int)
 
@@ -48,6 +50,16 @@ signal fragile_damaged(remaining: int)
 @export var short_hop_multiplier := 2.2  ## thả nút nhảy sớm thì nhảy thấp
 @export var coyote_time := 0.12       ## vẫn nhảy được ngay sau khi rời mép
 @export var jump_buffer := 0.12       ## bấm nhảy hơi sớm trước khi chạm đất vẫn tính
+
+@export_group("Leo (Thứ Năm, chung cư)")
+@export var ledge_min := 0.3          ## mép thấp nhất (so với chân) để bám; thấp hơn thì nhảy lên luôn
+@export var ledge_reach := 0.95       ## mép cao nhất với tới khi đang bay: nhảy 1,3 m + 0,95 = mép 2,2 m
+@export var pull_time := 0.6          ## leo từ tư thế bám lên mặt mép
+@export var wall_kick_up := 8.5
+@export var wall_kick_out := 4.5
+@export var wall_kick_max := 3        ## số lần đạp tối đa trước khi chạm đất
+@export var wall_gap_max := 1.5       ## chỉ bật tường trong khe hẹp: phía sau lưng có tường trong 1,5 m
+@export var pipe_speed := 1.4         ## leo ống nước
 
 var camera_rig: Node3D               ## main.gd gán: để lấy hướng camera
 var can_move := false
@@ -91,12 +103,35 @@ var _head_roll := 0.0
 var _ear_spread := 0.0
 var _tail_fluff := 0.0
 var _eye_big := 0.0
-var _leg_extra := [0.0, 0.0, 0.0, 0.0]   ## góc cộng thêm cho từng chân theo tư thế
+# Bộ xương 22 xương: thân gập ở hông và ngực, chân gập khuỷu/gối bằng IK nên bàn chân ở lại trên đất
+var _foot := [Vector3.ZERO, Vector3.ZERO, Vector3.ZERO, Vector3.ZERO]  ## đích cổ chân so với chỗ đứng nghỉ (hệ model: +Y lên, +Z ra trước)
+var _paw_tilt := [0.0, 0.0, 0.0, 0.0]   ## gập bàn chân (dương: ngón cụp xuống, lúc nhấc chân)
+var _root_off := Vector3.ZERO     ## dời cả bộ xương: hạ thân khi chui/rón rén/ngồi, nhún theo bước
+var _hips_pitch := 0.0            ## xoay quanh khớp háng sau (dương: chúi mũi xuống, hệ model)
+var _chest_pitch := 0.0           ## gập ở giữa lưng (cong lưng khi giật mình)
+var _fold := 0.0                  ## giao cao: hai chân trước co trước ngực
+var _splay := 0.0                 ## chui: khuỷu xoè ra hai bên
 var _fr_sweep := 0.0              ## chân trước phải vung ngang khi trượt
+var _leg_rig := []                ## mỗi chân: chỉ số 3 xương, dài 2 đoạn, góc nghỉ, cổ chân lúc nghỉ
+var _bag_xf := Transform3D()      ## chỗ đeo túi trong hệ _body (lúc dựng), để gắn lại khi đổi model
 var _mouth_bread: Node3D          ## ổ bánh gói giấy ngậm ở miệng khi giao
 var _bob := 0.0                   ## nhún người theo bước
 const BANH_GOI := preload("res://assets/models/do/banh_goi.glb")
 const MOUTH := Vector3(0, 0.368, 0.30)   ## điểm miệng trong hệ model Bơ (đã duyệt)
+
+## Cảnh chung cư bật: bám mép, bật tường, leo ống nước. Thứ Hai để tắt nên khu phố không đổi.
+var climb_moves := false
+## Đang leo: "" | "hang" (bám mép) | "pull" (đang leo lên mép) | "pipe" (ôm ống nước)
+var climb := ""
+var _climb_t := 0.0
+var _wall_n := Vector3.FORWARD     ## pháp tuyến tường đang bám/ôm (chỉ ra ngoài)
+var _pull_from := Vector3.ZERO
+var _pull_to := Vector3.ZERO
+var _kicks := 0
+var _kick_lock := 0.0               ## vừa đạp tường: khóa điều khiển một chút cho khỏi lao lại vào tường
+var _grab_cooldown := 0.0           ## vừa buông/nhảy khỏi chỗ bám: chưa bám lại ngay
+var _pipes: Array = []              ## ống nước đang chạm (cảnh đặt Area3D gọi enter_pipe/exit_pipe)
+var _pipe: Node3D
 
 var _coyote := 0.0
 var _buffer := 0.0
@@ -162,14 +197,11 @@ var _blink := 0.0                             # 1 = mắt nhắm
 var _flick_timer := 4.0
 var _sit := 0.0
 var _lick := 0.0
-var _off_legs := [0.0, 0.0, 0.0, 0.0]  # cộng thêm cho động tác chờ (ngồi, liếm chân)
 var _off_head := Vector2.ZERO          # (xoay ngang, cúi)
 var _off_tail := 0.0
-var _sit_pivot := Vector3(0, 0.22, -0.13)
 ## Góc động tác chờ (rad), chỉnh ở đây
 const SIT_PITCH := 0.45        # thân ngẩng lên khi ngồi
-const SIT_HIND := 0.75         # chân sau gập tới trước, nằm sát sàn
-const LICK_PAW := 1.5          # đang ngồi, chân trước trái nhấc lên tới miệng
+const LICK_PAW := Vector3(0, 0.29, 0.2)  # liếm chân: cổ chân trước trái nhấc tới gần miệng (hệ model)
 const LICK_HEAD := 0.6         # cúi đầu xuống chân
 const SIT_TAIL := 0.5          # đuôi nhấc lên khỏi sàn khi ngồi
 
@@ -189,13 +221,18 @@ class Spring:
 		return x
 
 const BO_MODEL := preload("res://assets/models/bo.glb")
-const BONE_NAMES := ["head", "leg_FL", "leg_FR", "leg_BL", "leg_BR", "tail_1", "tail_2", "tail_3", "tail_4",
-	"ear_L", "ear_R", "eye_L", "eye_R", "scarf"]
+## Bộ xương chính thức (Sang duyệt 21/10, xem tools/bo_game.py): 22 xương + 3 xương phụ (mắt chớp, khăn)
+const BONE_NAMES := ["root", "hips", "chest", "head", "ear_L", "ear_R", "tail_1", "tail_2", "tail_3", "tail_4",
+	"upperarm_FL", "forearm_FL", "paw_FL", "upperarm_FR", "forearm_FR", "paw_FR",
+	"thigh_BL", "shin_BL", "paw_BL", "thigh_BR", "shin_BR", "paw_BR", "eye_L", "eye_R", "scarf"]
 const TAIL_BONES := ["tail_1", "tail_2", "tail_3", "tail_4"]
 ## Độ cứng lò xo từng đốt đuôi: gốc cứng, chóp mềm nên chóp đuôi đi trễ và phất theo sau
 const TAIL_STIFF := [90.0, 60.0, 42.0, 30.0]
 const TAIL_DAMP := 0.55
-const LEG_BONES := ["leg_FL", "leg_FR", "leg_BL", "leg_BR"]
+## 4 chân (trước trái, trước phải, sau trái, sau phải), mỗi chân 3 xương từ vai/háng xuống bàn chân
+const LEG_CHAINS := [["upperarm_FL", "forearm_FL", "paw_FL"], ["upperarm_FR", "forearm_FR", "paw_FR"],
+	["thigh_BL", "shin_BL", "paw_BL"], ["thigh_BR", "shin_BR", "paw_BR"]]
+const LEG_PHASE := [0.0, PI, PI, 0.0]   ## nhịp bước: trước trái đi cùng sau phải
 
 const ORANGE := Color("#E8913A")
 const ORANGE_DARK := Color("#C96F1C")
@@ -204,7 +241,6 @@ const SCARF := Color("#C8412F")
 const BAG := Color("#2E7C80")
 const INK := Color("#1F2A2A")
 const PINK := Color("#F6B8A0")
-const LEG_SWING_SIGN := 1.0  ## đổi thành -1 nếu chân vung ngược chiều chạy
 
 
 func _ready() -> void:
@@ -243,9 +279,9 @@ func _ready() -> void:
 	_curr_pos = global_position
 
 
-## Mèo Bơ kiểu D "Chững chạc" (bản tạm từ model phác thảo, xem tools/bo_game.py).
-## Model có 16 xương (chân, đầu, 4 đốt đuôi, tai, mắt, khăn); game tự xoay xương bằng code thay cho animation.
-## Tuần 2 sẽ thay bằng model dựng tay 22 xương cùng animation làm trong Blender.
+## Mèo Bơ kiểu D "Chững chạc" (dựng từ model chuẩn, xem tools/bo_game.py).
+## Bộ xương chính thức 22 xương: thân gập ở hông/ngực, mỗi chân 3 xương có khuỷu và gối, đuôi 4 đốt;
+## thêm xương phụ cho mắt và khăn. Game tự xoay xương bằng code thay cho animation.
 func _build_visual() -> void:
 	visual = Node3D.new()
 	visual.name = "CatVisual"
@@ -255,7 +291,7 @@ func _build_visual() -> void:
 
 	_load_model()
 	_build_bag()
-	_build_mouth_bread()
+	_attach_bag()
 	apply_outfit()
 	# Thân, khăn, túi và quai: góc nhìn thứ nhất không vẽ (vẫn đổ bóng), thay bằng hai chân trước riêng
 	for mi: MeshInstance3D in _body.find_children("*", "MeshInstance3D", true, false):
@@ -266,6 +302,8 @@ func _build_visual() -> void:
 ## Dựng model của giống đang chọn (Bơ hoặc giống skin cùng bộ xương, xem tools/xuat_skin_game.py).
 func _load_model() -> void:
 	if _model:
+		if _bag and _bag.get_parent() != _body:
+			_bag.reparent(_body, false)  # túi gắn ở xương hông của model cũ: giữ lại trước khi xoá model
 		_model.free()
 	_acc_nodes.clear()
 	_scarf_mesh = null
@@ -281,19 +319,32 @@ func _load_model() -> void:
 	for mi: MeshInstance3D in _model.find_children("*", "MeshInstance3D", true, false):
 		_apply_style(mi)
 		mi.layers = LAYER_BO_BODY
-	# Khớp vai trước: ngồi xuống thì thân xoay quanh đây để bàn chân trước đứng yên trên sàn
-	var fl: int = _bone_idx["leg_FL"]
-	if fl >= 0:
-		_sit_pivot = _model.transform * _skel.get_bone_global_rest(fl).origin
-		_sit_pivot.x = 0.0
-
-
-## Đổi giống mèo (tủ đồ mặc thử). Giống chưa có model thì giữ Bơ.
-func set_breed(id: String, worn := {}) -> void:
-	breed = id if OutfitView.has_breed(id) else "bo"
-	_load_model()
+	_setup_legs()
 	_build_mouth_bread()
-	apply_outfit(worn)
+	_attach_bag()
+
+
+## Số đo chân lấy từ dáng nghỉ của bộ xương (mỗi giống một khác): dài đoạn trên/dưới,
+## góc từng đoạn trong mặt phẳng dọc thân, và chỗ cổ chân chạm đất.
+## Góc đo trong hệ model (trục Y lên, Z ra trước): xoay quanh +X một góc a thì góc tăng a.
+func _setup_legs() -> void:
+	_leg_rig.clear()
+	for chain in LEG_CHAINS:
+		var ids := []
+		for n in chain:
+			ids.append(_bone_idx[n])
+		if ids.has(-1):
+			_leg_rig.clear()
+			return
+		var p0 := _skel.get_bone_global_rest(ids[0]).origin
+		var p1 := _skel.get_bone_global_rest(ids[1]).origin
+		var p2 := _skel.get_bone_global_rest(ids[2]).origin
+		_leg_rig.append({"ids": ids, "l1": p0.distance_to(p1), "l2": p1.distance_to(p2),
+			"r1": _ang(p1 - p0), "r2": _ang(p2 - p1), "ankle": p2})
+
+
+static func _ang(v: Vector3) -> float:
+	return atan2(v.z, v.y)
 
 
 ## Ổ bánh gói giấy gắn vào xương đầu ở điểm miệng, chỉ hiện lúc giao (rút từ túi ra ngậm).
@@ -310,6 +361,32 @@ func _build_mouth_bread() -> void:
 	att.add_child(_mouth_bread)
 	for mi: MeshInstance3D in _mouth_bread.find_children("*", "MeshInstance3D", true, false):
 		mi.layers = LAYER_BO_BODY
+
+
+## Túi đeo theo xương hông: thân hạ khi chui, ngồi dậy khi giao thì túi đi theo, không lơ lửng.
+func _attach_bag() -> void:
+	var hi: int = _bone_idx.get("hips", -1)
+	if _bag == null or hi < 0:
+		return
+	var att := BoneAttachment3D.new()
+	att.bone_name = "hips"
+	_skel.add_child(att)
+	# Hệ _body -> hệ bộ xương: đi qua model (quay 180°) và các nút cha của Skeleton3D trong .glb
+	var to_skel := Transform3D()
+	var n: Node = _skel
+	while n != _model:
+		to_skel = (n as Node3D).transform * to_skel
+		n = n.get_parent()
+	to_skel = (_model.transform * to_skel).affine_inverse()
+	_bag.reparent(att, false)
+	_bag.transform = _skel.get_bone_global_rest(hi).affine_inverse() * to_skel * _bag_xf
+
+
+## Đổi giống mèo (tủ đồ mặc thử). Giống chưa có model thì giữ Bơ.
+func set_breed(id: String, worn := {}) -> void:
+	breed = id if OutfitView.has_breed(id) else "bo"
+	_load_model()
+	apply_outfit(worn)
 
 
 ## Túi bánh đeo sát hông phải, quai vắt chéo qua lưng ôm theo thân.
@@ -440,7 +517,15 @@ func _vertex_colors_to_srgb(mi: MeshInstance3D) -> void:
 
 func _physics_process(delta: float) -> void:
 	_prev_pos = _curr_pos
+	_grab_cooldown = maxf(_grab_cooldown - delta, 0.0)
+	_kick_lock = maxf(_kick_lock - delta, 0.0)
+	if climb != "":
+		_climb_process(delta)
+		_curr_pos = global_position
+		return
 	var on_floor := is_on_floor()
+	if on_floor:
+		_kicks = 0
 	_coyote = coyote_time if on_floor else _coyote - delta
 	_buffer = jump_buffer if (can_move and Input.is_action_just_pressed("jump")) else _buffer - delta
 	_stun = maxf(_stun - delta, 0.0)
@@ -461,9 +546,11 @@ func _physics_process(delta: float) -> void:
 		_coyote = 0.0
 		visual.scale = Vector3(0.8, 1.25, 0.8)
 		jumped.emit()
+	elif climb_moves and _buffer > 0.0 and not on_floor and _stun <= 0.0:
+		_try_wall_kick()
 
 	var input := Vector2.ZERO
-	if can_move and _stun <= 0.0 and _act == "":
+	if can_move and _stun <= 0.0 and _act == "" and _kick_lock <= 0.0:
 		input = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var yaw: float = camera_rig.yaw if camera_rig else 0.0
 	var dir := Vector3(input.x, 0, input.y).rotated(Vector3.UP, yaw)
@@ -475,7 +562,9 @@ func _physics_process(delta: float) -> void:
 		accel = ground_accel if dir.length() > 0.01 else ground_decel
 		if _oil > 0:
 			accel = oil_accel
-	var hv := Vector2(velocity.x, velocity.z).move_toward(target, accel * delta)
+	var hv := Vector2(velocity.x, velocity.z)
+	if _kick_lock <= 0.0:
+		hv = hv.move_toward(target, accel * delta)
 	velocity.x = hv.x
 	velocity.z = hv.y
 	var sliding := on_floor and _oil > 0 and hv.length() > 1.0
@@ -487,6 +576,9 @@ func _physics_process(delta: float) -> void:
 	var speed_before := hv.length()
 	move_and_slide()
 	_check_bump(speed_before, delta)
+	if climb_moves and can_move and _stun <= 0.0 and _act == "":
+		if not _try_pipe(dir):
+			_try_grab(dir)
 
 	if not is_on_floor() and _was_on_floor:
 		_fall_from = global_position.y
@@ -523,6 +615,161 @@ func _physics_process(delta: float) -> void:
 		global_position = Vector3(-33, 1, -2)
 		velocity = Vector3.ZERO
 	_curr_pos = global_position
+
+
+# ---------------------------------------------------------------- leo (Thứ Năm)
+
+## Đang bay và đẩy về phía tường: nếu mép tường cao hơn chân từ ledge_min tới ledge_reach
+## và trên mép đủ chỗ đứng thì bám lại. Đang bay lên nhanh thì chưa bám (nhảy qua bậc thấp vẫn như cũ).
+func _try_grab(dir: Vector3) -> bool:
+	if is_on_floor() or _grab_cooldown > 0.0 or velocity.y > 1.0 or dir.length() < 0.1:
+		return false
+	var fwd := dir.normalized()
+	var space := get_world_3d().direct_space_state
+	var from := global_position + Vector3.UP * 0.3
+	var q := PhysicsRayQueryParameters3D.create(from, from + fwd * 0.55, collision_mask, [get_rid()])
+	var hit := space.intersect_ray(q)
+	if hit.is_empty() or absf(hit.normal.y) > 0.3:
+		return false
+	var n: Vector3 = hit.normal
+	n.y = 0.0
+	n = n.normalized()
+	if n.dot(fwd) > -0.5:
+		return false
+	# Dò mặt mép: tia đi xuống ngay sau mặt tường (lan can chỉ dày 6 cm)
+	var top_from: Vector3 = hit.position - n * 0.03
+	top_from.y = global_position.y + ledge_reach + 0.05
+	var down := top_from
+	down.y = global_position.y + ledge_min
+	var h2 := space.intersect_ray(PhysicsRayQueryParameters3D.create(top_from, down, collision_mask, [get_rid()]))
+	if h2.is_empty() or h2.normal.y < 0.7:
+		return false
+	var ledge_y: float = h2.position.y
+	var on_top: Vector3 = hit.position - n * 0.32
+	on_top.y = ledge_y + 0.02
+	if _shape_hits(_stand_shape, Transform3D(Basis.IDENTITY, on_top)):
+		return false  # trên mép không đủ chỗ (sát trần, sát tường khác)
+	climb = "hang"
+	_climb_t = 0.0
+	_wall_n = n
+	_pull_to = on_top
+	velocity = Vector3.ZERO
+	global_position = Vector3(hit.position.x, ledge_y - 0.5, hit.position.z) + n * 0.27
+	visual.rotation.y = atan2(n.x, n.z)
+	visual.scale = Vector3(0.9, 1.15, 0.9)
+	ledge_grabbed.emit()
+	return true
+
+
+## Ôm ống nước: đang chạm ống và đẩy về phía tường sau ống.
+func _try_pipe(dir: Vector3) -> bool:
+	if _pipes.is_empty() or _grab_cooldown > 0.0:
+		return false
+	var p: Node3D = _pipes.back()
+	var n: Vector3 = p.get_meta("normal", Vector3.BACK)
+	if dir.length() < 0.1 or dir.normalized().dot(-n) < 0.4:
+		return false
+	if global_position.y > float(p.get_meta("top", 99.0)) - 0.3:
+		return false
+	climb = "pipe"
+	_pipe = p
+	_wall_n = n
+	_climb_t = 0.0
+	velocity = Vector3.ZERO
+	visual.rotation.y = atan2(n.x, n.z)
+	return true
+
+
+## Bật tường: đang bay, sát tường, sau lưng có tường thứ hai trong wall_gap_max (khe giữa hai nhà).
+func _try_wall_kick() -> void:
+	if _kicks >= wall_kick_max or not is_on_wall():
+		return
+	var n := get_wall_normal()
+	n.y = 0.0
+	if n.length() < 0.5:
+		return
+	n = n.normalized()
+	var from := global_position + Vector3.UP * 0.3
+	var q := PhysicsRayQueryParameters3D.create(from, from + n * wall_gap_max, collision_mask, [get_rid()])
+	if get_world_3d().direct_space_state.intersect_ray(q).is_empty():
+		return  # tường đơn ngoài trời rộng: không bật được
+	_kicks += 1
+	_buffer = 0.0
+	_kick_lock = 0.18
+	velocity = n * wall_kick_out + Vector3.UP * wall_kick_up
+	visual.rotation.y = atan2(-n.x, -n.z)
+	visual.scale = Vector3(0.8, 1.25, 0.8)
+	noise_made.emit(global_position, noise_walk)
+	wall_kicked.emit(_kicks)
+
+
+func _climb_process(delta: float) -> void:
+	_climb_t += delta
+	var jump := can_move and Input.is_action_just_pressed("jump")
+	var drop := can_move and (_pressed("crouch") or Input.is_action_pressed("move_back"))
+	match climb:
+		"hang":
+			velocity = Vector3.ZERO
+			if jump:
+				climb = "pull"
+				_climb_t = 0.0
+				_pull_from = global_position
+				noise_made.emit(global_position, noise_sneak)
+			elif drop and _climb_t > 0.15:
+				_release(Vector3.ZERO)
+		"pull":
+			var u := clampf(_climb_t / pull_time, 0.0, 1.0)
+			# Lên trước (móng bám, chân sau đạp), rồi mới nhích tới mặt mép
+			var up := smoothstep(0.0, 0.7, u)
+			var fwd := smoothstep(0.45, 1.0, u)
+			global_position = Vector3(lerpf(_pull_from.x, _pull_to.x, fwd), lerpf(_pull_from.y, _pull_to.y, up), lerpf(_pull_from.z, _pull_to.z, fwd))
+			if u >= 1.0:
+				climb = ""
+				velocity = Vector3.ZERO
+				_kicks = 0
+				_fall_from = global_position.y
+				ledge_climbed.emit()
+		"pipe":
+			var p := _pipe
+			var target := p.global_position + _wall_n * 0.24
+			var v := 0.0
+			if can_move and Input.is_action_pressed("move_forward"):
+				v = pipe_speed
+			elif can_move and Input.is_action_pressed("move_back"):
+				v = -pipe_speed * 1.6
+			var y := clampf(global_position.y + v * delta, p.global_position.y, float(p.get_meta("top", 99.0)) - 0.3)
+			global_position = Vector3(target.x, y, target.z)
+			velocity = Vector3(0, v, 0)
+			if jump:
+				# Nhảy khỏi ống: bật ra sau và lên, hướng phím trái/phải đẩy sang ngang
+				var side := Input.get_axis("move_left", "move_right")
+				var right := Vector3.UP.cross(_wall_n).normalized()
+				_release(_wall_n * 2.5 + right * side * 2.5 + Vector3.UP * jump_velocity * 0.8)
+				_kick_lock = 0.2
+				jumped.emit()
+			elif _pressed("crouch") or (v < 0.0 and y <= p.global_position.y + 0.01):
+				_release(_wall_n * 1.0)
+	_curr_pos = global_position
+
+
+func _release(vel: Vector3) -> void:
+	climb = ""
+	_pipe = null
+	velocity = vel
+	_grab_cooldown = 0.35
+	_fall_from = global_position.y
+
+
+## Ống nước (Area3D của cảnh) gọi khi Bơ chạm/rời. Ống có meta "normal" (hướng ra khỏi tường) và "top" (độ cao đầu ống).
+func enter_pipe(p: Node3D) -> void:
+	if p not in _pipes:
+		_pipes.append(p)
+
+
+func exit_pipe(p: Node3D) -> void:
+	_pipes.erase(p)
+	if p == _pipe and climb == "pipe":
+		_release(_wall_n * 1.0)
 
 
 ## Góc nhìn thứ nhất: camera không vẽ thân Bơ, nhưng bóng đổ của Bơ vẫn đủ cả đầu lẫn đuôi.
@@ -613,7 +860,7 @@ func _check_bump(speed_before: float, delta: float) -> void:
 			var o := c.get_collider()
 			if o and o.has_meta("bump_kind") and absf(c.get_normal().y) < 0.5:
 				_hit_cd = 0.8
-				bump(str(o.get_meta("bump_kind")))
+				bump(str(o.get_meta("bump_kind")), c.get_position())
 				break
 	if _bump_cooldown > 0.0 or speed_before < walk_speed * 0.6 or stance in ["sneak", "crouch"]:
 		return
@@ -703,7 +950,7 @@ func _animate(delta: float, hspeed: float, vy: float, on_floor: bool) -> void:
 	var landed_now := on_floor and not _was_floor_anim
 	_was_floor_anim = on_floor
 
-	# Tư thế đã duyệt (trang phác thảo động tác Thứ Hai), làm tạm trên 16 xương:
+	# Tư thế đã duyệt (trang phác thảo động tác Thứ Hai) trên bộ 22 xương:
 	# chui vào/ra 0,25 s; rón rén; trượt dầu; giao cao/thấp; giật mình.
 	crouch_amount = move_toward(crouch_amount, 1.0 if stance == "crouch" else 0.0, delta / 0.25)
 	_sneak_amt = move_toward(_sneak_amt, 1.0 if stance == "sneak" else 0.0, delta / 0.3)
@@ -713,33 +960,63 @@ func _animate(delta: float, hspeed: float, vy: float, on_floor: bool) -> void:
 	var dw := 0.0
 	if _act == "deliver":
 		dw = smoothstep(0.0, 0.3, _act_t) * (1.0 - smoothstep(_act_len - 0.4, _act_len, _act_t))
-	var high := dw if _act_kind != "under_car" else 0.0   # giao_cao: đứng lên hai chân sau
+	var high := dw if _act_kind != "under_car" else 0.0   # giao_cao: ngồi dậy trên hai chân sau
 	var low := dw if _act_kind == "under_car" else 0.0    # giao_thap: dáng chui đẩy bánh
 	var startle := sin(clampf(_act_t / 0.6, 0.0, 1.0) * PI) if _act == "startle" else 0.0
 	var cr := maxf(crouch_amount, low)                     # độ chui (kể cả lúc giao thấp)
 	if _mouth_bread:
 		_mouth_bread.visible = _act == "deliver" and _act_t > 0.25 and not _released
+	if preview:
+		_idle_action(delta, t)
 	# Bước dài và chậm hơn khi rón rén, ngắn và nhanh khi chui
 	var gait := 2.2 if stance in ["walk", "sprint"] else (1.6 if stance == "sneak" else 3.0)
-	# Chân và nhún người
+	# Chân: mỗi bàn chân đi theo một vòng bước (ra trước thì nhấc lên, lùi sau thì chạm đất);
+	# khuỷu, gối tự gập theo nhờ IK trong _apply_bones. Thân nhún theo bước.
 	if on_floor:
 		_phase += delta * (4.0 + hspeed * gait)
-		var swing := sin(_phase) * 0.9 * maxf(k, 0.35 if hspeed > 0.3 else 0.0)
-		if stance == "crouch":
-			swing *= 0.6
-		_legs = [swing, -swing, -swing, swing]
+		var amp := maxf(k, 0.35 if hspeed > 0.3 else 0.0)
+		var stride := 0.15 * amp * (0.6 if stance == "crouch" else 1.0)
+		var lift := (0.03 + 0.04 * k) * signf(amp) + 0.03 * sneak_k * signf(amp)  # rón rén: nhấc chân cao 6 cm
+		for i in 4:
+			var ph: float = _phase + LEG_PHASE[i]
+			var up := maxf(cos(ph), 0.0)
+			_foot[i] = Vector3(0, up * lift, sin(ph) * stride)
+			_paw_tilt[i] = up * 0.9 * amp
 		if _sliding:
-			_legs = [0.35, 0.0, -0.3, -0.3]  # trượt dầu: chân cứng đơ
+			# Trượt dầu: chân trước trái trượt dài ra trước, hai chân sau dạng ra sau, chân cứng đơ
+			_foot = [Vector3(0, 0, 0.1), Vector3(0, 0.03, 0.02), Vector3(0, 0, -0.05), Vector3(0, 0, -0.04)]
+			_paw_tilt = [0.0, 0.0, 0.0, 0.0]
 		_bob = absf(sin(_phase)) * 0.04 * k
 		var side := signf(sin(_phase))
 		if hspeed > 0.3 and side != 0.0 and side != _step_side:
 			_step_side = side
 			_footstep()
 	else:
-		# Trên không: chân trước duỗi, chân sau co
+		# Trên không: chân trước vươn ra trước, chân sau co lên
 		var tl := 1.0 - exp(-10.0 * delta)
 		for i in 4:
-			_legs[i] = lerpf(_legs[i], 0.8 if i < 2 else -0.8, tl)
+			var air := Vector3(0, 0.05, 0.07) if i < 2 else Vector3(0, 0.07, -0.06)
+			_foot[i] = _foot[i].lerp(air, tl)
+			_paw_tilt[i] = lerpf(_paw_tilt[i], 0.5, tl)
+		_bob = lerpf(_bob, 0.0, tl)
+	# Leo (tạm, thay bằng tư thế Blender khi Sang duyệt): bám thì chân trước vươn lên mép,
+	# chân sau buông; leo lên thì chân sau đạp; ôm ống thì bốn chân thay nhau với
+	var climb_u := clampf(_climb_t / pull_time, 0.0, 1.0)
+	match climb:
+		"hang":
+			var sw := sin(t * 3.0) * 0.015
+			_foot = [Vector3(0, 0.12, 0.12), Vector3(0, 0.12, 0.12), Vector3(0, 0, -0.04 + sw), Vector3(0, 0, -0.04 - sw)]
+			_paw_tilt = [0.9, 0.9, 0.3, 0.3]
+		"pull":
+			var f := Vector3(0, 0.12, 0.12).lerp(Vector3(0, 0.02, 0.05), climb_u)
+			var kick := sin(climb_u * TAU * 2.0)
+			_foot = [f, f, Vector3(0, 0.04 + 0.03 * kick, 0.06 * kick), Vector3(0, 0.04 - 0.03 * kick, -0.06 * kick)]
+		"pipe":
+			_phase += delta * absf(vy) * 6.0
+			var c := sin(_phase)
+			_foot = [Vector3(0, 0.07 + 0.04 * c, 0.08), Vector3(0, 0.07 - 0.04 * c, 0.08), Vector3(0, 0.04 - 0.03 * c, 0.02), Vector3(0, 0.04 + 0.03 * c, 0.02)]
+	for i in 4:
+		_legs[i] = -atan2(_foot[i].z, 0.23)  # góc vung tương đương (dương: ra sau), cho chân góc thứ nhất
 
 	_update_tail(delta, hspeed, vy, on_floor)
 
@@ -751,26 +1028,30 @@ func _animate(delta: float, hspeed: float, vy: float, on_floor: bool) -> void:
 	lean_target += _slide_amt * (deg_to_rad(11.0) + sin(t * 9.0) * 0.06)  # trượt: nghiêng 11°, chao nhẹ
 	pitch_target -= deg_to_rad(3.0) * sneak_k                            # rón rén: chúi 3°
 	pitch_target += deg_to_rad(54.0) * high                              # giao cao: ngửa thân 54° quanh hông
+	if climb in ["hang", "pipe"]:
+		pitch_target = 1.15  # thân dựng đứng áp vào tường
+	elif climb == "pull":
+		pitch_target = lerpf(1.15, -0.1, climb_u)
 	_body.rotation.z = _lean.step(lean_target, 120.0, 0.7, delta)
-	_body.rotation.x = _pitch.step(pitch_target, 150.0, 0.6, delta)
 	_body.rotation.y = deg_to_rad(6.0) * _slide_amt
+	_pitch.step(pitch_target, 150.0, 0.6, delta)
 	if landed_now:
 		_pitch.v -= 2.5  # tiếp đất: thân khựng chúi tới rồi bật lại
-	# Xoay quanh hông (0; 0,2; 0,15 trong hệ visual, hông ở phía sau) thay vì quanh chân
-	var hip := Vector3(0, 0.2, 0.15)
-	_body.position = hip - Basis.from_euler(_body.rotation) * hip + Vector3(0, _bob - 0.13 * cr - 0.05 * sneak_k, 0)
+	# Chúi/ngả là xoay xương hông quanh khớp háng sau (dương của _pitch là ngẩng lên), ngồi thì ngả thêm;
+	# giật mình: cong lưng (hông ngẩng, ngực chúi nên giữa lưng nhô lên ~10 cm)
+	_hips_pitch = -_pitch.x - SIT_PITCH * _sit - 0.3 * startle
+	_chest_pitch = 0.55 * startle
+	# Hạ thân: chui 0,13 m, rón rén 0,05 m, giao cao ngồi trên cổ chân sau 0,06 m, ngồi 0,07 m
+	_root_off = Vector3(0, _bob - 0.13 * cr - 0.05 * sneak_k - 0.06 * high - 0.07 * _sit, 0)
+	_body.position = Vector3.ZERO
 
 	# Thở khi đứng yên: ngực phồng nhẹ
 	var breath := sin(t * 2.4) * (1.0 - k)
 	_body.scale = Vector3(1.0 + 0.012 * breath, 1.0 + 0.008 * breath, 1.0 + 0.006 * breath)
-	# Chui: nén cao 0,78, dài 1,1; giật mình: cong lưng (cao thêm 5%)
-	_body.scale *= Vector3(1.0, lerpf(1.0, 0.78, cr) * (1.0 + 0.05 * startle), lerpf(1.0, 1.1, cr))
-	# Chân: chui thì chân trước xoè ra trước 45°, chân sau ra sau 40°; giao cao thì hai chân trước co
-	# trước ngực, chân sau bù góc ngửa để vẫn đứng trên đất
-	# (góc xương chân: dương là vung ra sau theo hệ model)
-	var pre := -deg_to_rad(45.0) * cr - deg_to_rad(30.0) * high
-	var hind := deg_to_rad(40.0) * cr + deg_to_rad(54.0) * high
-	_leg_extra = [pre, pre, hind, hind]
+	# Chui: nén cao 0,78, dài 1,1 như bản phác
+	_body.scale *= Vector3(1.0, lerpf(1.0, 0.78, cr), lerpf(1.0, 1.1, cr))
+	_splay = cr  # chui: khuỷu xoè, bàn chân ra trước (xem _apply_bones)
+	_fold = high  # giao cao: hai chân trước co trước ngực
 	_fr_sweep = _slide_amt * 0.9
 	# Đầu: chui hạ 0,15 m, đẩy trước 0,075; rón rén hạ 0,085, đẩy trước 0,055
 	_head_off = Vector3(0, -0.15, 0.075) * cr + Vector3(0, -0.085, 0.055) * sneak_k
@@ -788,7 +1069,7 @@ func _animate(delta: float, hspeed: float, vy: float, on_floor: bool) -> void:
 	var look := _look_target if _idle_time > 1.5 else Vector2.ZERO
 	var yaw_target := clampf(_yaw_rate * 0.13, -0.45, 0.45) + look.x
 	var nod := sin(_phase * 2.0 + 0.6) * 0.06 * k if on_floor else 0.0
-	var head_pitch_target := look.y + nod - _body.rotation.x * 0.7
+	var head_pitch_target := look.y + nod - _pitch.x * 0.7
 	head_pitch_target += deg_to_rad(8.0) * sneak_k               # rón rén: cúi 8°
 	# Giao cao: so với thân, đầu cúi 36° (thân ngửa 54° nên mặt vẫn ngước lên)
 	head_pitch_target += (deg_to_rad(36.0) + 0.7 * deg_to_rad(54.0)) * high
@@ -825,8 +1106,6 @@ func _animate(delta: float, hspeed: float, vy: float, on_floor: bool) -> void:
 	if on_floor and k > 0.05:
 		_scarf_p.v += cos(_phase * 2.0) * k * 6.0 * delta
 
-	if preview:
-		_idle_action(delta, t)
 	_apply_bones()
 
 
@@ -850,18 +1129,13 @@ func _idle_action(delta: float, t: float) -> void:
 	_sit = clampf(_sit_w.step(1.0 if _action in ["sit", "lick"] else 0.0, 18.0, 0.9, delta), 0.0, 1.0)
 	_lick = clampf(_lick_w.step(1.0 if _action == "lick" else 0.0, 22.0, 0.9, delta), 0.0, 1.0)
 	if _sit < 0.001 and _lick < 0.001:
-		_body.position = Vector3.ZERO
-		_off_legs = [0.0, 0.0, 0.0, 0.0]
 		_off_head = Vector2.ZERO
 		_off_tail = 0.0
 		return
-	# Ngồi: thân ngẩng lên quanh khớp vai trước nên mông hạ xuống; chân trước bù lại để vẫn thẳng đứng,
-	# chân sau gập ra trước. Trục X của chân: dương là vung ra sau.
+	# Ngồi: hông ngả ra sau quanh khớp háng, mông hạ xuống; chân trước tự duỗi thẳng giữ bàn chân trên sàn,
+	# chân sau gập lại (xem _apply_bones). Liếm chân: nhấc chân trước trái lên tới miệng.
 	var a := SIT_PITCH * _sit
-	_body.rotation.x += a
-	_body.position = _sit_pivot - _sit_pivot.rotated(Vector3.RIGHT, a)
-	_off_legs = [a - LICK_PAW * _lick, a, -SIT_HIND * _sit, -SIT_HIND * _sit]
-	# Liếm chân: nhấc chân trước trái lên, cúi đầu nghiêng sang, đầu gật nhịp liếm. Trục X của đầu: dương là cúi.
+	# Đầu cúi bù lại góc ngả, liếm thì cúi xuống chân, gật nhịp liếm. Trục X của đầu: dương là cúi.
 	_off_head = Vector2(0.25 * _lick, a * 0.8 + (LICK_HEAD + sin(t * 11.0) * 0.07) * _lick)
 	_off_tail = SIT_TAIL * _sit
 	if _lick > 0.0:
@@ -870,14 +1144,16 @@ func _idle_action(delta: float, t: float) -> void:
 
 ## Xoay xương theo các góc tính ở trên. Trục X của xương là trục gập trước/sau.
 func _apply_bones() -> void:
-	for i in 4:
-		var q := Quaternion(Vector3.RIGHT, (_legs[i] + _leg_extra[i] + _off_legs[i]) * LEG_SWING_SIGN)
-		if i == 1:
-			q = q * Quaternion(Vector3.FORWARD, _fr_sweep)  # trượt: chân trước phải vung ngang
-		_pose_q(LEG_BONES[i], q)
+	var ri: int = _bone_idx["root"]
+	if ri >= 0:
+		_skel.set_bone_pose_position(ri, _skel.get_bone_rest(ri).origin + _root_off)
+	_pose("hips", Vector3.RIGHT, _hips_pitch)
+	_pose("chest", Vector3.RIGHT, _chest_pitch)
+	for i in _leg_rig.size():
+		_leg_ik(i)
 	for i in _fp_paws.size():
 		# Thân Bơ quay ngược 180° trong visual nên trục X đổi chiều
-		_fp_paws[i].rotation.x = FP_PAW_LEAN - _legs[i] * LEG_SWING_SIGN
+		_fp_paws[i].rotation.x = FP_PAW_LEAN - _legs[i]
 	_pose_q("head", Quaternion(Vector3.UP, _head_yaw.x + _off_head.x) * Quaternion(Vector3.RIGHT, _head_pitch.x + _off_head.y) * Quaternion(Vector3.FORWARD, _head_roll))
 	var hi: int = _bone_idx["head"]
 	if hi >= 0:
@@ -904,6 +1180,46 @@ func _apply_bones() -> void:
 	if ti >= 0:
 		var f := 1.0 + 0.75 * _tail_fluff
 		_skel.set_bone_pose_scale(ti, Vector3(f, 1.0, f))
+
+
+## IK hai đoạn cho một chân trong mặt phẳng dọc thân: cổ chân đặt đúng đích (chỗ đứng nghỉ + _foot),
+## khuỷu trước gập ra sau, gối sau gập ra trước như mèo thật; bàn chân giữ nằm phẳng (+ _paw_tilt).
+## Mọi xương chân có trục X cục bộ trùng +X của model nên góc gập cộng dồn được dọc theo chân.
+func _leg_ik(i: int) -> void:
+	var L: Dictionary = _leg_rig[i]
+	var ids: Array = L["ids"]
+	var front := i < 2
+	var s := _skel.get_bone_global_pose(ids[0]).origin  # vai/háng sau khi thân đã xoay, hạ
+	var target: Vector3 = L["ankle"] + _foot[i]
+	# Chui: bàn chân trước ra trước 10 cm, chân sau rút lên dưới bụng 6 cm
+	target.z += (0.1 if front else 0.06) * _splay
+	if front and _fold > 0.0:
+		target = target.lerp(s + Vector3(0, -0.1, 0.05), _fold)  # giao cao: co trước ngực
+	if i == 0 and _lick > 0.0:
+		target = target.lerp(LICK_PAW, _lick)
+	var l1: float = L["l1"]
+	var l2: float = L["l2"]
+	var d := Vector2(target.y - s.y, target.z - s.z)  # (y, z)
+	var dist := clampf(d.length(), absf(l1 - l2) + 0.002, l1 + l2 - 0.0005)
+	var end := d.normalized() * dist
+	var bend := acos(clampf((l1 * l1 + dist * dist - l2 * l2) / (2.0 * l1 * dist), -1.0, 1.0))
+	var a1 := atan2(end.y, end.x) + (bend if front else -bend)
+	var knee := Vector2(cos(a1), sin(a1)) * l1
+	var a2 := atan2(end.y - knee.y, end.x - knee.x)
+	# Góc thêm so với dáng nghỉ (toàn cục), rồi trừ phần xương cha đã xoay
+	var g1 := wrapf(a1 - float(L["r1"]), -PI, PI)
+	var g2 := wrapf(a2 - float(L["r2"]), -PI, PI)
+	var parent := _hips_pitch + (_chest_pitch if front else 0.0)
+	var tilt: float = _paw_tilt[i] + (1.2 * _fold if front else 0.0) + (1.0 * _lick if i == 0 else 0.0)
+	var q1 := Quaternion(Vector3.RIGHT, g1 - parent)
+	if front:
+		# Khuỷu xoè ra ngoài khi chui; trượt dầu thì chân trước phải vung ngang
+		var side := -1.0 if i == 0 else 1.0
+		var out := 0.3 * _splay + (_fr_sweep if i == 1 else 0.0)
+		q1 = q1 * Quaternion(Vector3.BACK, -side * out)
+	_skel.set_bone_pose_rotation(ids[0], _bone_rest[LEG_CHAINS[i][0]] * q1)
+	_skel.set_bone_pose_rotation(ids[1], _bone_rest[LEG_CHAINS[i][1]] * Quaternion(Vector3.RIGHT, g2 - g1))
+	_skel.set_bone_pose_rotation(ids[2], _bone_rest[LEG_CHAINS[i][2]] * Quaternion(Vector3.RIGHT, tilt - g2))
 
 
 ## Đuôi mèo thật đổi dáng theo việc mèo đang làm:
@@ -969,13 +1285,6 @@ func _pose(bone_name: String, axis: Vector3, angle: float) -> void:
 		_skel.set_bone_pose_rotation(idx, _bone_rest[bone_name] * Quaternion(axis, angle))
 
 
-## Bơ va vào thứ gì đó (người, xe đẩy, sạp, xe máy). Gói chợ gọi thẳng hàm này khi đụng
-## người đi chợ (họ không có thân va chạm). Đang ngậm đồ dễ vỡ thì vỡ một món.
-func bump(kind: String) -> void:
-	bumped.emit(kind)
-	_damage_fragile()
-
-
 ## Ngậm đồ dễ vỡ: item_id "trung6" là túi nilon 6 trứng. count 0 hoặc item "" là nhả ra.
 ## Bơ vẫn đeo túi bánh bên hông; túi trứng ngậm ở miệng (khối tạm, chờ phác thảo Thứ Ba).
 func carry_fragile(item_id: String, count: int) -> void:
@@ -1022,6 +1331,23 @@ func _damage_fragile() -> void:
 		_fragile_eggs[fragile_count].visible = false
 	_sfx("egg_crack")
 	fragile_damaged.emit(fragile_count)
+
+
+## Va vào người đi chợ, xe đẩy, sạp: khựng lại một chút, lùi nhẹ ra, không hất văng như xe tông.
+func bump(kind: String, from := Vector3.INF, stun := 0.4) -> void:
+	# Không có from (xe máy đã tự hất văng Bơ) thì chỉ báo va, không đẩy lùi.
+	# Đang ngậm đồ dễ vỡ (túi trứng) thì vỡ một món.
+	if from.is_finite():
+		var away := global_position - from
+		away.y = 0
+		away = away.normalized() if away.length() > 0.01 else Vector3.BACK
+		velocity.x = away.x * 2.5
+		velocity.z = away.z * 2.5
+		_stun = maxf(_stun, stun)
+		visual.scale = Vector3(1.12, 0.88, 1.12)
+		noise_made.emit(global_position, noise_bump)
+	bumped.emit(kind)
+	_damage_fragile()
 
 
 ## Bị Chó Mực đớp: văng ra và khựng lại một chút.

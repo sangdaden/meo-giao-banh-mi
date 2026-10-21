@@ -136,6 +136,10 @@ func _ready() -> void:
 	add_child(hud)
 	hud.start_pressed.connect(start_game)
 	hud.go_delivery_pressed.connect(_go_delivery)
+	hud.menu_pressed.connect(func(): PlayMode.back_to_menu(get_tree()))
+	if PlayMode.kitchen_only():
+		for b in hud.end_screen.find_children("*", "Button", true, false):
+			b.text = "Về chọn màn (Enter)"
 	_update_hud()
 
 	if _bot:
@@ -471,6 +475,9 @@ func _end(success: bool) -> void:
 	else:
 		lines += "Hết giờ! Mới xong %d/%d ổ.\n" % [made, LOAVES]
 	GameState.kitchen_stars = stars
+	if not _bot:  # sao bếp cao nhất cho màn Chọn màn
+		GameState.set_day("sao_bep", maxi(int(GameState.get_day("sao_bep", -1)), stars))
+		GameState.write_save()
 	# Sao từng ổ cho 5 đơn giao. Bếp mới làm LOAVES ổ: các đơn sau dùng số sao chung của ca.
 	var per_bread: Array[int] = []
 	for i in GameState.ORDERS_PER_DAY:
@@ -493,6 +500,9 @@ func _end(success: bool) -> void:
 
 func _go_delivery() -> void:
 	if state != State.END:
+		return
+	if PlayMode.kitchen_only() and not _bot:
+		PlayMode.back_to_menu(get_tree())
 		return
 	GameState.from_kitchen = true
 	get_tree().change_scene_to_file("res://scenes/main.tscn")

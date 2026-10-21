@@ -124,6 +124,10 @@ func _ready() -> void:
 	_autotest = "--autotest" in OS.get_cmdline_user_args()
 	if _autotest:
 		print("[autotest] bắt đầu")
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--don="):  # vào thẳng một đơn khi thử: -- --autotest --don=5
+			PlayMode.mode = PlayMode.Mode.ORDER
+			PlayMode.order = clampi(int(arg.substr(6)) - 1, 0, ORDERS.size() - 1)
 	start_game()
 	if GameState.from_kitchen and not GameState.kitchen_stars_per_bread.is_empty():
 		hud.show_toast("Ổ nào được 3 sao bếp thì đơn đó cộng thêm %d giây!" % int(Scoring.KITCHEN_BONUS_SECONDS), 3.0)
@@ -150,7 +154,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func start_game() -> void:
 	state = State.PLAY
-	order_index = 0
+	order_index = PlayMode.first_order()  # màn Chọn màn có thể cho vào thẳng một đơn
 	results.clear()
 	result_notes.clear()
 	score_rows.clear()
@@ -163,13 +167,12 @@ func start_game() -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	hud.start_screen.visible = false
 	hud.show_playing_ui(true)
-	hud.set_progress(results)
-	hud.show_toast("Chạy tới lò bánh Cô Ba nhận đơn 1!")
+	_show_progress()
+	hud.show_toast("Chạy tới lò bánh Cô Ba nhận đơn %d!" % (order_index + 1))
 
 
 func _to_menu() -> void:
-	get_tree().paused = false
-	get_tree().change_scene_to_file("res://scenes/menu.tscn")
+	PlayMode.back_to_menu(get_tree())
 
 
 func _pause_info() -> String:
@@ -329,16 +332,30 @@ func _next_order() -> void:
 	dog.awake = false
 	ghost.stop()
 	order_index += 1
-	hud.set_progress(results)
-	if order_index >= ORDERS.size():
+	_show_progress()
+	if order_index > PlayMode.last_order(ORDERS.size()):
 		_end_game()
+
+
+## Dãy ổ bánh trên HUD. Chơi một đơn lẻ thì chỉ ổ của đơn đó sáng, các ổ khác để trống.
+func _show_progress() -> void:
+	if not PlayMode.single_order() or not "dots" in hud:
+		hud.set_progress(results)
+		return
+	for i in hud.dots.size():
+		var d: Control = hud.dots[i]
+		if i == PlayMode.order:
+			d.state = ("done" if results[0] > 0 else "late") if not results.is_empty() else "current"
+		else:
+			d.state = "todo"
+		d.queue_redraw()
 
 
 ## Nhiệm vụ phụ xong sau lúc giao (tờ báo Chú Tư về tới lò ở đơn sau): ghi lại vào kết quả và tiền boa.
 func _settle_side_quests() -> void:
 	for i in score_rows.size():
-		var r: Dictionary = score_rows[i]  # cùng một Dictionary với Scoring.orders[i]
-		var ok: bool = deliveries.side_ok[i] and str(r.side_quest) != ""
+		var r: Dictionary = score_rows[i]  # cùng một Dictionary với Scoring.orders[r.index]
+		var ok: bool = deliveries.side_ok[r.index] and str(r.side_quest) != ""
 		if ok != r.side_ok:
 			r.side_ok = ok
 			r.tip = Scoring.tip_for(r.stars, r.late, ok)
@@ -350,20 +367,34 @@ func _end_game() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_settle_side_quests()
 	var rows := []
-	for i in ORDERS.size():
+	for k in score_rows.size():
+		var i: int = score_rows[k].index
 		var row := {"who": ORDERS[i].who, "place": ORDERS[i].place, "item": ORDERS[i].item,
-			"color": ORDERS[i].color, "stars": results[i], "note": result_notes[i]}
-		row.merge(score_rows[i])
+			"color": ORDERS[i].color, "stars": results[k], "note": result_notes[k]}
+		row.merge(score_rows[k])
 		rows.append(row)
 	print("[nhiem vu phu] ", deliveries.side_ok)
-	var summary := Scoring.end_day(ORDERS.size() * Scoring.STARS_PER_ORDER)
+	var summary: Dictionary
+	if PlayMode.single_order():
+		# Một đơn lẻ: lưu kỷ lục đơn, không tính vào kỷ lục cả ngày
+		summary = Scoring.end_practice()
+		summary.day = "%s · đơn %d" % [summary.day, order_index]
+		summary.rows_title = "Đơn %d · %s" % [order_index, ORDERS[order_index - 1].who]
+	else:
+		summary = Scoring.end_day(ORDERS.size() * Scoring.STARS_PER_ORDER)
 	# Bảng kết quả mới (luồng Giao diện) nhận thêm summary; bản cũ chỉ nhận rows.
 	if hud.get_method_argument_count("show_results") >= 2:
 		hud.show_results(rows, summary)
 	else:
 		hud.show_results(rows)
 	print("[ket qua] ", results, " tong ", summary.stars, " boa ", summary.tip, " hang ", summary.rank, " tem ", summary.stamps)
-	if _autotest:
+	if _autotest and PlayMode.single_order():
+		# Một đơn lẻ (-- --autotest --don=N): giao được, lưu sao đơn, không đụng kỷ lục cả ngày
+		var ok1: bool = results.size() == 1 and results[0] > 0 and Scoring.best_stars(PlayMode.order) == results[0]
+		ok1 = ok1 and GameState.get_day("so_lan_choi", 0) == 0 and int(GameState.get_day("sao_cao_nhat", -1)) == -1
+		print("AUTOTEST DON ", PlayMode.order + 1, " ", "OK" if ok1 else "FAIL")
+		get_tree().quit(0 if ok1 else 1)
+	elif _autotest:
 		# Chó Mực phải đi đúng: nghe tiếng thì nghi ngờ, còn tiếng thì đuổi, rồi đớp
 		# (phần mệt về ổ thử riêng trong tools/dog_test.gd)
 		var dog_ok := _dog_states.slice(0, 3) == [dog.State.SUSPICIOUS, dog.State.CHASE, dog.State.BITE]

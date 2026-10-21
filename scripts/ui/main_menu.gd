@@ -9,6 +9,7 @@ const RECORD_PATH := "user://ky_luc.cfg"
 
 var settings: SettingsPanel
 var wardrobe: WardrobePanel
+var level_select: LevelSelectPanel
 var start_btn: Button
 
 
@@ -98,23 +99,32 @@ func _ready() -> void:
 	settings = SettingsPanel.new()
 	settings.visible = false
 	add_child(settings)
-	for p in [wardrobe, settings]:
+	level_select = LevelSelectPanel.new()
+	level_select.visible = false
+	add_child(level_select)
+	for p in [wardrobe, settings, level_select]:
 		p.closed.connect(func(): start_btn.grab_focus())
 
 	T.wire_clicks(self)
-	start_btn.grab_focus.call_deferred()
+	if PlayMode.back_to_select:
+		# Vừa chơi xong quay về: mở lại màn Chọn màn
+		PlayMode.back_to_select = false
+		level_select.open()
+	else:
+		start_btn.grab_focus.call_deferred()
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if settings.visible or wardrobe.visible:
+	if settings.visible or wardrobe.visible or level_select.visible:
 		return
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode in [KEY_ENTER, KEY_KP_ENTER]:
 		_start()
 		get_viewport().set_input_as_handled()
 
 
+## Bắt đầu ca: mở màn Chọn màn (scripts/ui/level_select.gd) để chọn ngày và cách chơi.
 func _start() -> void:
-	get_tree().change_scene_to_file(first_scene())
+	level_select.open()
 
 
 func _showcase() -> Control:

@@ -126,6 +126,7 @@ func _ready() -> void:
 	stamps.collected.connect(_on_stamp)
 	ghost = GhostScript.new()
 	ghost.name = "BongMo"
+	ghost.player = player
 	add_child(ghost)
 
 	_build_arrow()

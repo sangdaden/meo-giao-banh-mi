@@ -17,7 +17,8 @@ const DEFAULTS := {
 	"hints": true,           # gợi ý phím góc phải dưới
 	"tips": true,            # mẹo lần đầu (gầm thấp, gần Chó Mực, tới khách), mỗi mẹo hiện một lần
 	"tips_seen": "",         # các mẹo đã hiện, cách nhau bằng dấu phẩy
-	"thu_thach": false,      # Chế độ thử thách: dùng các con số khó cũ (scripts/do_kho.gd)
+	"thu_thach": false,
+	"bong_ky_luc": false,     # bóng mờ chạy lại lần giao nhanh nhất của đơn (scripts/ghost.gd)      # Chế độ thử thách: dùng các con số khó cũ (scripts/do_kho.gd)
 }
 
 static var _data := {}

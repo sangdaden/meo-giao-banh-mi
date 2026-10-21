@@ -42,8 +42,13 @@ func _ready() -> void:
 
 	var grid := HBoxContainer.new()
 	grid.add_theme_constant_override("separation", 48)
-	grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	col.add_child(grid)
+	# Nhiều dòng hơn chiều cao khung thì cuộn, hàng nút dưới cùng luôn hiện.
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	col.add_child(scroll)
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(grid)
 	var left := VBoxContainer.new()
 	var right := VBoxContainer.new()
 	for c in [left, right]:
@@ -85,15 +90,13 @@ func _ready() -> void:
 	_segment_row(right, "Cỡ chữ HUD", "hud_scale", [["Nhỏ", 0], ["Vừa", 1], ["To", 2]])
 	_switch_row(right, "Gợi ý phím", "hints")
 	_switch_row(right, "Mẹo lần đầu chơi", "tips")
+	_switch_row(right, "Bóng kỷ lục (lần giao nhanh nhất)", "bong_ky_luc")
 	_switch_row(right, "Chế độ thử thách (giờ gấp, phạt nặng)", "thu_thach")
 
-	var spacer := Control.new()
-	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	right.add_child(spacer)
 	var foot := HBoxContainer.new()
 	foot.alignment = BoxContainer.ALIGNMENT_END
 	foot.add_theme_constant_override("separation", 14)
-	right.add_child(foot)
+	col.add_child(foot)
 	var reset_btn := T.button("Khôi phục mặc định", "secondary", 56, 17)
 	reset_btn.pressed.connect(func():
 		GameSettings.reset()

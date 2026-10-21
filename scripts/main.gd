@@ -57,6 +57,7 @@ var ghost: Node3D
 var _autotest := false
 var _autotest_frames := 0
 var _bitten := false
+var _dog_states: Array[int] = []  # autotest: các trạng thái Chó Mực đã đi qua
 
 
 func _ready() -> void:
@@ -85,6 +86,7 @@ func _ready() -> void:
 	dog.player = player
 	add_child(dog)
 	dog.bit_player.connect(_on_dog_bite)
+	dog.state_changed.connect(_on_dog_state)
 	add_child(preload("res://scripts/traffic.gd").new())  # xe máy, đèn giao thông, người đi bộ
 
 	stamps = StampsScript.new()
@@ -339,7 +341,11 @@ func _end_game() -> void:
 		hud.show_results(rows)
 	print("[ket qua] ", results, " tong ", summary.stars, " boa ", summary.tip, " hang ", summary.rank, " tem ", summary.stamps)
 	if _autotest:
-		var ok := results.size() == 5 and results.all(func(s): return s > 0) and _bitten
+		# Chó Mực phải đi đúng: nghe tiếng thì nghi ngờ, còn tiếng thì đuổi, rồi đớp
+		# (phần mệt về ổ thử riêng trong tools/dog_test.gd)
+		var dog_ok := _dog_states.slice(0, 3) == [dog.State.SUSPICIOUS, dog.State.CHASE, dog.State.BITE]
+		print("[autotest] Chó Mực: ", _dog_states.map(func(s): return dog.STATE_NAMES[s]))
+		var ok := results.size() == 5 and results.all(func(s): return s > 0) and _bitten and dog_ok
 		ok = ok and summary.tip > 0 and summary.stamps >= 1 and Scoring.self_test()
 		ok = ok and GameState.get_day("so_lan_choi", 0) == 1 and Scoring.best_time(0) > 0.0
 		print("AUTOTEST ", "OK" if ok else "FAIL")
@@ -353,6 +359,12 @@ func _on_dog_bite() -> void:
 	time_left = maxf(time_left - BITE_PENALTY, 0.1)
 	player.knockback(dog.global_position)
 	hud.show_toast("Chó Mực đớp mất %d giây!" % int(BITE_PENALTY))
+
+
+func _on_dog_state(s: int) -> void:
+	_dog_states.append(s)
+	if s == dog.State.CHASE:
+		hud.show_toast("Chó Mực thức rồi! Chạy nhanh hoặc nhảy lên chỗ cao!", 2.0)
 
 
 func _update_hud() -> void:
@@ -566,6 +578,7 @@ func _autotest_step() -> void:
 	var goal := _current_goal()
 	if player.carrying and ORDERS[order_index].get("boss", false) and not _bitten:
 		goal = dog.global_position + Vector3(0.3, 0, 0.3)
+		dog.hear(goal, 10.0)  # giả tiếng chạy nhanh sát ổ: Mực nghi ngờ rồi đuổi
 	elif not player.carrying and order_index == 1 and Scoring.stamps_today.is_empty() and not stamps.remaining().is_empty():
 		goal = stamps.remaining()[0] - Vector3(0, 0.2, 0)  # trên đường về lò ghé nhặt một con tem
 	player.global_position = goal + Vector3(0, 0.2, 0)

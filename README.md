@@ -120,7 +120,7 @@ Vòng chơi:
 2. Theo **mũi tên đỏ** trên đầu mèo và **cột sáng vàng** ở chỗ khách. Thanh dưới màn hình cho biết còn bao nhiêu mét.
 3. Bước vào vòng tròn đỏ dưới chân khách là giao xong. Còn nhiều giờ thì được nhiều sao (3 sao nếu còn từ một nửa thời gian).
 4. Hết giờ thì đơn tính là trễ, quay về lò nhận đơn tiếp.
-5. **Đơn 5** có **Chó Mực** thức dậy canh hẻm cạnh công viên. Lại gần là nó đuổi; bị đớp thì văng ra và mất 3 giây. Nhảy qua đầu nó thì an toàn.
+5. **Đơn 5** có **Chó Mực** canh hẻm 42 cạnh công viên. Nó ngủ gật 6 giây rồi hé mắt 2 giây (lúc hé mắt mà thấy Bơ trong 8 m là đuổi). Nó nghe tiếng động: đi thường nghe trong 6 m, chạy nhanh 10 m, đáp đất mạnh 8 m, rón rén chỉ 2,5 m. Nghe một tiếng thì ngóc đầu nghi ngờ (dấu "?"), im 3 giây là ngủ lại, còn nghe nữa sau 1,5 giây là đuổi (6,3 m/s, rẽ chậm). Bị đớp mất 3 giây, rồi nó mệt về ổ. Lên bờ rào, chồng thùng, ra khỏi 13 m hay chui gầm ba gác thì nó chỉ đứng sủa. Nhảy qua đầu nó thì an toàn.
 6. Giao xong 5 đơn là hiện bảng tổng kết sao.
 
 | Đơn | Khách | Món | Thời gian |
@@ -137,7 +137,7 @@ Mọi con số chỉnh được đều nằm ở đầu file script, có chú th
 
 - `scripts/player.gd`: tốc độ chạy, tăng tốc, độ cao nhảy, trọng lực, coyote time (vẫn nhảy được ngay sau khi rời mép), jump buffer (bấm nhảy hơi sớm vẫn tính).
 - `scripts/camera_rig.gd`: độ nhạy chuột, khoảng cách camera, góc nhìn thứ ba/thứ nhất (phím V; menu cài đặt gán `first_person`, `invert_y`, `mouse_sensitivity`).
-- `scripts/dog.gd`: tốc độ đuổi và tầm nhìn của Chó Mực.
+- `scripts/dog.gd`: thời gian ngủ gật/hé mắt, tầm nhìn, tốc độ đuổi, độ rẽ, giới hạn 13 m của Chó Mực. Thử riêng: `godot --headless --path . --script res://tools/dog_test.gd` (in `DOG TEST OK`).
 - `scripts/main.gd`: danh sách 5 đơn (vị trí, thời gian), phạt khi bị đớp, `time_multiplier` để nới giờ cho mọi đơn.
 
 ## Cấu trúc project
@@ -158,7 +158,7 @@ scripts/
   main.gd              vòng chơi: nhận bánh, giao đơn, đồng hồ, mũi tên, phím điều khiển
   player.gd            mèo Bơ: chạy, nhảy, animation tạm bằng code
   camera_rig.gd        camera sau lưng mèo (SpringArm3D tránh xuyên tường)
-  dog.gd               Chó Mực: ngủ, thức dậy ở đơn 5, đuổi, đớp
+  dog.gd               Chó Mực: 7 trạng thái (ngủ gật, hé mắt, nghi ngờ, đuổi, đớp, sủa, mệt), nghe tiếng động
   city.gd              dựng khu phố 6 khối theo bản đồ trong sổ phác thảo
   hud.gd               thẻ đơn, đồng hồ, 5 chấm tiến độ, màn bắt đầu, tạm dừng, kết thúc
   timer_ring.gd        đồng hồ vòng tròn

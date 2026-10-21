@@ -20,6 +20,7 @@ const BEAN := Color("#EFAFAA")
 const FUR := Color(0.91, 0.57, 0.23)
 const STRIPE := Color(0.70, 0.36, 0.15)
 const CREAM := Color(0.98, 0.90, 0.78)
+const FEMALE_SCALE := 0.93       ## mèo cái nhỏ hơn mèo đực ~7% (luồng skin)
 const SKIN_SHADER := preload("res://shaders/meo_chan.gdshader")
 const SKIN_DIR := "res://assets/textures/chan_meo/"
 ## Hoa văn vẽ thêm lên chân theo kiểu lông của giống (meo-3d/skins/olddata.js): [kiểu, màu vằn, số vằn]
@@ -35,6 +36,7 @@ static var _paw_info := {}
 @export var size := 1.0           ## tỉ lệ so với số đo gốc
 @export_enum("bep", "dung") var pose := "bep"  ## bep: chống lên bàn (cận cảnh); dung: cẳng chân dựng thẳng xuống đất
 @export var breed := ""           ## giống mèo (id trong Outfit.BREEDS); "" = giống đang dùng trong tủ đồ
+@export var sex := ""             ## "duc" / "cai"; "" = giới tính đang chọn trong tủ đồ. Mèo cái chân nhỏ hơn ~7%
 
 var arm: MeshInstance3D           ## ống cẳng tay + cánh tay
 var _top := Vector3.ZERO          ## điểm vai (đầu trên của ống), trong hệ toạ độ node trước khi nhân size
@@ -53,6 +55,10 @@ static func create(paw_side: float, paw_size := 1.0, paw_pose := "bep", paw_bree
 func _ready() -> void:
 	if breed == "":
 		breed = Outfit.breed()
+	if sex == "":
+		sex = Outfit.sex(breed)
+	if sex == "cai":
+		size *= FEMALE_SCALE
 	if breed != "bo" and not ResourceLoader.exists(SKIN_DIR + breed + ".png"):
 		breed = "bo"
 	var wrist := Vector3(0, 0.014, 0.035)
@@ -162,7 +168,8 @@ static func _add_shells(mat: ShaderMaterial) -> void:
 func _skin_mat(foot: bool) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = SKIN_SHADER
-	m.set_shader_parameter("leg_tex", load(SKIN_DIR + breed + ".png"))
+	var tex := SKIN_DIR + breed + (("_cai" if sex == "cai" else "") + ".png")
+	m.set_shader_parameter("leg_tex", load(tex if ResourceLoader.exists(tex) else SKIN_DIR + breed + ".png"))
 	# Camera đứng sau mèo: chân bên phải màn hình là chân FL của model (FL nằm phía -x, mèo quay lưng lại camera)
 	m.set_shader_parameter("half_offset", 0.0 if side > 0.0 else 0.5)
 	m.set_shader_parameter("mirror", 1.0 if side > 0.0 else 0.0)

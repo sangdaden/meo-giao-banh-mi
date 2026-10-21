@@ -157,6 +157,8 @@ var _body: Node3D
 var bread: Node3D
 var preview := false             ## tủ đồ/màn hình chính: đứng yên trên bục, không có vật lý, thỉnh thoảng ngồi hoặc liếm chân
 var breed := "bo"                ## giống mèo đang dùng (tủ đồ cho mặc thử giống khác)
+var sex := "duc"                 ## "duc" / "cai" (tủ đồ); bản cái chưa có model thì vẫn hiện bản đực
+var _cai_model := false          ## đang dùng model mèo cái (<id>_cai.glb)
 var _model: Node3D
 var _acc_nodes := []             # phụ kiện đang gắn (OutfitView.attach)
 var _cloth_mats := []            # vật liệu đồ vải bay (áo choàng) trong _acc_nodes
@@ -300,6 +302,7 @@ func _build_visual() -> void:
 	visual.add_child(_body)
 
 	breed = Outfit.breed()  # giống mèo đã chọn trong tủ đồ
+	sex = Outfit.sex(breed)
 	_load_model()
 	_build_bag()
 	_attach_bag()
@@ -318,7 +321,8 @@ func _load_model() -> void:
 		_model.free()
 	_acc_nodes.clear()
 	_scarf_mesh = null
-	var scene: PackedScene = OutfitView.breed_scene(breed)
+	var scene: PackedScene = OutfitView.breed_scene(breed, sex)
+	_cai_model = sex == "cai" and OutfitView.has_sex_model(breed, "cai")
 	_model = (scene if scene else BO_MODEL).instantiate()
 	_model.rotation.y = PI  # model quay mặt về +Z (glTF), Godot coi -Z là phía trước
 	_body.add_child(_model)
@@ -393,9 +397,10 @@ func _attach_bag() -> void:
 	_bag.transform = _skel.get_bone_global_rest(hi).affine_inverse() * to_skel * _bag_xf
 
 
-## Đổi giống mèo (tủ đồ mặc thử). Giống chưa có model thì giữ Bơ.
-func set_breed(id: String, worn := {}) -> void:
+## Đổi giống mèo (tủ đồ mặc thử). Giống chưa có model thì giữ Bơ. new_sex "" = giới tính đang chọn trong tủ đồ.
+func set_breed(id: String, worn := {}, new_sex := "") -> void:
 	breed = id if OutfitView.has_breed(id) else "bo"
+	sex = new_sex if new_sex != "" else Outfit.sex(breed)
 	_load_model()
 	apply_outfit(worn)
 
@@ -490,7 +495,7 @@ func apply_outfit(worn := {}) -> void:
 		if is_instance_valid(n):
 			n.queue_free()
 	_acc_nodes.clear()
-	var is_bo := breed == "bo"
+	var is_bo := breed == "bo" and not _cai_model  # Bơ chuẩn có sẵn khăn và túi dựng trong code
 	_wear_bag = is_bo and worn.get("back", "") == "tuibanh"
 	if _bag:
 		_bag.visible = carrying or _wear_bag
@@ -506,7 +511,7 @@ func apply_outfit(worn := {}) -> void:
 		var id: String = worn[slot]
 		if id == "" or (is_bo and id in ["khando", "tuibanh"]):
 			continue
-		_acc_nodes.append_array(OutfitView.attach(_skel, id, breed))
+		_acc_nodes.append_array(OutfitView.attach(_skel, id, breed, sex if _cai_model else "duc"))
 		_ears_down = _ears_down or OutfitView.ears_down(id)
 	_cloth_mats = OutfitView.cloth_mats(_acc_nodes)
 

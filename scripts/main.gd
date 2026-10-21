@@ -547,6 +547,8 @@ func _end_game() -> void:
 		var ok := results.size() == 5 and results.all(func(s): return s > 0) and _bitten and dog_ok
 		ok = ok and summary.tip > 0 and summary.stamps >= 1 and Scoring.self_test()
 		ok = ok and Shop.total_stars() == summary.stars and Shop.self_test() and hud.self_test_menu()
+		# Mèo cái chưa xuất model thì dùng bản đực, không được rơi về Bơ
+		ok = ok and (OutfitView.has_sex_model("muop", "cai") or OutfitView.breed_scene("muop", "cai") == OutfitView.breed_scene("muop", "duc"))
 		ok = ok and GameState.get_day("so_lan_choi", 0) == 1 and Scoring.best_time(0) > 0.0
 		# Autotest bị Chó Mực đớp ở đơn 5 nên nhiệm vụ phụ đơn đó trượt; 4 đơn đầu phải đạt cả
 		ok = ok and deliveries.side_ok.slice(0, 4).all(func(v): return v) and score_rows[0].side_ok

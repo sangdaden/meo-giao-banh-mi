@@ -40,6 +40,7 @@ var _buy: Button
 var _wish: Button
 var _wallet: Label
 var _name: Label
+var _sex_box: HBoxContainer  # nút Đực / Cái cạnh tên mèo
 ## Món vừa bấm thử (giống hoặc phụ kiện), nút Mua mua món này.
 var _buy_id := ""
 ## Đồ mặc thử trên bục theo ô (chưa sở hữu, không mang vào màn chơi) và giống đang xem thử ("" = Bơ).
@@ -96,15 +97,24 @@ func _ready() -> void:
 	var name_card := PanelContainer.new()
 	name_card.add_theme_stylebox_override("panel", T.box(T.PAPER, 14, 14, T.INK, 3))
 	T.place(name_card, 0.0, 1.0, Rect2(28, -200, 444, 74))
+	var nrow := HBoxContainer.new()
+	nrow.add_theme_constant_override("separation", 10)
+	name_card.add_child(nrow)
 	var nc := VBoxContainer.new()
 	nc.add_theme_constant_override("separation", 0)
+	nc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_name = T.label("Bơ · mèo ta cam", 24, T.INK, "display")
 	_name.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	nc.add_child(_name)
 	_worn_label = T.label("", 14, T.MUTED, "bold")
 	_worn_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	nc.add_child(_worn_label)
-	name_card.add_child(nc)
+	nrow.add_child(nc)
+	# Đực / Cái: đổi miễn phí, mua giống một lần là có cả hai
+	_sex_box = HBoxContainer.new()
+	_sex_box.add_theme_constant_override("separation", 0)
+	_sex_box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	nrow.add_child(_sex_box)
 	add_child(name_card)
 
 	_slots = HBoxContainer.new()
@@ -250,6 +260,16 @@ func _lock_text(id: String, model: bool) -> String:
 	return "Khoá · " + (Shop.money(p) if p > 0 else "bấm để thử")
 
 
+func _pick_sex(s: String) -> void:
+	if s == Outfit.sex(_try_breed if _try_breed != "" else Outfit.breed()):
+		return
+	Outfit.choose_sex(s)
+	var want := _try_breed if _try_breed != "" else Outfit.breed()
+	var has_model := OutfitView.has_sex_model(want, s)
+	_note.text = ("Đã đổi sang mèo %s." % ("cái" if s == "cai" else "đực")) + ("" if has_model else " Bản mèo cái của giống này đang dựng trong Blender, tạm hiện dáng mèo đực.")
+	_refresh()
+
+
 func _breed(id: String) -> Array:
 	for b in Outfit.BREEDS:
 		if b[0] == id:
@@ -262,7 +282,17 @@ func _refresh() -> void:
 	var br := _breed(_try_breed if _try_breed != "" else Outfit.breed())
 	_name.text = "%s · %s%s" % [br[1], br[2].to_lower(), " · xem thử" if _try_breed != "" else ""]
 	var names := Outfit.worn_names()
-	var txt := "Đực · " + ("đang đeo: " + ", ".join(names) if names.size() > 0 else "chưa đeo gì")
+	var cur_sex := Outfit.sex(br[0])
+	for c in _sex_box.get_children():
+		c.queue_free()
+	for s in [["duc", "Đực"], ["cai", "Cái"]]:
+		var sb := T.button(s[1], "primary" if s[0] == cur_sex else "secondary", 44, 16)
+		sb.custom_minimum_size.x = 64
+		sb.alignment = HORIZONTAL_ALIGNMENT_CENTER
+		sb.tooltip_text = "Mèo %s · đổi miễn phí" % s[1].to_lower()
+		sb.pressed.connect(_pick_sex.bind(s[0]))
+		_sex_box.add_child(sb)
+	var txt := ("Cái · " if cur_sex == "cai" else "Đực · ") + ("đang đeo: " + ", ".join(names) if names.size() > 0 else "chưa đeo gì")
 	if not _try.is_empty():
 		var tried := PackedStringArray()
 		for slot in _try:
@@ -287,7 +317,7 @@ func _refresh() -> void:
 		_wish.text = "Bỏ để dành" if Shop.wished(_buy_id) else "Để dành"
 	if preview.cat:
 		var want := _try_breed if _try_breed != "" else Outfit.breed()
-		if preview.cat.breed != want:
+		if preview.cat.breed != want or preview.cat.sex != Outfit.sex(want):
 			preview.cat.set_breed(want, _shown())
 		else:
 			preview.cat.apply_outfit(_shown())

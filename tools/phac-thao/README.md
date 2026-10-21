@@ -24,3 +24,7 @@ python3 mature.py chung2 out q34,side,front,face --glb
 
 - `mature.py`: hai hướng chững chạc (`chung`, `thuc`) và bản duyệt `chung2` (mắt cười). Hướng dẫn phong cách: `docs/huong-dan-phong-cach.md`.
 - `cute.py`: ba bản dễ thương đã thử và bị loại (chibi, thú bông, hoạt hình tròn), giữ lại để tham khảo.
+
+## poly.py: Bơ bằng lưới đa giác (21/10/2026)
+Dựng theo 7 bước của ảnh tham khảo "How to Model a Cat in Blender": khối hộp bo tròn làm thân, đùn chân, UV sphere làm đầu, đùn tai, ống trụ cong làm đuôi, Subdivision, tô màu đỉnh, 3 đèn, Eevee. Không dùng SDF.
+Chạy: `python3 poly.py <outdir> q34,side,front,face --glb`. File kết quả và render: `/mnt/project-files/meo-3d/bo-poly/`.

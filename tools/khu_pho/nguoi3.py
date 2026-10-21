@@ -30,6 +30,21 @@ N.CHARS.update({
  'khachxeom': dict(name='Chị Thảo', role='Khách xe ôm của Chú Năm (đi làm buổi sáng)', h=1.58, build=dict(bw=.92, belly=.92, hip=1.0, legr=.95, armr=.9),
    skin='#E3AE88', hair=dict(style='ponytail', col='#2C1E18', helmet='#E58AA0'), top=dict(kind='shirt', col='#F4F1EA', sleeve='long'), bottom=dict(kind='pants', col='#2F3B57'),
    shoe='#5A3A2E', eye=('#A06A34', '#4A2A14'), extras=['earring'], pose={}),
+ 'cho4': dict(name='Cô Năm bán hàng', role='Người bán đứng sau sạp (khô, trái cây)', h=1.54, build=dict(bw=1.05, belly=1.15, hip=1.1, legr=1.0, armr=1.05),
+   skin='#C98C62', hair=dict(style='bun', col='#2A1D18'), top=dict(kind='tee', col='#2F4A6A', sleeve='long'), bottom=dict(kind='pants', col='#3A3F3A'),
+   shoe='#3E6B4A', apron='#2E2A28', eye=('#8A5A2E', '#3A2214'), extras=['apron', 'earring'], pose={}),
+ 'cho5': dict(name='Bé Thư', role='Học sinh đi chợ giúp mẹ', h=1.3, kid=True, build=dict(bw=.95, belly=.95, hip=.95, legr=1.0, armr=1.0),
+   skin='#EDBB95', hair=dict(style='pigtails', col='#2C1E18', tie='#5FB3B6'), top=dict(kind='shirt', col='#F7F5F0', sleeve='short'), bottom=dict(kind='skirt', col='#2F3B57'),
+   shoe='#E9E2D2', eye=('#A87038', '#4A2A14'), extras=[], pose={}),
+ 'cho6': dict(fem=False, name='Ông Út', role='Ông cụ đi chợ sớm', h=1.6, old=True, build=dict(bw=.9, belly=.95, hip=.95, legr=.9, armr=.9),
+   skin='#C99272', hair=dict(style='short', col='#EDEAE4', cap='#6B6A55'), top=dict(kind='shirt', col='#E7E0CF', sleeve='short', stripes='#C8412F'), bottom=dict(kind='shorts', col='#6B6A55'),
+   shoe='#7A5A3A', eye=('#8A5A36', '#3E2416'), extras=['glasses'], pose={}),
+ 'cho7': dict(name='Chị Mai', role='Người đi chợ, áo chống nắng', h=1.6, build=dict(bw=.95, belly=.95, hip=1.02, legr=.95, armr=.92),
+   skin='#E8B48E', hair=dict(style='ponytail', col='#3A2620', nonla=True), top=dict(kind='shirt', col='#E58AA0', sleeve='long', floral='#F6F1E6'), bottom=dict(kind='pants', col='#8C5A9A', floral='#F2C14E'),
+   shoe='#E9E2D2', eye=('#A06A34', '#4A2A14'), extras=['fannypack'], pose={}),
+ 'cho8': dict(fem=False, name='Chú Tám bán hàng', role='Người bán ngồi ghế đẩu sau sạp', h=1.64, build=dict(bw=1.05, belly=1.15, hip=1.0, legr=.95, armr=1.0),
+   skin='#C68A60', hair=dict(style='short', col='#2A1D18'), top=dict(kind='singlet', col='#E9C46A'), bottom=dict(kind='shorts', col='#4D6A8A'),
+   shoe='#2E2A28', eye=('#8A5A2E', '#3A2214'), extras=['towel'], pose={}),
  'xemco': dict(fem=False, name='Ông Chín xem cờ', role='Người đứng xem cờ', h=1.62, old=True, build=dict(bw=.95, belly=1.15, hip=1.0, legr=.92, armr=.92),
    skin='#C99272', hair=dict(style='short', col='#BEB8B0'), top=dict(kind='shirt', col='#C9B48A', sleeve='short'), bottom=dict(kind='pants', col='#5A4E44'),
    shoe='#7A5A3A', eye=('#8A5A36', '#3E2416'), extras=['glasses_round'], pose={}),
@@ -106,6 +121,19 @@ def DANG(key):
      'dicho2:dang': lambda: pose('dicho2', bend=0, nod=-.04, yaw=-.25, mouth='smile', aR=((-.27, 1.05, .0), (-.3, .8, .04), (1, 0, 0)), aL=((.27, 1.1, .1), (.13, 1.25, .2), (-1, 0, .3)), prop='tuinilon'),
      'dicho3:dang': lambda: pose('dicho3', bend=.04, nod=.08, yaw=.3, tilt=.06, mouth='smile', aR=((-.22, .96, .1), (-.1, .98, .26), (0, 1, 0)), aL=((.24, .96, -.02), (.27, .74, .02), (-1, 0, 0)), prop='rau'),
     }
+    D['cho8:dang'] = lambda: pose('cho8', sit=.4, bend=.1, nod=.05, yaw=.1, mouth='smile', aR=((-.26, .62, .12), (-.14, .56, .3), (0, -1, 0)), aL=((.26, .62, .12), (.14, .56, .3), (0, -1, 0)))
+    D['cho8:macca'] = lambda: pose('cho8', sit=.4, bend=.02, nod=-.02, yaw=.25, tilt=.06, mouth='open', brow=.6, aL=((.3, .72, .12), (.28, .86, .32), (-.3, 0, 1)), aR=((-.26, .62, .12), (-.14, .56, .3), (0, -1, 0)))
+    D['cho8:giatminh'] = lambda: pose('cho8', sit=.4, bend=-.14, nod=.3, mouth='o', brow=-1, aL=((.32, .74, .06), (.3, .92, .16), (0, 0, 1)), aR=((-.3, .7, .04), (-.34, .56, .12), (1, 0, 0)))
+    for cid in ('cho4', 'cho5', 'cho6', 'cho7'):
+        f = N.CHARS[cid]['h'] / 1.58; pr = dict(cho4=None, cho5='tuinilon', cho6='tuinilon', cho7='giocho')[cid]
+        D[cid + ':dang'] = (lambda cid, f, pr: lambda: pose(cid, bend=.06, nod=.02, yaw=.1, mouth='smile', legs=dict(L=((.43, .1), (.08, .2)), R=((.42, -.06), (.12, -.2))),
+            aR=((-.25 * f, .95 * f, .0), (-.28 * f, .72 * f, .04), (1, 0, 0)), aL=((.25 * f, .95 * f, .06), (.27 * f, .73 * f, .14), (-1, 0, 0)), prop=pr))(cid, f, pr)
+        D[cid + ':chon'] = (lambda cid, f, pr: lambda: pose(cid, bend=.3, nod=.35, yaw=-.1, mouth='o', aL=((.22 * f, .95 * f, .14), (.12 * f, .82 * f, .36), (0, -1, 0)),
+            aR=((-.25 * f, .95 * f, .0), (-.28 * f, .72 * f, .04), (1, 0, 0)), prop=pr))(cid, f, pr)
+        D[cid + ':macca'] = (lambda cid, f, pr: lambda: pose(cid, bend=.02, nod=-.02, yaw=.25, tilt=.08, mouth='open', brow=.6, aL=((.3 * f, 1.0 * f, .12), (.28 * f, 1.12 * f, .32), (-.3, 0, 1)),
+            aR=((-.25 * f, .95 * f, .0), (-.28 * f, .72 * f, .04), (1, 0, 0)), prop=pr))(cid, f, pr)
+        D[cid + ':giatminh'] = (lambda cid, f, pr: lambda: pose(cid, bend=-.14, nod=.3, yaw=0, mouth='o', brow=-1, aL=((.32 * f, 1.02 * f, .06), (.3 * f, 1.2 * f, .16), (0, 0, 1)),
+            aR=((-.3 * f, .98 * f, .04), (-.34 * f, .8 * f, .12), (1, 0, 0)), prop=pr))(cid, f, pr)
     return D[key]()
 
 # ---------------------------------------------------------------- đồ cầm tay (SDF, đi theo thân trên)

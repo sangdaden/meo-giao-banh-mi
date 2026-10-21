@@ -416,6 +416,7 @@ func _autotest_step() -> void:
 	_autotest_frames += 1
 	if _autotest_frames % 20 != 0:
 		return
+	rig.first_person = not rig.first_person  # thử đổi góc nhìn liên tục
 	var goal := _current_goal()
 	if player.carrying and ORDERS[order_index].get("boss", false) and not _bitten:
 		goal = dog.global_position + Vector3(0.3, 0, 0.3)

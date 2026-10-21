@@ -213,11 +213,8 @@ func begin(order_index: int) -> void:
 	_set_hud_eggs(EGGS)
 	_sfx("scale_clank", COUNTER_TOP)
 	_sfx("paper_slip", COUNTER_TOP)
-	# Chìa túi qua quầy rồi dặn dò (động tác đưa hàng riêng chờ phác thảo Thứ Ba được duyệt)
-	_co_hai.play_for("cho_banh", 0.9)
-	get_tree().create_timer(0.9).timeout.connect(func():
-		if is_instance_valid(_co_hai):
-			_co_hai.play_for("noi", 2.5))
+	# Chìa túi trứng qua quầy (dua_tui, trang phác thảo Thứ Ba) rồi dặn dò
+	_co_hai.play_once("dua_tui", "noi", 2.5)
 	_toast("Cô Hai: \"Trứng gà ta đó, cầm nhẹ tay nghen!\" Đừng nhảy từ trên cao, đừng va người.", 3.0, 1.8)
 
 

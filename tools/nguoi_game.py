@@ -24,6 +24,7 @@ import json
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'khu_pho'))
 import numpy as np
 import nguoi as N
+import nguoi3 as N3  # 7 người Thứ Ba (CHARS) và dáng DANG (trang "Chợ sáng Thứ Ba" Sang duyệt 21/10)
 from sdflib import v, hexc
 import bpy
 from mathutils import Vector, Matrix, Quaternion
@@ -43,13 +44,22 @@ ROLES = {
     'may':    dict(base='dung', tempo=1.05, energy=1.0, giao='may'),
     'hung':   dict(base='ngoi', seat=.28, tempo=1.0, energy=1.1, giao='hung'),
     'basau':  dict(base='ngoi', seat=.42, tempo=.75, energy=.7, giao='basau'),
-    'ongbay': dict(base='ngoi', seat=.28, tempo=.8, energy=.7),
-    'ongtam': dict(base='ngoi', seat=.28, tempo=.8, energy=.8),
+    # Hai ông ngồi ghế đá 0,32 m (hông ở 0,38 như DANG), Ông Tám tay trái cầm quạt mo
+    'ongbay': dict(base='ngoi', seat=.30, tempo=.8, energy=.7),
+    'ongtam': dict(base='ngoi', seat=.30, tempo=.8, energy=.8, fan='L'),
     'cohai':  dict(base='dung', tempo=1.0, energy=1.0),
     'chunam': dict(base='ngoi', seat=.45, tempo=.9, energy=.9),
+    # Người Thứ Ba (nguoi3.py)
+    'xemco':    dict(base='dung', tempo=.8, energy=.8),
+    'bancho':   dict(base='ngoi', seat=.18, tempo=1.0, energy=1.0),
+    'hangrong': dict(base='dung', tempo=1.0, energy=.9),
+    'ganhhang': dict(base='dung', tempo=1.05, energy=1.0),
+    'dicho1':   dict(base='dung', tempo=.8, energy=.8),
+    'dicho2':   dict(base='dung', tempo=1.1, energy=1.1),
+    'dicho3':   dict(base='dung', tempo=1.0, energy=1.0),
 }
 
-HEAD_PARTS = {'head', 'brow', 'hair', 'tie', 'must', 'goatee', 'cap', 'helmet', 'earring'}
+HEAD_PARTS = {'head', 'brow', 'hair', 'tie', 'must', 'goatee', 'cap', 'helmet', 'earring', 'nonla', 'quai'}
 ARM_PARTS = {'delt', 'arm', 'sleeve', 'hand', 'towel'}
 LEG_PARTS = {'leg', 'calf', 'pant', 'foot', 'sole', 'strap'}
 UPPER_PARTS = {'chest', 'belly'}
@@ -293,7 +303,35 @@ def build_person(cid):
         br.data.materials.append(M_THAN)
         paint(br, gcol)
         extras.append(br)
-    for o in extras:
+    # Quạt mo cầm tay (Ông Tám): nan quạt hình quạt bán kính 0,19 m quanh hướng bàn tay, cán gỗ
+    hand_extras = []
+    fan_side = ROLES.get(cid, {}).get('fan')
+    if fan_side:
+        sd = 1 if fan_side == 'L' else -1
+        _, el, wr, _ = G['arms'][sd]
+        s = G['s']
+        d = N.nrm(wr - el)
+        lat = N.nrm(np.cross(d, v(0, 0, 1)))
+        c0 = wr + d * .06 * s
+        pts = [c0] + [c0 + (d * math.cos(a) + lat * math.sin(a)) * .19 * s for a in np.linspace(-1, 1, 9)]
+        me_f = bpy.data.meshes.new('quat')
+        me_f.from_pydata([B(p) for p in pts], [], [(0, k, k + 1) for k in range(1, 9)])
+        fo = bpy.data.objects.new('quat', me_f)
+        scn.collection.objects.link(fo)
+        bpy.context.view_layer.objects.active = fo
+        sm = fo.modifiers.new('Day', 'SOLIDIFY')
+        sm.thickness = .005 * s
+        bpy.ops.object.modifier_apply(modifier=sm.name)
+        fo.data.materials.append(M_THAN)
+        paint(fo, lin4('#D8B47A'))
+        a_, b_ = wr - d * .03 * s, wr + d * .08 * s
+        bpy.ops.mesh.primitive_cylinder_add(vertices=6, radius=.008 * s, depth=float(np.linalg.norm(b_ - a_)), location=B((a_ + b_) / 2))
+        hd = bpy.context.active_object
+        hd.rotation_euler = (B(b_) - B(a_)).to_track_quat('Z', 'Y').to_euler()
+        hd.data.materials.append(M_THAN)
+        paint(hd, lin4('#8A5A30'))
+        hand_extras = [(fo, 'hand.' + fan_side), (hd, 'hand.' + fan_side)]
+    for o in extras + [h[0] for h in hand_extras]:
         bpy.context.view_layer.objects.active = o
         for oo in scn.objects:
             oo.select_set(oo is o)
@@ -328,6 +366,8 @@ def build_person(cid):
             groups[n].add([i], x, 'REPLACE')
     for o in extras:
         o.vertex_groups.new(name='head').add(list(range(len(o.data.vertices))), 1.0, 'REPLACE')
+    for o, bn in hand_extras:
+        o.vertex_groups.new(name=bn).add(list(range(len(o.data.vertices))), 1.0, 'REPLACE')
     for oo in scn.objects:
         oo.select_set(oo.type == 'MESH')
     bpy.context.view_layer.objects.active = body
@@ -710,7 +750,11 @@ def anim_walk(R, role):
 
 # ---- tư thế nhận bánh (GIAO trong nguoi.py) chuyển thành kênh xương
 def giao_pose(R, cid):
-    g = N.GIAO[cid]
+    return dang_pose(R, cid, N.GIAO[cid])
+
+
+def dang_pose(R, cid, g):
+    """Dáng phác (GIAO trong nguoi.py, DANG trong nguoi3.py) thành kênh xương: cúi, gật, quay đầu, hai tay."""
     G = R.G
     s = G['s']
     p = {}
@@ -913,6 +957,280 @@ def anim_call(R, role):
     return f
 
 
+# ---------------------------------------------------------------- Thứ Ba (dáng DANG trong nguoi3.py, trang Sang duyệt 21/10)
+def dp(R, cid, key):
+    return dang_pose(R, cid, N3.DANG(cid + ':' + key))
+
+
+def enter_hold(t, t_in, t_out, length, fade=.25):
+    """Hệ số 0..1: vào dáng trong t_in giây, giữ, rời dáng từ length - t_out."""
+    return smooth(t / t_in) * (1 - smooth((t - (length - t_out)) / t_out))
+
+
+def anim_chess(R, role, cid):
+    """Đánh cờ (3 s lặp): chống cằm nghĩ, với tay nhấc quân, đập xuống bàn ở 2,4 s ("cách"), về nghĩ."""
+    danh = dp(R, cid, 'danh')
+    fan = role.get('fan')
+    think = {
+        'spine': {'fw': 10}, 'chest': {'fw': 8}, 'head': {'fw': 12},
+        'upperarm.R': {'aim': (.2, -.45, .85), 'aim_ref': 'chest'},
+        'forearm.R': {'aim': (-.45, 1, .45), 'aim_ref': 'chest'}, 'hand.R': {'fw': -25},
+    }
+    if not fan:
+        think['upperarm.L'] = {'aim': (.15, -.9, .5), 'aim_ref': 'chest'}
+        think['forearm.L'] = {'aim': (-.3, -.35, 1), 'aim_ref': 'chest'}
+
+    def f(t):
+        b = base(t, R, role)
+        th = add(b, danh, think)
+        mv = add(b, danh)
+        if t < 1.2:
+            p = th
+        elif t < 1.9:
+            p = mix(th, mv, smooth((t - 1.2) / .5))
+        elif t < 2.4:
+            lift = smooth((t - 1.9) / .3) * (1 - smooth((t - 2.25) / .15))
+            p = add(mv, {'forearm.R': {'fw': -14 * lift}, 'hand.R': {'fw': -10 * lift}})
+        else:
+            p = mix(mv, th, smooth((t - 2.5) / .5))
+        if fan:
+            fl = osc(t, .7)
+            p = add(p, {'hand.' + fan: {'out': fl * 22}, 'forearm.' + fan: {'tw': fl * 10}})
+        return p
+    return f
+
+
+def anim_dang_once(R, role, cid, key, length, t_in=.25, t_out=.3, extra=None):
+    """Clip một lần: vào dáng phác, giữ (có cử động phụ extra(t)), rời về dáng nền."""
+    g = dp(R, cid, key)
+
+    def f(t):
+        b = base(t, R, role)
+        k = enter_hold(t, t_in, t_out, length)
+        p = mix(b, add(b, g), k)
+        if extra:
+            p = add(p, extra(t, k))
+        return p
+    return f
+
+
+def chess_clips(R, role, cid):
+    fan = role.get('fan')
+    shake = lambda t, k: {'forearm.R': {'fw': osc(t, .16) * 8 * k}, 'hand.R': {'out': osc(t, .16, .2) * 10 * k}}  # noqa: E731
+    if fan:  # Ông Tám mắng: phẩy quạt trên cao
+        shake = lambda t, k: {'hand.L': {'out': osc(t, .22) * 30 * k}, 'forearm.L': {'tw': osc(t, .22) * 12 * k}}  # noqa: E731
+    bob = lambda t, k: {'hips': {'pos': (0, 0, 0)}, 'chest': {'fw': -abs(osc(t, .5)) * 5 * k},  # noqa: E731
+                        'hand.L': {'out': osc(t, .25) * 25 * k}, 'hand.R': {'out': -osc(t, .25) * 25 * k}, 'head': {'fw': -abs(osc(t, .5)) * 6 * k}}
+    hush = lambda t, k: {'head': {'fw': osc(t, .5) * 2 * k}}  # noqa: E731
+    return [('suyt', 1.0, anim_dang_once(R, role, cid, 'suyt', 1.0, .2, .2, hush)),
+            ('mang', 1.5, anim_dang_once(R, role, cid, 'mang', 1.5, .2, .3, shake)),
+            ('reo', 2.0, anim_dang_once(R, role, cid, 'reo', 2.0, .25, .35, bob))]
+
+
+def bike_legs(R):
+    """Chú Năm tựa yên xe cao 0,93 m (hông 0,86), hai chân chống xuống đất (knee, ankle trong DANG chunam:choxe)."""
+    g = N3.DANG('chunam:choxe')
+    s = R.G['s']
+    hip = R.head['thigh.L']
+    p = {'hips': {'pos': (0, -(hip.z - g['sit']), -.04 * s)}}
+    kx = g.get('kx', .12) * s
+    knee = Vector((kx, g['knee'][0], g['knee'][1]))     # (trái, lên, trước)
+    ank = Vector((kx * 1.05, g['ankle'][0], g['ankle'][1]))
+    h = Vector((abs(hip.x), g['sit'], .04 * s))
+    for sd in 'LR':
+        p['thigh.' + sd] = {'aim': tuple(knee - h), 'aim_ref': 'world'}
+        p['shin.' + sd] = {'aim': tuple(ank - knee), 'aim_ref': 'world'}
+        p['foot.' + sd] = {'aim': (0, -.2, 1), 'aim_ref': 'world'}
+    return p
+
+
+def anim_bike_wait(R, role, cid):
+    """Chờ khách (4 s lặp): tựa yên, tay trên đùi, ngó ra đường; cuối chu kỳ giơ tay mời "xe ôm không?"."""
+    legs = bike_legs(R)
+    g = dp(R, cid, 'choxe')
+
+    def f(t):
+        br = osc(t, 3.6)
+        look = osc(t, 4.0) * 25
+        call = smooth((t - 2.6) / .3) * (1 - smooth((t - 3.6) / .3))
+        p = add(legs, g, {
+            'spine': {'fw': br * .8}, 'chest': {'fw': br * 1.5},
+            'head': {'tw': look, 'fw': osc(t, 2.0, .3) * 3},
+        })
+        if call > 0:
+            raise_r = {'clav.R': {'up': 12}, 'upperarm.R': {'aim': (.8, .45, .35), 'aim_ref': 'chest'},
+                       'forearm.R': {'aim': (.2, 1, .25), 'aim_ref': 'chest'}}
+            p = add(mix(p, add(p, raise_r), call), {'hand.R': {'out': osc(t, .4) * 25 * call}})
+        return p
+    return f
+
+
+def anim_bike_receive(R, role, cid):
+    """Nhận bánh từ baga (1,2 s): xoay người sang phải về phía baga, chìa tay phải ra sau, cầm bánh về trước ngực."""
+    legs = bike_legs(R)
+    g = dp(R, cid, 'choxe')
+    reach = {'chest': {'tw': -35}, 'neck': {'tw': -15}, 'head': {'tw': -30, 'fw': 10},
+             'upperarm.R': {'aim': (.75, -.15, -.6), 'aim_ref': 'world'},
+             'forearm.R': {'aim': (.5, .1, -.85), 'aim_ref': 'world'}, 'hand.R': {'fw': 15}}
+    hold = {'upperarm.R': {'aim': (.15, -1, .3), 'aim_ref': 'chest'}, 'forearm.R': {'aim': (-.6, .3, 1), 'aim_ref': 'chest'}, 'head': {'fw': 8}}
+
+    def f(t):
+        b = add(legs, g)
+        if t < .5:
+            return mix(b, add(b, reach), smooth(t / .4))
+        if t < .8:
+            return add(b, reach)
+        return mix(add(b, reach), add(b, hold), smooth((t - .8) / .35))
+    return f
+
+
+def anim_bike_ride(R, role, cid):
+    """Chở khách (2 s lặp): quay người theo xe, ngồi giữa yên, hai tay cầm lái, xe xóc nhẹ."""
+    g = N3.DANG('chunam:choxe')
+    s = R.G['s']
+    hip = R.head['thigh.L']
+
+    def f(t):
+        bump = osc(t, .5) * .006 + osc(t, 1.3, .3) * .004
+        return {
+            'hips': {'pos': (0, -(hip.z - g['sit'] - .02) + bump, 0), 'tw': 90},
+            'spine': {'fw': 10}, 'chest': {'fw': 6 + osc(t, 2.0) * 2},
+            'neck': {'fw': -2}, 'head': {'fw': -6, 'tw': osc(t, 2.0, .4) * 8},
+            'thigh.L': {'aim': (.35, -.12, 1), 'aim_ref': 'hips'}, 'thigh.R': {'aim': (.35, -.12, 1), 'aim_ref': 'hips'},
+            'shin.L': {'aim': (.05, -1, -.1), 'aim_ref': 'hips'}, 'shin.R': {'aim': (.05, -1, -.1), 'aim_ref': 'hips'},
+            'foot.L': {'aim': (0, -.2, 1), 'aim_ref': 'hips'}, 'foot.R': {'aim': (0, -.2, 1), 'aim_ref': 'hips'},
+            'upperarm.L': {'aim': (.3, -.4, 1), 'aim_ref': 'chest'}, 'upperarm.R': {'aim': (.3, -.4, 1), 'aim_ref': 'chest'},
+            'forearm.L': {'aim': (.05, -.15, 1), 'aim_ref': 'chest'}, 'forearm.R': {'aim': (.05, -.15, 1), 'aim_ref': 'chest'},
+            'hand.L': {'fw': 10}, 'hand.R': {'fw': 10},
+        }
+    return f
+
+
+def anim_watch(R, role, cid):
+    """Đứng xem cờ (4 s lặp): chắp tay sau lưng (Ông Chín) hoặc khoanh tay, nghiêng người nhìn bàn, gật gù."""
+    g = dp(R, cid, 'dang') if cid == 'xemco' else {
+        'spine': {'fw': 6}, 'chest': {'fw': 6}, 'head': {'fw': 16},
+        'upperarm.L': {'aim': (.15, -1, .35), 'aim_ref': 'chest'}, 'forearm.L': {'aim': (-.7, .1, 1), 'aim_ref': 'chest'},
+        'upperarm.R': {'aim': (.15, -1, .3), 'aim_ref': 'chest'}, 'forearm.R': {'aim': (-.7, .2, 1), 'aim_ref': 'chest'}}
+
+    def f(t):
+        nod = max(0.0, osc(t, 1.0)) * smooth((t - 2.2) / .2) * (1 - smooth((t - 3.4) / .2))
+        return add(base(t, R, role), g, {'head': {'fw': nod * 8, 'tw': osc(t, 4.0) * 6}, 'spine': {'out': osc(t, 4.0, .25) * 2}})
+    return f
+
+
+def anim_watch_cheer(R, role, cid):
+    """Reo khi chiếu tướng (2 s): giơ tay phải vẫy, người nhún."""
+    if cid == 'xemco':
+        return anim_dang_once(R, role, cid, 'reo', 2.0, .25, .35, lambda t, k: {'hand.R': {'out': osc(t, .3) * 25 * k}, 'hips': {'pos': (0, abs(osc(t, .5)) * .012 * k, 0)}})
+    up = {'upperarm.R': {'aim': (.4, 1, .15), 'aim_ref': 'world'}, 'forearm.R': {'aim': (.15, 1, .1), 'aim_ref': 'world'}, 'head': {'fw': -6}}
+
+    def f(t):
+        b = base(t, R, role)
+        k = enter_hold(t, .25, .35, 2.0)
+        return add(mix(b, add(b, up), k), {'hand.R': {'out': osc(t, .3) * 25 * k}, 'hips': {'pos': (0, abs(osc(t, .5)) * .012 * k, 0)}})
+    return f
+
+
+def anim_sell(R, role, cid):
+    """Cô Tư bán rau (3 s lặp): ngồi thấp, giơ bó rau lên mời, ngó qua lại rao hàng."""
+    g = dp(R, cid, 'dang')
+
+    def f(t):
+        lift = max(0.0, osc(t, 3.0))
+        return add(base(t, R, role), g, {'forearm.L': {'fw': -lift * 12}, 'forearm.R': {'fw': -lift * 12},
+                                          'head': {'tw': osc(t, 3.0, .25) * 25, 'fw': -lift * 6}, 'chest': {'tw': osc(t, 3.0, .25) * 6}})
+    return f
+
+
+def anim_push(R, role, cid):
+    """Chú Sáu đẩy xe bắp (1 s lặp, game đẩy người đi 1 m/s): bước đi, hai tay nắm tay đẩy trước bụng."""
+    walk = anim_walk(R, dict(role, tempo=1.05))
+    g = dp(R, cid, 'dang')
+    arms = {k: val for k, val in g.items() if k.startswith(('upperarm', 'forearm', 'hand'))}
+
+    def f(t):
+        return add(walk(t), {'spine': {'fw': 6}, 'chest': {'fw': 4}}, arms)
+    return f
+
+
+def anim_fan_coal(R, role, cid):
+    """Chú Sáu đứng quạt than (3 s lặp): tay phải phẩy xuống bếp than trên xe, tay trái chống hông."""
+    def f(t):
+        fl = osc(t, .45)
+        return add(base(t, R, role), {
+            'spine': {'fw': 10}, 'chest': {'fw': 6}, 'head': {'fw': 14, 'tw': osc(t, 3.0) * 10},
+            'upperarm.R': {'aim': (.25, -.6, .8), 'aim_ref': 'chest'}, 'forearm.R': {'aim': (.1, -.45 + fl * .25, 1), 'aim_ref': 'chest'},
+            'hand.R': {'up': fl * 25},
+            'upperarm.L': {'aim': (.8, -.6, -.1), 'aim_ref': 'chest'}, 'forearm.L': {'aim': (-.6, -.1, .4), 'aim_ref': 'chest'},
+        })
+    return f
+
+
+def anim_carry_pole(R, role, cid):
+    """Cô Bảy gánh (0,9 s lặp): bước nhanh, tay phải giữ đòn gánh trên vai, đòn nhún theo bước."""
+    walk = anim_walk(R, dict(role, tempo=1.15))
+    g = dp(R, cid, 'dang')
+    arm = {k: val for k, val in g.items() if k.endswith('.R') and k.startswith(('upperarm', 'forearm', 'hand'))}
+
+    def f(t):
+        return add(walk(t), arm, {'clav.R': {'up': -4 + abs(osc(t, .9 / 1.15)) * 3}, 'chest': {'out': 3}, 'neck': {'out': -3}})
+    return f
+
+
+def anim_shop(R, role, cid):
+    """Người đi chợ đứng lựa hàng (4 s lặp): cúi nhìn, tay phải lật lựa, thỉnh thoảng ngẩng lên."""
+    def f(t):
+        pick = osc(t, 1.3)
+        up = smooth((t - 3.0) / .3) * (1 - smooth((t - 3.7) / .3))
+        return add(base(t, R, role), {
+            'spine': {'fw': 16 * (1 - up)}, 'chest': {'fw': 10 * (1 - up)}, 'head': {'fw': 20 * (1 - up), 'tw': up * 15},
+            'upperarm.R': {'aim': (.1, -.6 - pick * .1, .8), 'aim_ref': 'chest'}, 'forearm.R': {'aim': (-.2, -.7 + pick * .2, 1), 'aim_ref': 'chest'},
+            'hand.R': {'fw': pick * 20},
+        })
+    return f
+
+
+def anim_startle(R, role, cid):
+    """Bị Bơ va (0,6 s): giật mình, ngửa người, tay hất lên, cúi nhìn xuống chân."""
+    def f(t):
+        k = smooth(t / .12) * (1 - smooth((t - .35) / .25))
+        look = smooth((t - .15) / .2)
+        return add(base(t, R, role), {
+            'hips': {'pos': (0, .01 * k, -.02 * k)}, 'spine': {'fw': -6 * k}, 'chest': {'fw': -6 * k},
+            'head': {'fw': 25 * look - 10 * k},
+            'upperarm.L': {'out': 30 * k, 'fw': 20 * k}, 'upperarm.R': {'out': 30 * k, 'fw': 20 * k},
+            'forearm.L': {'fw': 50 * k}, 'forearm.R': {'fw': 50 * k},
+            'thigh.L': {'fw': 6 * k}, 'shin.L': {'fw': -12 * k},
+        })
+    return f
+
+
+def thu_ba_clips(R, role, cid):
+    """[(tên, giây, hàm, lặp)] riêng của từng người cho Thứ Ba."""
+    if cid in ('ongbay', 'ongtam'):
+        return [(n, sec, fn, False) for n, sec, fn in chess_clips(R, role, cid)]
+    if cid == 'cohai':
+        return [('dua_tui', 1.4, anim_dang_once(R, role, cid, 'duatui', 1.4, .45, .4), False)]
+    if cid == 'chunam':
+        return [('cho_khach', 4.0, anim_bike_wait(R, role, cid), True),
+                ('nhan_xe', 1.2, anim_bike_receive(R, role, cid), False),
+                ('cho_di', 2.0, anim_bike_ride(R, role, cid), True)]
+    if cid in ('xemco', 'dicho1', 'dicho2', 'dicho3'):
+        out = [('xem', 4.0, anim_watch(R, role, cid), True), ('reo', 2.0, anim_watch_cheer(R, role, cid), False)]
+        if cid != 'xemco':
+            out += [('dung_chon', 4.0, anim_shop(R, role, cid), True), ('va', .6, anim_startle(R, role, cid), False)]
+        return out
+    if cid == 'bancho':
+        return [('ngoi_rao', 3.0, anim_sell(R, role, cid), True)]
+    if cid == 'hangrong':
+        return [('day_xe', 1.0, anim_push(R, role, cid), True), ('quat_than', 3.0, anim_fan_coal(R, role, cid), True),
+                ('va', .6, anim_startle(R, role, cid), False)]
+    if cid == 'ganhhang':
+        return [('ganh_di', .9, anim_carry_pole(R, role, cid), True), ('va', .6, anim_startle(R, role, cid), False)]
+    return []
+
+
 def build_anims(info, cid):
     R = Rig(info)
     R.c = info['c']
@@ -928,8 +1246,13 @@ def build_anims(info, cid):
     R.keyframe('nhan_banh', L(2.6 / tp), anim_receive(R, role, cid), loop=False)
     if role['base'] == 'dung':
         R.keyframe('di_bo', L(1.05 / tp), anim_walk(R, role))
-    fn, sec = anim_special(R, role, cid)
+    if cid in ('ongbay', 'ongtam'):
+        fn, sec = anim_chess(R, role, cid), 3.0  # đánh cờ theo dáng "đi cờ" đã duyệt
+    else:
+        fn, sec = anim_special(R, role, cid)
     R.keyframe('viec_rieng', L(sec), fn)
+    for name, sec, fn, loop in thu_ba_clips(R, role, cid):
+        R.keyframe(name, L(sec), fn, loop=loop)
     if cid == 'bena':
         R.keyframe('keo_day', L(1.6 / tp), anim_rope(R, role))
     if cid == 'basau':

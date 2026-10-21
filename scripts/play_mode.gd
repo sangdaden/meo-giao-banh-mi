@@ -55,6 +55,13 @@ static func back_to_menu(tree: SceneTree) -> void:
 	tree.change_scene_to_file(MENU_SCENE)
 
 
+## Về thẳng trang chủ (menu Esc > Về trang chủ), không mở màn Chọn màn.
+static func go_home(tree: SceneTree) -> void:
+	back_to_select = false
+	tree.paused = false
+	tree.change_scene_to_file(MENU_SCENE)
+
+
 ## Chơi xong bếp có đi giao tiếp không (chế độ "chỉ bếp" thì không).
 static func kitchen_only() -> bool:
 	return mode == Mode.KITCHEN

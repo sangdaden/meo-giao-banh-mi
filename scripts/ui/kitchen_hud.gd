@@ -66,7 +66,7 @@ func _ready() -> void:
 	tickets_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	root.add_child(tickets_row)
 
-	var pause := T.icon_button("pause", "Tạm dừng (Esc)")
+	var pause := T.icon_button("pause", "Menu (Esc)")
 	pause.focus_mode = Control.FOCUS_NONE
 	T.place(pause, 1.0, 0.0, Rect2(-80, 24, 56, 56))
 	pause.pressed.connect(func(): pause_pressed.emit())

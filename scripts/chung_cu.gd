@@ -35,6 +35,7 @@ const ORDER := {"who": "Bé Na", "place": "Chung cư, căn 5B-1", "item": "2 ổ
 	"side_quest": "em_be_ngu_yen"}
 const START := Vector3(9.0, 0.1, 5.0)
 const DOOR := Vector3(0.85, 12.0, -1.2)      ## chỗ đứng gõ cửa 5B-1
+const STAIR_GATE := Vector3((TX0 + TX1) / 2.0, 1.2, 0.3)  ## cổng LÔ B, mũi tên chỉ tới đây trước
 const BABY := Vector3(14.7, 6.6, -1.0)       ## võng em bé ở hành lang tầng 3 trước cửa 3B-4
 
 ## Đường ngoài tường hông tây (mặt x = 0): [tên, z0, z1, mặt trên, kiểu]. Bậc nhảy ≤ 1,2 m, bám mép 1,4–2,1 m.
@@ -56,6 +57,7 @@ const FLOOR := Color("#E6DCC4")
 const IRON := Color("#2B2F33")
 const AC := Color("#E4E7E2")
 const STEP := Color("#C9C3B3")
+const GUIDE := Color("#F6C945")  ## chữ/mũi tên chỉ đường
 const RAIL := Color(0.17, 0.18, 0.2, 0.45)  ## lan can song sắt: nhìn xuyên được
 
 enum Lift { IDLE, COMING, OPEN_GROUND, CLOSING, RIDING, STUCK, OPEN_TOP }
@@ -102,6 +104,7 @@ var _rattle_t := 0.0
 var _rattle_body: Node3D
 var _rng := RandomNumberGenerator.new()
 var _autotest := false
+var _hints_shown := {}            ## gợi ý theo chỗ: mỗi cái hiện một lần
 
 
 func _ready() -> void:
@@ -122,6 +125,12 @@ func _ready() -> void:
 	player.name = "Bo"
 	player.position = START
 	player.climb_moves = true
+	# Thong thả (DoKho): với mép xa hơn, đạp tường 4 lần, khe rộng tới 2 m, leo ống nhanh
+	player.ledge_reach = DoKho.v("ledge_reach", player.ledge_reach)
+	player.wall_kick_max = DoKho.v("wall_kick_max", player.wall_kick_max)
+	player.wall_gap_max = DoKho.v("wall_gap_max", player.wall_gap_max)
+	player.pipe_speed = DoKho.v("pipe_speed", player.pipe_speed)
+	player.ledge_grabbed.connect(func(): _hint("bam", "Đang bám mép: Space để leo lên, S để buông.", 3.0))
 	add_child(player)
 	rig = CameraRigScript.new()
 	rig.name = "CameraRig"
@@ -167,7 +176,7 @@ func _start() -> void:
 	hud.progress_row.visible = false  # cảnh một đơn: không cần dãy 5 ổ bánh của Thứ Hai
 	hud.set_bread(true, ORDER.item, 1.0)
 	hud.set_goal(DOOR + Vector3(0, 0.6, 0))
-	hud.show_toast("Lên căn 5B-1 tầng 5: cầu thang, thang máy hay leo ngoài tường?", 4.0)
+	hud.show_toast("Lên căn 5B-1 tầng 5. Dễ nhất: cầu thang ở cổng LÔ B bên phải, đi theo mũi tên vàng.", 5.0)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -194,8 +203,17 @@ func _physics_process(delta: float) -> void:
 		late = true
 		hud.show_toast("Trễ rồi! Bé Na vẫn nhận bánh nhưng chỉ được 1 sao.", 2.5)
 	hud.set_timer(time_left, time_limit, true)
-	hud.set_distance(player.global_position.distance_to(DOOR), "Căn 5B-1")
+	# Mũi tên đích: còn ở tầng trệt ngoài hẻm thì chỉ cổng cầu thang (đường dễ nhất), lên cao rồi mới chỉ cửa 5B-1
+	var pp := player.global_position
+	if pp.y < 1.0 and pp.z > -0.3 and pp.x > 0.0 and not _cabin_zone.overlaps_body(player):
+		hud.set_goal(STAIR_GATE)
+		hud.set_distance(pp.distance_to(STAIR_GATE), "Cầu thang")
+	else:
+		hud.set_goal(DOOR + Vector3(0, 0.6, 0))
+		hud.set_distance(pp.distance_to(DOOR), "Căn 5B-1")
 	hud.set_bread(true, ORDER.item, clampf(1.0 - _clock / 60.0, 0.0, 1.0))
+	_stair_camera(delta)
+	_zone_hints()
 	# Rơi từ cao hơn 3 m thì bánh bẹp (mất sao nguyên vẹn), như màn giao Thứ Hai
 	var on_floor: bool = player.is_on_floor() or player.climb != ""
 	if on_floor and not _was_on_floor:
@@ -210,6 +228,62 @@ func _physics_process(delta: float) -> void:
 	# Ở cạnh cửa 5B-1: nhắc gõ cửa
 	if _door_zone.overlaps_body(player) and player._act == "":
 		hud.show_toast("Bấm E để gõ cửa", 0.3)
+
+
+## Trong lồng cầu thang hẹp camera sau lưng hay bị tường ép sát hoặc quay ngược lúc vòng chiếu nghỉ.
+## Ở đây camera tự nhìn thẳng vào từ phía cổng (hướng bắc, nhìn xuyên gạch bông gió) và hơi cao,
+## nên vế đi lên là phím W, vế quay về là phím S, không phải xoay chuột.
+func _in_stairwell() -> bool:
+	var p := player.global_position
+	return p.x > TX0 and p.x < TX1 and p.z < -0.2 and p.z > TOWER_BACK and p.y < FLOORS * FLOOR_H - 0.5
+
+
+func _stair_camera(delta: float) -> void:
+	if not _in_stairwell():
+		return
+	if not rig.first_person:
+		var k := 1.0 - exp(-6.0 * delta)
+		rig.yaw = lerp_angle(rig.yaw, 0.0, k)
+		# Vế B đi về phía camera, dốc lên: camera nhìn cao hơn để vượt qua sàn hành lang tầng trên
+		var on_b := player.global_position.x > TX0 + 1.3 and player.global_position.z > -4.1 and player.global_position.z < -1.7
+		rig.pitch = lerpf(rig.pitch, -0.35 if on_b else -0.12, k)
+	# Dắt sang vế kia: trên chiếu nghỉ giữ S thì trượt sang phải tới đầu vế B;
+	# ở sảnh tầng giữ W thì trượt sang trái tới chân vế A (khỏi phải tự canh vòng chữ U)
+	var p := player.global_position
+	var back := Input.is_action_pressed("move_back")
+	var fwd := Input.is_action_pressed("move_forward")
+	var mid := TX0 + 1.3
+	var nudge := 0.0
+	if back and p.z < -4.2 and p.x < mid + 0.35 and player.is_on_floor():
+		nudge = 1.0
+	elif fwd and p.z > -1.9 and p.x > mid - 0.35 and player.is_on_floor() and p.y < (FLOORS - 1) * FLOOR_H - 0.5:
+		nudge = -1.0
+	if nudge != 0.0:
+		# Trượt ngang và giữ nguyên chỗ theo chiều dọc cho tới khi sang hẳn vế kia (khỏi lỡ đi ngược xuống vế cũ)
+		# và lùi nhẹ khỏi đầu vách giữa hai vế (chiếu nghỉ lùi về bắc, sảnh lùi về nam)
+		player.move_and_collide(Vector3(nudge * 6.0 * delta, 0.0, (-player.velocity.z - nudge * 1.5) * delta))
+
+
+## Gợi ý ngắn khi Bơ tới từng chỗ lần đầu.
+func _hint(id: String, text: String, secs := 3.0) -> void:
+	if _hints_shown.has(id) or not playing:
+		return
+	_hints_shown[id] = true
+	hud.show_toast(text, secs)
+
+
+func _zone_hints() -> void:
+	var p := player.global_position
+	if _in_stairwell() and p.y < 1.0:
+		_hint("thang", "Cầu thang: giữ W đi lên. Tới chiếu nghỉ thì giữ S, Bơ tự sang vế bên kia.", 4.0)
+	elif _in_stairwell() and absf(p.y - (FLOOR_H + FLOOR_H / 2.0)) < 0.4:
+		_hint("gia_phoi", "Giá phơi đồ chắn lối: cứ đi thẳng vào, Bơ tự cúi người chui qua.", 3.0)
+	elif _in_stairwell() and p.y > FLOOR_H + 2.0 and p.y < FLOOR_H * 3.0:
+		_hint("em_be", "Em bé ngủ ở hành lang tầng 3: đừng chạy nhanh (Shift) kẻo bé thức.", 3.5)
+	if _call_zone.overlaps_body(player):
+		_hint("thang_may", "Bấm E gọi thang máy rồi đợi cửa mở.", 3.0)
+	if p.x < 0.0 and p.y < 1.0:
+		_hint("tuong", "Khe hẹp giữa hai nhà: nhảy rồi bấm Space liên tục để bật tường lên mái nhà bên.", 4.0)
 
 
 ## Phím E: gõ cửa 5B-1, hoặc bấm gọi thang máy ở tầng trệt.
@@ -254,14 +328,15 @@ func _on_delivered(_kind: String) -> void:
 
 ## Tiếng Bơ (bước chân, đáp đất, đạp tường) tới võng thì em bé trở mình; trở mình mà nghe tiếng nữa thì thức.
 func _on_noise(pos: Vector3, radius: float) -> void:
-	if pos.distance_to(BABY) > radius:
+	# Thong thả: bước đi thường không làm bé trở mình, chỉ tiếng to (chạy nhanh, đáp đất mạnh, va chạm)
+	if radius < float(DoKho.v("baby_min_noise", 0.0)) or pos.distance_to(BABY) > radius:
 		return
 	match baby:
 		Baby.SLEEP:
 			baby = Baby.STIR
 			_baby_t = 0.0
 			if playing:
-				hud.show_toast("Suỵt! Em bé trở mình, rón rén (Alt) thôi!", 2.0)
+				hud.show_toast("Suỵt! Em bé trở mình, đi chậm lại (thả Shift) thôi!", 2.0)
 		Baby.STIR:
 			if _baby_t > 0.4:  # cùng một bước chân không tính hai lần
 				_wake_baby()
@@ -301,15 +376,15 @@ func _update_baby(delta: float) -> void:
 
 # ---------------------------------------------------------------- thang máy
 
-## Bấm nút gọi ở tầng trệt. Cabin đang ở tầng 5, xuống mất 4–10 s (kể cả lúc dừng đón người tầng khác).
+## Bấm nút gọi ở tầng trệt. Cabin đang ở tầng 5, xuống mất 4–10 s (Thong thả 2–5 s) (kể cả lúc dừng đón người tầng khác).
 func call_lift() -> void:
 	if lift != Lift.IDLE:
 		return
 	lift = Lift.COMING
 	_lift_t = 0.0
-	_lift_wait = _rng.randf_range(4.0, 10.0)
-	_lift_blocked = _rng.randf() < 0.3
-	_lift_will_stick = _rng.randf() < 0.2
+	_lift_wait = _rng.randf_range(DoKho.v("lift_wait_min", 4.0), DoKho.v("lift_wait_max", 10.0))
+	_lift_blocked = _rng.randf() < float(DoKho.v("lift_block_chance", 0.3))
+	_lift_will_stick = _rng.randf() < float(DoKho.v("lift_stuck_chance", 0.2))
 	_lift_stuck_done = false
 	if playing:
 		hud.show_toast("Đã gọi thang máy... đợi chút.", 1.5)
@@ -329,8 +404,8 @@ func _update_lift(delta: float) -> void:
 				_ong_bay.position = Vector3((SHAFT_X0 + SHAFT_X1) / 2.0, 0.6, -0.9)
 		Lift.OPEN_GROUND:
 			if _lift_blocked:
-				# Ông Bảy xách lồng chim bước ra chậm rãi, đứng chắn cửa 2,5 s
-				var u := clampf(_lift_t / 2.5, 0.0, 1.0)
+				# Ông Bảy xách lồng chim bước ra chậm rãi, đứng chắn cửa 2,5 s (Thong thả 1,5 s)
+				var u := clampf(_lift_t / float(DoKho.v("lift_block_time", 2.5)), 0.0, 1.0)
 				_ong_bay.position.x = lerpf((SHAFT_X0 + SHAFT_X1) / 2.0, TX1 - 0.9, u)
 				if u >= 1.0:
 					_lift_blocked = false
@@ -356,7 +431,7 @@ func _update_lift(delta: float) -> void:
 				_lift_t = 0.0
 		Lift.STUCK:
 			_cabin.position.x = (SHAFT_X0 + SHAFT_X1) / 2.0 + sin(_lift_t * 40.0) * 0.01
-			if _lift_t > 3.0:
+			if _lift_t > float(DoKho.v("lift_stuck_time", 3.0)):
 				_cabin.position.x = (SHAFT_X0 + SHAFT_X1) / 2.0
 				lift = Lift.RIDING
 		Lift.OPEN_TOP:
@@ -384,7 +459,7 @@ func _update_rattle(delta: float) -> void:
 	_rattle_body.position.x = -0.3 + (sin(Time.get_ticks_msec() * 0.08) * 0.015 if _rattle_t > 0.6 else 0.0)
 	if on and _rattle_t > 0.6 and _rattle_t - delta <= 0.6 and playing:
 		hud.show_toast("Cục nóng rung bần bật, nhảy tiếp đi!", 1.5)
-	if on and _rattle_t > 1.4:
+	if on and _rattle_t > float(DoKho.v("rattle_throw", 1.4)):
 		player.velocity = Vector3(-3.0, 3.0, 0.0)  # bị hất văng ra ngoài
 		player.play_startle()
 		_rattle_t = 0.0
@@ -495,8 +570,12 @@ func _build_tower() -> void:
 	Blocks.solid_box(self, Vector3(1.6, h - 2.4, 0.15), Vector3(cx, 2.4 + (h - 2.4) / 2.0, 0.075), lattice, Blocks.LAYER_PROP)
 	Blocks.box(self, Vector3(2.0, 0.2, 0.6), Vector3(cx, 2.5, 0.3), FLOOR)
 	Blocks.label(self, "LÔ B · CẦU THANG", Vector3(cx, 2.9, 0.4), 30, Color("#8A3A2A"))
+	Blocks.label(self, "▼ CẦU THANG", Vector3(cx, 3.6, 0.8), 56, GUIDE)
+	for f in range(1, FLOORS):
+		Blocks.label(self, "Tầng %d" % (f + 1), Vector3(cx, f * FLOOR_H + 1.9, -0.6), 34, GUIDE)
+	Blocks.label(self, "◀ căn 5B-1", Vector3(TX0 - 1.0, (FLOORS - 1) * FLOOR_H + 1.2, -0.8), 34, GUIDE)
 	# Vách giữa hai vế thang (không nhảy tắt từ vế này sang vế kia)
-	Blocks.solid_box(self, Vector3(0.1, FLOORS * FLOOR_H, 2.4), Vector3(TX0 + 1.3, FLOORS * FLOOR_H / 2.0, -2.9), WALL2)
+	Blocks.solid_box(self, Vector3(0.1, FLOORS * FLOOR_H, 2.4), Vector3(TX0 + 1.3, FLOORS * FLOOR_H / 2.0, -2.9), WALL2, Blocks.LAYER_PROP)  # lớp đồ: camera không bị vách ép sát
 	var rise := FLOOR_H / 2.0
 	for f in FLOORS:
 		var y := f * FLOOR_H
@@ -507,12 +586,20 @@ func _build_tower() -> void:
 		_flight(TX0 + 0.1, TX0 + 1.25, -CORR, -4.1, y, y + rise)          # vế A: đi về phía bắc
 		Blocks.solid_box(self, Vector3(2.4, 0.15, 1.4), Vector3(cx, y + rise - 0.075, -4.8), FLOOR)  # chiếu nghỉ
 		_flight(TX0 + 1.35, TX1 - 0.1, -4.1, -CORR, y + rise, y + FLOOR_H)  # vế B: quay về phía nam
+		# Thành vô hình mép đông vế B: giữ Bơ khỏi cạ vào mép cửa thang máy ở đầu vế (bị kẹt ở đó)
+		var guide := Blocks.solid_box(self, Vector3(0.1, FLOOR_H, 2.3), Vector3(TX1 - 0.2, y + rise + FLOOR_H / 2.0, -2.9), Color(0, 0, 0, 0), Blocks.LAYER_PROP)
+		guide.visible = false
+		# Mũi tên chỉ đường (bản dễ): vế A đi lên, chiếu nghỉ quay sang vế B
+		Blocks.label(self, "▲ lên tầng %d" % (f + 2), Vector3(TX0 + 0.67, y + 0.9, -2.0), 22, GUIDE)
+		Blocks.label(self, "▼ đi tiếp", Vector3(TX0 + 1.9, y + rise + 0.9, -4.6), 22, GUIDE)
 	# Giá phơi đồ chắn chiếu nghỉ tầng 2 (giữa tầng 2 và 3): áo quần thả tới cách sàn 0,32 m, phải chui
 	var ly := FLOOR_H + rise
-	var rack := Blocks.solid_box(self, Vector3(0.3, 2.45, 1.5), Vector3(cx, ly + 0.32 + 1.225, -4.8), Color("#C9CDD0"), Blocks.LAYER_PROP)
-	for k in 5:
-		Blocks.box(rack, Vector3(0.34, 0.9, 0.26), Vector3(0, -0.75, -0.6 + k * 0.3), [Color("#F2EFE6"), Color("#E8B23A"), Color("#3A6EA5"), Color("#C8412F"), Color("#7FB7A4")][k])
-	Blocks.label(self, "Chui qua!", Vector3(cx - 0.6, ly + 0.9, -4.3), 22, Color("#F4EAD2"))
+	# Giá ngang ở nửa đông chiếu nghỉ, cách đầu vế B 0,8 m: sang vế B thì cúi chui qua, ra khỏi giá còn chỗ đứng dậy
+	var bx := (TX0 + 1.35 + TX1 - 0.1) / 2.0
+	var rack := Blocks.solid_box(self, Vector3(1.1, 2.45, 0.3), Vector3(bx, ly + 0.32 + 1.225, -5.05), Color("#C9CDD0"), Blocks.LAYER_PROP)
+	for k in 4:
+		Blocks.box(rack, Vector3(0.24, 0.9, 0.34), Vector3(-0.42 + k * 0.28, -0.75, 0), [Color("#F2EFE6"), Color("#E8B23A"), Color("#3A6EA5"), Color("#C8412F")][k])
+	Blocks.label(self, "Chui qua!", Vector3(bx, ly + 0.9, -4.6), 22, Color("#F4EAD2"))
 
 
 ## Một vế thang: bậc thật để nhìn, va chạm là mặt dốc trơn (CharacterBody không tự bước lên bậc).
@@ -538,6 +625,7 @@ func _flight(x0: float, x1: float, z0: float, z1: float, y0: float, y1: float) -
 	# Mặt dốc đi qua mép trước của từng bậc, nâng nửa bậc cho bàn chân không lún
 	body.position = Vector3(cx, (y0 + y1) / 2.0 + dy * 0.5 - 0.05 / cos(ang), (z0 + z1) / 2.0)
 	body.rotation.x = ang if z1 < z0 else -ang
+	body.collision_layer = Blocks.LAYER_PROP  # camera không bị mặt dốc phía sau kéo sát lưng Bơ
 	add_child(body)
 
 
@@ -721,6 +809,27 @@ func _autotest_run() -> void:
 	Input.action_release("move_forward")
 	ok = _expect(ok, notes, crawled and player.global_position.x > TX0 + 1.6, "chui qua giá phơi đồ (x = %.2f)" % player.global_position.x)
 
+	# 0b. Như người chơi thật (Sang 21/10 kẹt ở cầu thang): từ ngoài cổng chỉ giữ W rồi S xen kẽ,
+	# camera tự nhìn thẳng và tự dắt sang vế kia, phải lên tới tầng 5 trong 20 s
+	playing = true
+	await _put(Vector3(TX0 + 1.1, 0.1, 1.5), 0.3)
+	var legs := 0
+	var t_stair := 0
+	while legs < 8 and t_stair < 60 * 20:
+		var a := "move_forward" if legs % 2 == 0 else "move_back"
+		Input.action_press(a)
+		var n := 0
+		while n < 60 * 4:
+			await get_tree().physics_frame
+			n += 1
+			if (a == "move_forward" and player.global_position.z < -5.0) or (a == "move_back" and player.global_position.z > -1.5):
+				break
+		Input.action_release(a)
+		t_stair += n
+		legs += 1
+	playing = false
+	ok = _expect(ok, notes, absf(player.global_position.y - 12.0) < 0.15, "chỉ giữ W/S: lên tầng 5 bằng cầu thang sau %.1f s (y = %.2f)" % [t_stair / 60.0, player.global_position.y])
+
 	# 1. Bật tường trong khe giữa chung cư và nhà bên: lên được mái nhà bên (3,9 m)
 	await _put(Vector3(-0.6, 0.1, -4.5), 0.0)
 	var top := 0.0
@@ -782,7 +891,12 @@ func _autotest_run() -> void:
 	_on_noise(Vector3(TX0 + 1.2, 4.5, -4.8), player.noise_sneak)
 	ok = _expect(ok, notes, baby == Baby.SLEEP, "rón rén: em bé ngủ yên")
 	_on_noise(Vector3(TX0 + 0.7, 6.0, -0.8), player.noise_walk)
-	ok = _expect(ok, notes, baby == Baby.STIR, "đi thường: em bé trở mình")
+	if DoKho.hard():
+		ok = _expect(ok, notes, baby == Baby.STIR, "đi thường: em bé trở mình (Thử thách)")
+	else:
+		ok = _expect(ok, notes, baby == Baby.SLEEP, "đi thường: em bé vẫn ngủ (Thong thả)")
+		_on_noise(Vector3(TX0 + 0.7, 6.0, -0.8), player.noise_sprint)
+		ok = _expect(ok, notes, baby == Baby.STIR, "chạy nhanh: em bé trở mình")
 	await _frames(200)
 	ok = _expect(ok, notes, baby == Baby.SLEEP and not baby_woke, "im lặng 3 s: ngủ lại")
 

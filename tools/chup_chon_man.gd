@@ -44,6 +44,8 @@ func _run() -> void:
 	GameState.set_day("ky_luc_don", [9.4, 15.2, 12.8, 21.6, 19.0])
 	menu.level_select.open()
 	await _shot("2_chon_man_da_choi")
+	menu.level_select._select("thu_ba")
+	await _shot("4_thu_ba")
 	menu.level_select._select("thu_bay")
 	await _shot("3_ngay_sap_co")
 	DirAccess.remove_absolute(GameState.save_path)

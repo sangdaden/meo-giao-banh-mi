@@ -9,7 +9,7 @@ const TICK_FROM := 5         ## còn bấy nhiêu giây thì đồng hồ bắt 
 const URGENT_FROM := 3       ## từ đây kêu gấp hơn
 const BARK_RANGE := 16.0     ## mèo trong tầm này thì Chó Mực sủa
 const SNORE_RANGE := 14.0    ## mèo trong tầm này thì nghe Chó Mực ngáy
-## Khách nói cảm ơn khi nhận bánh (giọng theo từng người, tên lấy từ ORDERS trong main.gd)
+## Khách nói cảm ơn khi nhận bánh (giọng theo từng người, tên lấy từ main.orders, tức Days)
 const THANKS := {"Chú Tư": "thanks_chu_tu", "Bé Na": "thanks_be_na", "Chị Mây": "thanks_chi_may",
 	"Anh Hùng": "thanks_anh_hung", "Bà Sáu": "thanks_ba_sau"}
 
@@ -132,8 +132,8 @@ func _on_delivered() -> void:
 	if stars == 3:
 		get_tree().create_timer(0.3).timeout.connect(Sound.play.bind("meow"))
 	var i: int = row.get("index", main.order_index - 1)
-	if i >= 0 and i < main.ORDERS.size() and THANKS.has(main.ORDERS[i].who):
-		get_tree().create_timer(0.55).timeout.connect(Sound.play.bind(THANKS[main.ORDERS[i].who]))
+	if i >= 0 and i < main.orders.size() and THANKS.has(main.orders[i].who):
+		get_tree().create_timer(0.55).timeout.connect(Sound.play.bind(THANKS[main.orders[i].who]))
 
 
 func _now() -> float:

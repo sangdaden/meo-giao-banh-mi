@@ -5,7 +5,7 @@ extends Node3D
 @export var mouse_sensitivity := 0.0035
 @export var stick_speed := 2.8
 @export var distance := 3.2
-@export var follow_speed := 14.0
+@export var follow_speed := 18.0
 @export var look_height := 0.55
 
 var target: Node3D
@@ -44,6 +44,7 @@ func _process(delta: float) -> void:
 	yaw -= look.x * stick_speed * delta
 	pitch = clampf(pitch - look.y * stick_speed * delta, -1.2, 0.35)
 	if target:
-		var goal := target.global_position + Vector3.UP * look_height
+		var at: Vector3 = target.smooth_position() if target.has_method("smooth_position") else target.global_position
+		var goal := at + Vector3.UP * look_height
 		global_position = global_position.lerp(goal, 1.0 - exp(-follow_speed * delta))
 	rotation = Vector3(pitch, yaw, 0)

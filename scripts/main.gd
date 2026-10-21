@@ -47,6 +47,7 @@ func _ready() -> void:
 	City.build(self)
 	_build_bakery()
 	_build_customers()
+	Blocks.merge_static(self)  # gộp khối tĩnh để giảm lệnh vẽ, phải gọi trước khi thêm mèo, chó
 
 	player = PlayerScript.new()
 	player.name = "Bo"
@@ -137,7 +138,7 @@ func _process(delta: float) -> void:
 	if state == State.PLAY and order_index < ORDERS.size():
 		var goal := _current_goal()
 		arrow.visible = true
-		arrow.global_position = arrow.global_position.lerp(player.global_position + Vector3.UP * 1.15, 1.0 - exp(-20.0 * delta))
+		arrow.global_position = arrow.global_position.lerp(player.smooth_position() + Vector3.UP * 1.15, 1.0 - exp(-20.0 * delta))
 		var flat_goal := Vector3(goal.x, arrow.global_position.y, goal.z)
 		if arrow.global_position.distance_to(flat_goal) > 0.5:
 			arrow.look_at(flat_goal, Vector3.UP)
@@ -258,7 +259,8 @@ func _setup_environment() -> void:
 	sun.light_color = Color("#FFE8C4")
 	sun.light_energy = 0.55 if compat else 0.9
 	sun.shadow_enabled = true
-	sun.directional_shadow_max_distance = 60.0
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+	sun.directional_shadow_max_distance = 35.0  # bóng ở xa không cần, đỡ tốn
 	add_child(sun)
 
 
@@ -271,6 +273,8 @@ func _build_bakery() -> void:
 	loaf.radius = 0.07
 	loaf.height = 0.4
 	for i in 3:
+		loaf.radial_segments = 8
+		loaf.rings = 2
 		var m := Blocks.mesh(cart, loaf, Vector3(-0.45 + i * 0.45, 0.55, 0), Color("#D98E2B"))
 		m.rotation_degrees.z = 90
 	# Cô Ba đứng sau tủ
@@ -299,6 +303,8 @@ func _person(pos: Vector3, shirt: Color, title: String) -> void:
 	var head := SphereMesh.new()
 	head.radius = 0.17
 	head.height = 0.34
+	head.radial_segments = 10
+	head.rings = 5
 	Blocks.mesh(body, head, Vector3(0, 1.58, 0), Color("#E7B98F"))
 	var shape := CollisionShape3D.new()
 	var bs := BoxShape3D.new()
@@ -329,6 +335,8 @@ func _ring(pos: Vector3, color: Color) -> void:
 	var torus := TorusMesh.new()
 	torus.inner_radius = 1.25
 	torus.outer_radius = 1.45
+	torus.rings = 32
+	torus.ring_segments = 4
 	Blocks.mesh(self, torus, pos + Vector3(0, 0.05, 0), color, true)
 
 
@@ -347,6 +355,8 @@ func _build_arrow() -> void:
 	cyl.top_radius = 0.5
 	cyl.bottom_radius = 0.5
 	cyl.height = 30.0
+	cyl.radial_segments = 12
+	cyl.rings = 1
 	beacon = Blocks.mesh(self, cyl, Vector3.ZERO, Color(1.0, 0.85, 0.4, 0.28), true)
 	beacon.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 

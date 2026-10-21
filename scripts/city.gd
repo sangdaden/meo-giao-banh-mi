@@ -128,10 +128,14 @@ static func _park(parent: Node3D, r: Rect2, rng: RandomNumberGenerator) -> void:
 		cyl.top_radius = 0.18
 		cyl.bottom_radius = 0.25
 		cyl.height = 2.6
+		cyl.radial_segments = 10
+		cyl.rings = 1
 		Blocks.mesh(trunk, cyl, Vector3(0, 1.3, 0), Color("#7A5235"))
 		var crown := SphereMesh.new()
 		crown.radius = 1.6
 		crown.height = 2.8
+		crown.radial_segments = 12
+		crown.rings = 6
 		Blocks.mesh(trunk, crown, Vector3(0, 3.4, 0), Color("#4E8F4A"))
 		var shape := CollisionShape3D.new()
 		var cs := CylinderShape3D.new()

@@ -82,3 +82,30 @@ static func label(parent: Node, text: String, pos: Vector3, size := 48, color :=
 	l.no_depth_test = false
 	parent.add_child(l)
 	return l
+
+
+## Gộp mọi khối tĩnh cùng vật liệu dưới root thành một mesh duy nhất.
+## Mỗi MeshInstance3D là một lệnh vẽ (draw call); khu phố có khoảng 700 khối nên
+## trình duyệt vẽ không kịp 60 FPS. Gộp lại chỉ còn vài chục lệnh vẽ.
+## Va chạm (StaticBody3D) vẫn giữ nguyên, chỉ phần hình được gộp.
+static func merge_static(root: Node3D) -> void:
+	var tools := {}
+	var mats := {}
+	var to_root := root.global_transform.affine_inverse()
+	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
+		var m: Material = mi.material_override
+		var key := m.get_instance_id()
+		if not tools.has(key):
+			var st := SurfaceTool.new()
+			st.begin(Mesh.PRIMITIVE_TRIANGLES)
+			tools[key] = st
+			mats[key] = m
+		tools[key].append_from(mi.mesh, 0, to_root * mi.global_transform)
+		mi.get_parent().remove_child(mi)
+		mi.free()
+	for key in tools:
+		var out := MeshInstance3D.new()
+		out.name = "Merged"
+		out.mesh = tools[key].commit()
+		out.material_override = mats[key]
+		root.add_child(out)

@@ -35,6 +35,7 @@ Bản web tự cập nhật mỗi lần nhánh `main` thay đổi (GitHub Action
 | Chuột | cần phải | xoay camera |
 | Esc | Start | tạm dừng, trả chuột |
 | Enter | | bắt đầu, chơi lại |
+| F3 | | hiện hoặc ẩn bộ đếm FPS |
 
 Vòng chơi:
 

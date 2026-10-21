@@ -44,7 +44,6 @@ const QUESTS := {
 }
 
 const PAPER := Color("#E8E2D0")
-const SKIN := Color("#E7B98F")
 ## Tên khách trong days.gd -> id người dân (scripts/nguoi.gd) cho các đơn dùng _build_generic.
 const WHO_ID := {"Chú Năm": "chunam", "Cô Hai": "cohai"}  # Cô Hai đơn ngược đứng trong tạp hóa (shop_tap_hoa.gd)
 const WATER_TOP := Color("#8FB7C9")
@@ -151,7 +150,7 @@ var _xe_om_home := Vector3.ZERO  # chỗ đậu đầu hẻm 42
 var _xe_om_color := Color.WHITE
 var _xe_om_title := ""
 var _xe_om: AnimatableBody3D     # xe + Chú Năm, chạy đi chở khách khi hết giờ
-var _passenger: Node3D
+var _passenger: Nguoi            # Chị Thảo, khách xe ôm (chỉ hiện khi chú chở khách)
 var _xe_om_state := ""           # "wait" | "away" (đang chở khách) | "back" (đang quay về)
 var _xe_om_left := false         # đơn này chú đã chở khách đi một lần rồi (về thì đợi Bơ)
 var _start_time := 0.0           # đồng hồ lúc nhận bánh
@@ -311,11 +310,12 @@ func _build_xe_om() -> void:
 	_chu_nam.rotation.y = PI / 2
 	_xe_om.add_child(_chu_nam)
 	# Khách xe ôm: chỉ hiện khi chú chở khách đi
-	_passenger = Node3D.new()
+	# Chị Thảo ngồi yên sau quay mặt về đầu xe (-Z); khớp hông dáng ngoi_sau cao 0,95 m, cao hơn mặt yên ~9 cm
+	var thao := Nguoi.make("khachxeom", "ngoi_sau")
+	thao.position = Vector3(0, y + 0.09 - 0.95, 0.38)
+	thao.rotation.y = PI
+	_passenger = thao
 	_xe_om.add_child(_passenger)
-	Blocks.box(_passenger, Vector3(0.44, 0.15, 0.42), Vector3(0, y + 0.07, 0.35), Color("#5E4A3A"))
-	Blocks.box(_passenger, Vector3(0.46, 0.55, 0.3), Vector3(0, y + 0.42, 0.4), Color("#E39C7A"))
-	_head(_passenger, Vector3(0, y + 0.86, 0.42))
 	_passenger.visible = false
 	var shape := CollisionShape3D.new()
 	var bs := BoxShape3D.new()
@@ -349,16 +349,6 @@ func _chair(parent: Node3D, pos: Vector3, yaw: float, color: Color) -> void:
 func _stool(parent: Node3D, pos: Vector3, yaw: float, h: float) -> void:
 	var st := Blocks.solid_box(parent, Vector3(0.3, h, 0.3), pos + Vector3(0, h / 2.0, 0), Color("#C8412F"), Blocks.LAYER_PROP)
 	st.rotation.y = yaw
-
-
-## Đầu cầu của khách xe ôm (người khối tạm, chưa có phác thảo).
-func _head(parent: Node3D, pos: Vector3) -> void:
-	var head := SphereMesh.new()
-	head.radius = 0.17
-	head.height = 0.34
-	head.radial_segments = 10
-	head.rings = 5
-	Blocks.mesh(parent, head, pos, SKIN)
 
 
 ## Vũng loang hình mây (như ảnh renders/vung_top): tam giác quạt, bán kính lượn theo vài sóng sin.

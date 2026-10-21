@@ -47,7 +47,9 @@ const PASS_RANGE := 9.0       ## xe chạy ngang trong tầm này thì nghe ti�
 const IDLE_RANGE := 14.0      ## xe đứng chờ đèn đỏ trong tầm này thì nghe tiếng máy nổ
 
 const BIKE_GLB := "res://assets/models/pho/xe_may_son.glb"   ## mặt "son" là màu sơn, tô riêng từng xe
-const CART_GLB := "res://assets/models/pho/xe_banh_mi.glb"
+const CART_GLB := "res://assets/models/pho/xe_banh_mi_day.glb"  ## xe đẩy chi tiết Sang duyệt 21/10
+const CART_WHEEL_R := 0.33
+const CART_PAINTS := [Color("#C8412F"), Color("#2F8F86")]  ## xe thứ hai sơn xanh ngọc
 const PAINTS := [Color("#C8412F"), Color("#3D5A80"), Color("#E8C98A"), Color("#2E2E2E"), Color("#F2F0EA"), Color("#7FB7A4")]
 const SHIRTS := [Color("#E39C7A"), Color("#5E8FB8"), Color("#F2E3B8"), Color("#8DB36F"), Color("#D7A9C4"), Color("#C9C3B3")]
 const HELMETS := [Color("#F2C230"), Color("#C8412F"), Color("#FFFFFF"), Color("#2F6FA8"), Color("#3E8E5A")]
@@ -417,6 +419,8 @@ func _check_player(b: Bike) -> void:
 	_sound_at("horn", b.pos)
 	var away := right * (signf(side) if absf(side) > 0.05 else 1.0)
 	player.knockback(player.global_position - (b.dir + away) * 0.7, HIT_STRENGTH, HIT_STUN)
+	if player.has_method("bump"):
+		player.bump("bike")  # đang ngậm túi trứng thì vỡ một quả
 	b.speed *= 0.3
 	bike_hit_player.emit(b.pos)
 	if hud and hud.has_method("show_toast"):
@@ -588,26 +592,32 @@ func _place_walker(w: Walker, delta: float) -> void:
 	w.xf = Transform3D(Basis.looking_at(fwd), pos + Vector3.UP * bob)
 
 
-## Xe đẩy hàng rong: thùng gỗ có tủ kính, người bán đẩy phía sau; Bơ nhảy lên nóc được.
+## Xe đẩy hàng rong: xe bánh mì chi tiết (bánh xe đạp, tủ kính, lò than), người bán đứng sau tay đẩy.
+## Bơ nhảy lên nóc tủ kính được. Model dài theo +X, tay đẩy ở +X: xoay cho tay đẩy ra sau (+Z).
 func _build_carts(rng: RandomNumberGenerator) -> void:
 	# Vỉa hè khối 3 và khối 6 nhìn ra đường lớn, cách mặt tiền 0,9 m để thùng xe không lấn vào tường.
 	# Vỉa hè khối lò bánh và khối 5 đã kín đồ (tủ bánh Cô Ba, bàn ghế cà phê) nên xe không đi ở đó.
 	# Hai làn này nằm trong CityProps.KEEP_CLEAR để xe máy đậu không chắn đường xe đẩy.
 	var picks := [CityProps.CART_LANES[0], CityProps.CART_LANES[1]]
-	# Xe bánh mì tủ kính dài theo +X, bảng hiệu quay +Z: xoay cho xe đẩy theo chiều dọc,
-	# bảng hiệu nhìn ra đường; người bán (khối tạm) đứng sau tay đẩy.
-	var parts := _glb_parts(CART_GLB, Basis(Vector3.UP, PI / 2), [])
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	st.append_from(parts[1], 0, Transform3D())
-	_add_box(st, Vector3(0.4, 0.6, 0.24), Vector3(0, 1.15, 1.12), Color("#C9C3B3"))
-	_add_box(st, Vector3(0.24, 0.26, 0.24), Vector3(0, 1.62, 1.12), Color("#D9A57E"))
-	_add_box(st, Vector3(0.5, 0.06, 0.5), Vector3(0, 1.8, 1.12), Color("#E8D9A8"))  # nón lá
-	_add_box(st, Vector3(0.3, 0.85, 0.16), Vector3(0, 0.42, 1.12), Color("#3B4252"))
-	var cart_mesh := st.commit()
+	var vendor := SurfaceTool.new()
+	vendor.begin(Mesh.PRIMITIVE_TRIANGLES)
+	_add_box(vendor, Vector3(0.4, 0.6, 0.24), Vector3(0, 1.15, 1.32), Color("#C9C3B3"))
+	_add_box(vendor, Vector3(0.24, 0.26, 0.24), Vector3(0, 1.62, 1.32), Color("#D9A57E"))
+	_add_box(vendor, Vector3(0.5, 0.06, 0.5), Vector3(0, 1.8, 1.32), Color("#E8D9A8"))  # nón lá
+	_add_box(vendor, Vector3(0.3, 0.85, 0.16), Vector3(0, 0.42, 1.32), Color("#3B4252"))
+	var vendor_mesh := vendor.commit()
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
-	mat.roughness = 0.75
+	mat.roughness = 0.7
+	var glass := StandardMaterial3D.new()
+	glass.albedo_color = Color(0.8, 0.93, 0.95, 0.28)
+	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	glass.roughness = 0.05
+	glass.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var fire := StandardMaterial3D.new()
+	fire.albedo_color = Color("#FF7A2E")
+	fire.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var src: PackedScene = load(CART_GLB)
 	for k in picks.size():
 		var w := Walker.new()
 		w.a = picks[k][0]
@@ -617,20 +627,58 @@ func _build_carts(rng: RandomNumberGenerator) -> void:
 		var body := AnimatableBody3D.new()
 		body.collision_layer = Blocks.LAYER_PROP
 		body.sync_to_physics = true
+		body.set_meta("bump_kind", "cart")  # va xe đẩy khi ngậm túi trứng là vỡ một quả
 		add_child(body)
-		var mi := MeshInstance3D.new()
-		mi.mesh = cart_mesh
-		mi.material_override = mat
-		body.add_child(mi)
+		var model: Node3D = src.instantiate()
+		model.rotation.y = -PI / 2
+		body.add_child(model)
+		var wheels: Array[Node3D] = []
+		var flame: Node3D
+		for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
+			var n := String(mi.name)
+			if n.begins_with("kinh"):
+				mi.material_override = glass
+				continue
+			if n.begins_with("lua"):
+				mi.material_override = fire
+				flame = mi
+				continue
+			mi.mesh = _recolor(_srgb(mi.mesh), CART_PAINTS[0], CART_PAINTS[k % CART_PAINTS.size()])
+			mi.material_override = mat
+			if n.begins_with("banh_xe"):
+				wheels.append(mi)
+		var seller := MeshInstance3D.new()
+		seller.mesh = vendor_mesh
+		seller.material_override = mat
+		body.add_child(seller)
 		var shape := CollisionShape3D.new()
 		var bs := BoxShape3D.new()
-		bs.size = Vector3(0.74, 1.3, 1.64)
+		bs.size = Vector3(0.72, 1.38, 1.54)
 		shape.shape = bs
-		shape.position.y = 0.65
+		shape.position.y = 0.69
 		body.add_child(shape)
 		_place_walker(w, 0.0)
 		body.global_transform = w.xf
-		_carts.append({"body": body, "walker": w})
+		_carts.append({"body": body, "walker": w, "wheels": wheels, "flame": flame})
+
+
+## Đổi màu sơn đã nướng vào màu đỉnh (xe thứ hai sơn khác màu).
+func _recolor(m: ArrayMesh, from: Color, to: Color) -> ArrayMesh:
+	if from == to:
+		return m
+	var arrays := m.surface_get_arrays(0)
+	var cols: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+	var lin := RenderingServer.get_rendering_device() != null  # Forward+ giữ màu linear
+	var f := from.srgb_to_linear() if lin else from
+	var t := to.srgb_to_linear() if lin else to
+	for i in cols.size():
+		var c := cols[i]
+		if absf(c.r - f.r) + absf(c.g - f.g) + absf(c.b - f.b) < 0.06:
+			cols[i] = Color(t.r, t.g, t.b, c.a)
+	arrays[Mesh.ARRAY_COLOR] = cols
+	var out := ArrayMesh.new()
+	out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return out
 
 
 ## Xe hàng rong chặn hẻm (khối tạm, chờ phác thảo xe chè được duyệt): thùng, tủ kính, nóc, bánh, tay đẩy,
@@ -767,8 +815,15 @@ func _physics_process(delta: float) -> void:
 		_place_walker(w, delta)
 	for c in _carts:
 		var w: Walker = c.walker
+		var before := w.t
 		_place_walker(w, delta)
 		c.body.global_transform = w.xf
+		# Bánh xe đạp lăn theo quãng đường xe đi, lửa lò than nhấp nháy
+		var spin := absf(w.t - before) * w.a.distance_to(w.b) / CART_WHEEL_R
+		for wh: Node3D in c.wheels:
+			wh.rotate_object_local(Vector3.BACK, spin)
+		if c.flame:
+			c.flame.scale.y = 0.8 + 0.4 * absf(sin(_t * 9.0 + c.body.position.x))
 	for c in _alley_carts:
 		c.t += delta
 		_place_alley_cart(c)

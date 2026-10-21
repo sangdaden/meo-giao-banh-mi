@@ -1042,6 +1042,7 @@ func _end(success: bool) -> void:
 	print("[bep] xong=%d/%d sao=%d tung_o=%s con_lai=%.1fs chay=%s truot=%d o_cho_don=%s phieu=%s dung_phieu=%s" % [made, LOAVES, stars,
 		per_bread, time_left, bread_burnt, mistakes, loaf_orders, GameState.bread_notes, GameState.bread_note_ok])
 	if _bot_quit:
+		success = hud.self_test_menu() and success
 		print("AUTOTEST BEP ", "OK" if success else "FAIL")
 		get_tree().quit(0 if success else 1)
 	elif _bot:

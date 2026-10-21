@@ -25,6 +25,7 @@ const EASY := {
 	"hit_strength": 6.0,         # hất khoảng 0,8 m
 	"hit_stun": 0.4,
 	# Giỏ Bé Na, xe ôm Chú Năm
+	"basket_ground": true,       # Bơ kêu meo, giỏ thả xuống đất (Thử thách: nhảy lên xe máy đón giỏ đung đưa)
 	"basket_period_mult": 1.4,   # giỏ đưa chậm hơn
 	"basket_reach": 0.7,
 	"basket_retry": 0.5,

@@ -2,7 +2,9 @@ extends Node3D
 ## Năm cách giao bánh của Thứ Hai và nhiệm vụ phụ của từng đơn (gói 4, trang thiết kế màn mục 04).
 ## - hand: Chú Tư ngồi ghế nhựa đọc báo, hạ báo xuống, chìa tay nhận. Phụ: ngậm tờ báo về cho Cô Ba,
 ##   báo rơi nếu chạy nhanh qua vũng nước (đi về lò không tính giờ).
-## - basket: Bé Na thòng giỏ nhựa từ ban công, giỏ đung đưa. Đứng trên xe máy, bấm E lúc giỏ đưa tới.
+## - basket: Bé Na thòng giỏ nhựa từ ban công. Thong thả (mặc định, Sang 21/10 không muốn phải nhảy lên xe):
+##   Bơ đứng dưới ban công bấm E kêu "meo", Bé Na thả giỏ xuống sát đất cạnh xe máy, Bơ bỏ bánh vào,
+##   Bé Na kéo lên. Chế độ thử thách giữ kiểu cũ: giỏ đung đưa, đứng trên xe máy bấm E lúc giỏ đưa tới.
 ##   Trật thì đợi nhịp sau 1,5 s. Phụ: trúng ngay nhịp đầu.
 ## - counter: đặt túi lên quầy Cà phê Mây, Chị Mây đẩy lại chén sữa. Phụ: không đổ ly cà phê nào
 ##   (đụng bàn là ly rung, đụng mạnh hoặc nhảy lên bàn là đổ).
@@ -67,6 +69,9 @@ const BASKET_SWING := 0.6       ## giỏ lệch xa nhất bao nhiêu mét so v�
 const BASKET_REACH := 0.42      ## giỏ cách Bơ dưới mức này thì bỏ bánh vào được
 const BASKET_RETRY := 1.5       ## trật thì phải đợi
 const BASKET_HANG_Y := 1.25     ## đáy giỏ khi thòng xuống hẳn (yên xe 0,9 m)
+const GROUND_SIDE := 1.15       ## Thong thả: giỏ thả xuống đất cạnh xe máy, lệch về phía đông bao nhiêu
+const GROUND_SWING := 0.08      ## Thong thả: giỏ sát đất chỉ lắc nhẹ
+const GROUND_Y := 0.03          ## Thong thả: đáy giỏ cách mặt đất
 
 const XE_OM_SEAT := 0.78        ## mặt yên xe ôm Chú Năm
 const XE_OM_AWAY := 9.0         ## hết giờ thì Chú Năm chở khách đi bao lâu mới quay lại
@@ -111,6 +116,10 @@ var _in_puddle := false
 # Đơn 2: giỏ
 var _moto_na := Vector3.ZERO     # tâm yên xe máy dưới ban công
 var _anchor := Vector3.ZERO      # móc dây trên ban công
+var _ground := false             # Thong thả: kêu meo, giỏ thả xuống đất (không cần nhảy lên xe)
+var _called := false             # Bơ đã kêu Bé Na thả giỏ chưa
+var _hold := 0.0                 # giỏ đợi ổ bánh rơi vào rồi mới kéo lên
+var _ground_spot := Vector3.ZERO # chỗ Bơ đứng đợi giỏ
 var _pivot: Node3D
 var _rope: MeshInstance3D
 var _basket: Node3D
@@ -229,6 +238,11 @@ func _build_tu(parent: Node3D, i: int, p: Vector3, shirt: Color, title: String) 
 func _build_na(parent: Node3D, _i: int, _p: Vector3, shirt: Color, title: String) -> void:
 	_moto_na = CityProps.BE_NA_BIKE + Vector3(0, 0.9, 0)
 	_anchor = Vector3(CityProps.BE_NA_BIKE.x, CityProps.BE_NA_BALCONY.y + 1.0, CityProps.BE_NA_BIKE.z - 0.05)  # mép lan can
+	_ground = bool(DoKho.v("basket_ground", false))
+	if _ground:
+		_anchor.x += GROUND_SIDE  # giỏ xuống đất ngay cạnh xe, không rơi lên yên
+		_anchor.z = CityProps.BE_NA_BIKE.z + 0.38  # ra ngoài mép sàn hành lang tầng dưới, dây không xuyên sàn
+		_ground_spot = Vector3(_anchor.x, 0, _anchor.z + 0.45)
 	_person(_i, "bena", CityProps.BE_NA_BALCONY + Vector3(0.45, 0.075, 0.1), PI, "viec_rieng", false)
 	_hand_fallback[_i] = _anchor
 	Blocks.label(parent, title, CityProps.BE_NA_BALCONY + Vector3(0, 2.0, 0.3), 40)
@@ -633,7 +647,7 @@ func _body_layer(n: Node3D) -> void:
 ## Chỗ Bơ cần đứng để giao (cho autotest dịch chuyển tới).
 func stand_point(i: int) -> Vector3:
 	if _kind[i] == "basket":
-		return _moto_na
+		return _ground_spot if _ground else _moto_na
 	if _kind[i] == "on_seat":
 		return _xe_om_home + Vector3(0, XE_OM_SEAT + 0.05, 0.45)
 	return orders[i].pos
@@ -676,6 +690,7 @@ func on_pick_up(i: int) -> void:
 		"basket":
 			_misses = 0
 			_retry = 0.0
+			_called = false
 			_basket_done = false
 			_basket_loaf.visible = false
 			_basket_empty.visible = true
@@ -701,7 +716,28 @@ func step(i: int, in_zone: bool, _delta: float) -> bool:
 	var pressed := _pressed()
 	var ready := in_zone
 	var hint := "[E] Đưa bánh"
-	match kind:
+	var mode := "ground" if kind == "basket" and _ground else kind
+	match mode:
+		"ground":
+			var near := _flat_dist(player.global_position, _ground_spot) < 1.6
+			ready = near or in_zone
+			if not _called:
+				hint = "[E] Kêu meo gọi Bé Na"
+			elif _basket_hittable():
+				hint = "[E] Bỏ bánh vào giỏ"
+			else:
+				hint = "Bé Na đang thả giỏ xuống..."
+			if autotest:
+				pressed = near and (not _called or _basket_hittable())
+			if pressed and ready:
+				if not _called:
+					_call_na(i)
+				elif _basket_hittable():
+					_prompt.visible = false
+					_deliver_basket(i)
+					return true
+				elif _flat_dist(player.global_position, _basket.global_position) > 1.0 and _lower >= 0.95:
+					_toast("Lại gần giỏ hơn chút nữa!", 1.5)
 		"basket":
 			var on_moto := _on_moto_na()
 			ready = on_moto or in_zone
@@ -790,6 +826,21 @@ func _deliver_tu(i: int) -> void:
 	_toast("Chú Tư gửi tờ báo cho Cô Ba. Về lò đừng chạy nhanh qua vũng nước nha!", 3.0, 1.8)
 
 
+## Thong thả: Bơ kêu một tiếng, Bé Na ló ra lan can rồi thả giỏ xuống.
+func _call_na(i: int) -> void:
+	_called = true
+	_play_deliver("hand")  # ngẩng đầu kêu lên ban công
+	_sfx("meow", player.global_position)
+	var na: Nguoi = _people.get(i)
+	if na:
+		na.play_for("keo_day", 2.0)
+	_toast("Meo! Bé Na nghe rồi, đang thả giỏ xuống.", 2.0)
+
+
+func _flat_dist(a: Vector3, b: Vector3) -> float:
+	return Vector2(a.x - b.x, a.z - b.z).length()
+
+
 func _deliver_basket(i: int) -> void:
 	_play_deliver("basket")
 	var na: Nguoi = _people.get(i)
@@ -799,12 +850,15 @@ func _deliver_basket(i: int) -> void:
 	side_ok[i] = _misses == 0
 	_market_quest(i)
 	_basket_done = true
+	_hold = 2.0
 	_hand_bread(_basket.global_position + Vector3(0, 0.08, 0), func():
 		_basket_loaf.visible = true
 		_basket_empty.visible = false
 		_sfx("basket_drop", _basket.global_position)
 	)
-	if side_ok[i]:
+	if _ground:
+		_toast("Bé Na kéo giỏ lên: \"Cảm ơn mèo nha!\"", 2.0, 1.8)
+	elif side_ok[i]:
 		_toast("Trúng ngay nhịp đầu! Bé Na kéo giỏ lên.", 2.0, 1.8)
 	current = -1
 
@@ -1028,7 +1082,9 @@ func _update_basket(delta: float) -> void:
 	if _pivot == null:
 		return
 	var i := _kind.find("basket")
-	var want := 1.0 if current == i and player.carrying and not _basket_done else 0.0
+	_hold = maxf(_hold - delta, 0.0)
+	var waiting: bool = current == i and player.carrying and not _basket_done and (_called or not _ground)
+	var want := 1.0 if waiting or _hold > 0.0 else 0.0
 	var before := _lower
 	_lower = move_toward(_lower, want, delta / 1.6)
 	if before == 0.0 and _lower > 0.0:
@@ -1042,9 +1098,9 @@ func _update_basket(delta: float) -> void:
 
 
 func _set_rope(k: float) -> void:
-	var full := _anchor.y - BASKET_HANG_Y
+	var full := _anchor.y - (GROUND_Y if _ground else BASKET_HANG_Y)
 	var length := lerpf(0.5, full, k)
-	var amp := asin(clampf(BASKET_SWING / full, 0.0, 0.9)) * k
+	var amp := asin(clampf((GROUND_SWING if _ground else BASKET_SWING) / full, 0.0, 0.9)) * k
 	# Trật thì giỏ bị giật lệch ra xa một chút
 	_pivot.rotation.z = sin(_swing_t * TAU / _basket_period) * amp + (0.06 if _retry > 0.0 else 0.0)
 	# Dây chính từ lan can xuống tới nút dây của giỏ (giỏ cao GIO_H, gốc ở đáy)
@@ -1059,7 +1115,10 @@ func _basket_hittable() -> bool:
 		return false
 	var b := _basket.global_position
 	var p := player.global_position
-	return Vector2(b.x - p.x, b.z - p.z).length() < float(DoKho.v("basket_reach", BASKET_REACH))
+	var reach := float(DoKho.v("basket_reach", BASKET_REACH))
+	if _ground:
+		reach = maxf(reach, 1.0)  # giỏ nằm yên dưới đất, đứng gần là bỏ được
+	return Vector2(b.x - p.x, b.z - p.z).length() < reach
 
 
 func _on_moto_na() -> bool:

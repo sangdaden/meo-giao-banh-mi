@@ -792,6 +792,147 @@ def kitchen_ambience():
 
 # ---------------------------------------------------------------- danh sách
 
+# ---------------------------------------------------------------- màn Thứ Hai: hẻm 42, giao bánh kiểu mới
+
+def snore():
+    """Chó Mực ngáy: hít vào khò khè (rung vòm họng ~30 Hz), thở ra phì nhẹ. Một chu kỳ 3,2 s, lặp được."""
+    dur = 3.2
+    x = silence(dur + 0.5)
+    t = t_of(1.3)
+    flutter = 0.55 + 0.45 * np.sign(np.sin(2 * np.pi * 28 * t + 2 * np.sin(2 * np.pi * 3 * t)))
+    rasp = filt(noise(1.3), "band", (90, 900), 2) * flutter
+    rasp += 0.6 * np.sin(phase_of(70 + 10 * np.sin(np.pi * t / 1.3))) * flutter
+    mix_at(x, rasp * np.sin(np.pi * t / 1.3) ** 1.5, 0.1, 0.9)
+    t2 = t_of(1.2)
+    out = filt(noise(1.2), "band", (300, 2200)) * np.sin(np.pi * t2 / 1.2) ** 2
+    out += 0.3 * np.sin(phase_of(900 - 300 * t2 / 1.2)) * np.sin(np.pi * t2 / 1.2) ** 3  # môi phì nhẹ
+    mix_at(x, out, 1.6, 0.35)
+    return loopify(x, dur)
+
+
+def sniff():
+    """Đánh hơi: 4 nhịp hít ngắn bằng mũi."""
+    x = silence(0.9)
+    for i in range(4):
+        d = 0.09
+        t = t_of(d)
+        s = filt(noise(d), "band", (1500, 6000)) * np.sin(np.pi * t / d) ** 2
+        mix_at(x, s, 0.05 + i * 0.17, 0.8 if i % 2 == 0 else 0.6)
+    return fade(x)
+
+
+def tag_jingle():
+    """Thẻ tên bằng đồng trên vòng cổ khua vào khoen: vài tiếng 'leng keng' nhỏ, cao."""
+    x = silence(0.6)
+    for i in range(5):
+        st = i * 0.07 + rng.uniform(0, 0.03)
+        f = rng.uniform(3200, 4200)
+        mix_at(x, bell(f, 0.35, 9), st, rng.uniform(0.3, 0.8))
+    return fade(x, 0.001, 0.05)
+
+
+def sneak_step(i):
+    """Bước rón rén: đệm chân đặt từ từ, gần như chỉ có tiếng sột rất nhẹ."""
+    dur = 0.18
+    t = t_of(dur)
+    y = filt(noise(dur), "band", (900 + 200 * i, 3500)) * np.sin(np.pi * t / dur) ** 3
+    y += 0.4 * np.sin(2 * np.pi * (60 + 8 * i) * t) * np.sin(np.pi * t / dur) ** 2
+    return fade(y, 0.005, 0.02)
+
+
+def moto_pass(variant=0):
+    """Xe máy chạy ngang qua (một lần, 3 s), có Doppler, đi từ trái sang phải hoặc ngược lại."""
+    f, d = [(42, 1), (50, -1)][variant]
+    return motorbike(3.0, f, d)
+
+
+def moto_idle():
+    """Xe máy nổ máy chờ đèn đỏ: tiếng 'bạch bạch' đều, lặp 2 giây."""
+    dur = 2.0
+    total = dur + 0.5
+    t = t_of(total)
+    f = 22 * (1 + 0.03 * np.sin(2 * np.pi * 0.8 * t))
+    pulses = np.maximum(np.sin(phase_of(f)), 0) ** 10
+    y = filt(pulses + 0.05 * noise(total), "band", (50, 1800), 2)
+    y += 0.15 * filt(noise(total), "band", (2000, 5000)) * pulses  # tiếng lách cách máy
+    return loopify(y, dur)
+
+
+def basket_lower():
+    """Giỏ nhựa thòng dây từ ban công: dây cót két qua lan can + giỏ lắc lư lạch cạch."""
+    x = silence(1.6)
+    for k in range(4):
+        d = 0.18
+        t = t_of(d)
+        f = 1100 + 250 * np.sin(np.pi * t / d) + 40 * np.sin(2 * np.pi * 70 * t)
+        creak = filt(np.sign(np.sin(phase_of(f))) * np.sin(np.pi * t / d), "band", (700, 3500))
+        mix_at(x, creak, 0.05 + k * 0.32, 0.25)
+    for k in range(5):
+        st = 0.2 + k * 0.27 + rng.uniform(0, 0.05)
+        tap = filt(noise(0.04), "band", (500, 2500)) * np.exp(-t_of(0.04) * 90)
+        mix_at(x, tap, st, rng.uniform(0.3, 0.6))
+    return reverb(fade(x, 0.005, 0.1), 0.15)
+
+
+def basket_drop():
+    """Thả bánh vào giỏ nhựa: 'bộp' giấy + giỏ nhựa rỗng kêu 'cộc'."""
+    x = silence(0.5)
+    mix_at(x, bag_crinkle(0.15, 200), 0, 0.5)
+    t = t_of(0.2)
+    hollow = np.sin(2 * np.pi * 310 * t) * np.exp(-t * 30) + 0.5 * np.sin(2 * np.pi * 760 * t) * np.exp(-t * 45)
+    mix_at(x, hollow, 0.03, 0.8)
+    return fade(x)
+
+
+def glass_rattle():
+    """Bàn bị đụng, ly cà phê rung lách cách, đá trong ly kêu."""
+    x = silence(0.8)
+    for k in range(9):
+        st = k * 0.06 + rng.uniform(0, 0.02)
+        mix_at(x, bell(rng.uniform(2200, 3000), 0.25, 14), st, 0.5 * np.exp(-k * 0.25))
+    for k in range(6):
+        st = rng.uniform(0, 0.5)
+        mix_at(x, filt(noise(0.015), "band", (3000, 8000)) * np.exp(-t_of(0.015) * 300), st, 0.4)
+    return fade(x, 0.001, 0.05)
+
+
+def glass_tip():
+    """Ly đổ: nghiêng 'cạch' xuống bàn, nước đá văng ra, cà phê chảy tràn."""
+    x = silence(1.6)
+    t = t_of(0.3)
+    clunk = bell(1800, 0.3, 10) * 0.7 + np.sin(2 * np.pi * 240 * t) * np.exp(-t * 35)
+    mix_at(x, clunk, 0.0, 0.8)
+    for k in range(7):  # đá văng
+        mix_at(x, bell(rng.uniform(2500, 4000), 0.15, 20), 0.08 + rng.uniform(0, 0.35), rng.uniform(0.2, 0.5))
+    d = 0.9
+    t = t_of(d)
+    pour = filt(noise(d), "band", (300, 2500)) * np.sin(np.pi * np.clip(t / d, 0, 1)) ** 1.5 * 0.4
+    for _ in range(15):
+        st = rng.uniform(0, d - 0.05)
+        dd = rng.uniform(0.02, 0.04)
+        tt = t_of(dd)
+        mix_at(pour, np.sin(phase_of(rng.uniform(600, 1200) * (1 + tt / dd))) * np.sin(np.pi * tt / dd) ** 2, st, 0.2)
+    mix_at(x, pour, 0.25)
+    return reverb(fade(x, 0.001, 0.15), 0.15)
+
+
+def oil_slip():
+    """Giẫm dầu trượt: tiếng 'chẹp' nhớt rồi đệm chân rít dài trên nền."""
+    x = silence(0.8)
+    d = 0.12
+    t = t_of(d)
+    squelch = filt(noise(d), "band", (300, 1500)) * np.sin(np.pi * t / d) ** 2
+    squelch *= 0.6 + 0.4 * np.sin(2 * np.pi * 40 * t)
+    mix_at(x, squelch, 0, 0.8)
+    d = 0.55
+    t = t_of(d)
+    f = 1500 + 500 * np.sin(np.pi * t / d) - 600 * t / d
+    squeak = np.sin(phase_of(f + 60 * np.sin(2 * np.pi * 35 * t)))
+    squeak = filt(squeak + 0.3 * noise(d), "band", (800, 4000)) * np.sin(np.pi * t / d) ** 1.5
+    mix_at(x, squeak, 0.08, 0.35)
+    return fade(x, 0.002, 0.08)
+
+
 def build():
     jobs = {
         # nhạc nền (lặp)
@@ -845,6 +986,22 @@ def build():
         "burn": (burn, "wav"),
         "water": (water, "wav"),
         "spray": (spray, "wav"),
+        # màn Thứ Hai
+        "snore": (snore, "ogg"),
+        "sniff": (sniff, "wav"),
+        "tag_jingle": (tag_jingle, "wav"),
+        "sneak_1": (lambda: sneak_step(0), "wav"),
+        "sneak_2": (lambda: sneak_step(1), "wav"),
+        "sneak_3": (lambda: sneak_step(2), "wav"),
+        "moto_pass_1": (lambda: moto_pass(0), "ogg"),
+        "moto_pass_2": (lambda: moto_pass(1), "ogg"),
+        "moto_idle": (moto_idle, "ogg"),
+        "horn": (lambda: pan(horn(), 0.0)[:, 0], "wav"),
+        "basket_lower": (basket_lower, "wav"),
+        "basket_drop": (basket_drop, "wav"),
+        "glass_rattle": (glass_rattle, "wav"),
+        "glass_tip": (glass_tip, "wav"),
+        "oil_slip": (oil_slip, "wav"),
         "sizzle": (sizzle_loop, "ogg"),
         "oven_fire": (oven_fire_loop, "ogg"),
     }

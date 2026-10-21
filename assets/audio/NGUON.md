@@ -50,6 +50,16 @@ Khi thêm tiếng lấy từ nơi khác, ghi thêm một dòng vào bảng cuố
 | water.wav | bếp: rửa rau, rót nước | tự tổng hợp, CC0 |
 | spray.wav | bếp: phun hơi nước, bình xịt | tự tổng hợp, CC0 |
 | sizzle.ogg, oven_fire.ogg | bếp: tiếng xèo chảo, lửa lò (lặp 4 giây) | tự tổng hợp, CC0 |
+| snore.ogg | Thứ Hai: Chó Mực ngáy (lặp 3,2 giây) | tự tổng hợp, CC0 |
+| sniff.wav | Thứ Hai: Chó Mực đánh hơi khi nghi ngờ | tự tổng hợp, CC0 |
+| tag_jingle.wav | Thứ Hai: thẻ tên đồng trên vòng cổ khua leng keng | tự tổng hợp, CC0 |
+| sneak_1..3.wav | Thứ Hai: bước rón rén, rất nhỏ | tự tổng hợp, CC0 |
+| moto_pass_1..2.ogg | Thứ Hai: xe máy chạy ngang (3 giây, có Doppler) | tự tổng hợp, CC0 |
+| moto_idle.ogg | Thứ Hai: xe máy nổ máy chờ đèn (lặp 2 giây) | tự tổng hợp, CC0 |
+| horn.wav | Thứ Hai: còi xe máy "tin tin" | tự tổng hợp, CC0 |
+| basket_lower.wav, basket_drop.wav | Thứ Hai: Bé Na thòng giỏ nhựa, thả bánh vào giỏ | tự tổng hợp, CC0 |
+| glass_rattle.wav, glass_tip.wav | Thứ Hai: ly cà phê rung, ly đổ | tự tổng hợp, CC0 |
+| oil_slip.wav | Thứ Hai: giẫm vũng dầu trượt | tự tổng hợp, CC0 |
 
 ## Tiếng lấy từ nguồn ngoài
 

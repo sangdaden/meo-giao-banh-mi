@@ -534,10 +534,10 @@ func _pose(bone_name: String, axis: Vector3, angle: float) -> void:
 
 
 ## Bị Chó Mực đớp: văng ra và khựng lại một chút.
-func knockback(from: Vector3, strength := 9.0) -> void:
+func knockback(from: Vector3, strength := 9.0, stun := 0.45) -> void:
 	var away := global_position - from
 	away.y = 0
 	away = away.normalized() if away.length() > 0.01 else Vector3.BACK
 	velocity = away * strength + Vector3.UP * 4.5
-	_stun = 0.45
+	_stun = stun
 	visual.scale = Vector3(1.3, 0.7, 1.3)

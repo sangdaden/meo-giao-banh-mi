@@ -19,7 +19,8 @@ static func first_scene() -> String:
 
 func _ready() -> void:
 	GameSettings.apply_graphics(get_tree())
-	if "--autotest" in OS.get_cmdline_user_args():
+	var args := OS.get_cmdline_user_args()
+	if "--autotest" in args or "--autotest-bep" in args or "--demo-bep" in args:
 		get_tree().change_scene_to_file.call_deferred(first_scene())
 		return
 	theme = T.make_theme()

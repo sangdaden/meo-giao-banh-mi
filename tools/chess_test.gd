@@ -51,6 +51,7 @@ func _run() -> void:
 	await _case_cycle()
 	await _case_inactive()
 	await _case_deliveries()
+	await _case_crowd_unique()
 	print("CHESS TEST ", "OK" if fails == 0 else "FAIL (%d)" % fails)
 	quit(0 if fails == 0 else 1)
 
@@ -219,3 +220,26 @@ func _case_deliveries() -> void:
 	_expect("đụng bàn thì đơn mất 1 sao", d.star_lost(0))
 	d.chess.checkmate_now()
 	_expect("vẫn giao được", d.step(0, true, 0.016))
+
+
+## Người xem cờ không trùng người đã có chỗ khác trong ngày (vd. Bà Tư đang đi chợ sáng Thứ Ba).
+func _case_crowd_unique() -> void:
+	print("người xem cờ không trùng người chợ:")
+	if world:
+		world.free()
+	world = Node3D.new()
+	root.add_child(world)
+	var cho := Nguoi.make("dicho1", "dung_chon")
+	cho.position = Vector3(-6, 0, 0)
+	world.add_child(cho)
+	chess = ChessCorner.new()
+	world.add_child(chess)
+	await process_frame
+	await process_frame
+	var ids: Array = chess._crowd.map(func(s): return (s.person as Nguoi).id)
+	_expect("có Ông Chín xem cờ", "xemco" in ids)
+	_expect("Bà Tư đang ở chợ thì không đứng xem cờ", not "dicho1" in ids)
+	var seen := {}
+	for n in world.get_tree().get_nodes_in_group(Nguoi.GROUP):
+		seen[(n as Nguoi).id] = seen.get((n as Nguoi).id, 0) + 1
+	_expect("mỗi người chỉ một bản trong cảnh", seen.values().all(func(v): return v == 1))

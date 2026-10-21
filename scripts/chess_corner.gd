@@ -64,12 +64,11 @@ const POS_BLK := [["K", 4, 9], ["A", 3, 9], ["A", 5, 9], ["E", 2, 9], ["E", 6, 9
 const MAN_ANIM := {"danh_co": "viec_rieng", "suyt": "noi", "mang": "sot_ruot", "reo": "vui"}
 ## Clip một lần riêng của hai ông (suyt 1 s, mang 1,5 s, reo 2 s); model cũ chưa có thì mượn MAN_ANIM
 const ONE_SHOT_ANIM := ["suyt", "mang", "reo"]
-## Người xem có xương (idle "xem", reo khi chiếu tướng); chưa có file thì dựng khối tạm
-const SPECTATOR_IDS := ["xemco", "dicho1", "dicho2", "xemco", "dicho3"]
-const SKIN := Color("#E7B98F")
-const PANTS := Color("#3D4A4A")
+## Người xem có xương, theo thứ tự ưu tiên: Ông Chín luôn có mặt, rồi người đi chợ, rồi hàng xóm đứng.
+## Ai đã có chỗ khác trong ngày (khách, chợ sáng Thứ Ba) thì bỏ qua, mỗi người chỉ một bản (Nguoi.in_scene).
+## Không đủ người thì để trống chỗ đó, không dựng khối tạm.
+const SPECTATOR_IDS := ["xemco", "dicho1", "dicho3", "dicho2", "may", "bena"]
 const PAVING := [Color("#A8A396"), Color("#97928A")]
-const CROWD := [Color("#3D5A80"), Color("#E39C7A"), Color("#7FB7A4"), Color("#F2E3B8"), Color("#A9C7E8")]
 
 var player: Node3D
 var hud: CanvasLayer
@@ -90,7 +89,7 @@ var _shush_cd := 0.0
 var _scold_cd := 0.0
 var _checker := 0               ## ông nào vừa chiếu (0 Bảy, 1 Tám)
 var _men: Array = []            # {"person", "speech", "state", "t", "speech_t"}
-var _crowd: Array = []          # {"node", "arm_l", "arm_r", "phase"}
+var _crowd: Array = []          # {"person"}: người xem có xương
 var _pieces: Array = []         # {"node", "base", "fallen"}
 var _rattle := 0.0
 var _turn := 0
@@ -176,13 +175,8 @@ func _ready() -> void:
 	_men.append(_man("ongbay", c + Vector3(-0.62, STOOL_TOP - float(Nguoi.SEAT.get("ongbay", 0.28)), 0), PI / 2))
 	_men.append(_man("ongtam", c + Vector3(0.62, STOOL_TOP - float(Nguoi.SEAT.get("ongtam", 0.28)), 0), -PI / 2))
 	# Người xem chen một phía (phía nam, quay mặt về bàn)
-	var spots := [Vector3(-0.85, 0, 1.0), Vector3(-0.35, 0, 1.15), Vector3(0.15, 0, 1.05), Vector3(0.65, 0, 1.2), Vector3(1.05, 0, 0.75)]
-	for k in spots.size():
-		var sid: String = SPECTATOR_IDS[k]
-		if ResourceLoader.exists("res://assets/models/nguoi/%s.glb" % sid):
-			_crowd.append(_rigged_spectator(sid, c + spots[k]))
-		else:
-			_crowd.append(_spectator(c + spots[k], CROWD[k], 0.9 + 0.08 * (k % 3), k * 1.3))
+	# Dựng sau cùng khung hình đầu: lúc đó khách, chợ, hàng xóm đã vào cảnh nên biết ai còn rảnh
+	_cast_crowd.call_deferred()
 	_crowd_label = Blocks.label(self, "", c + Vector3(0.3, 2.35, 1.3), 34, Color("#F2C14E"))
 	_crowd_label.visible = false
 	# 30 quân cờ theo thế cờ trong phác thảo; bàn cờ xoay 90° nên hàng chạy theo trục X
@@ -229,37 +223,21 @@ func _man(id: String, pos: Vector3, yaw: float) -> Dictionary:
 	return {"person": person, "speech": speech, "state": "danh_co", "t": 0.0, "speech_t": 0.0}
 
 
-func _spectator(pos: Vector3, shirt: Color, height: float, phase: float) -> Dictionary:
-	var body := StaticBody3D.new()
-	body.collision_layer = Blocks.LAYER_PROP
-	body.position = pos
-	add_child(body)
-	var shape := CollisionShape3D.new()
-	var bs := BoxShape3D.new()
-	bs.size = Vector3(0.45, 1.6 * height, 0.3)
-	shape.shape = bs
-	shape.position.y = 0.8 * height
-	body.add_child(shape)
-	var node := Node3D.new()
-	node.position = pos
-	node.scale = Vector3.ONE * height
-	add_child(node)
-	Blocks.box(node, Vector3(0.42, 0.8, 0.28), Vector3(0, 0.4, 0), PANTS)
-	Blocks.box(node, Vector3(0.48, 0.6, 0.3), Vector3(0, 1.1, 0), shirt)
-	var hs := SphereMesh.new()
-	hs.radius = 0.16
-	hs.height = 0.32
-	hs.radial_segments = 10
-	hs.rings = 5
-	Blocks.mesh(node, hs, Vector3(0, 1.58, 0), SKIN)
-	var arms := []
-	for sx in [-1, 1]:
-		var arm := Node3D.new()
-		arm.position = Vector3(sx * 0.29, 1.36, 0)
-		node.add_child(arm)
-		Blocks.box(arm, Vector3(0.09, 0.5, 0.09), Vector3(0, -0.24, 0), shirt)
-		arms.append(arm)
-	return {"node": node, "base": pos, "arm_l": arms[0], "arm_r": arms[1], "phase": phase}
+## Chỗ đứng xem phía nam bàn, theo thứ tự lấp người.
+const SPECTATOR_SPOTS := [Vector3(-0.35, 0, 1.15), Vector3(0.65, 0, 1.2), Vector3(-0.85, 0, 1.0), Vector3(0.15, 0, 1.05), Vector3(1.05, 0, 0.75)]
+
+
+func _cast_crowd() -> void:
+	if not is_inside_tree():
+		return
+	for sid in SPECTATOR_IDS:
+		if _crowd.size() >= SPECTATOR_SPOTS.size():
+			break
+		if not ResourceLoader.exists("res://assets/models/nguoi/%s.glb" % sid) or Nguoi.in_scene(get_tree(), sid):
+			continue
+		_crowd.append(_rigged_spectator(sid, CENTER + SPECTATOR_SPOTS[_crowd.size()]))
+		if player:
+			(_crowd[-1].person as Nguoi).look_target = player
 
 
 ## Người xem model Nguoi đứng quay mặt vào bàn (model nhìn về +Z).
@@ -281,6 +259,8 @@ func setup(p: Node3D, h: CanvasLayer = null) -> void:
 		player.noise_made.connect(_on_noise)
 	for m in _men:
 		(m.person as Nguoi).look_target = player  # quay đầu nhìn Bơ khi lại gần
+	for s in _crowd:
+		(s.person as Nguoi).look_target = player
 
 
 # ---------------------------------------------------------------- vòng đơn
@@ -329,7 +309,11 @@ func checkmate_now() -> void:
 	_set_state(1 - _checker, "reo", float(DoKho.v("check_window", CHECK_WINDOW)))
 	for s in _crowd:
 		if s.has("person"):
-			(s.person as Nguoi).play_once("reo")
+			var p: Nguoi = s.person
+			if p.anim and p.anim.has_animation("reo"):
+				p.play_once("reo")
+			else:
+				p.play_for("vui", 2.0)  # hàng xóm không có clip reo thì vui mừng 2 s
 	_say(_checker, "Chiếu tướng!", 1.6)
 	_crowd_label.text = "Hay! Hay quá!"
 	_crowd_label.visible = true
@@ -447,7 +431,6 @@ func _process(delta: float) -> void:
 		_nudge_piece()
 	for k in _men.size():
 		_animate_man(k, delta)
-	_animate_crowd(delta)
 	if _rattle > 0.0:
 		_rattle = maxf(_rattle - delta, 0.0)
 		for pc in _pieces:
@@ -497,22 +480,6 @@ func _animate_man(k: int, delta: float) -> void:
 		_set_state(k, "danh_co", 0.0)
 	m.speech_t = maxf(m.speech_t - delta, 0.0)
 	m.speech.visible = m.speech_t > 0.0
-
-
-func _animate_crowd(delta: float) -> void:
-	var now := Time.get_ticks_msec() * 0.001
-	var w := 1.0 - exp(-12.0 * delta)
-	for s in _crowd:
-		if s.has("person"):
-			continue  # người có xương tự chơi animation
-		var n: Node3D = s.node
-		var hop := absf(sin(now * 9.0 + s.phase)) * 0.12 if distracted else 0.0
-		n.position.y = lerpf(n.position.y, s.base.y + hop, w)
-		var up := 2.8 if distracted else 0.15 + sin(now * 0.7 + s.phase) * 0.05
-		(s.arm_l as Node3D).rotation.z = lerpf((s.arm_l as Node3D).rotation.z, -up if distracted else 0.0, w)
-		(s.arm_r as Node3D).rotation.z = lerpf((s.arm_r as Node3D).rotation.z, up if distracted else 0.0, w)
-		(s.arm_l as Node3D).rotation.x = lerpf((s.arm_l as Node3D).rotation.x, 0.0 if distracted else 0.6, w)  # khoanh tay xem
-		(s.arm_r as Node3D).rotation.x = lerpf((s.arm_r as Node3D).rotation.x, 0.0 if distracted else 0.6, w)
 
 
 # ---------------------------------------------------------------- tiện ích

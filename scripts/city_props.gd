@@ -442,7 +442,8 @@ static func _cafe_may(parent: Node3D, x0: float, x1: float, z0: float, depth: fl
 	var w := x1 - x0
 	PhoModels.put_house(parent, "cafe_may", x0, w, 6.0, z0, false)
 	Blocks.collider(parent, Vector3(w - 0.15, 7.0, depth), Vector3((x0 + x1) / 2.0, 3.5, z0 + depth / 2.0))
-	awning(parent, w, Vector3((x0 + x1) / 2.0, 2.9, z0 - 0.5), "mai_hien_xanh", -1.0)
+	if PlayMode.day != "thu_nam":  # Thứ Năm trưa quán Mây cuốn bạt lên, chỗ đó là gác lửng (scripts/thu_nam.gd)
+		awning(parent, w, Vector3((x0 + x1) / 2.0, 2.9, z0 - 0.5), "mai_hien_xanh", -1.0)
 
 
 ## Chung cư Hoa Sữa 5 tầng (cao 15 m) cả dãy bắc khối 3. Hành lang chung nhìn ra hẻm giữa khối (phía nam),

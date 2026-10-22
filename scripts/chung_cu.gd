@@ -31,6 +31,7 @@ const SHAFT_X1 := TX1 + 1.8
 
 const TIME_LIMIT := 30.0
 const FALL_BREAK_HEIGHT := 3.0
+const STAIR_CAM_WAIT := 3.0          ## buông chuột bao lâu thì camera cầu thang tự quay về hướng dễ leo
 const ORDER := {"who": "Bé Na", "place": "Chung cư, căn 5B-1", "item": "2 ổ trứng", "color": Color("#D7A9C4"),
 	"side_quest": "em_be_ngu_yen"}
 const START := Vector3(9.0, 0.1, 5.0)
@@ -233,6 +234,7 @@ func _physics_process(delta: float) -> void:
 ## Trong lồng cầu thang hẹp camera sau lưng hay bị tường ép sát hoặc quay ngược lúc vòng chiếu nghỉ.
 ## Ở đây camera tự nhìn thẳng vào từ phía cổng (hướng bắc, nhìn xuyên gạch bông gió) và hơi cao,
 ## nên vế đi lên là phím W, vế quay về là phím S, không phải xoay chuột.
+## Người chơi vẫn xoay được: tự xoay thì camera để yên, buông chuột STAIR_CAM_WAIT giây mới từ từ quay về.
 func _in_stairwell() -> bool:
 	var p := player.global_position
 	return p.x > TX0 and p.x < TX1 and p.z < -0.2 and p.z > TOWER_BACK and p.y < FLOORS * FLOOR_H - 0.5
@@ -241,8 +243,8 @@ func _in_stairwell() -> bool:
 func _stair_camera(delta: float) -> void:
 	if not _in_stairwell():
 		return
-	if not rig.first_person:
-		var k := 1.0 - exp(-6.0 * delta)
+	if not rig.first_person and rig.since_manual() > STAIR_CAM_WAIT:
+		var k := 1.0 - exp(-2.5 * delta)
 		rig.yaw = lerp_angle(rig.yaw, 0.0, k)
 		# Vế B đi về phía camera, dốc lên: camera nhìn cao hơn để vượt qua sàn hành lang tầng trên
 		var on_b := player.global_position.x > TX0 + 1.3 and player.global_position.z > -4.1 and player.global_position.z < -1.7
@@ -275,7 +277,7 @@ func _hint(id: String, text: String, secs := 3.0) -> void:
 func _zone_hints() -> void:
 	var p := player.global_position
 	if _in_stairwell() and p.y < 1.0:
-		_hint("thang", "Cầu thang: giữ W đi lên. Tới chiếu nghỉ thì giữ S, Bơ tự sang vế bên kia.", 4.0)
+		_hint("thang", "Cầu thang: giữ W đi lên. Tới chiếu nghỉ thì giữ S, Bơ tự sang vế bên kia. Muốn nhìn quanh cứ xoay chuột, buông ra camera tự quay về.", 5.0)
 	elif _in_stairwell() and absf(p.y - (FLOOR_H + FLOOR_H / 2.0)) < 0.4:
 		_hint("gia_phoi", "Giá phơi đồ chắn lối: cứ đi thẳng vào, Bơ tự cúi người chui qua.", 3.0)
 	elif _in_stairwell() and p.y > FLOOR_H + 2.0 and p.y < FLOOR_H * 3.0:

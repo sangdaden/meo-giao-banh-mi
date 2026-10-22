@@ -2,7 +2,8 @@ extends Node3D
 ## Camera theo mèo, có hai góc nhìn (phím V hoặc cài đặt đổi qua lại):
 ## - Thứ ba: sau lưng mèo. SpringArm3D tự kéo camera lại gần khi bị tường che.
 ## - Thứ nhất: ngay mắt Bơ. Không vẽ thân Bơ để khỏi che mắt, bóng Bơ vẫn in trên đất.
-## Chuột (hoặc cần phải tay cầm) xoay camera.
+## Chuột (hoặc cần phải tay cầm) xoay camera. Khi chuột chưa bị khóa (trình duyệt từ chối khóa con trỏ)
+## thì giữ chuột trái hoặc phải rồi kéo để xoay.
 
 signal view_changed(first_person: bool)
 
@@ -19,6 +20,7 @@ var yaw := 0.0
 var pitch := -0.32
 var invert_y := false             ## đảo trục dọc chuột/cần (menu Cài đặt gán)
 var first_person := false: set = set_first_person
+var _manual_ms := -100000         ## lần cuối người chơi tự xoay (chuột hoặc cần)
 
 var arm: SpringArm3D
 var camera: Camera3D
@@ -61,6 +63,11 @@ func _apply_view() -> void:
 		target.set_first_person(first_person, camera)
 
 
+## Bao nhiêu giây kể từ lần cuối người chơi tự xoay camera (cảnh tự lái camera thì nhường người chơi).
+func since_manual() -> float:
+	return (Time.get_ticks_msec() - _manual_ms) / 1000.0
+
+
 func _pitch_limits() -> Vector2:
 	return Vector2(-1.35, 1.2) if first_person else Vector2(-1.2, 0.35)
 
@@ -69,7 +76,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_V:
 		first_person = not first_person
 		get_viewport().set_input_as_handled()
-	elif event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+	elif event is InputEventMouseMotion and (Input.mouse_mode == Input.MOUSE_MODE_CAPTURED \
+			or event.button_mask & (MOUSE_BUTTON_MASK_LEFT | MOUSE_BUTTON_MASK_RIGHT)):
+		_manual_ms = Time.get_ticks_msec()
 		var lim := _pitch_limits()
 		var dy: float = -event.relative.y if invert_y else event.relative.y
 		yaw -= event.relative.x * mouse_sensitivity
@@ -81,6 +90,8 @@ func _process(delta: float) -> void:
 	if invert_y:
 		look.y = -look.y
 	var lim := _pitch_limits()
+	if look.length() > 0.05:
+		_manual_ms = Time.get_ticks_msec()
 	yaw -= look.x * stick_speed * delta
 	pitch = clampf(pitch - look.y * stick_speed * delta, lim.x, lim.y)
 	if target:

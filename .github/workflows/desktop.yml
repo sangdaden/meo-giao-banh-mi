@@ -172,6 +172,9 @@ jobs:
           grep -q "AUTOTEST THU_TU OK" thu_tu.log
           timeout 300 ~/godot/godot --headless --path . -s tests/test_thu_tu.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee thu_tu_test.log
           grep -q "THU TU TEST OK" thu_tu_test.log
+          # Thứ Năm leo chung cư: xoay được camera ngoài hẻm và trong lồng cầu thang
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_xoay_camera.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee xoay_camera.log
+          grep -q "XOAY CAMERA OK" xoay_camera.log
           mkdir -p export
           ~/godot/godot --headless --path . --export-release "macOS" "export/$ZIP_NAME"
           unzip -l "export/$ZIP_NAME" | grep -q "_CodeSignature/CodeResources"

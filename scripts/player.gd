@@ -205,6 +205,8 @@ var _cai_model := false          ## đang dùng model mèo cái (<id>_cai.glb)
 var _model: Node3D
 var _acc_nodes := []             # phụ kiện đang gắn (OutfitView.attach)
 var _cloth_mats := []            # vật liệu đồ vải bay (áo choàng) trong _acc_nodes
+var _acc_lift := 0.0             # giày patin nâng thân 2,8 cm
+var _roll := 0.0                 # góc lăn bánh xe patin
 var _cloth_s := Spring.new()     # tốc độ gió lên áo, có quán tính
 var _cloth_fall := Spring.new()
 var _cloth_turn := Spring.new()
@@ -547,15 +549,18 @@ func apply_outfit(worn := {}) -> void:
 			_hidden_mat = StandardMaterial3D.new()
 			_hidden_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 			_hidden_mat.albedo_color = Color(1, 1, 1, 0)
-		var on: bool = worn.get("neck", "") == "khando"
+		# Khăn đỏ làm kỹ (đuôi khăn bay) có model phụ kiện riêng: tắt khăn liền trong model Bơ, đeo bản phụ kiện
+		var on: bool = worn.get("neck", "") == "khando" and not OutfitView.has_model("khando")
 		_scarf_mesh.set_surface_override_material(_scarf_surface, _scarf_mat if on else _hidden_mat)
 	_ears_down = false
+	_acc_lift = 0.0
 	for slot in worn:
 		var id: String = worn[slot]
-		if id == "" or (is_bo and id in ["khando", "tuibanh"]):
+		if id == "" or (is_bo and (id == "tuibanh" or (id == "khando" and not OutfitView.has_model("khando")))):
 			continue
 		_acc_nodes.append_array(OutfitView.attach(_skel, id, breed, sex if _cai_model else "duc"))
 		_ears_down = _ears_down or OutfitView.ears_down(id)
+		_acc_lift = maxf(_acc_lift, OutfitView.lift(id))
 	_cloth_mats = OutfitView.cloth_mats(_acc_nodes)
 	_basket_loaves = OutfitView.loaves(_acc_nodes)
 	_show_bag()
@@ -1345,8 +1350,9 @@ func _animate(delta: float, hspeed: float, vy: float, on_floor: bool) -> void:
 	if not _cloth_mats.is_empty():
 		# Áo choàng: gió theo tốc độ (đi bay nhẹ, chạy nhanh bay thẳng ra sau), rơi thì hất lên, quẹo thì văng ra
 		var fall_t := clampf(-vy / 8.0, -1.0, 1.0) if not on_floor else 0.0
+		_roll = fmod(_roll + hspeed * delta / 0.0105, TAU)  # bánh patin bán kính 1,05 cm
 		OutfitView.cloth_drive(_cloth_mats, clampf(_cloth_s.step(k, 30.0, 0.8, delta), 0.0, 1.2),
-			_cloth_fall.step(fall_t, 40.0, 0.5, delta), _cloth_turn.step(clampf(-_yaw_rate * k * 0.25, -1.0, 1.0), 30.0, 0.6, delta))
+			_cloth_fall.step(fall_t, 40.0, 0.5, delta), _cloth_turn.step(clampf(-_yaw_rate * k * 0.25, -1.0, 1.0), 30.0, 0.6, delta), _roll)
 	if not _basket_loaves.is_empty():
 		_show_bag()  # đơn không mang bánh (túi trứng) tắt bread sau khi đã bắt đầu mang
 	_body.rotation.y = deg_to_rad(6.0) * _slide_amt
@@ -1359,7 +1365,7 @@ func _animate(delta: float, hspeed: float, vy: float, on_floor: bool) -> void:
 	_chest_pitch = 0.55 * startle
 	# Hạ thân: chui 0,13 m, rón rén 0,05 m, giao cao ngồi trên cổ chân sau 0,06 m, ngồi 0,07 m
 	_root_off = Vector3(0, _bob - 0.13 * cr - 0.05 * sneak_k - 0.06 * high - 0.07 * _sit, 0)
-	_body.position = Vector3.ZERO
+	_body.position = Vector3(0, _acc_lift, 0)
 
 	# Thở khi đứng yên: ngực phồng nhẹ
 	var breath := sin(t * 2.4) * (1.0 - k)

@@ -10,12 +10,17 @@ const BONE := {
 	"head": ["head"], "neck": ["chest", "spine"], "back": ["chest", "spine"],
 	"tail_mid": ["tail_2"], "tail_tip": ["tail_4"],
 	"pawFL": ["paw_FL", "leg_FL"], "pawFR": ["paw_FR", "leg_FR"], "pawBL": ["paw_BL", "leg_BL"], "pawBR": ["paw_BR", "leg_BR"],
+	# Cổ tất, cổ ủng, cổ giày patin: theo xương cẳng chân để không bị bàn chân bẻ gập
+	"legFL": ["forearm_FL", "leg_FL"], "legFR": ["forearm_FR", "leg_FR"], "legBL": ["shin_BL", "leg_BL"], "legBR": ["shin_BR", "leg_BR"],
 }
 
-## Mũ trùm kín đầu: cụp tai xuống cho khỏi đâm xuyên mũ (thêm vào cờ "ears" trong skin.json)
-const EARS_DOWN := ["mubaohiem", "munlen"]
+## Mũ trùm kín đầu: cụp tai xuống cho khỏi đâm xuyên mũ (thêm vào cờ "ears" trong skin.json).
+## Mũ bảo hiểm và mũ len làm kỹ (22/10) có lỗ cho tai thò ra nên không cụp nữa (Sang: không được mất tai).
+const EARS_DOWN := []
 ## Đầu Bơ D cao hơn đầu mèo mẫu bên luồng skin: nâng vài món đội đầu lên (m, theo trục dọc của đầu)
 const LIFT := {"muphuthuy": 0.012}
+## Giỏ giao bánh: ổ bánh bên trong chỉ hiện khi Bơ đang mang bánh
+const BASKETS := ["giomay", "giodan"]
 
 static var _meta := {}
 
@@ -50,6 +55,11 @@ static func has_sex_model(breed: String, sex: String) -> bool:
 	return ResourceLoader.exists(DIR + "giong/%s_cai.glb" % breed)
 
 
+## Đồ chân có đế cao (giày patin) nâng cả thân mèo lên (m), ghi ở "lift" trong skin.json.
+static func lift(id: String) -> float:
+	return float(meta().get("phu_kien", {}).get(id, {}).get("lift", 0.0))
+
+
 static func ears_down(id: String) -> bool:
 	return id in EARS_DOWN or str(meta().get("phu_kien", {}).get(id, {}).get("ears", "")) == "down"
 
@@ -71,6 +81,8 @@ static func _socket_xform(sock: String, breed: String, sex := "duc") -> Transfor
 			k = (_v(h.hr) / _v(bo_head.hr)).dot(Vector3.ONE) / 3.0  # đầu to/nhỏ hơn Bơ thì đồ đội đầu to/nhỏ theo
 		return Transform3D(basis * Basis.from_scale(Vector3.ONE * k), basis * (hc - piv) + piv)
 	var socks: Dictionary = g.get("sockets", m.get("bo_sockets", {}))
+	if sock.begins_with("leg"):
+		sock = "paw" + sock.substr(3)  # phần cổ xuất cùng gốc với bàn chân
 	# Mèo cái nhỏ hơn 7%, Lân Tết to hơn 6%: đồ đeo thân (túi, khăn, tất...) co giãn theo cỡ model
 	return Transform3D(Basis.from_scale(Vector3.ONE * float(g.get("size", 1.0))), _v(socks.get(sock, [0, 0.3, 0])))
 
@@ -113,9 +125,12 @@ static func attach(skel: Skeleton3D, id: String, breed := "bo", sex := "duc", li
 		if compat:
 			copy.mesh = srgb_mesh(mi.mesh)
 		holder.add_child(copy)
-		if str(mi.name).begins_with("Banh") or str(mi.get_parent().name).begins_with("Banh"):
+		# Ổ bánh trong giỏ giao bánh (hiện khi đang mang bánh). Chỉ giỏ: bánh xe patin, huy hiệu bánh nổi cũng tên "Banh"
+		if id in BASKETS and (str(mi.name).begins_with("Banh") or str(mi.get_parent().name).begins_with("Banh")):
 			copy.set_meta("loaf", true)
 		style(copy, oi)
+		if not oi.get("shadow", true):
+			copy.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF  # vành mũ rộng làm tối cả mặt
 		copy.layers = 1 << 10  # cùng lớp thân Bơ: góc nhìn thứ nhất không vẽ
 		out.append(att)
 	scene.free()
@@ -126,10 +141,22 @@ static func attach(skel: Skeleton3D, id: String, breed := "bo", sex := "duc", li
 ## Đồ vải bay (có "cloth" trong skin.json) dùng shader vai_bay; player.gd đẩy tốc độ vào qua cloth_drive().
 static func style(mi: MeshInstance3D, oi: Dictionary) -> void:
 	var kind: String = oi.get("kind", "cloth")
+	var tex: Texture2D = load(DIR + str(oi.tex)) if oi.has("tex") else null  # hoa văn lặp (ô caro, chấm bi)
 	if oi.has("cloth"):
 		var sm := ShaderMaterial.new()
 		sm.shader = preload("res://shaders/vai_bay.gdshader")
 		sm.set_shader_parameter("hinge", _v(oi.cloth.get("hinge", [0, 0.056, 0.12])))
+		sm.set_shader_parameter("mode", int(oi.cloth.get("mode", 0)))  # 1 lá cờ, 2 đồ treo lắc
+		sm.set_shader_parameter("amp", float(oi.cloth.get("amp", 1.0)))
+		sm.set_shader_parameter("ridge", float(oi.cloth.get("ridge", 1.0)))
+		sm.set_shader_parameter("lac_dir", float(oi.cloth.get("dir", 1.0)))
+		sm.set_shader_parameter("axle", float(oi.cloth.get("axle", 0.0)))  # 3: bánh xe patin, nửa trục trước/sau
+		if tex:
+			sm.set_shader_parameter("use_tex", true)
+			sm.set_shader_parameter("tex", tex)
+		var rough := {"gloss": .25, "metal": .4, "paper": .85, "wood": .7}
+		sm.set_shader_parameter("roughness_v", rough.get(kind, 0.9))
+		sm.set_shader_parameter("emit", float(oi.get("emit", 0.0)))
 		for i in mi.mesh.get_surface_count():
 			mi.set_surface_override_material(i, sm)
 		mi.set_meta("cloth", sm)
@@ -139,7 +166,10 @@ static func style(mi: MeshInstance3D, oi: Dictionary) -> void:
 		"wood": .7, "gloss": .2, "paper": .85}
 	for i in mi.mesh.get_surface_count():
 		var m := StandardMaterial3D.new()
-		m.vertex_color_use_as_albedo = true
+		m.vertex_color_use_as_albedo = tex == null
+		if tex:
+			m.albedo_texture = tex
+			m.texture_repeat = true
 		m.roughness = rough.get(kind, 0.7)
 		m.metallic = float(oi.get("metal", 0.0)) if kind != "metal" else maxf(float(oi.get("metal", 1.0)), 0.6)
 		var alpha := float(oi.get("alpha", 1.0))
@@ -194,8 +224,9 @@ static func loaves(nodes: Array) -> Array:
 
 
 ## Đẩy chuyển động của mèo vào vải bay: speed 0..1, fall -1..1 (dương là đang rơi), turn -1..1.
-static func cloth_drive(mats: Array, speed: float, fall: float, turn: float) -> void:
+static func cloth_drive(mats: Array, speed: float, fall: float, turn: float, roll := 0.0) -> void:
 	for m: ShaderMaterial in mats:
+		m.set_shader_parameter("roll", roll)
 		m.set_shader_parameter("speed", speed)
 		m.set_shader_parameter("fall", fall)
 		m.set_shader_parameter("turn", turn)

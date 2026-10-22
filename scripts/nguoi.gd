@@ -36,7 +36,7 @@ const NAMES := {
 }
 ## Chiều cao mặt ghế (m) của người ngồi, khớp với ROLES trong tools/nguoi_game.py
 const SEAT := {"chutu": 0.45, "hung": 0.28, "basau": 0.42, "ongbay": 0.30, "ongtam": 0.30, "chunam": 0.45, "bancho": 0.18, "cho8": 0.32}
-const ONE_SHOT := ["nhan_banh", "goi_muc", "suyt", "mang", "reo", "dua_tui", "nhan_xe", "va", "xuong_xe"]
+const ONE_SHOT := ["nhan_banh", "goi_muc", "suyt", "mang", "reo", "dua_tui", "nhan_xe", "va", "xuong_xe", "goi_1", "goi_2", "nhan_banh_cau"]
 
 ## Mọi người dân Nguoi.make ra đều vào nhóm này: một người chỉ có một bản trong cảnh.
 ## Cảnh phụ (người xem cờ...) hỏi in_scene() rồi mới dựng, nhường người đã có chỗ trong ngày (khách, chợ).

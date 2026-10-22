@@ -586,6 +586,44 @@ class Rig:
             pb.location = Vector()
         return act
 
+    def keyframe_world(self, name, keys):
+        """keys: [(khung, dáng)], dáng = [(xương, trục thế giới 'X'/'Y'/'Z', độ)], cha trước con, xoay quanh gốc xương.
+        Cách dựng dáng của trang phác thảo G6 (scripts/g6.py) để giữ đúng dáng Sang đã duyệt. Đẩy vào NLA track cùng tên."""
+        arm = self.arm
+        arm.animation_data_create()
+        act = bpy.data.actions.new(name)
+        arm.animation_data.action = act
+        pbs = arm.pose.bones
+        vl = bpy.context.view_layer
+
+        def clear():
+            for pb in pbs:
+                pb.rotation_mode = 'QUATERNION'
+                pb.rotation_quaternion = Quaternion()
+                pb.location = Vector()
+            vl.update()
+
+        for f, spec in keys:
+            clear()
+            for bn, ax, deg in spec:
+                pb = pbs[bn]
+                mw = arm.matrix_world @ pb.matrix
+                head = mw.to_translation()
+                rm = Matrix.Translation(head) @ Matrix.Rotation(math.radians(deg), 4, ax) @ Matrix.Translation(-head)
+                pb.matrix = arm.matrix_world.inverted() @ rm @ mw
+                vl.update()
+            for pb in pbs:
+                pb.keyframe_insert('rotation_quaternion', frame=f)
+                if pb.name == 'hips':
+                    pb.keyframe_insert('location', frame=f)
+        track = arm.animation_data.nla_tracks.new()
+        track.name = name
+        st = track.strips.new(name, 1, act)
+        st.name = name
+        arm.animation_data.action = None
+        clear()
+        return act
+
 
 # ---------------------------------------------------------------- thư viện cử động
 def osc(t, period, phase=0.0):
@@ -1392,6 +1430,50 @@ def thu_ba_clips(R, role, cid):
     return []
 
 
+# ---------------------------------------------------------------- Anh Hùng Thứ Sáu (trang G6 "Tiệm xe chiều tà", Sang duyệt 22/10)
+# Chép nguyên từ scripts/g6.py của trang phác thảo. Dáng đứng cạnh cầu nâng, mặt nhìn -y; tay phải (.R) ở phía -x.
+# Trục X âm đưa tay ra trước; X dương cúi người tới trước; Z âm quay sang phải anh.
+H_STAND = [('upperarm.L', 'Y', -6), ('upperarm.R', 'Y', 6)]
+
+
+def H_SUA(t=0.):
+    w = 22 * math.sin(t * 2 * math.pi)
+    return [('spine', 'X', 9), ('chest', 'X', 5), ('head', 'X', 8),
+            ('upperarm.R', 'X', -58), ('upperarm.R', 'Z', 24), ('forearm.R', 'X', -42), ('forearm.R', 'Y', w), ('hand.R', 'X', -10),
+            ('upperarm.L', 'X', -52), ('upperarm.L', 'Z', -22), ('forearm.L', 'X', -48), ('hand.L', 'Y', -20),
+            ('thigh.L', 'X', -4), ('thigh.R', 'X', 3)]
+
+
+def H_GOI1(k=1.):
+    return [('spine', 'Z', -12 * k), ('chest', 'Z', -16 * k), ('neck', 'Z', -14 * k), ('head', 'X', -10 * k),
+            ('upperarm.R', 'X', -95 * k), ('upperarm.R', 'Z', 30 * k), ('forearm.R', 'X', -115 * k), ('forearm.R', 'Z', 20 * k), ('hand.R', 'Y', 30 * k),
+            ('upperarm.L', 'X', -50), ('upperarm.L', 'Z', 14), ('forearm.L', 'X', -48)]
+
+
+def H_GOI2(t=0.):
+    w = 18 * math.sin(t * 2 * math.pi)
+    return [('spine', 'Z', -14), ('chest', 'Z', -10), ('chest', 'X', -6), ('neck', 'Z', -12), ('head', 'X', -14),
+            ('upperarm.R', 'Y', 140 + w), ('forearm.R', 'Y', 25 + w), ('upperarm.L', 'Y', -40), ('upperarm.L', 'X', -60), ('forearm.L', 'X', -60), ('forearm.L', 'Z', 40),
+            ('thigh.R', 'X', -10), ('shin.R', 'X', 14)]
+
+
+def H_NHAN(k=1., hold=0.):
+    return [('spine', 'X', 14 * k), ('chest', 'X', 6 * k), ('head', 'X', (10 - 18 * hold) * k),
+            ('upperarm.R', 'X', -(55 + 10 * hold) * k), ('upperarm.R', 'Z', 30), ('forearm.R', 'X', -(15 + 55 * hold) * k), ('hand.R', 'X', 10),
+            ('upperarm.L', 'X', -(55 + 10 * hold) * k), ('upperarm.L', 'Z', -30), ('forearm.L', 'X', -(15 + 55 * hold) * k), ('hand.L', 'X', 10),
+            ('thigh.L', 'X', -6 * k), ('shin.L', 'X', 8 * k)]
+
+
+def hung_thu_sau(R):
+    """5 clip đứng ở tiệm xe Thứ Sáu. goi_1, goi_2, nhan_banh_cau chạy một lần rồi về sua_xe (Nguoi.ONE_SHOT)."""
+    S = lambda d: H_STAND + d  # noqa: E731
+    R.keyframe_world('sua_xe', [(1 + i * 6, S(H_SUA(i / 10))) for i in range(11)])
+    R.keyframe_world('goi_1', [(1, S(H_SUA(0))), (8, S(H_GOI1(1))), (30, S(H_GOI1(1.05))), (45, S(H_SUA(0)))])
+    R.keyframe_world('goi_2', [(1, S(H_SUA(0)))] + [(6 + i * 6, S(H_GOI2(i / 4))) for i in range(9)] + [(60, S(H_SUA(0)))])
+    R.keyframe_world('nhan_banh_cau', [(1, S(H_SUA(0))), (10, S(H_NHAN(1, 0))), (20, S(H_NHAN(1, 0))), (30, S(H_NHAN(1, 1))), (45, S(H_NHAN(.4, 1)))])
+    R.keyframe_world('dung_cho', [(1, S([])), (30, S([('chest', 'X', -2), ('head', 'Z', -8)])), (60, S([]))])
+
+
 def build_anims(info, cid):
     R = Rig(info)
     R.c = info['c']
@@ -1427,6 +1509,8 @@ def build_anims(info, cid):
         R.keyframe('keo_day', L(1.6 / tp), anim_rope(R, role))
     if cid == 'basau':
         R.keyframe('goi_muc', L(3.2), anim_call(R, role), loop=False)
+    if cid == 'hung':
+        hung_thu_sau(R)
     return R
 
 

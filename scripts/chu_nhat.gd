@@ -269,8 +269,10 @@ func _finish_week() -> void:
 	_summary.week_stars_max = 5 * 5 * Scoring.STARS_PER_ORDER
 	_summary.extra_medal = "Hàng xóm thân" if full else ""
 	_summary.autotest = _autotest
+	if PlayMode.continuous:
+		_summary.new_week_text = PlayMode.next_label()  # "Sang Tuần mới"
 	_summary.new_week.connect(_on_new_week)
-	_summary.to_menu.connect(func(): PlayMode.back_to_menu(get_tree()))
+	_summary.to_menu.connect(_on_to_menu)
 	add_child(_summary)
 	hud.show_playing_ui(false)
 	print("[tong ket] huy chương ", list.map(func(m): return int(m.rank)), " sổ ", pages.size(), " sao tuần ", stars, " boa ", summary.get("tip", 0))
@@ -278,11 +280,22 @@ func _finish_week() -> void:
 		get_tree().create_timer(2.5).timeout.connect(_summary._start_credits)
 
 
-## "Tuần mới": bản này chỉ mở cờ trong GameState (đơn trộn ngẫu nhiên làm sau), về màn Chọn màn chơi lại Thứ Hai.
+## "Tuần mới": mở cờ trong GameState (đơn trộn ngẫu nhiên làm sau). Đang chơi liền các ngày thì vào thẳng
+## Thứ Hai tuần sau (Scoring.end_day đã gọi day_done: lưu ngày kế và cộng tuần); chơi từ màn Chọn ngày thì về đó.
 func _on_new_week() -> void:
 	GameState.set_global("tuan_moi", true)
 	GameState.write_save()
-	PlayMode.back_to_menu(get_tree())
+	if PlayMode.continuous:
+		PlayMode.go_next_day(get_tree())
+	else:
+		PlayMode.back_to_menu(get_tree())
+
+
+func _on_to_menu() -> void:
+	if PlayMode.continuous:
+		PlayMode.go_home(get_tree())  # Bắt đầu lần sau là Thứ Hai tuần mới
+	else:
+		PlayMode.back_to_menu(get_tree())
 
 
 # ---------------------------------------------------------------- mỗi khung

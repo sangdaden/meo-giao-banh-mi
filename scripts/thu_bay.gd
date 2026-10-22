@@ -624,6 +624,7 @@ func _apply_sky(t: float) -> void:
 		fill.rotation_degrees = (a.fill_rot as Vector3).lerp(b.fill_rot, k)
 		fill.light_color = (a.fill_color as Color).lerp(b.fill_color, k)
 		fill.light_energy = lerpf(a.fill_energy[q], b.fill_energy[q], k)
+	VanhPho.set_sky(get_tree(), "chieu" if t >= 0.5 else "sang")  # phông chân trời ngả theo
 	# Từ chiều thì thắp đèn lồng (DenToi giống Thứ Sáu, Thứ Bảy)
 	if t >= 0.6 and _lamps == null:
 		_lamps = DenToi.new()

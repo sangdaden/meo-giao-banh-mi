@@ -119,6 +119,7 @@ func _ready() -> void:
 	add_child(preload("res://scripts/traffic.gd").new())  # xe máy, đèn giao thông, người đi bộ
 	add_child(preload("res://scripts/market.gd").new())  # chợ sáng Thứ Ba (ngày khác tự gỡ)
 	add_child(preload("res://scripts/thu_sau.gd").new())  # tiệm xe chiều tà, đám giỗ Thứ Sáu (ngày khác tự gỡ)
+	add_child(preload("res://scripts/thu_tu.gd").new())  # mưa, sân thượng, bồ câu Thứ Tư (ngày khác tự gỡ)
 
 	stamps = StampsScript.new()
 	stamps.name = "TemCoBa"

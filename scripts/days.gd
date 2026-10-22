@@ -56,7 +56,24 @@ const DATA := {
 			{"who": "Anh Hùng", "place": "Sửa xe", "item": "3 ổ xíu mại", "pos": Vector3(30.6, 0, 25.3), "time": 28.0, "color": Color("#5E6F6C"), "delivery": "under_car", "side_quest": "khong_do_thung"},
 		],
 	},
-	"thu_tu": {"title": "Trời mưa", "blurb": "Mưa trơn trượt, đi đường sân thượng và giữ thăng bằng trên mép tường."},
+	# Gói việc thiet-ke-man/goi-viec-thu-tu.md. Khóa riêng Thứ Tư (scripts/thu_tu.gd đọc):
+	#   flood: Vector2(mức nước m, giây) dâng/rút lúc nhận đơn · pigeons: "roof" | "street" · clear: tạnh mưa
+	#   rooftop_hint: nhắc đường sân thượng. Cô Hai nhận ở cửa sau tạp hóa (cuối cầu thang sắt), cách giao
+	#   "counter_shop" chưa có cảnh riêng nên deliveries.gd dựng Cô Hai đứng chờ.
+	"thu_tu": {
+		"title": "Mưa chiều",
+		"blurb": "Mưa lớn, đường ngập dần. Đi đường sân thượng, giữ thăng bằng trên ván, tránh xe tạt nước và đàn bồ câu.",
+		"intro": "Cô Ba: \"Mưa lớn rồi Bơ ơi, bánh cô bọc ni-lông kỹ rồi. Đường lớn sắp ngập, lên sân thượng mà đi cho khô nha!\"",
+		"time_mult": 1.0,
+		"extras": {"rain": true, "rooftop": true, "pigeons": true},
+		"orders": [
+			{"who": "Chị Mây", "place": "Cà phê Mây", "item": "2 ổ thịt nguội", "pos": Vector3(5.4, 0, 5.4), "time": 20.0, "color": Color("#7FB7A4"), "delivery": "counter", "side_quest": "duoi_mai_hien"},
+			{"who": "Cô Hai", "place": "Tạp hóa", "item": "1 ổ pate", "note": "nhieu_do_chua", "pos": Vector3(7.8, 0, -16.0), "time": 22.0, "color": Color("#E39C7A"), "delivery": "counter_shop", "side_quest": "van_vung", "flood": Vector2(0.12, 20.0), "rooftop_hint": true},
+			{"who": "Bé Na", "place": "Chung cư", "item": "2 ổ trứng", "pos": Vector3(24.0, 0, -15.6), "time": 24.0, "color": Color("#D7A9C4"), "delivery": "basket", "side_quest": "bo_cau_yen", "pigeons": "roof"},
+			{"who": "Chú Năm", "place": "Xe ôm đầu hẻm 42", "item": "1 ổ thịt nguội", "note": "khong_ot", "pos": Vector3(-17.5, 0, 10.0), "time": 24.0, "color": Color("#4F7FA8"), "delivery": "on_seat", "side_quest": "khong_bi_tat", "flood": Vector2(0.25, 15.0)},
+			{"who": "Chú Tư", "place": "Sạp báo", "item": "2 ổ chả cá", "pos": Vector3(-1, 0, -6), "time": 18.0, "color": Color("#3D5A80"), "delivery": "hand", "side_quest": "khong_truot", "flood": Vector2(0.0, 20.0), "pigeons": "street", "clear": true},
+		],
+	},
 	"thu_nam": {"title": "Chung cư", "blurb": "Giao lên các tầng chung cư: bám mép và bật tường để leo."},
 	# Thứ Sáu chiều tà (gói việc thiet-ke-man/goi-viec-thu-sau.md): giờ là số Thử thách, Thong thả ×2 qua DoKho.
 	# Ba cách giao mới call, lift, gio_table ở scripts/thu_sau.gd. Đơn "gio": ngậm túi 3 ổ tới nhà Bà Sáu.

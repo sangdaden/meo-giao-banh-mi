@@ -43,7 +43,7 @@ func _ready() -> void:
 	add_child(_make_puddles())
 	_make_wet.call_deferred()
 	if "--ngap" in OS.get_cmdline_user_args():
-		ngap(0.09, 0.0)
+		ngap.call_deferred(0.09, 0.0)  # sau khi main gộp khối tĩnh, kẻo mặt nước bị gộp mất
 
 
 func _exit_tree() -> void:

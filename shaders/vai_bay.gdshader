@@ -10,11 +10,13 @@ uniform float fall = 0.0;    // -1 đang bật lên .. 1 đang rơi: rơi thì �
 uniform float turn = 0.0;    // -1..1 quẹo: gấu áo văng ra phía ngoài vòng
 uniform vec3 hinge = vec3(0.0, 0.056, 0.12);  // mép cổ áo / điểm treo (toạ độ mesh)
 uniform float roughness_v = 0.9;
-uniform int mode = 0;        // 0 vải bay, 1 lá cờ (chỉ sóng, không xoay quanh cán), 2 đồ treo lắc (con lắc quanh hinge)
+uniform int mode = 0;        // 0 vải bay, 1 lá cờ (chỉ sóng, không xoay quanh cán), 2 đồ treo lắc (con lắc quanh hinge), 3 bánh xe lăn
 uniform float amp = 1.0;     // biên độ (nơ bướm rung nhẹ 0,25)
 uniform float ridge = 1.0;   // 1: dùng UV2.x để bung phẳng (áo choàng); 0: UV2 là toạ độ ảnh hoa văn
 uniform float lac_dir = 1.0; // đồ treo dưới điểm treo 1, đồ bay trên điểm treo (bóng bay) -1: đều văng ra sau
 uniform float emit = 0.0;    // đèn ông sao, nến phát sáng
+uniform float roll = 0.0;    // góc lăn của bánh xe (rad), player.gd cộng dồn theo quãng đường
+uniform float axle = 0.0;    // bánh xe: hai trục trước/sau ở hinge.z ± axle
 uniform bool use_tex = false;
 uniform sampler2D tex : source_color, filter_linear_mipmap, repeat_enable;  // hoa văn lặp (ô caro, chấm bi), đọc theo UV2
 
@@ -23,7 +25,14 @@ void vertex() {
 	vec3 p = VERTEX;
 	float w = TIME * (3.0 + 7.0 * s);
 	float ca = 1.0, sa = 0.0;
-	if (mode == 2) {
+	if (mode == 3) {
+		vec3 c = hinge;
+		c.z += p.z > hinge.z ? axle : -axle;
+		ca = cos(roll); sa = sin(roll);
+		vec3 q = p - c;
+		q = vec3(q.x, q.y * ca - q.z * sa, q.y * sa + q.z * ca);
+		p = q + c;
+	} else if (mode == 2) {
 		float a = lac_dir * (s * 0.35 + clamp(fall, -0.25, 1.0) * 0.25 + 0.05 * sin(TIME * 2.2) * (1.0 + s));
 		ca = cos(a); sa = sin(a);
 		vec3 q = p - hinge;

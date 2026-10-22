@@ -31,16 +31,18 @@ SOCK = dict(khando='neck', khanran='neck', chuong='neck', nobuom='neck', vonghoa
             tatsoc='feet', ungmua='feet', giaypatin='feet', deptoong='feet')
 # Món thêm sau, đặt cạnh acc.py: acc_moi.py = 7 món bán theo gói (Sang duyệt 21/10),
 # acc_t7.py = 3 món quà Thứ Bảy (G8, Sang duyệt 22/10), acc_dau.py = 13 món đội đầu làm kỹ (Sang duyệt 22/10,
-# ghi đè cành mai, nón phớt, ly cà phê của hai module trước), co_duoi.py = 11 món cổ + đuôi làm kỹ (Sang duyệt 22/10).
+# ghi đè cành mai, nón phớt, ly cà phê của hai module trước), co_duoi.py = 11 món cổ + đuôi làm kỹ,
+# acc_mc.py = 11 món mặt + chân làm kỹ (Sang duyệt 22/10; đồ chân đã tách sẵn từng chiếc, tên <bộ phận>__FL...).
 # Ngân sách tam giác từng bộ phận lấy theo bản đã duyệt (mon_moi/meta_<id>.json) để bản web nhẹ.
 EXTRA = {}
-for _mod in ('acc_moi', 'acc_t7', 'acc_dau', 'co_duoi'):
+for _mod in ('acc_moi', 'acc_t7', 'acc_dau', 'co_duoi', 'acc_mc'):
     try:
         _m = __import__(_mod)
     except ImportError:
         continue
     acc.ACC.update(_m.ACC)
-    SOCK.update({k: s for k, s in _m.SOCK.items() if s != 'face'})  # đồ mặt dựng theo đầu (Part.head)
+    SOCK.update({k: s for k, s in getattr(_m, 'SOCK', {}).items() if s != 'face'})  # đồ mặt dựng theo đầu (Part.head)
+    SOCK.update({k: 'feet' for k in getattr(_m, 'FEET', ())})
     EXTRA.update(_m.ACC)
 PART_TRIS = {}
 _moi = os.path.join(SKINS, 'mon_moi')
@@ -50,6 +52,22 @@ for _id in EXTRA:
         for _p in json.load(open(_f))['parts']:
             PART_TRIS[(_id, _p['name'])] = max(120, _p['tris'])
 EARS_DOWN = ('mucoi', 'nonla', 'muphuthuy')
+TALL_FEET = ('tatsoc', 'ungmua', 'giaypatin')
+LEG_SPLIT = .045
+# Sọc tất 2,2 cm, viền phản quang ủng 3 mm, chỉ khâu giày patin: tô bằng màu đỉnh nên cần lưới dày hơn ngân sách
+# trên trang duyệt, giảm theo đúng ngân sách thì sọc nhoè thành vệt loang
+FEET_DETAIL = {'tatsoc': 2.5, 'ungmua': 2.0, 'giaypatin': 1.6}
+# Bánh xe và trục patin nhỏ: giảm theo ngân sách trang duyệt chỉ còn ~12 tam giác một bánh, lưới gãy và lật mặt
+# (bánh vàng hoá đen). Giữ tối thiểu số tam giác này cho mỗi bộ phận của một chân.
+PART_MIN = {('giaypatin', 'Banh_Xe'): 320, ('giaypatin', 'Truc'): 128}
+# Kim loại trong game không có gì phản chiếu nên đen sì (cà mèn, 22/10): khung, trục patin dùng nhựa bóng màu bạc
+METAL_GLOSS = {('giaypatin', 'Khung'), ('giaypatin', 'Truc')}
+LEG_OVERLAP = .01   # phần cổ chồng xuống phần bàn 1 cm: chân gập khi chạy không hở khe
+WHEEL_DZ = .03   # bánh patin: hai trục cách giữa ±3 cm theo z (acc_mc.giaypatin)
+
+
+def base_name(n):
+    return n[:-4] if n[-4:-2] == '__' and n[-2:] in PAWS else n
 # Vành mũ rộng đổ bóng tối cả mặt trong game: phần mũ này không đổ bóng (Sang duyệt 22/10)
 NO_SHADOW = {('nonla', 'Non_La'), ('mucoi', 'Mu_Coi'), ('muphuthuy', 'Mu_Phu_Thuy')}
 PAWS = ('FL', 'FR', 'BL', 'BR')
@@ -233,21 +251,39 @@ def export_acc(ids):
                               rough=pt.rough, metal=pt.metal, emit=pt.emit, alpha=pt.alpha)
             pieces = []
             if s == 'feet':
-                # Tách 4 chiếc theo bàn chân gần nhất, gốc ở tâm bàn chân
+                # Tách 4 chiếc theo bàn chân gần nhất, gốc ở tâm bàn chân (acc_mc đã tách sẵn: tên kết thúc __FL...)
                 cen = np.array([socks['paw' + p] for p in PAWS], np.float32)
                 fc = V[F].mean(1)
-                near = np.argmin(((fc[:, None, :] - cen[None]) ** 2).sum(-1), 1)
+                if pt.name[-4:-2] == '__' and pt.name[-2:] in PAWS:
+                    near = np.full(len(F), PAWS.index(pt.name[-2:]))
+                    base = pt.name[:-4]
+                else:
+                    near = np.argmin(((fc[:, None, :] - cen[None]) ** 2).sum(-1), 1)
+                    base = pt.name
+                # Tất, ủng, patin cao 9–10 cm: phần cổ trên 4,5 cm theo cẳng chân (forearm/shin), phần dưới theo bàn chân
+                tall = aid in TALL_FEET
                 for k, paw in enumerate(PAWS):
-                    Fk = F[near == k]
-                    if len(Fk) == 0:
-                        continue
-                    used = np.unique(Fk); remap = -np.ones(len(V), np.int64); remap[used] = np.arange(len(used))
-                    pieces.append((f'{pt.name}__{paw}', V[used] - cen[k], remap[Fk].astype(np.int32),
-                                   None if C is None else C[used], 'paw' + paw, cen[k]))
+                    for leg in ((False, True) if tall else (False,)):
+                        sel = (near == k) & (((fc[:, 1] > LEG_SPLIT - LEG_OVERLAP) if leg else (fc[:, 1] <= LEG_SPLIT)) if tall else True)
+                        Fk = F[sel]
+                        if len(Fk) == 0:
+                            continue
+                        used = np.unique(Fk); remap = -np.ones(len(V), np.int64); remap[used] = np.arange(len(used))
+                        Vk = V[used].copy()
+                        if leg:
+                            # phần chồng lùi vào trong 0,8 mm (về trục cẳng chân): đứng yên không chớp hai lớp trùng nhau
+                            lo_ = Vk[:, 1] <= LEG_SPLIT
+                            if lo_.any():
+                                ax = Vk[~lo_][:, [0, 2]].mean(0) if (~lo_).any() else Vk[:, [0, 2]].mean(0)
+                                dxz = Vk[lo_][:, [0, 2]] - ax
+                                n_ = np.linalg.norm(dxz, axis=1, keepdims=True) + 1e-6
+                                Vk[np.ix_(lo_, [0, 2])] = ax + dxz * np.maximum(0, 1 - .0008 / n_)
+                        pieces.append((f'{base}_Co__{paw}' if leg else f'{base}__{paw}', Vk - cen[k], remap[Fk].astype(np.int32),
+                                       None if C is None else C[used], ('leg' if leg else 'paw') + paw, cen[k], len(Fk) / max(1, (near == k).sum())))
             else:
                 org = np.asarray(socks[s], np.float32)
-                pieces.append((pt.name, V - org, F, C, s, org))
-            for name, Vp, Fp, Cp, sk, off in pieces:
+                pieces.append((pt.name, V - org, F, C, s, org, 1.0))
+            for name, Vp, Fp, Cp, sk, off, frac in pieces:
                 ob = bl.make_mesh(name, Vp, Fp, Cp, smooth=pt.smooth, coll=coll)
                 ob.data.materials.append(mat)
                 select_only([ob])
@@ -256,11 +292,14 @@ def export_acc(ids):
                 uv = getattr(pt, 'uv', None)
                 cape = uv is not None
                 if uv is None:
-                    target = PART_TRIS.get((aid, pt.name)) or min(budget(s), max(800, len(Fp) // 5))   # bộ phận nhỏ (quai, viền) không cần đủ ngân sách
+                    target = PART_TRIS.get((aid, pt.name))
+                    target = max(int(target * frac * FEET_DETAIL.get(aid, 1.0)), PART_MIN.get((aid, base_name(pt.name)), 0)) if target else min(budget(s), max(800, len(Fp) // 5))   # bộ phận nhỏ (quai, viền) không cần đủ ngân sách
                     decimate(ob, target)
                     if pt.colorfn and Cp is not None:
                         recolor(ob, pt.colorfn, off)
                     move = getattr(pt, 'move', None) or ('vai' if getattr(pt, 'uvfn', None) else None)
+                    if aid == 'giaypatin' and base_name(pt.name) in ('Banh_Xe', 'Truc'):
+                        move = 'quay'
                     tx = tex_spec(aid, pt.name) if aid in getattr(sys.modules.get('co_duoi'), 'ACC', {}) else None
                     if move in ('vai', 'rung') or tx:
                         Vb = build_coords(ob, off)
@@ -284,6 +323,8 @@ def export_acc(ids):
                 bake_color(ob)
                 objs.append(ob)
                 info[ob.name] = dict(sock=sk, kind=pt.kind, alpha=pt.alpha, emit=pt.emit, metal=pt.metal)
+                if (aid, base_name(pt.name)) in METAL_GLOSS:
+                    info[ob.name].update(kind='gloss', metal=0)
                 if (aid, pt.name) in NO_SHADOW:
                     info[ob.name]['shadow'] = False
                 if tx:
@@ -291,12 +332,18 @@ def export_acc(ids):
                     if not os.path.exists(f'{OUT}/phu_kien/tex/{tx[0]}.png'):
                         save_png(os.path.abspath(f'{OUT}/phu_kien/tex/{tx[0]}.png'), tx[1]())
                     info[ob.name]['tex'] = f'phu_kien/tex/{tx[0]}.png'
-                if move in ('vai', 'rung', 'lac'):
-                    cl = dict(hinge=[round(float(a - b), 4) for a, b in zip(pt.hinge, org)])
+                if move in ('vai', 'rung', 'lac', 'quay'):
+                    cl = dict(hinge=[round(float(a - b), 4) for a, b in zip(pt.hinge, off)]) if move != 'quay' else {}
                     if move == 'rung':
                         cl['amp'] = .25
                     if getattr(pt, 'flagmode', False):
                         cl['mode'] = 1
+                    if move == 'quay':
+                        # 4 bánh patin (2 trục, cách tâm bàn chân ±3 cm theo z): quay quanh trục x theo quãng đường
+                        # tâm lấy từ chính lưới bánh: giữa 4 bánh (y = tâm bánh, z = giữa hai trục)
+                        cw = build_coords(ob, off)
+                        cw = (cw.min(0) + cw.max(0)) / 2 - np.asarray(off)
+                        cl = dict(mode=3, hinge=[round(float(c_), 4) for c_ in cw], axle=WHEEL_DZ)
                     if move == 'lac':
                         cl['mode'] = 2
                         cy = build_coords(ob, off)[:, 1].mean()

@@ -209,6 +209,7 @@ static func end_day(stars_max := 15) -> Dictionary:
 	if _rank_value(rank) > _rank_value(GameState.get_day("hang_cao_nhat", "")):
 		GameState.set_day("hang_cao_nhat", rank)
 	GameState.set_day("so_lan_choi", int(GameState.get_day("so_lan_choi", 0)) + 1)
+	PlayMode.day_done(GameState.day)  # chơi liền các ngày: lưu ngày kế tiếp
 
 	var wallet := _save_orders(tip)
 	var all_on_time := orders.size() >= GameState.ORDERS_PER_DAY and orders.all(func(r): return not r.is_empty() and not r.late)

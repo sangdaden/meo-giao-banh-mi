@@ -1,5 +1,6 @@
 extends Control
-## Màn hình chính (artboard 1): logo, Bắt đầu ca, Tủ đồ của Bơ, Cài đặt, Thoát,
+## Màn hình chính (artboard 1): logo, Bắt đầu (chơi tiếp ngày đang dở trong tuần), Tủ đồ của Bơ, Cài đặt, Thoát,
+## Esc mở màn Chọn ngày,
 ## và Bơ đứng trong tủ kính xe bánh mì Cô Ba.
 
 const T = preload("res://scripts/ui/ui_theme.gd")
@@ -68,7 +69,7 @@ func _ready() -> void:
 	nav.add_theme_constant_override("separation", 16)
 	T.place(nav, 0.0, 0.0, Rect2(72, 372, 380, 330))
 	add_child(nav)
-	start_btn = T.button("  Bắt đầu ca", "primary", 72, 26)
+	start_btn = T.button("  " + _start_text(), "primary", 72, 26)
 	start_btn.pressed.connect(_start)
 	nav.add_child(start_btn)
 	var wd := T.button("  Tủ đồ của Bơ", "secondary", 62, 21)
@@ -88,6 +89,13 @@ func _ready() -> void:
 	enter_hint.modulate.a = 0.7
 	T.place(enter_hint, 1.0, 0.5, Rect2(-70, -10, 50, 20))
 	start_btn.add_child(enter_hint)
+
+	# Chọn ngày nằm ở phím Esc (Sang 22/10/2026); dòng chữ bấm được cho người dùng chuột
+	var pick := T.button("Esc · Chọn ngày", "secondary", 40, 15)
+	pick.add_theme_stylebox_override("normal", T.box(Color(0, 0, 0, 0), 14, 12, Color(0, 0, 0, 0), 0))
+	pick.pressed.connect(func(): level_select.open())
+	T.place(pick, 0.0, 1.0, Rect2(260, -50, 220, 40))
+	add_child(pick)
 
 	add_child(_showcase())
 
@@ -129,11 +137,22 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode in [KEY_ENTER, KEY_KP_ENTER]:
 		_start()
 		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("ui_cancel"):
+		level_select.open()
+		get_viewport().set_input_as_handled()
 
 
-## Bắt đầu ca: mở màn Chọn màn (scripts/ui/level_select.gd) để chọn ngày và cách chơi.
+## Bắt đầu: chơi liền các ngày, vào ngày kế tiếp lưu trong hồ sơ. Chọn ngày thì Esc.
 func _start() -> void:
-	level_select.open()
+	PlayMode.play_week(get_tree())
+
+
+## "Bắt đầu" lần đầu; đã chơi rồi thì "Chơi tiếp · Thứ Ba", sang tuần sau thì kèm số tuần.
+static func _start_text() -> String:
+	var name: String = GameState.DAY_NAMES.get(PlayMode.current_day(), "")
+	if not GameState.save_file().has_section_key("chung", "ngay_tiep"):
+		return "Bắt đầu"
+	return "Chơi tiếp · %s%s" % [name, " · tuần %d" % PlayMode.week() if PlayMode.week() > 1 else ""]
 
 
 func _showcase() -> Control:

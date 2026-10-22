@@ -1,6 +1,8 @@
 class_name LevelSelectPanel
 extends Control
-## Màn Chọn màn: mở từ nút "Bắt đầu ca" ở màn hình chính.
+## Màn Chọn ngày: game chơi liền các ngày (nút Bắt đầu), muốn chọn ngày thì bấm Esc ở trang chủ
+## hoặc "Chọn ngày" trong menu tạm dừng. "Cả ca" của một ngày chơi tiếp mạch tuần từ ngày đó;
+## chỉ bếp, chỉ giao, một đơn là chơi tập, xong không sang ngày kế.
 ## Bên trái là bảy ngày trong tuần (theo trang thiết kế màn chơi), bên phải là các cách chơi của ngày đang chọn.
 ## Ngày đã làm (Days.playable) có: cả ca, chỉ bếp, chỉ giao 5 đơn, hoặc giao một đơn. Ngày chưa làm hiện "Sắp có".
 ## Dữ liệu ngày và đơn lấy từ scripts/days.gd. Bản chơi thử mở sẵn mọi ngày đã làm (Days.PLAYTEST_UNLOCK_ALL).
@@ -19,6 +21,7 @@ var _day_buttons := {}  # mã ngày -> Button
 var _week: VBoxContainer
 var _detail: VBoxContainer
 var _first_focus: Control
+var _note: Label
 
 
 func _ready() -> void:
@@ -42,8 +45,9 @@ func _ready() -> void:
 	var back := T.icon_button("back", "Quay lại (Esc)")
 	back.pressed.connect(close)
 	head.add_child(back)
-	head.add_child(T.label("Chọn màn chơi", 42, T.INK, "display"))
-	var note := T.label("Bản chơi thử: mở hết các ngày đã làm · Esc để quay lại", 15, T.MUTED, "bold")
+	head.add_child(T.label("Chọn ngày", 42, T.INK, "display"))
+	_note = T.label("", 15, T.MUTED, "bold")
+	var note := _note
 	note.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	note.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -67,8 +71,11 @@ func _ready() -> void:
 
 	visibility_changed.connect(func():
 		if visible:
+			_note.text = "Tuần %d · Bắt đầu sẽ chơi tiếp %s · Esc để quay lại" % [PlayMode.week(),
+				GameState.DAY_NAMES.get(PlayMode.current_day(), "")]
 			_build_week()
-			_select(PlayMode.day if Days.unlocked(PlayMode.day) else "thu_hai"))
+			var cur := PlayMode.current_day()
+			_select(cur if Days.unlocked(cur) else "thu_hai"))
 
 
 func open() -> void:
@@ -191,7 +198,8 @@ func _build_day(id: String) -> void:
 	modes.add_theme_constant_override("separation", 14)
 	_detail.add_child(modes)
 	var kitchen_best := int(GameState.get_day("sao_bep", -1, id))
-	var full := _mode_button(id, "Cả ca", "Làm bếp rồi giao 5 đơn", "primary", PlayMode.Mode.FULL)
+	var full := _mode_button(id, "Cả ca", "Chơi tiếp tuần từ ngày này", "primary", PlayMode.Mode.FULL,
+		func(): PlayMode.start_day(get_tree(), id))
 	modes.add_child(full)
 	modes.add_child(_mode_button(id, "Chỉ làm bếp", "Kỷ lục bếp %d/3 sao" % kitchen_best if kitchen_best >= 0 else "Chưa làm bếp lần nào", "secondary", PlayMode.Mode.KITCHEN))
 	modes.add_child(_mode_button(id, "Chỉ giao 5 đơn", "Bỏ qua phần bếp", "secondary", PlayMode.Mode.DELIVERY))
@@ -218,7 +226,8 @@ func _build_free_day(id: String) -> void:
 	p.add_theme_stylebox_override("panel", T.box(T.CREAM, 14, 14, Color(0, 0, 0, 0), 0))
 	p.add_child(T.label(SoHangXom.summary_line(), 15, T.INK, "bold"))
 	_detail.add_child(p)
-	var go := _mode_button(id, "Đi dạo phố", "Không đồng hồ · giúp hàng xóm, chụp ảnh, làm bạn với Chó Mực", "primary", PlayMode.Mode.DELIVERY)
+	var go := _mode_button(id, "Đi dạo phố", "Không đồng hồ · giúp hàng xóm, chụp ảnh, làm bạn với Chó Mực", "primary", PlayMode.Mode.DELIVERY,
+		func(): PlayMode.start_day(get_tree(), id))
 	_detail.add_child(go)
 	_first_focus = go
 

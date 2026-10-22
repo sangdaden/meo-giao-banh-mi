@@ -175,7 +175,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				start_game()
 		State.END:
 			if event.is_action_pressed("ui_accept"):
-				restart()
+				if PlayMode.continuous:
+					PlayMode.go_next_day(get_tree())  # chơi liền các ngày: Enter sang ngày kế
+				else:
+					restart()
 		State.EVENT:
 			if event.is_action_pressed("pause"):
 				hud.set_pause_info("")

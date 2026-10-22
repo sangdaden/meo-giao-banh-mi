@@ -30,6 +30,7 @@ import nguoi4 as N4  # 5 người mặc áo mưa Thứ Tư (*_mua, trang G5 Sang
 import nguoi5  # noqa: F401  Chị Thu + dáng Bé Na mở cửa (trang G1 Sang duyệt 22/10), đăng ký vào N.CHARS và N3.DANG
 import nguoi6  # noqa: F401  dáng Thứ Năm ngoài phố: Chú Tư ngủ gật, Anh Hùng nằm võng, Chị Mây thả giỏ (G1 bản 2)
 import nguoi7  # noqa: F401  đám giỗ Bà Sáu: 6 người mới + 3 dáng Bà Sáu (trang G7 Sang duyệt 22/10)
+import nguoi_p3  # người qua đường: 8 người + đổi đồ, áo mưa, nón đi xe (gói P3 Sang duyệt 22/10)
 import nguoi9  # noqa: F401  Thứ Bảy: dáng chụp ảnh chung + việc nhờ, Chị Thảo không mũ (trang G9 Sang duyệt 22/10)
 from sdflib import v, hexc
 import bpy
@@ -88,6 +89,13 @@ ROLES = {
     'chunam_mua': dict(base='ngoi', seat=.45, tempo=.9, energy=.9),
     'chutu_mua':  dict(base='dung', tempo=.9, energy=.8, giao='chutu'),  # đứng dọn bạt, khác ngày thường ngồi
 }
+
+# Người qua đường P3 (nguoi_p3.py): ai cũng đứng; bản đổi đồ, áo mưa, đi xe (base=...) cử động như người gốc
+_P3 = {'qd_ongtd': (.8, .8), 'qd_vanphong': (1.05, 1.0), 'qd_hocsinh': (1.25, 1.3), 'qd_sinhvien': (1.0, 1.0),
+       'qd_veso': (.8, .8), 'qd_giaohang': (1.05, 1.0), 'qd_congnhan': (.95, .9), 'qd_mehoa': (1.0, 1.0)}
+for _id in nguoi_p3.IDS:
+    _tp, _en = _P3[N.CHARS[_id].get('base', _id)]
+    ROLES[_id] = dict(base='dung', tempo=_tp, energy=_en)
 
 # Bản dựng: '' đủ chi tiết (~3,8k tam giác, người gần camera); 'nhe' ~1,4k cho người chợ, phố đông;
 # 'dong' ~600 cho đám đông xa (không đốm sáng mắt, mắt chỉ là chấm tối). Xuất <id>_nhe.glb / <id>_dong.glb.
@@ -1700,6 +1708,94 @@ def g9_clips(R, role, cid):
     return out
 
 
+# ---------------------------------------------------------------- người qua đường (trang P3 "Người qua đường và xe ra vào", Sang duyệt 22/10)
+# Dáng khoá trong nguoi_p3.py; '@người' mượn dáng người khác (điện thoại, ghế nhựa, lái xe dùng chung).
+# Điện thoại, ly trà đá, vé số, hộp cơm, túi che đầu là đồ rời (do_cam_p3.py), xe máy và xe buýt do cảnh dựng.
+P3_LAI = ('qd_giaohang', 'qd_mehoa', 'qd_sinhvien')  # có clip lái xe (Anh Phúc lái ở bản đội nón qd_sinhvien_xe)
+P3_BUOC = .35                              # bậc cửa xe buýt (m)
+P3_GHE = .26                               # ghế nhựa thấp quán cà phê, trà đá (P4)
+
+
+def p3_clips(R, role, cid, goc):
+    """[(tên, giây, hàm, lặp)] cho người qua đường; cid là người gốc, goc là id đang dựng (_b, _mua, _xe)."""
+    kid = R.c.get('kid')
+    stand = dict(role, base='dung')
+    ghe = dict(role, base='ngoi', seat=P3_GHE)
+
+    def hold(key, r=stand, extra=None, legs=None):
+        g = dp(R, cid, key)
+        return lambda t: add(base(t, R, r), legs or {}, g, extra(t) if extra else {})
+
+    def walk_with(key, tempo=1.0, lean=0.0):  # bước chân đi bộ, tay giữ theo dáng (quai cặp, bảng vé số...)
+        w = anim_walk(R, dict(role, tempo=role['tempo'] * tempo))
+        g = dp(R, cid, key) if key else {}
+        arms = {k: val for k, val in g.items() if k.split('.')[0] in ('upperarm', 'forearm', 'hand')}
+        return lambda t: add(w(t), arms, {'spine': {'fw': lean}, 'chest': {'fw': lean * .5}})
+
+    def once(name, key, sec, extra=None, t_in=.3, t_out=.35, r=stand):
+        return (name, sec, anim_dang_once(R, r, cid, key, sec, t_in, t_out, extra), False)
+
+    def step(up):  # lên / xuống bậc xe buýt: chân trước nhấc lên bậc, hông lên (xuống) P3_BUOC
+        g = dp(R, cid, 'lenxe@qd_vanphong')
+
+        def f(t):
+            u = t / (1.2 if up else 1.0)
+            h = smooth((u - .15) / .6)
+            h = h if up else 1 - h
+            lift = math.sin(math.pi * min(1.0, max(0.0, (u - .05) / .5)))
+            follow = math.sin(math.pi * min(1.0, max(0.0, (u - .45) / .45)))
+            return add(base(t, R, stand), g, {'hips': {'pos': (0, P3_BUOC * h, 0)}, 'spine': {'fw': 8 * lift},
+                                              'thigh.L': {'fw': 55 * lift}, 'shin.L': {'fw': -60 * lift},
+                                              'thigh.R': {'fw': 40 * follow}, 'shin.R': {'fw': -50 * follow}})
+        return f
+
+    out = []
+    walk_key = {'qd_hocsinh': 'dibo', 'qd_sinhvien': 'dibo', 'qd_veso': 'dibo'}.get(cid)
+    out += [('di_bo', 1.05 / role['tempo'], walk_with(walk_key), True),
+            ('chay', .6, walk_with('chay@qd_hocsinh' if kid else None, 1.75, 10), True),
+            ('dung_cho', 3.0, hold('dungcho') if cid == 'qd_veso' else (lambda t: base(t, R, stand)), True),
+            ('ne_bo', .8, anim_startle(R, stand, cid), False),
+            ('len_xe_buyt', 1.2, step(True), False), ('xuong_xe_buyt', 1.0, step(False), False),
+            ('che_mua', .6, walk_with('chemua@qd_vanphong', 1.75, 8), True)]
+    if cid in ('qd_ongtd', 'qd_veso'):
+        out.append(('di_cham', 1.3, walk_with(walk_key, 1.05 / (1.3 * role['tempo'])), True))
+    if not kid:
+        out += [('nhin_dt', 2.4, hold('nhindt@qd_vanphong', extra=lambda t: {'head': {'tw': osc(t, 2.4) * 4}, 'hand.R': {'fw': max(0.0, osc(t, 1.2)) * 8}}), True),
+                ('goi_dt', 2.4, hold('goidt@qd_giaohang', extra=lambda t: {'head': {'out': osc(t, 2.4) * 5}, 'forearm.L': {'fw': osc(t, 1.2) * 10}}), True),
+                ('ngoi_ghe', 2.4, hold('ngoighe@' + ('qd_ongtd' if R.c.get('old') else 'qd_sinhvien'), ghe,
+                                       lambda t: {'forearm.R': {'fw': max(0.0, osc(t, 2.4)) * 25}, 'head': {'fw': -max(0.0, osc(t, 2.4)) * 6}}), True)]
+    if cid == 'qd_ongtd':
+        out.append(once('vuon_vai', 'vuonvai', 2.0, lambda t, k: {'chest': {'fw': -osc(t, 2.0) * 4 * k}}))
+    if cid == 'qd_veso':
+        out.append(once('moi_ve', 'moive', 1.6, lambda t, k: {'forearm.R': {'fw': osc(t, .8) * 8 * k}}))
+    if cid == 'qd_congnhan':
+        out += [('ngoi_an', 2.0, hold('ngoian', ghe, lambda t: {'upperarm.R': {'fw': max(0.0, osc(t, 2.0)) * 18}, 'forearm.R': {'fw': max(0.0, osc(t, 2.0)) * 25},
+                                                                 'head': {'fw': -max(0.0, osc(t, 2.0)) * 6}}), True),
+                once('lau_mo_hoi', 'laumohoi', 1.6, lambda t, k: {'forearm.R': {'tw': osc(t, .5) * 20 * k}})]
+    if cid == 'qd_mehoa':
+        out.append(('vay_con', 1.2, hold('vaycon', extra=lambda t: {'hand.R': {'out': osc(t, .4) * 28}, 'forearm.R': {'fw': osc(t, .4) * 6}}), True))
+    if cid == 'qd_hocsinh':
+        out += [('vay_bo', 1.2, hold('vaybo', extra=lambda t: {'hand.R': {'out': osc(t, .3) * 30}, 'head': {'out': osc(t, .6) * 5}}), True),
+                ('ngoi_sau', 2.0, hold('ngoisau', stand, lambda t: {'head': {'tw': osc(t, 4.0) * 12}, 'chest': {'fw': osc(t, 2.0) * 1.5}},
+                                       bike_legs(R, 'qd_hocsinh:ngoisau')), True)]
+    if cid in P3_LAI:
+        lai = dp(R, cid, 'laixe')
+        legs = bike_legs(R, cid + ':laixe')
+
+        def ride(t):
+            return add(base(t, R, stand), legs, lai, {'chest': {'fw': osc(t, 1.0) * 1.2}, 'head': {'tw': osc(t, 4.0) * 10}})
+
+        def mount(on):  # đứng cạnh yên <-> ngồi lái (1 s)
+            def f(t):
+                k = smooth(t / 1.0)
+                k = k if on else 1 - k
+                return mix(base(t, R, stand), ride(t), k)
+            return f
+        out += [('lai_xe', 2.0, ride, True), ('len_xe', 1.0, mount(True), False), ('xuong_xe', 1.0, mount(False), False),
+                ('dat_xe', 1.1, walk_with('datxe@' + (cid if cid != 'qd_sinhvien' else 'qd_giaohang'), 1.05 / (1.1 * role['tempo'])), True)]
+    return out
+
+
 def mua_clips(R, role, cid):
     """Dáng riêng của người mặc áo mưa (trang G5 Thứ Tư): 'dang_mua' giữ dáng đã duyệt (lặp, có thở),
     Chú Tư thêm 'cuon_bat' cuộn bạt sạp báo. Dù, giỏ, cuộn bạt là đồ rời gắn vào tay trong Godot."""
@@ -1737,11 +1833,14 @@ def build_anims(info, cid):
     R.keyframe('noi', L(2.6 / tp), anim_talk(R, role))
     R.keyframe('vay', L(2.1 / tp), anim_wave(R, role))
     R.keyframe('vui', L(1.8 / tp), anim_happy(R, role))
-    R.keyframe('sot_ruot', L(6.4 / tp), anim_impatient(R, role))
-    R.keyframe('cho_banh', L(2.2 / tp), anim_reach(R, role, cid))
-    if cid != 'khachxeom':  # Chị Thảo nhận bánh trên yên sau (thu_ba_clips)
+    qua_duong = goc in nguoi_p3.IDS  # người qua đường không nhận bánh, có di_bo riêng (p3_clips)
+    if not qua_duong:
+        R.keyframe('sot_ruot', L(6.4 / tp), anim_impatient(R, role))
+        R.keyframe('cho_banh', L(2.2 / tp), anim_reach(R, role, cid))
+    if cid != 'khachxeom' and not qua_duong:  # Chị Thảo nhận bánh trên yên sau (thu_ba_clips)
         R.keyframe('nhan_banh', L(2.6 / tp), anim_receive(R, role, cid), loop=False)
-    if role['base'] == 'dung' or cid in CHO or cid in ('basau', 'chutu', 'hung', 'chunam'):  # người bán ngồi cũng phải đứng dậy đi khi dọn sạp; Bà Sáu ra cổng ngày giỗ; Thứ Bảy đi làm việc nhờ
+    # người bán ngồi cũng phải đứng dậy đi khi dọn sạp; Bà Sáu ra cổng ngày giỗ; Thứ Bảy đi làm việc nhờ
+    if not qua_duong and (role['base'] == 'dung' or cid in CHO or cid in ('basau', 'chutu', 'hung', 'chunam')):
         R.keyframe('di_bo', L(1.05 / tp), anim_walk(R, dict(role, base='dung')))
     if cid in ('ongbay', 'ongtam'):
         fn, sec = anim_chess(R, role, cid), 3.0  # đánh cờ theo dáng "đi cờ" đã duyệt
@@ -1753,6 +1852,8 @@ def build_anims(info, cid):
         clips += thu_nam_clips(R, role, cid) + gio_clips(R, role, cid)
         if goc != 'khachxeom':  # Chị Thảo có mũ chỉ đi xe Thứ Ba; dáng Thứ Bảy ở bản không mũ khachxeom_tb
             clips += g9_clips(R, role, cid)
+        if qua_duong:
+            clips += p3_clips(R, role, cid, goc)
     if cid in CHO and 'va' not in [n for n, *_ in clips]:  # người chợ nào cũng giật mình khi bị Bơ va
         clips.append(('va', .6, anim_startle(R, role, cid), False))
     for name, sec, fn, loop in clips:
@@ -1775,12 +1876,12 @@ def build_anims(info, cid):
 
 
 # ---------------------------------------------------------------- xuất và ảnh kiểm tra
-def export(info, path):
+def export(info, path, clip=True):
     scn = bpy.context.scene
     for o in scn.objects:
         o.select_set(o in (info['arm'], info['body']))
     bpy.ops.export_scene.gltf(filepath=path, use_selection=True, export_apply=False, export_vertex_color='ACTIVE',
-                              export_animations=True, export_animation_mode='NLA_TRACKS', export_skins=True,
+                              export_animations=clip, export_animation_mode='NLA_TRACKS', export_skins=True,
                               export_optimize_animation_size=True, export_force_sampling=True, export_frame_step=1,
                               export_def_bones=False, export_yup=True, export_normals=True, export_texcoords=False,
                               export_tangents=False, export_materials='EXPORT')
@@ -1799,11 +1900,15 @@ def main():
     report = {}
     for cid in ids:
         info = build_person(cid)
-        R = build_anims(info, cid)
+        # Người qua đường: chỉ bản nhẹ của người gốc mang clip, các bản khác mượn trong game (Nguoi.anim_source)
+        clip = cid not in nguoi_p3.IDS or (cid in nguoi_p3.GOC and ban == 'nhe')
+        if clip:
+            build_anims(info, cid)
         path = os.path.join(out, cid + ('_' + ban if ban else '') + '.glb')
-        export(info, path)
+        export(info, path, clip)
+        ad = info['arm'].animation_data
         report[cid] = dict(tris=info['tris'], kb=os.path.getsize(path) // 1024,
-                           anims=[t.name for t in info['arm'].animation_data.nla_tracks], h=info['c']['h'])
+                           anims=[t.name for t in ad.nla_tracks] if ad else [], h=info['c']['h'])
     print(json.dumps(report, ensure_ascii=False))
 
 

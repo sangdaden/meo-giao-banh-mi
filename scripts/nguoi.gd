@@ -26,6 +26,15 @@ extends Node3D
 ## Chị Mây chi_bang, vo_tay, lac_dau_cuoi; Anh Hùng cui_tim, nhan_oc; Bà Sáu (chup_chung ngồi) chi_gian, nhan_bong;
 ## hai ông chi_quan_co; Cô Hai chong_nanh, vo_tay; Chú Năm (chup_chung trên yên xe) gai_dau, chi_mai;
 ## Chị Thảo không mũ "khachxeom_tb" tim_mu, nhan_mu. Chú Tư, Anh Hùng, Bà Sáu, Chú Năm có di_bo.
+## Người qua đường (trang P3, id qd_*): chỉ có bản "nhe" (mặc định) và "dong". 8 người gốc qd_ongtd, qd_vanphong,
+## qd_hocsinh, qd_sinhvien, qd_veso, qd_giaohang, qd_congnhan, qd_mehoa; đổi đồ <id>_b (qd_hocsinh_b là Bé Ngân);
+## áo mưa qd_vanphong_mua, qd_hocsinh_mua, qd_congnhan_mua, qd_giaohang_mua, qd_mehoa_mua; đội nón đi xe
+## qd_sinhvien_xe, qd_hocsinh_xe (Anh Đạt, Chị Hoa lúc nào cũng đội). Clip chung: di_bo, chay, dung_cho, dung_yen,
+## vay, vui, noi, ne_bo, len_xe_buyt (bậc 0,35 m, xong thì đứng cao 0,35 m), xuong_xe_buyt, che_mua; người lớn
+## nhin_dt, goi_dt, ngoi_ghe (ghế 0,26 m); Ông Hai, Cô Tám di_cham; Ông Hai vuon_vai; Cô Tám moi_ve;
+## Chú Bảy ngoi_an, lau_mo_hoi; Chị Hoa vay_con; Bé Khoa vay_bo, ngoi_sau (yên sau, hông 0,95 m);
+## Anh Đạt, Chị Hoa, Anh Phúc lai_xe (hông 0,95 m), len_xe, xuong_xe, dat_xe (đi bộ dắt xe).
+## Đồ cầm tay P3: dien_thoai, ly_tra_da, bang_ve_so, xap_ve, hop_com, dua, goi_hang, tui_che_dau.
 ## Đồ cầm tay G9 (assets/models/nguoi, gốc ở chỗ tay cầm): ly_ca_phe, banh_mieng, nua_o, con_oc, bong_giay, mu_hong.
 
 signal finished(anim_name: String)
@@ -34,7 +43,10 @@ const IDS := ["coba", "chutu", "bena", "may", "hung", "basau", "ongbay", "ongtam
 	"xemco", "bancho", "hangrong", "ganhhang", "dicho1", "dicho2", "dicho3", "khachxeom",
 	"cho4", "cho5", "cho6", "cho7", "cho8",
 	"may_mua", "cohai_mua", "bena_mua", "chunam_mua", "chutu_mua", "chithu",
-	"thanh", "loan", "muoi", "hanh", "bin", "mit", "khachxeom_tb"]
+	"thanh", "loan", "muoi", "hanh", "bin", "mit", "khachxeom_tb",
+	"qd_ongtd", "qd_vanphong", "qd_hocsinh", "qd_sinhvien", "qd_veso", "qd_giaohang", "qd_congnhan", "qd_mehoa",
+	"qd_ongtd_b", "qd_vanphong_b", "qd_hocsinh_b", "qd_sinhvien_b", "qd_veso_b", "qd_giaohang_b", "qd_congnhan_b", "qd_mehoa_b",
+	"qd_vanphong_mua", "qd_hocsinh_mua", "qd_congnhan_mua", "qd_giaohang_mua", "qd_mehoa_mua", "qd_sinhvien_xe", "qd_hocsinh_xe"]
 const NAMES := {
 	"coba": "Cô Ba", "chutu": "Chú Tư", "bena": "Bé Na", "may": "Chị Mây", "hung": "Anh Hùng",
 	"basau": "Bà Sáu", "ongbay": "Ông Bảy", "ongtam": "Ông Tám", "cohai": "Cô Hai", "chunam": "Chú Năm",
@@ -45,12 +57,19 @@ const NAMES := {
 	"chithu": "Chị Thu",
 	"thanh": "Chú Thành", "loan": "Cô Loan", "muoi": "Ông Mười", "hanh": "Chị Hạnh", "bin": "Bé Bin", "mit": "Bé Mít",
 	"khachxeom_tb": "Chị Thảo",
+	"qd_ongtd": "Ông Hai", "qd_vanphong": "Chị Vy", "qd_hocsinh": "Bé Khoa", "qd_sinhvien": "Anh Phúc",
+	"qd_veso": "Cô Tám", "qd_giaohang": "Anh Đạt", "qd_congnhan": "Chú Bảy", "qd_mehoa": "Chị Hoa",
+	"qd_ongtd_b": "Ông Hai", "qd_vanphong_b": "Chị Vy", "qd_hocsinh_b": "Bé Ngân", "qd_sinhvien_b": "Anh Phúc",
+	"qd_veso_b": "Cô Tám", "qd_giaohang_b": "Anh Đạt", "qd_congnhan_b": "Chú Bảy", "qd_mehoa_b": "Chị Hoa",
+	"qd_vanphong_mua": "Chị Vy", "qd_hocsinh_mua": "Bé Khoa", "qd_congnhan_mua": "Chú Bảy", "qd_giaohang_mua": "Anh Đạt",
+	"qd_mehoa_mua": "Chị Hoa", "qd_sinhvien_xe": "Anh Phúc", "qd_hocsinh_xe": "Bé Khoa",
 }
 ## Chiều cao mặt ghế (m) của người ngồi, khớp với ROLES trong tools/nguoi_game.py
 const SEAT := {"chutu": 0.45, "hung": 0.28, "basau": 0.42, "ongbay": 0.30, "ongtam": 0.30, "chunam": 0.45, "bancho": 0.18, "cho8": 0.32, "chunam_mua": 0.45, "muoi": 0.26}
 const ONE_SHOT := ["nhan_banh", "goi_muc", "suyt", "mang", "reo", "dua_tui", "nhan_xe", "va", "xuong_xe", "goi_1", "goi_2", "nhan_banh_cau",
 	"cam_on", "mo_cua", "thuc_day", "ngoi_day", "dat_mam", "vap_nhe",
-	"nem_banh", "khen_ngon", "nhan_bao", "bi_tim_thay", "vo_tay", "lac_dau_cuoi", "nhan_oc", "nhan_bong", "nhan_mu"]
+	"nem_banh", "khen_ngon", "nhan_bao", "bi_tim_thay", "vo_tay", "lac_dau_cuoi", "nhan_oc", "nhan_bong", "nhan_mu",
+	"ne_bo", "len_xe_buyt", "xuong_xe_buyt", "len_xe", "xuong_xe", "vuon_vai", "moi_ve", "lau_mo_hoi"]
 
 ## Mọi người dân Nguoi.make ra đều vào nhóm này: một người chỉ có một bản trong cảnh.
 ## Cảnh phụ (người xem cờ...) hỏi in_scene() rồi mới dựng, nhường người đã có chỗ trong ngày (khách, chợ).
@@ -59,6 +78,8 @@ const GROUP := "nguoi_dan"
 ## Model và mesh đã đổi màu cho bản web, dùng chung giữa các lần tạo
 static var _scenes := {}
 static var _srgb_meshes := {}
+## Thư viện animation dùng chung của người qua đường, theo model gốc (anim_source)
+static var _libs := {}
 
 var id := ""
 ## Bản model: "" đủ chi tiết (~3,8k tam giác), "nhe" ~1,4k (người chợ, phố đông), "dong" ~600 (đám đông xa).
@@ -99,6 +120,8 @@ static func in_scene(tree: SceneTree, person_id: String) -> bool:
 
 
 func _ready() -> void:
+	if id.begins_with("qd_") and ban == "":
+		ban = "nhe"  # người qua đường chỉ có bản nhẹ và bản xa
 	var key := id + ("_" + ban if ban != "" else "")
 	if not _scenes.has(key):
 		_scenes[key] = load("res://assets/models/nguoi/%s.glb" % key)
@@ -110,8 +133,7 @@ func _ready() -> void:
 			skeleton = n
 	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
 		_apply_style(mi)
-	for n in model.find_children("*", "AnimationPlayer", true, false):
-		anim = n
+	anim = _model_anim(model, id)
 	if anim:
 		for a in anim.get_animation_list():
 			anim.get_animation(a).loop_mode = Animation.LOOP_NONE if a in ONE_SHOT else Animation.LOOP_LINEAR
@@ -253,8 +275,7 @@ func wear(new_model: String) -> void:
 		skeleton = n
 	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
 		_apply_style(mi)
-	for n in model.find_children("*", "AnimationPlayer", true, false):
-		anim = n
+	anim = _model_anim(model, new_model)
 	if anim:
 		for a in anim.get_animation_list():
 			anim.get_animation(a).loop_mode = Animation.LOOP_NONE if a in ONE_SHOT else Animation.LOOP_LINEAR
@@ -265,6 +286,37 @@ func wear(new_model: String) -> void:
 			anim.seek(minf(pos, anim.current_animation_length), true)
 	if skeleton and _look:
 		skeleton.add_child(_look)
+
+
+## AnimationPlayer của model. Người qua đường (qd_*): chỉ bản nhẹ của người gốc mang clip (qd_vanphong_nhe),
+## bản đổi đồ, áo mưa, đội nón đi xe và bản xa (_b, _mua, _xe, _dong) mượn chung, cùng khung xương,
+## để bản web khỏi chở hơn chục bộ clip giống hệt nhau.
+func _model_anim(model: Node3D, model_name: String) -> AnimationPlayer:
+	for n in model.find_children("*", "AnimationPlayer", true, false):
+		return n
+	if not model_name.begins_with("qd_"):
+		return null
+	var src := anim_source(model_name)
+	if not _libs.has(src):
+		var s: Node = (load("res://assets/models/nguoi/%s.glb" % src) as PackedScene).instantiate()
+		var players := s.find_children("*", "AnimationPlayer", true, false)
+		_libs[src] = (players[0] as AnimationPlayer).get_animation_library("") if players.size() > 0 else null
+		s.free()
+	if _libs[src] == null:
+		return null
+	var a := AnimationPlayer.new()
+	a.name = "AnimationPlayer"
+	model.add_child(a)
+	a.add_animation_library("", _libs[src])
+	return a
+
+
+## Model mang clip của người qua đường: qd_hocsinh_xe, qd_hocsinh_mua_dong... -> qd_hocsinh_nhe
+static func anim_source(model_name: String) -> String:
+	var g := model_name
+	for suf in ["_dong", "_nhe", "_xe", "_mua", "_b"]:
+		g = g.trim_suffix(suf)
+	return g + "_nhe"
 
 
 ## Khối va chạm cho người (Bơ không chạy xuyên qua). size theo mét, center tính từ gốc model.

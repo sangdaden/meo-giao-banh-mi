@@ -49,5 +49,5 @@ func _run() -> void:
 	tn._show_ice(true)
 	tn._set_ice("nua")
 	var bo: Node3D = main.player
-	await _shot(cam, bo.global_position + Vector3(0.9, 0.7, 0.9), bo.global_position + Vector3(0, 0.35, 0), "6_bich_da.png")
+	await _shot(cam, bo.global_position + Vector3(-0.9, 0.7, -0.9), bo.global_position + Vector3(0, 0.35, 0), "6_bich_da.png")
 	quit()

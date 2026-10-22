@@ -36,7 +36,7 @@ const SHADE_STEPS := [Vector3(-24.5, 0.7, -5.55), Vector3(-25.3, 1.75, -5.55)]
 ## Đơn 4 · cà phê Mây (mặt tiền khối 5 ở z = 7). Thứ Năm quán cuốn bạt mái hiên lên, gác lửng thay chỗ đó.
 ## Model gac_lung: sàn 3,0 × 1,6 m cao 2,8 m (x -2..1, z -0,6..1 trong model, lan can phía +z), xoay 180° cho
 ## lan can nhìn ra đường. Chồng thùng và cục lạnh của model dời ra đầu đông gác thành đường leo.
-const LOFT_AT := Vector3(7.0, 0, 6.4)
+const LOFT_AT := Vector3(7.64, 0, 6.2)  # gốc gac_lung: giữa đáy cả cụm; xoay PI nên sàn x 6,0…9,0, z 5,4…7,0
 const LOFT := Rect2(6.0, 5.42, 3.0, 1.58)        ## sàn gác (thế giới)
 const LOFT_Y := 2.8
 const MAY_LOFT := Vector3(7.9, LOFT_Y, 5.68)  # sát lan can: nửa sau gác nằm dưới ban công lầu 1 quán (đáy ~3,1 m)
@@ -278,10 +278,10 @@ func _build_shop() -> void:
 	Blocks.solid_box(self, Vector3(TIN_ROOF.size.x, 0.35, TIN_ROOF.size.y), Vector3(TIN_ROOF.get_center().x, TIN_ROOF_Y - 0.175, TIN_ROOF.get_center().y), Color("#B7C2C4"), Blocks.LAYER_PROP)
 	Blocks.label(self, "↑ mái tôn: đạp tường", Vector3(28.9, 2.3, 22.6), 28, GUIDE)
 	Blocks.label(self, "cửa sau →", Vector3(30.6, 1.6, 15.9), 30, GUIDE)
-	# Võng dù giữa hai cột sắt (model: móc ở x -1,8 và 0,8, cột 2,2 m), căng dọc trục x sát cửa cuốn
-	_model("vong_hung", HAMMOCK + Vector3(0.5, 0, 0))
-	for x in [-1.9, 0.9]:
-		Blocks.collider(self, Vector3(0.1, 2.2, 0.1), HAMMOCK + Vector3(0.5 + x, 1.1, 0), Blocks.LAYER_PROP)
+	# Võng dù giữa hai cột sắt (model: móc ở x ±1,4, cột 2,2 m), căng dọc trục x sát cửa cuốn
+	_model("vong_hung", HAMMOCK)
+	for x in [-1.4, 1.4]:
+		Blocks.collider(self, Vector3(0.1, 2.2, 0.1), HAMMOCK + Vector3(x, 1.1, 0), Blocks.LAYER_PROP)
 	hung = Nguoi.make("hung", "viec_rieng")
 	hung.position = HAMMOCK + Vector3(0, 0.45 - Nguoi.SEAT["hung"], 0)  # ngồi giữa võng, đáy võng 0,45 m
 	if hung.anim and hung.anim.has_animation("nam_vong"):
@@ -554,7 +554,7 @@ func _physics_process(delta: float) -> void:
 
 ## Bịch đá trong miệng Bơ (model bich_da, thay cho ổ bánh): bộ node day / nua / tan đổi ở 50 % và 85 % ice_melt_time.
 ## Ba bộ nằm cạnh nhau trong model (tâm x -0,5 / -0,22 / +0,06), nút buộc cao 0,29 m: dời bộ đang hiện về miệng.
-const ICE_SETS := {"day": -0.5, "nua": -0.225, "tan": 0.06}
+const ICE_SETS := ["day", "nua", "tan"]
 
 func _show_ice(on: bool) -> void:
 	if on and _ice_model == null:
@@ -580,7 +580,14 @@ func _set_ice(state: String) -> void:
 			var n := _ice_model.find_child(part + st, true, false) as Node3D
 			if n:
 				n.visible = st == state
-	_ice_model.position = Vector3(-float(ICE_SETS[state]), -0.27, 0.02) * _ice_model.scale.x
+	# Model dựng ba trạng thái cạnh nhau: dời cả bịch cho túi đang hiện vào giữa miệng Bơ
+	var tui := _ice_model.find_child("w_tui_" + state, true, false) as Node3D
+	var c := Vector3.ZERO
+	if tui:
+		var mi: MeshInstance3D = tui if tui is MeshInstance3D else tui.find_children("*", "MeshInstance3D", true, false)[0]
+		var t := tui.transform if mi == tui else tui.transform * mi.transform
+		c = t * mi.get_aabb().get_center()
+	_ice_model.position = Vector3(-c.x, -0.27, 0.02 - c.z) * _ice_model.scale.x
 
 
 ## Chú Tư nghe tiếng Bơ: Thong thả chỉ tiếng to (chạy nhanh, đáp mạnh), Thử thách cả tiếng đi thường.

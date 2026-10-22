@@ -1,6 +1,7 @@
 class_name ThuNam
 extends Node3D
-## Thứ Năm · Lên tầng năm (gói việc thiet-ke-man/goi-viec-thu-nam.md). Khối tạm tới khi có model (trang G1 bản 2).
+## Thứ Năm · Lên tầng năm (gói việc thiet-ke-man/goi-viec-thu-nam.md). Model G1 bản 2 (Sang duyệt 22/10, bàn giao
+## leo-chung-cu/phac-thao/BAN-GIAO.md) ở assets/models/thu_nam/; va chạm là hộp dựng trong code. Tủ báo, mái tôn còn khối tạm.
 ## main.gd thêm node này mọi ngày, ngày khác tự gỡ. Cả ngày bật động tác leo (bám mép, đạp tường).
 ## deliveries.gd chuyển bốn cách giao mới qua đây (deliveries.thu_nam.step):
 ## - shelf: Chú Tư ngủ gật trước sạp báo. Đặt bánh lên nóc tủ báo cao shelf_height: nhảy, đẩy về phía tủ để
@@ -9,7 +10,7 @@ extends Node3D
 ##   đưa cho Anh Hùng nằm võng trong tiệm. Mái tôn 3 m trên khe: lên tới đó chỉ bằng đạp tường (dap_lien).
 ## - đơn ngược "da" (delivery errand_da): bịch đá Cô Hai tan dần theo ice_melt_time (chỉ để nhìn và nhiệm vụ phụ).
 ##   Đường tắt mát: thùng, cục nóng lên dãy mái hiên khối 1 rồi đi trên mái về lò.
-## - loft: Chị Mây nghỉ trên gác lửng quán cà phê. Thùng → cục nóng → bám mép gác. Thong thả: đứng trước quầy
+## - loft: Chị Mây nghỉ trên gác lửng quán cà phê (bạt mái hiên quán cuốn lên, CityProps). Thùng → cục lạnh → gác. Thong thả: đứng trước quầy
 ##   bấm Q gọi thì chị thả giỏ xuống (loft_call_basket), nhưng mất nhiệm vụ len_gac.
 ## - scene: đơn 5 Bé Na. Tới cổng LÔ B chung cư thì sang cảnh chung_cu.tscn (giữ sao, boa, tem của ngày),
 ##   giao xong ở cửa 5B-1 thì quay về phố tổng kết. chung_cu.gd hỏi ThuNam.in_day().
@@ -26,19 +27,26 @@ const TU_WAKE_NOISE := 6.0                      ## Thử thách: tiếng đi th�
 ## Đơn 2 · tiệm xe (x 29,5..35, mặt tiền z 24, cửa sau z 16,7), khe hông x 28,3..29,5
 const SHOP := Rect2(29.6, 16.8, 5.3, 7.15)
 const SHUTTER_Z := 24.06
-const HAMMOCK := Vector3(30.7, 0, 23.25)        ## giữa võng, căng dọc trục x
+const HAMMOCK := Vector3(31.2, 0, 23.35)        ## giữa võng (model vong_hung dài 2,6 m, đáy 0,45 m), căng dọc trục x
 const HUNG_REACH := 1.7
 const TIN_ROOF := Rect2(28.3, 17.0, 1.2, 3.5)   ## mái tôn trên khe, phía sau cổng tôn
 const TIN_ROOF_Y := 3.0
 ## Đơn 3 · đường tắt mát: hai bậc ở góc đông khối 1, lên dãy mái hiên (y 2,96) đi về lò
 const SHADE_STEPS := [Vector3(-24.5, 0.7, -5.55), Vector3(-25.3, 1.75, -5.55)]
-## Đơn 4 · cà phê Mây (mặt tiền khối 5 ở z = 7, mái hiên z 6..7 cao 2,9 m)
-const LOFT := Rect2(6.4, 5.0, 2.4, 2.0)         ## sàn gác lửng (khối tạm, dày 0,4 m để bám mép) nhô ra trên mái hiên
-const LOFT_Y := 3.05
-const MAY_LOFT := Vector3(7.5, LOFT_Y, 6.75)
-const LOFT_STEPS := [Vector3(10.6, 0.6, 5.3), Vector3(9.9, 1.2, 5.3), Vector3(9.2, 1.9, 5.35)]
+## Đơn 4 · cà phê Mây (mặt tiền khối 5 ở z = 7). Thứ Năm quán cuốn bạt mái hiên lên, gác lửng thay chỗ đó.
+## Model gac_lung: sàn 3,0 × 1,6 m cao 2,8 m (x -2..1, z -0,6..1 trong model, lan can phía +z), xoay 180° cho
+## lan can nhìn ra đường. Chồng thùng và cục lạnh của model dời ra đầu đông gác thành đường leo.
+const LOFT_AT := Vector3(7.64, 0, 6.2)  # gốc gac_lung: giữa đáy cả cụm; xoay PI nên sàn x 6,0…9,0, z 5,4…7,0
+const LOFT := Rect2(6.0, 5.42, 3.0, 1.58)        ## sàn gác (thế giới)
+const LOFT_Y := 2.8
+const MAY_LOFT := Vector3(7.9, LOFT_Y, 5.68)  # sát lan can: nửa sau gác nằm dưới ban công lầu 1 quán (đáy ~3,1 m)
+## Bậc leo (tâm mặt trên): thùng 0,4 m, thùng 0,8 m, cục lạnh 2,04 m, rồi sàn gác 2,8 m ở phía tây
+const LOFT_STEPS := [Vector3(10.6, 0.4, 5.62), Vector3(10.18, 0.8, 5.62), Vector3(9.45, 2.04, 5.65)]
+const CRATES_SHIFT := Vector3(1.05, 0, -0.88)        ## dời node w_chong_thung từ chỗ trong model ra đầu đông
+const AC_SHIFT := Vector3(0.5, 0, -1.0)             ## dời node w_may_lanh_gac
 const COUNTER_CALL := Vector3(5.4, 0, 5.5)      ## đứng trước quầy gọi Chị Mây
-const BASKET_TIME := 1.4
+const BASKET_TIME := 1.6
+const MODELS := "res://assets/models/thu_nam/%s.glb"
 ## Đơn 5 · cổng LÔ B chung cư trên bản đồ (x cảnh chung cư = x bản đồ − 22, cổng cảnh x 18,1)
 const GATE := Vector3(40.1, 0, -15.0)
 
@@ -70,8 +78,11 @@ var _kicked := false
 var dap_ok := false
 var ice_left := 1.0
 var _ice_half_told := false
-var _ice_bag: MeshInstance3D
-var _basket: Node3D
+var _gio_tren: Node3D                ## giỏ để trên gác (model gio)
+var _gio_tha: Node3D                 ## giỏ thòng dây
+var _day_tha: Node3D
+var _ice_model: Node3D               ## bich_da: ba bộ node day / nua / tan
+var _ice_state := ""
 var _basket_t := -1.0
 var called_may := false
 var _sun_t := 0.0
@@ -200,8 +211,8 @@ func _setup() -> void:
 	main.order_delivered.connect(func(_i, _o):
 		_carrying = -1
 		_prompt.visible = false
-		if _ice_bag:
-			_ice_bag.visible = false)
+		if _ice_model:
+			_ice_model.visible = false)
 
 
 func _has(kind: String) -> bool:
@@ -245,32 +256,40 @@ func _build_shelf() -> void:
 	tu.position = TU_SEAT
 	add_child(tu)
 	tu.add_collision(Vector3(0.5, 1.15, 0.65), Vector3(0, 0.58, 0.08))
+	_idle(tu, "ngu_gat")
 	_tu_zzz = Blocks.label(self, "z z Z", TU_SEAT + Vector3(0.1, 1.55, 0.1), 36, Color("#DDE6F0"))
 	Blocks.label(self, "%d. Chú Tư\nSạp báo · nóc tủ" % (i + 1), SHELF + Vector3(0.6, h + 0.9, 0.2), 40)
 
 
-## Tiệm xe trưa nghỉ: cửa cuốn kéo xuống kín mặt tiền, Anh Hùng nằm võng trong tiệm, mái tôn trên khe hông.
+## Tiệm xe trưa nghỉ: cửa cuốn (model cua_cuon, khe dưới 18 cm) kín mặt tiền, Anh Hùng nằm võng (vong_hung)
+## trong tiệm, mái tôn trên khe hông.
 func _build_shop() -> void:
 	var i := _index("shutter")
 	var w := 35.0 - 29.5
-	Blocks.solid_box(self, Vector3(w, 3.2, 0.1), Vector3(29.5 + w / 2.0, 1.6, SHUTTER_Z), Color("#A9B0B3"))
-	for k in 14:
-		Blocks.box(self, Vector3(w, 0.03, 0.02), Vector3(29.5 + w / 2.0, 0.2 + k * 0.21, SHUTTER_Z + 0.06), Color("#868D90"))
-	Blocks.box(self, Vector3(w + 0.1, 0.25, 0.25), Vector3(29.5 + w / 2.0, 3.15, SHUTTER_Z + 0.08), Color("#6E7477"))
-	Blocks.label(self, "Trưa nghỉ · vô cửa sau\n← khe hông", Vector3(31.0, 1.9, SHUTTER_Z + 0.12), 34, GUIDE)
+	Blocks.collider(self, Vector3(w, 3.2, 0.1), Vector3(29.5 + w / 2.0, 1.6, SHUTTER_Z))
+	var cua := _model("cua_cuon", Vector3(29.5 + w / 2.0, 0, SHUTTER_Z - 0.06))
+	cua.scale.x = 5.1 / 4.76  # lòng tiệm 5,1 m giữa hai vách, model rộng 4,76 m kể cả ray
+	var sign := Blocks.label(self, "NGHỈ TRƯA\n1g - 2g", Vector3(29.5 + w / 2.0 - 0.9 * cua.scale.x, 1.52, SHUTTER_Z + 0.04), 22, Color("#2A2420"))
+	sign.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+	sign.outline_size = 0
+	sign.pixel_size = 0.0035
+	Blocks.label(self, "Trưa nghỉ · vô cửa sau\n← khe hông", Vector3(30.2, 2.3, SHUTTER_Z + 0.3), 30, GUIDE)
 	# Mái tôn trên khe, sau cổng tôn: chỉ lên được bằng đạp tường hoặc từ nóc cổng
 	Blocks.solid_box(self, Vector3(TIN_ROOF.size.x, 0.35, TIN_ROOF.size.y), Vector3(TIN_ROOF.get_center().x, TIN_ROOF_Y - 0.175, TIN_ROOF.get_center().y), Color("#B7C2C4"), Blocks.LAYER_PROP)
 	Blocks.label(self, "↑ mái tôn: đạp tường", Vector3(28.9, 2.3, 22.6), 28, GUIDE)
 	Blocks.label(self, "cửa sau →", Vector3(30.6, 1.6, 15.9), 30, GUIDE)
-	# Võng giữa hai cột, Anh Hùng ngồi võng ngủ trưa (dáng nằm võng chờ luồng "Người dân vào game")
-	for sx in [-0.85, 0.85]:
-		Blocks.solid_box(self, Vector3(0.08, 1.4, 0.08), HAMMOCK + Vector3(sx, 0.7, 0), STEEL, Blocks.LAYER_PROP)
-	Blocks.box(self, Vector3(1.5, 0.06, 0.5), HAMMOCK + Vector3(0, 0.42, 0), Color("#4F8F6A"))
+	# Võng dù giữa hai cột sắt (model: móc ở x ±1,4, cột 2,2 m), căng dọc trục x sát cửa cuốn
+	_model("vong_hung", HAMMOCK)
+	for x in [-1.4, 1.4]:
+		Blocks.collider(self, Vector3(0.1, 2.2, 0.1), HAMMOCK + Vector3(x, 1.1, 0), Blocks.LAYER_PROP)
 	hung = Nguoi.make("hung", "viec_rieng")
-	hung.position = HAMMOCK + Vector3(0, 0.14, 0)
+	hung.position = HAMMOCK + Vector3(0, 0.45 - Nguoi.SEAT["hung"], 0)  # ngồi giữa võng, đáy võng 0,45 m
+	if hung.anim and hung.anim.has_animation("nam_vong"):
+		hung.position.y = HAMMOCK.y + 0.45 - 0.30  # clip nằm võng: hông cao 0,30 m
 	hung.rotation.y = PI / 2.0  # nhìn về phía đông, ra lối đi giữa tiệm
 	add_child(hung)
 	hung.add_collision(Vector3(0.5, 1.1, 0.6), Vector3(0, 0.55, 0.1))
+	_idle(hung, "nam_vong")
 	Blocks.label(self, "%d. Anh Hùng\nNằm võng trong tiệm" % (i + 1), HAMMOCK + Vector3(0, 2.0, 0), 40)
 
 
@@ -284,31 +303,90 @@ func _build_shade_path() -> void:
 	Blocks.label(self, "đường mát ↑ mái hiên", Vector3(-24.9, 2.4, -5.2), 30, GUIDE)
 
 
-## Gác lửng quán Mây (khối tạm nhô ra trên mái hiên), lan can, Chị Mây ngồi nghỉ; thùng và cục nóng làm bậc.
+## Gác lửng quán Mây (model gac_lung) sát mặt tiền, lan can nhìn ra đường, Chị Mây ngồi nghỉ trên chiếu.
+## Đường leo: thùng 0,4 → thùng 0,8 → cục lạnh 2,04 m (node của model dời ra đầu đông) → nhảy sang sàn gác.
 func _build_loft() -> void:
 	var i := _index("loft")
+	var gac := _model("gac_lung", LOFT_AT, PI)
+	var crates := gac.find_child("w_chong_thung", true, false) as Node3D
+	if crates:
+		crates.global_position += CRATES_SHIFT
+	var ac := gac.find_child("w_may_lanh_gac", true, false) as Node3D
+	if ac:
+		ac.global_position += AC_SHIFT
+	# Va chạm: sàn dày 0,4 m (bám mép được), lan can trước chừa 0,5 m giữa, hai cột thép, bậc leo
 	var c := LOFT.get_center()
-	Blocks.solid_box(self, Vector3(LOFT.size.x, 0.4, LOFT.size.y), Vector3(c.x, LOFT_Y - 0.2, c.y), WOOD, Blocks.LAYER_PROP)
-	Blocks.box(self, Vector3(LOFT.size.x, 0.5, 0.03), Vector3(c.x, LOFT_Y + 0.25, LOFT.position.y + 0.02), Color(0.3, 0.2, 0.12, 0.5))
-	for k in LOFT_STEPS.size():
+	Blocks.collider(self, Vector3(LOFT.size.x, 0.4, LOFT.size.y), Vector3(c.x, LOFT_Y - 0.2, c.y), Blocks.LAYER_PROP)
+	for seg in [Vector2(6.0, 7.25), Vector2(7.75, 9.0)]:
+		Blocks.collider(self, Vector3(seg.y - seg.x, 0.74, 0.06), Vector3((seg.x + seg.y) / 2.0, LOFT_Y + 0.37, LOFT.position.y + 0.02), Blocks.LAYER_PROP)
+	for x in [6.06, 8.94]:
+		Blocks.collider(self, Vector3(0.08, LOFT_Y - 0.4, 0.08), Vector3(x, (LOFT_Y - 0.4) / 2.0, LOFT.position.y + 0.04), Blocks.LAYER_PROP)
+	for k in 2:
 		var s: Vector3 = LOFT_STEPS[k]
-		var col := WOOD if k < 2 else Color("#E4E7E2")
-		var size := Vector3(0.7, s.y, 0.7) if k < 2 else Vector3(0.75, 0.5, 0.5)
-		Blocks.solid_box(self, size, Vector3(s.x, s.y - size.y / 2.0, s.z), col, Blocks.LAYER_PROP)
-	Blocks.box(self, Vector3(0.06, 1.4, 0.06), Vector3(9.2, 0.7, 5.35), STEEL)
+		Blocks.collider(self, Vector3(0.4, s.y, 0.35), Vector3(s.x, s.y / 2.0, s.z), Blocks.LAYER_PROP)
+	# Cục nóng đứng trên giá sắt chạm đất: nhảy quá đà từ thùng thì đụng giá, không lọt xuống gầm
+	var a: Vector3 = LOFT_STEPS[2]
+	Blocks.collider(self, Vector3(0.8, a.y, 0.5), Vector3(a.x, a.y / 2.0, a.z), Blocks.LAYER_PROP)
+	for dx in [-0.36, 0.36]:
+		for dz in [-0.2, 0.2]:
+			Blocks.box(self, Vector3(0.04, a.y - 0.28, 0.04), Vector3(a.x + dx, (a.y - 0.28) / 2.0, a.z + dz), Color("#4A4F55"))
+	for y in [0.5, a.y - 0.3]:
+		Blocks.box(self, Vector3(0.76, 0.04, 0.44), Vector3(a.x, y, a.z), Color("#4A4F55"))
+	Blocks.box(self, Vector3(4.0, 0.22, 0.22), Vector3(7.0, 3.05, 6.9), Color("#3F7D5C"))  # bạt mái hiên cuốn tròn sát tường
 	may = Nguoi.make("may", "viec_rieng")
 	may.position = MAY_LOFT
 	may.rotation.y = PI  # nhìn ra đường (phía bắc)
 	add_child(may)
 	may.add_collision(Vector3(0.5, 1.6, 0.35), Vector3(0, 0.8, 0))
-	_basket = Node3D.new()
-	_basket.position = MAY_LOFT + Vector3(-0.6, 0, -1.0)
-	add_child(_basket)
-	Blocks.box(_basket, Vector3(0.3, 0.2, 0.25), Vector3.ZERO, Color("#C99A52"))
-	Blocks.box(_basket, Vector3(0.015, 1.0, 0.015), Vector3(0, 0.6, 0), Color("#F2E3B8"))
-	_basket.visible = false
+	if may.anim and may.anim.has_animation("tha_gio"):
+		Blocks.box(self, Vector3(0.3, 0.32, 0.3), MAY_LOFT + Vector3(0, 0.16, 0.05), Color("#8A5A3B"))  # ghế đẩu: clip thả giỏ ngồi 0,32 m
+	# Giỏ (model gio): giỏ trên gác cạnh Chị Mây; giỏ thòng dây chỉ hiện lúc thả xuống
+	var gio := _model("gio", MAY_LOFT + Vector3(-0.8, 0, 0.12))
+	_gio_tren = gio.find_child("w_gio_tren", true, false)
+	_gio_tha = gio.find_child("w_gio_tha", true, false)
+	_day_tha = gio.find_child("w_day_tha", true, false)
+	for n in [_gio_tha, _day_tha]:
+		if n:
+			n.visible = false
 	Blocks.label(self, "%d. Chị Mây\nGác lửng Cà phê Mây" % (i + 1), MAY_LOFT + Vector3(0, 2.0, -0.3), 40)
-	Blocks.label(self, "bậc lên gác →", Vector3(10.3, 1.6, 5.0), 28, GUIDE)
+	Blocks.label(self, "bậc lên gác →", Vector3(10.4, 1.6, 6.0), 28, GUIDE)
+
+
+## Model G1 bản 2: đặt ở pos, xoay quanh trục đứng.
+func _model(model_name: String, pos: Vector3, yaw := 0.0) -> Node3D:
+	var n: Node3D = load(MODELS % model_name).instantiate()
+	n.position = pos
+	n.rotation.y = yaw
+	add_child(n)
+	return n
+
+
+## Dáng riêng của người dân (ngu_gat, nam_vong, tha_gio...) khi luồng "Người dân vào game" đã thêm clip.
+func _idle(n: Nguoi, clip: String) -> void:
+	if n.anim and n.anim.has_animation(clip):
+		n.idle_anim = clip
+		n.play(clip, 0.0)
+
+
+## Thả giỏ: k 0 → 1 giỏ từ mép gác xuống trước quầy. Dây w_day_tha (dài 0,9 m từ 0,22 m) co giãn theo độ cao.
+func _lower_basket(k: float) -> void:
+	if _gio_tha == null:
+		return
+	var top := LOFT_Y + 0.05
+	var bottom := 0.95  # mặt quầy
+	var y := lerpf(top, bottom, k)
+	var origin: Vector3 = _gio_tha.get_parent().global_position
+	_gio_tha.visible = true
+	_day_tha.visible = true
+	if _gio_tren:
+		_gio_tren.visible = false
+	var at := Vector3(COUNTER_CALL.x + 0.35, y, LOFT.position.y + 0.25)
+	# Model đặt giỏ thả ở x +0,35 cạnh giỏ trên: dời cả hai node cho giỏ tới chỗ at, dây kéo dài lên tới mép gác
+	var off := at - (origin + Vector3(0.35, 0, 0))
+	_gio_tha.position = off
+	var stretch := maxf(top - y, 0.05) / 0.9
+	_day_tha.position = off + Vector3(0, 0.22 * (1.0 - stretch), 0)
+	_day_tha.scale.y = stretch
 
 
 # ---------------------------------------------------------------- vòng đơn
@@ -368,7 +446,10 @@ func step(i: int, in_zone: bool, delta: float) -> bool:
 				_tell("cua_cuon", "Cửa cuốn đóng rồi! Vô khe hông bên trái tiệm, đạp tường hoặc leo thùng qua cổng tôn.", 3.0)
 			if ready and (pressed or autotest):
 				player.play_deliver("hand")
-				hung.play_once("nhan_banh", "vui", 2.5)
+				if hung.anim and hung.anim.has_animation("ngoi_day"):
+					hung.play_once("ngoi_day", "vui", 2.5)  # ngồi dậy khỏi võng nhận bánh
+				else:
+					hung.play_once("nhan_banh", "vui", 2.5)
 				deliveries.side_ok[i] = dap_ok
 				return _done()
 		"loft":
@@ -382,10 +463,11 @@ func step(i: int, in_zone: bool, delta: float) -> bool:
 			if _basket_t >= 0.0:
 				_basket_t += delta
 				var k := clampf(_basket_t / BASKET_TIME, 0.0, 1.0)
-				_basket.position.y = lerpf(LOFT_Y + 0.1, 0.2, k)
+				_lower_basket(k)
 				if k >= 1.0:
 					player.play_deliver("hand")
 					deliveries.side_ok[i] = false
+					may.play_for("keo_gio", 1.4)
 					_toast("Chị Mây kéo giỏ lên: \"Cảm ơn Bơ nha!\"", 2.0)
 					return _done()
 			elif at_counter and Input.is_action_just_pressed("goi"):
@@ -394,8 +476,7 @@ func step(i: int, in_zone: bool, delta: float) -> bool:
 						player.sit_call()
 					called_may = true
 					_basket_t = 0.0
-					_basket.visible = true
-					_basket.position = Vector3(COUNTER_CALL.x + 0.6, LOFT_Y + 0.1, COUNTER_CALL.z + 0.3)
+					_idle(may, "tha_gio")
 					_toast("Chị Mây thả giỏ xuống. Lần sau leo lên gác thử nha!", 2.0)
 				else:
 					_toast("Chị Mây đang nghỉ trên gác, không nghe. Leo thùng → cục nóng → bám mép gác!", 2.5)
@@ -428,7 +509,7 @@ func stand_point(i: int) -> Vector3:
 		"shutter":
 			return hung.global_position + Vector3(1.1, -0.1, 0)
 		"loft":
-			return MAY_LOFT + Vector3(0, 0.05, -0.8)
+			return MAY_LOFT + Vector3(0.75, 0.05, -0.05)
 	return orders[i].pos
 
 
@@ -465,22 +546,48 @@ func _physics_process(delta: float) -> void:
 	if orders[_carrying].get("errand_item", "") == "da":
 		ice_left = maxf(ice_left - delta / float(DoKho.v("ice_melt_time", 45.0)), 0.0)
 		deliveries.side_ok[_carrying] = ice_left > 0.5
-		if _ice_bag:
-			_ice_bag.scale = Vector3.ONE * lerpf(0.45, 1.0, ice_left)
+		_set_ice("day" if ice_left > 0.5 else ("nua" if ice_left > 0.15 else "tan"))
 		if ice_left <= 0.5 and not _ice_half_told:
 			_ice_half_told = true
 			_toast("Bịch đá tan còn nửa rồi!", 2.0)
 
 
-## Bịch đá trong miệng Bơ (khối tạm, chờ model trang G1 bản 2), thay cho ổ bánh.
+## Bịch đá trong miệng Bơ (model bich_da, thay cho ổ bánh): bộ node day / nua / tan đổi ở 50 % và 85 % ice_melt_time.
+## Ba bộ nằm cạnh nhau trong model (tâm x -0,5 / -0,22 / +0,06), nút buộc cao 0,29 m: dời bộ đang hiện về miệng.
+const ICE_SETS := ["day", "nua", "tan"]
+
 func _show_ice(on: bool) -> void:
-	if on and _ice_bag == null:
+	if on and _ice_model == null:
 		var mouth: Node3D = deliveries.get("_mouth") if deliveries.get("_mouth") else player
-		_ice_bag = Blocks.box(mouth, Vector3(0.16, 0.14, 0.12), Vector3(0, -0.05, 0.05), Color(0.85, 0.95, 1.0, 0.75))
-	if _ice_bag:
-		_ice_bag.visible = on
+		_ice_model = load(MODELS % "bich_da").instantiate()
+		mouth.add_child(_ice_model)
+		_ice_model.scale = Vector3.ONE * 0.8
+	if _ice_model:
+		_ice_model.visible = on
+	if on:
+		_ice_state = ""
+		_set_ice("day")
 	if on and "bread" in player and player.bread:
 		player.bread.visible = false
+
+
+func _set_ice(state: String) -> void:
+	if _ice_model == null or state == _ice_state:
+		return
+	_ice_state = state
+	for st in ICE_SETS:
+		for part in ["w_tui_", "w_da_", "w_nuoc_"]:
+			var n := _ice_model.find_child(part + st, true, false) as Node3D
+			if n:
+				n.visible = st == state
+	# Model dựng ba trạng thái cạnh nhau: dời cả bịch cho túi đang hiện vào giữa miệng Bơ
+	var tui := _ice_model.find_child("w_tui_" + state, true, false) as Node3D
+	var c := Vector3.ZERO
+	if tui:
+		var mi: MeshInstance3D = tui if tui is MeshInstance3D else tui.find_children("*", "MeshInstance3D", true, false)[0]
+		var t := tui.transform if mi == tui else tui.transform * mi.transform
+		c = t * mi.get_aabb().get_center()
+	_ice_model.position = Vector3(-c.x, -0.27, 0.02 - c.z) * _ice_model.scale.x
 
 
 ## Chú Tư nghe tiếng Bơ: Thong thả chỉ tiếng to (chạy nhanh, đáp mạnh), Thử thách cả tiếng đi thường.
@@ -492,7 +599,11 @@ func _on_noise(pos: Vector3, radius: float) -> void:
 	tu_woke = true
 	deliveries.side_ok[_carrying] = false
 	_tu_zzz.text = "!"
-	tu.play_once("sot_ruot", "viec_rieng", 1.5)
+	tu.idle_anim = "viec_rieng"
+	if tu.anim and tu.anim.has_animation("thuc_day"):
+		tu.play_once("thuc_day", "viec_rieng")
+	else:
+		tu.play_once("sot_ruot", "viec_rieng", 1.5)
 	_toast("Chú Tư giật mình thức giấc. Lần sau rón rén (Alt) nha!", 2.0)
 
 

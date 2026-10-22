@@ -637,7 +637,8 @@ func _update_hud_errand(order: Dictionary) -> void:
 # ---------------------------------------------------------------- dựng cảnh
 
 func _setup_environment() -> void:
-	AnhSang.build(self, "pho_sang")  # nắng sớm, trời, sương, bóng đổ: scripts/anh_sang.gd
+	# Mỗi ngày một buổi (Thứ Hai nắng sớm, Thứ Tư mưa...): trời, nắng, sương, bóng, mưa, đèn lồng: scripts/anh_sang.gd
+	AnhSang.build(self, AnhSang.preset_for_day(day.id))
 
 
 func _build_bakery() -> void:

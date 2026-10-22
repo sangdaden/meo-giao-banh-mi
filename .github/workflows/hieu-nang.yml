@@ -87,6 +87,8 @@ jobs:
           line="index.pck $(mb $pck) MB (nén $(mb $pck_gz) MB), index.wasm $(mb $wasm) MB (nén $(mb $wasm_gz) MB), ngân sách pck ${PCK_MAX_MB} MB"
           echo "::notice::$line"  # hiện trong mục Annotations của PR, khỏi phải mở log
           echo "**Dung lượng tải:** $line" >> "$GITHUB_STEP_SUMMARY"
+          # File nặng nhất trong pck, để biết vượt ngân sách vì đâu
+          { echo '```'; python3 tools/pck_lon_nhat.py build/web/index.pck 25; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
           if [ "$pck" -gt $((PCK_MAX_MB * 1048576)) ]; then
             echo "::error::index.pck vượt ${PCK_MAX_MB} MB, xem docs/ngan-sach-hieu-nang.md"
             exit 1

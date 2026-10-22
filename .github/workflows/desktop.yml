@@ -192,6 +192,9 @@ jobs:
           # Vành phố P1: mép mềm chặn Bơ mà không chặn camera, đầu đường cho Bơ quay đầu, cầu kênh, phông trời
           timeout 300 ~/godot/godot --headless --path . -s tests/test_vanh_pho.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee vanh_pho.log
           grep -q "TEST VANH PHO OK" vanh_pho.log
+          # P3: trạm và xe buýt tuyến 08 (đỗ trạm, dừng còi trước Bơ, chờ Bơ xuống nóc), người qua đường thật
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_xe_buyt.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee xe_buyt.log
+          grep -q "TEST XE BUYT OK" xe_buyt.log
           # Chủ Nhật Hội mèo: khay bánh sáng không tính giờ, bot chơi đủ 5 trò, tới tổng kết tuần
           timeout 600 ~/godot/godot --headless --path . -- --autotest --ngay=chu_nhat 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee chu_nhat.log
           grep -q "AUTOTEST CHU_NHAT OK" chu_nhat.log

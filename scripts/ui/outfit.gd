@@ -7,7 +7,7 @@ extends RefCounted
 
 const PATH := "user://tu_do.cfg"
 const SLOTS := [["head", "Đầu"], ["face", "Mặt"], ["neck", "Cổ"], ["back", "Lưng"], ["tail", "Đuôi"], ["feet", "Chân"]]
-const RARITY := {"mac": "Mặc định", "thuong": "Thường", "hiem": "Hiếm", "dacbiet": "Đặc biệt", "sukien": "Sự kiện", "goi": "Gói"}
+const RARITY := {"mac": "Mặc định", "thuong": "Thường", "hiem": "Hiếm", "dacbiet": "Đặc biệt", "sukien": "Sự kiện", "goi": "Gói", "qua": "Quà"}
 
 # id, tên, độ hiếm, ô gắn
 const ACCS := [
@@ -54,6 +54,10 @@ const ACCS := [
 	["canhmai", "Cành mai cài tai", "goi", "head"],
 	["khanlen", "Khăn len Tết sọc", "goi", "neck"],
 	["huyhieu", "Khăn đỏ cài huy hiệu bánh mì vàng", "goi", "neck"],
+	# 3 món quà việc nhờ Thứ Bảy (G8, Sang duyệt 22/10/2026): so_hang_xom.gd ghi vào da_mua khi giúp xong
+	["nonphot", "Nón phớt", "qua", "head"],
+	["kinhbaoho", "Kính bảo hộ", "qua", "face"],
+	["lycaphe", "Ly cà phê đội đầu", "qua", "head"],
 ]
 ## Phụ kiện Bơ vẽ sẵn bằng code (player.gd), không cần model phụ kiện
 const IN_GAME := ["khando", "tuibanh"]

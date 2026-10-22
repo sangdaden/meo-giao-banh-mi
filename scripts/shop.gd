@@ -27,6 +27,9 @@ const PACKS := {
 	"giomay": "Giao Bánh Phố Cũ", "camen": "Giao Bánh Phố Cũ", "giodan": "Giao Bánh Phố Cũ",
 	"baolixi": "Tết", "canhmai": "Tết", "khanlen": "Tết", "huyhieu": "Ủng Hộ Lò Bánh",
 }
+## Quà việc nhờ Thứ Bảy (rarity "qua"): không bán, giúp người trong Sổ hàng xóm thì được (SoHangXom.grant_gift).
+const GIFT := "qua"
+const GIFTS := {"nonphot": "Ông Bảy, Ông Tám", "kinhbaoho": "Anh Hùng", "lycaphe": "Chị Mây"}
 ## Đồ sự kiện chỉ mở theo dịp (Tết, Trung thu, Halloween, sinh nhật), bản này chưa bán.
 const EVENT := "sukien"
 
@@ -77,7 +80,7 @@ static func rarity(id: String) -> String:
 ## Giá của món, -1 nếu không bán (sự kiện, thành tích).
 static func price(id: String) -> int:
 	var r := rarity(id)
-	if r == EVENT or r == PACK or GOALS.has(id):
+	if r == EVENT or r == PACK or r == GIFT or GOALS.has(id):
 		return -1
 	var table := PRICE_BREED if is_breed(id) else PRICE_ACC
 	return int(table.get(r, -1))
@@ -90,6 +93,8 @@ static func check(id: String) -> Dictionary:
 	if GOALS.has(id):
 		var g: Array = GOALS[id]
 		return {"ok": false, "text": "%s (%d/%d)" % [g[2], mini(stat(g[0]), g[1]), g[1]]}
+	if rarity(id) == GIFT:
+		return {"ok": false, "text": "Quà Thứ Bảy: giúp " + str(GIFTS.get(id, "hàng xóm"))}
 	if pack(id) != "":
 		return {"ok": false, "text": "Có trong gói " + pack(id)}
 	var p := price(id)

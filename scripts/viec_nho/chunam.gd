@@ -9,10 +9,14 @@ func begin() -> void:
 	line = "Chú Năm: lấy mũ bảo hiểm trên mái hiên gần lò bánh (leo chồng thùng)"
 	return_to = day.person_spot("chunam")
 	return_name = "Chú Năm"
-	var helmet := trinket(Vector3(0.26, 0.16, 0.3), Color("#F2C14E"), "sphere")
+	var helmet := prop("mu_khach_quen")
+	helmet.get_child(0).rotation.z = deg_to_rad(30.0)  # nằm nghiêng trên mái hiên
 	add_child(helmet)
 	add_target(surface(get_world_3d(), HELMET.x, HELMET.y), helmet, 0.8, 0.6)
-	carry_with(func(): return trinket(Vector3(0.2, 0.13, 0.24), Color("#F2C14E"), "sphere"))
+	carry_with(func():
+		var h := prop("mu_khach_quen", false)
+		h.scale = Vector3.ONE * 0.8
+		return h)
 
 
 func on_got(_i: int) -> void:

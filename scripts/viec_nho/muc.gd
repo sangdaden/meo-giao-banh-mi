@@ -22,6 +22,9 @@ func begin() -> void:
 		var tag := _tag()
 		add_child(tag)
 		add_target(p, tag, 0.6 if i == 0 else 0.8, 0.6, i == 0)
+	var bush := prop("bui_co", false)  # thẻ nằm lẫn trong bụi cỏ công viên
+	add_child(bush)
+	bush.global_position = SPOTS[1] + Vector3(0.25, 0, 0.1)
 	carry_with(_tag)
 	player.called.connect(_on_called)
 

@@ -40,9 +40,8 @@ const PEOPLE := {
 	"chithu": {"pos": Vector3(31.6, 0, -15.2), "yaw": -PI / 2.0, "idle": "ru_vong"},
 }
 const HAMMOCK := Vector3(30.6, 0, -15.6)
-## Kết ngày: "bồn nước" (khối tạm) trên mái hiên khối 1 cạnh lò bánh; chồng thùng bên dưới để leo lên
+## Kết ngày: "bồn nước" (khối tạm) trên mái hiên khối 1 cạnh lò bánh; leo lên bằng chồng thùng góc khối (City.CORNER_STAIR)
 const END_SPOT := Vector2(-28.8, -6.55)
-const END_STEP := Vector3(-29.6, 0, -5.6)
 ## Mái tôn ấm để ngủ trưa (mái hiên khối 5 phía tây quán cà phê)
 const NAP_SPOT := Vector2(1.0, 6.55)
 const NAP_TIME := 10.0
@@ -97,7 +96,6 @@ func _ready() -> void:
 	_add_action("so_hang_xom", KEY_TAB, JOY_BUTTON_BACK)
 	_add_action("chup_anh", KEY_P, -1)
 	_build_people()
-	_build_end_spot()
 	var nap := ViecNho.trinket(Vector3(0.9, 0.02, 0.6), Color("#B9826A"), "box")
 	add_child(nap)
 	nap.global_position = ViecNho.surface(get_world_3d(), NAP_SPOT.x, NAP_SPOT.y)
@@ -504,11 +502,6 @@ func _process_bubbles() -> void:
 			continue
 		var h := 1.4 if n == dog else (1.75 if Nguoi.SEAT.has((n as Nguoi).id) else 2.15)
 		b.global_position = n.global_position + Vector3(0, h + sin(Time.get_ticks_msec() * 0.004) * 0.05, 0)
-
-
-func _build_end_spot() -> void:
-	CityProps.crate(self, END_STEP)
-	CityProps.crate(self, END_STEP + Vector3(0, 0.8, 0))
 
 
 func _end_pos() -> Vector3:

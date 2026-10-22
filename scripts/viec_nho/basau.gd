@@ -1,11 +1,11 @@
 extends ViecNho
-## Trang 6 · Bà Sáu: hái 5 chùm bông giấy trên giàn trước nhà (thanh ngang cao 2,45 m) để cúng.
-## Leo lên bằng chồng thùng cạnh giàn hoặc bám mép từ ghế mây. Gai trên giàn làm chậm (DoKho "thorn_slow"), không đau.
+## Trang 6 · Bà Sáu: hái 5 chùm bông giấy trên giàn trùm cổng nhà (mặt trên cao 2,3 m) để cúng.
+## Leo lên bằng thang tre hai bên giàn hoặc chồng thùng cạnh giàn. Gai trên giàn làm chậm (DoKho "thorn_slow"), không đau.
 
-const BAR_Y := 2.5
-const BAR_Z := 23.7
+const BAR_Y := 2.55
+const BAR_Z := CityProps.GIAN_POS.z
 const XS := [-19.6, -19.0, -18.5, -18.0, -17.4]
-const STEP := Vector3(-17.6, 0, 22.6)
+const STEP := Vector3(-17.45, 0, 20.75)
 
 
 func begin() -> void:
@@ -21,7 +21,7 @@ func begin() -> void:
 func tick(delta: float) -> void:
 	super.tick(delta)
 	var p := player.global_position
-	var on_bar := p.y > 2.3 and p.x > -20.2 and p.x < -16.8 and absf(p.z - BAR_Z) < 0.5
+	var on_bar := p.y > 2.3 and p.x > -20.2 and p.x < -16.8 and absf(p.z - BAR_Z) < 0.7
 	player.speed_scale = float(DoKho.v("thorn_slow", 0.5)) if on_bar and not is_done() else 1.0
 
 

@@ -2,16 +2,18 @@ class_name ThuSau
 extends Node3D
 ## Thứ Sáu chiều tà, đám giỗ Bà Sáu (gói việc thiet-ke-man/goi-viec-thu-sau.md, trang thiết kế màn mục 06–07).
 ## Tiệm xe dùng model G6 (Sang duyệt 22/10, bàn giao thiet-ke-man/goi-phac-thao/g6-tiem-xe/BAN-GIAO.md,
-## file ở assets/models/thu_sau/). Sân giỗ còn là khối tạm, chờ model G7 "Phác thảo đám giỗ".
+## file ở assets/models/thu_sau/). Sân giỗ dùng model G7 (Sang duyệt 22/10, bàn giao
+## thiet-ke-man/goi-phac-thao/g7-dam-gio/BAN-GIAO.md, file ở assets/models/gio/); sân, giàn, lu, ghế mây
+## có mọi ngày (CityProps), bàn cỗ, bàn thờ, khách giỗ chỉ dựng ở đây.
 ## main.gd thêm node này mọi ngày, ngày khác tự gỡ. Phần giao của ba cách giao mới ở đây,
 ## deliveries.gd chỉ chuyển qua (deliveries.thu_sau.step):
 ## - call: tới gần khách, bấm Q ngồi kêu "meo" (clip ngoi_goi), khách nghe (trong call_radius, không bị tường che)
-##   thì nhận bánh. Chị Mây ở quầy kín khách, Bà Sáu ở cổng sân giỗ. Lại sát khách bấm E cũng được.
+##   thì nhận bánh. Chị Mây ở quầy kín khách, Bà Sáu ra cổng sân nhận. Lại sát khách bấm E cũng được.
 ## - lift: Anh Hùng đứng cạnh cầu nâng sửa xe. Cầu lên xuống theo nhịp lift_period: Bơ đứng lên dải thảm
 ##   của cầu cho nó nâng tới tay anh rồi bấm E. Vòi hơi thổi ngang lối vào, lốp lăn từ giá ra đường.
 ##   Lối tắt: khe 1,2 m bên hông tiệm (build_khe, đạp tường qua cổng tôn) ra hẻm sau, vào cửa sau.
-## - gio_table: chuyến giỗ cuối: đặt túi 3 ổ lên bàn dài trong sân. Leo giàn bông giấy (gai làm chậm)
-##   vào sân từ trên cao thì khỏi qua con nít chạy theo và bình tưới của Bà Sáu.
+## - gio_table: chuyến giỗ cuối: đặt túi 3 ổ lên mẹt đầu bàn dài trong sân. Leo thang giàn bông giấy
+##   (gai làm chậm), đi hết ván rồi nhảy xuống mẹt thì khỏi băng sân qua con nít và bình tưới của Bà Sáu.
 ## Đơn giỗ (khóa "gio": true) ngậm túi 3 ổ (player.carry_tui3). Thử thách: các đơn "gio_group" dùng
 ## chung một đồng hồ gio_shared_time giây (chạy cả lúc về lò lấy chuyến sau). Thong thả: mỗi chuyến giờ riêng.
 ## Ngồi gọi Q: player.sit_call() (phát player.called). Số dễ/khó: DoKho.EASY, khóa ghi ở bảng gói việc.
@@ -47,20 +49,22 @@ const KHE_LEN := 8.4
 const KHE_GATE := 3.4
 const KHE_GATE_H := 1.9
 
-## Sân giỗ cuối hẻm 42 (x -20..-17): cổng sân z 18,8, cổng nhà Bà Sáu z 24,4
+## Sân giỗ nhà Bà Sáu (G7): cổng z 22,0, sân z 22,0..26,6. Tọa độ theo BAN-GIAO G7 mục 3.
 const GIO_GATE := Vector3(-18.5, 0, 18.3)       ## đứng đây ngồi gọi Bà Sáu
-const GIO_TABLE := Vector3(-18.75, 0, 20.55)    ## đứng cạnh bàn dài đặt túi
-const YARD := Rect2(-20.0, 18.8, 3.0, 5.6)
-const TABLE_POS := Vector3(-19.45, 0, 20.55)
-const TABLE_SIZE := Vector3(0.7, 0.72, 2.4)
-const ALTAR_POS := Vector3(-18.5, 0, 24.15)
-const BA_SAU_SEAT := Vector3(-19.5, 0.08, 22.7) ## ghế mây CityProps
-const POTS := [Vector3(-17.35, 0, 20.5), Vector3(-17.35, 0, 21.3)]
-## Giàn bông giấy leo được: hai bậc thùng gỗ cạnh tường đông rồi lên mái giàn cao 2,4 m chạy vào sân
-const TRELLIS := Rect2(-17.75, 17.6, 0.7, 5.0)
-const TRELLIS_TOP := 2.4
-const STEPS := [{"pos": Vector3(-17.4, 0.4, 16.85), "size": Vector3(0.6, 0.8, 0.5)},
-	{"pos": Vector3(-17.4, 0.8, 17.35), "size": Vector3(0.6, 1.6, 0.5)}]
+const GIO_TABLE := Vector3(-17.9, 0, 23.5)      ## mẹt tre đầu bàn dài gần cổng, ngay dưới đầu ván giàn
+const YARD := CityProps.BA_SAU_YARD
+const TABLE_POS := Vector3(-17.9, 0, 24.4)      ## bàn dài kê dọc vào sân, z 23,2..25,6
+const TABLE_SIZE := Vector3(0.87, 0.756, 2.47)
+const MET_REACH := 0.6                          ## Bơ cách mẹt dưới mức này (trên bàn hay dưới đất) thì đặt được
+const ALTAR_POS := Vector3(-16.6, 0, 26.25)     ## bàn thờ sát mặt tiền nhà, quay ra sân (nhà trong game đặc)
+const ALTAR_TOP := 0.956
+const BA_SAU_SEAT := CityProps.BA_SAU_CHAIR + Vector3(0, 0.08, 0)
+const POTS := CityProps.BA_SAU_POTS
+const GATE_INSIDE := Vector3(-18.5, 0, 22.45)   ## Bà Sáu đứng trong cổng nhận túi
+## Giàn bông giấy (CityProps.gian_bong_giay): 2,6 × 1,2 m trùm lên cổng, ván nhô vào sân tới z 23,03
+const TRELLIS := Rect2(-19.85, 21.35, 2.7, 1.7)
+const TRELLIS_TOP := 2.3
+const THORNS := [Vector2(-19.8, 21.4), Vector2(-17.2, 21.4)]  ## hai thân bông giấy có gai quấn cột trước
 const KID_SPEED := 1.8
 const KID_TRIP_CD := 2.5
 const SPRAY_EVERY := 4.0
@@ -112,7 +116,10 @@ var _tyre_hint := false
 var _may: Nguoi
 var _hung: Nguoi
 var _sau: Nguoi
-var _helper: Nguoi                 # khách giỗ ra cổng nhận túi thay Bà Sáu (Bà Sáu chưa có dáng đứng, chờ G7)
+var _helper: Nguoi                 # khách giỗ ra cổng nhận túi khi Bà Sáu chưa có clip ra_cong_nhan
+var _sau_stands := false           # basau.glb đã có clip G7 (tuoi_cay, ra_cong_nhan, chao_tien): đứng tưới cây, ra cổng
+var _sau_home := Vector3.ZERO
+var _ring: Node3D                  # vòng vàng quanh mẹt, hiện ở chuyến đặt bàn
 var _helper_home := Vector3.ZERO
 var _kids: Array = []              # {"node", "home", "cd"}
 var _walkers: Array = []           # {"node", "lane", "dir", "cd"}
@@ -397,72 +404,104 @@ func _build_cafe() -> void:
 	Blocks.label(self, _title("call", "Chị Mây"), c + Vector3(0, 1.4, 0.3), 40)
 
 
-## Sân giỗ cuối hẻm 42: bàn dài dọn cỗ, bàn thờ (không leo được), giàn bông giấy leo được,
-## Bà Sáu ngồi ghế mây cầm bình tưới, hai đứa nhỏ chạy theo Bơ, khách giỗ đứng nói chuyện.
+## Sân giỗ (G7): bàn dài dọn cỗ kê dọc dưới đầu ván giàn, mẹt tre giao túi, bàn thờ (không leo được),
+## Bà Sáu tưới cây dọc tường trái, hai đứa nhỏ chạy theo Bơ, khách giỗ đứng nói chuyện.
 func _build_yard() -> void:
-	# Cổng sân: hai cột tre, băng vải đỏ
-	for x in [YARD.position.x + 0.15, YARD.end.x - 0.15]:
-		Blocks.solid_box(self, Vector3(0.08, 2.2, 0.08), Vector3(x, 1.1, YARD.position.y - 0.05), BAMBOO, Blocks.LAYER_PROP)
-	Blocks.box(self, Vector3(YARD.size.x - 0.3, 0.32, 0.03), Vector3(YARD.get_center().x, 2.05, YARD.position.y - 0.05), RED)
-	Blocks.label(self, "ĐÁM GIỖ", Vector3(YARD.get_center().x, 2.05, YARD.position.y - 0.08), 28, Color("#FFE7A8"))
-	# Bàn dài phủ khăn, mâm cỗ
-	Blocks.solid_box(self, TABLE_SIZE, TABLE_POS + Vector3(0, TABLE_SIZE.y / 2.0, 0), WOOD, Blocks.LAYER_PROP)
-	Blocks.box(self, Vector3(TABLE_SIZE.x + 0.06, 0.02, TABLE_SIZE.z + 0.06), TABLE_POS + Vector3(0, TABLE_SIZE.y + 0.01, 0), RED.lightened(0.15))
-	var dishes := [Color("#F2E3B8"), Color("#7FB069"), Color("#E39C7A"), Color("#D7A9C4"), Color("#F2C14E"), Color("#A9C7E8")]
-	for k in dishes.size():
-		var plate := CylinderMesh.new()
-		plate.top_radius = 0.13
-		plate.bottom_radius = 0.1
-		plate.height = 0.05
-		plate.radial_segments = 10
-		plate.rings = 1
-		Blocks.mesh(self, plate, TABLE_POS + Vector3(0.12 * (1 if k % 2 else -1), TABLE_SIZE.y + 0.045, -0.95 + k * 0.38), dishes[k])
-	# Bàn thờ sát cổng nhà: lư hương, chân nến, mâm trái cây. Hộp chặn vô hình cao 2,3 m nên Bơ không nhảy lên được.
-	Blocks.solid_box(self, Vector3(1.2, 1.0, 0.4), ALTAR_POS + Vector3(0, 0.5, 0), Color("#6B2A1E"), Blocks.LAYER_PROP)
-	Blocks.collider(self, Vector3(1.3, 1.3, 0.5), ALTAR_POS + Vector3(0, 1.65, 0), Blocks.LAYER_PROP)
-	Blocks.box(self, Vector3(0.14, 0.1, 0.14), ALTAR_POS + Vector3(0, 1.05, 0), YELLOW)
-	for sx in [-0.4, 0.4]:
-		Blocks.box(self, Vector3(0.04, 0.22, 0.04), ALTAR_POS + Vector3(sx, 1.11, 0), Color("#FFF8EA"))
-	Blocks.box(self, Vector3(0.3, 0.12, 0.2), ALTAR_POS + Vector3(-0.2, 1.06, 0.05), Color("#E39C7A"))
-	var smoke := Blocks.box(self, Vector3(0.02, 0.45, 0.02), ALTAR_POS + Vector3(0, 1.32, 0), Color(0.9, 0.9, 0.9, 0.5))
-	smoke.material_override.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	# Giàn bông giấy: bậc thùng gỗ, cột tre, mái giàn đứng được, chùm bông phủ hai mép
-	for s in STEPS:
-		Blocks.solid_box(self, s.size, s.pos, Color("#A8774A"), Blocks.LAYER_PROP)
-	var tc := TRELLIS.get_center()
-	for z in [TRELLIS.position.y + 0.1, TRELLIS.end.y - 0.1]:
-		for x in [TRELLIS.position.x + 0.05, TRELLIS.end.x - 0.05]:
-			Blocks.box(self, Vector3(0.06, TRELLIS_TOP, 0.06), Vector3(x, TRELLIS_TOP / 2.0, z), BAMBOO)
-	Blocks.solid_box(self, Vector3(TRELLIS.size.x, 0.1, TRELLIS.size.y), Vector3(tc.x, TRELLIS_TOP - 0.05, tc.y), BAMBOO, Blocks.LAYER_PROP)
-	for k in 8:
-		var s := SphereMesh.new()
-		s.radius = 0.2
-		s.height = 0.26
-		s.radial_segments = 8
-		s.rings = 4
-		var side := TRELLIS.position.x if k % 2 == 0 else TRELLIS.end.x
-		Blocks.mesh(self, s, Vector3(side, TRELLIS_TOP + 0.05, TRELLIS.position.y + 0.3 + k * 0.6), CityProps.BOUGAIN)
-	# Chậu hoa phía tây cho Bà Sáu tưới
-	PhoModels.put(self, "chau_boug", Vector3(-19.75, 0, 21.95))
+	var gio := func(model: String, pos: Vector3, yaw := 0.0) -> MeshInstance3D: return PhoModels.put(self, CityProps.GIO % model, pos, yaw)
+	# Bàn dài, sáu ghế đẩu, hai mâm cỗ, mẹt tre. Gầm bàn 0,63 m: chỉ mặt bàn có va chạm, Bơ chui được.
+	gio.call("ban_dai", TABLE_POS, PI / 2.0)
+	gio.call("ghe_dau_nhua", TABLE_POS, PI / 2.0)
+	Blocks.collider(self, Vector3(TABLE_SIZE.x, 0.06, TABLE_SIZE.z), TABLE_POS + Vector3(0, TABLE_SIZE.y - 0.03, 0), Blocks.LAYER_PROP)
+	for z in [0.25, 0.95]:
+		gio.call("mam_co", TABLE_POS + Vector3(0, TABLE_SIZE.y, z), z)
+	gio.call("dia_banh_mi", TABLE_POS + Vector3(0.22, TABLE_SIZE.y, -0.4))
+	gio.call("ly_nuoc", TABLE_POS + Vector3(-0.25, TABLE_SIZE.y, -0.35), PI / 2.0)
+	var top := Vector3(GIO_TABLE.x, TABLE_SIZE.y + 0.006, GIO_TABLE.z)
+	gio.call("met_tre", top)
+	_ring = Node3D.new()
+	_ring.position = top + Vector3(0, 0.03, 0)
+	add_child(_ring)
+	var ring := PhoModels.put(_ring, CityProps.GIO % "vong_giao", Vector3.ZERO)
+	var glow := StandardMaterial3D.new()
+	glow.albedo_color = Color("#FFD45A")
+	glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ring.material_override = glow
+	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_ring.visible = false
+	# Bàn thờ quay ra sân: hộp chặn cao 1,2 m che cả bàn, không cho leo; đi ngang thì chậm lại
+	gio.call("ban_tho", ALTAR_POS, PI)
+	Blocks.collider(self, Vector3(1.5, 1.2, 0.64), ALTAR_POS + Vector3(0, 0.6, 0), Blocks.LAYER_PROP)
+	var t := ALTAR_POS + Vector3(0, ALTAR_TOP, 0)
+	gio.call("di_anh", t + Vector3(0, 0, 0.17), PI)
+	gio.call("lu_huong", t + Vector3(0, 0, -0.05), PI)
+	for k in 3:
+		gio.call("nhang_thap", t + Vector3(-0.018 + k * 0.018, 0.105, -0.05), PI)
+	var smoke := gio.call("khoi", t + Vector3(0, 0.39, -0.05), PI) as MeshInstance3D
+	smoke.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	gio.call("chan_nen", t + Vector3(0, 0, 0.06), PI)
+	gio.call("mam_ngu_qua", t + Vector3(-0.48, 0, -0.08), PI)
+	for x in [-0.62, 0.62]:
+		gio.call("binh_cuc", t + Vector3(x, 0, 0.16), PI)
+	gio.call("ly_nuoc", t + Vector3(0.3, 0, -0.18), PI)
+	gio.call("dia_banh_mi", t + Vector3(0.5, 0, -0.16), PI)
 	if _gio_orders().is_empty():
 		return
-	_sau = _person("basau", BA_SAU_SEAT, PI, "viec_rieng")
-	_sau.add_collision(Vector3(0.5, 1.15, 0.65), Vector3(0, 0.58, 0.08))
-	Blocks.label(self, _title("gio_table", "Bà Sáu"), BA_SAU_SEAT + Vector3(0, 2.2, 0), 40)
+	_build_sau()
 	_spray = Blocks.box(self, Vector3(0.05, 0.05, 1.0), Vector3.ZERO, WATER)
 	_spray.material_override.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_spray.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_spray.visible = false
-	# Khách giỗ: một người ra cổng nhận túi thay Bà Sáu, hai người đứng nói chuyện
-	_helper_home = Vector3(-18.9, 0, 22.0)
-	_helper = _person("cho4", _helper_home, PI, "noi", "dong")
-	_person("cho6", Vector3(-19.45, 0, 19.0), 0.0, "noi", "dong")
-	_person("dicho1", Vector3(-17.6, 0, 22.4), PI / 2.0, "xem", "dong")
+	# Khách giỗ đứng nói chuyện hai bên sân; một người ra cổng nhận túi khi Bà Sáu chưa có clip ra cổng
+	_helper_home = Vector3(-19.0, 0, 23.0)
+	if not _sau_stands:
+		_helper = _person("cho4", _helper_home, PI, "noi", "dong")
+	if _has_model("thanh"):
+		_build_guests_g7()
+		return
+	_person("cho6", Vector3(-19.6, 0, 25.0), PI / 2.0, "noi", "dong")
+	_person("dicho1", Vector3(-16.85, 0, 24.9), -PI / 2.0, "xem", "dong")
 	# Hai đứa nhỏ
 	for k in 2:
-		var home := Vector3(-18.6 + k * 0.6, 0, 19.6 + k * 2.6)
+		var home := Vector3(-20.0 + k * 0.8, 0, 23.4 + k * 1.8)
 		var kid := _person(["cho5", "bena"][k], home, PI, "vui")
-		_kids.append({"node": kid, "home": home, "cd": 0.0})
+		_kids.append({"node": kid, "home": home, "cd": 0.0, "run": "di_bo", "idle": "vui", "trip": "vui"})
+
+
+## Người nhà và khách giỗ G7 (luồng "Người dân vào game"): Chú Thành, Cô Loan cầm nhang khấn trước bàn thờ,
+## Ông Mười ngồi ghế đẩu ăn cỗ, Chị Hạnh đứng nói chuyện, Bé Bin chạy theo Bơ, Bé Mít ngồi xổm vuốt mèo trong cổng.
+func _build_guests_g7() -> void:
+	for g in [["thanh", Vector3(-16.85, 0, 25.45)], ["loan", Vector3(-16.2, 0, 25.45)]]:
+		var n := _person(g[0], g[1], 0.0, "chap_tay_khan")
+		n.hold(CityProps.GIO % "nhang_thap", "hand.R", Vector3(0, 0.02, 0.06))
+		n.add_collision(Vector3(0.45, 1.6, 0.3), Vector3(0, 0.8, 0))
+	_person("muoi", Vector3(-18.52, 0, 25.2), PI / 2.0, "ngoi_an")
+	_person("hanh", Vector3(-19.7, 0, 25.0), PI / 2.0, "dung_noi_chuyen").add_collision(Vector3(0.45, 1.6, 0.3), Vector3(0, 0.8, 0))
+	var home := Vector3(-20.0, 0, 23.6)
+	var bin := _person("bin", home, PI, "cuoi_om_bung")
+	_kids.append({"node": bin, "home": home, "cd": 0.0, "run": "chay_theo", "idle": "cuoi_om_bung", "trip": "vap_nhe"})
+	var mit := _person("mit", Vector3(-19.35, 0, 22.75), PI, "ngoi_xom_vuot")
+	mit.add_collision(Vector3(0.4, 0.7, 0.4), Vector3(0, 0.35, 0))
+
+
+static func _has_model(id: String) -> bool:
+	return ResourceLoader.exists("res://assets/models/nguoi/%s.glb" % id)
+
+
+## Bà Sáu: có clip G7 thì đứng tưới hàng chậu dọc tường trái, Bơ gọi thì ra cổng nhận túi;
+## chưa có thì ngồi ghế mây cầm bình tưới như cũ (khách giỗ ra cổng nhận giùm).
+func _build_sau() -> void:
+	_sau = _person("basau", BA_SAU_SEAT, PI, "viec_rieng")
+	_sau_stands = _sau.anim != null and _sau.anim.has_animation("ra_cong_nhan") and _sau.anim.has_animation("tuoi_cay")
+	if _sau_stands:
+		_sau_home = Vector3(-20.45, 0, 23.3)
+		_sau.position = _sau_home
+		_sau.rotation.y = -PI / 2.0
+		_sau.idle_anim = "tuoi_cay"
+		_sau.play("tuoi_cay", 0.0)
+		_sau.add_collision(Vector3(0.45, 1.5, 0.35), Vector3(0, 0.75, 0))
+	else:
+		_sau.add_collision(Vector3(0.5, 1.15, 0.65), Vector3(0, 0.58, 0.08))
+	Blocks.label(self, _title("gio_table", "Bà Sáu"), CityProps.BA_SAU_CHAIR + Vector3(0, 2.2, 0), 40)
 
 
 ## Người tan tầm đi qua lại trên vỉa hè đường lớn (va vào thì khựng nhẹ).
@@ -526,9 +565,11 @@ func _on_pick_up(i: int, order: Dictionary) -> void:
 	if order.get("errand_item", "") == "nhang":
 		_nhang = Node3D.new()
 		deliveries._mouth.add_child(_nhang)
-		Blocks.box(_nhang, Vector3(0.2, 0.025, 0.025), Vector3(0, -0.02, 0.02), Color("#C8412F"))
-		Blocks.box(_nhang, Vector3(0.07, 0.05, 0.04), Vector3(0.05, -0.05, 0.03), Color("#F2E3B8"))
+		# Gói nhang + hộp đèn cầy G7, Bơ ngậm quai dây gai (quai cao 0,135 m trên đáy gói)
+		PhoModels.put(_nhang, CityProps.GIO % "goi_nhang", Vector3(0, -0.12, 0.02), PI / 2.0, Vector3.ONE * 0.85)
 		deliveries._body_layer(_nhang)
+	if _ring:
+		_ring.visible = order.get("delivery", "") == "gio_table"
 	if order.get("delivery", "") == "lift":
 		_toast("Anh Hùng ngồi trên giàn cao. Đứng lên cầu nâng cho nó đưa lên!", 3.0, 2.6)
 	elif order.get("delivery", "") == "call":
@@ -536,6 +577,8 @@ func _on_pick_up(i: int, order: Dictionary) -> void:
 
 
 func _on_delivered(i: int, order: Dictionary) -> void:
+	if _ring:
+		_ring.visible = false
 	if is_instance_valid(_nhang):
 		_nhang.queue_free()
 		_toast("Cô Ba gói nhang, đèn cầy vô mâm cỗ cho Bà Sáu.", 2.5, 2.2)
@@ -547,6 +590,8 @@ func _on_delivered(i: int, order: Dictionary) -> void:
 	if order.get("gio", false) and i == _gio_orders()[-1]:
 		# Chuyến chót: Bà Sáu cảm ơn, Mực nằm xuống nhìn theo Bơ (gieo chương Thứ Bảy)
 		_say(_sau, "\"Đủ cỗ rồi! Cảm ơn Bơ nha. Mực, nằm yên đó!\"", 4.0, 2.0)
+		if _sau_stands:
+			_sau_walk(GATE_INSIDE, func(): _sau.play("chao_tien"), 1.5)
 		if dog and dog.has_method("play_clip"):
 			get_tree().create_timer(2.5).timeout.connect(func(): dog.play_clip("nam_buon"))
 	_current = -1
@@ -579,9 +624,9 @@ func step(i: int, in_zone: bool, _delta: float) -> bool:
 			if (pressed and up) or (autotest and in_zone):
 				return _deliver_lift(i)
 		"gio_table":
-			var near_table := _flat(player.global_position, TABLE_POS) < 1.0 and player.global_position.y < 1.6
+			var near_table := _flat(player.global_position, GIO_TABLE) < MET_REACH + (0.4 if player.global_position.y < 0.5 else 0.0) and player.global_position.y < 1.6
 			ready = in_zone or near_table
-			hint = "[E] Đặt túi lên bàn cỗ" if near_table else "Mang túi tới bàn cỗ"
+			hint = "[E] Đặt túi lên mẹt" if near_table else "Mang túi tới mẹt đầu bàn cỗ"
 			if (pressed and near_table) or (autotest and in_zone):
 				return _deliver_table(i)
 	_prompt.visible = ready and hint != ""
@@ -628,7 +673,11 @@ func _deliver_call(i: int) -> bool:
 			deliveries.side_ok[i] = _calls == 1
 		"muc_ngu_yen":
 			deliveries.side_ok[i] = not _dog_woke()
-	if order.get("gio", false):
+	if order.get("gio", false) and _sau_stands:
+		# Bà Sáu bỏ bình tưới, ra cổng cúi nhận túi qua khe cổng, mang vào đặt lên mẹt
+		_say(_sau, "\"Bơ tới rồi đó! Đưa bà nè.\"", 2.5)
+		_sau_receive()
+	elif order.get("gio", false):
 		# Khách giỗ ra cổng nhận túi, mang vào đặt lên bàn cỗ
 		_say(_sau, "\"Bơ tới rồi đó! Cô Năm ra lấy giùm bà.\"", 2.5)
 		_handover_bag(_helper, _helper_home)
@@ -693,13 +742,44 @@ func _handover_bag(n: Nguoi, home: Vector3) -> void:
 	)
 
 
+## Bà Sáu (clip G7) đi ra trong cổng, cúi nhận túi (ra_cong_nhan), đi về chỗ tưới cây; túi lên bàn cỗ.
+func _sau_receive() -> void:
+	var to := GATE_INSIDE
+	var bo := player.global_position
+	if bo.z > CityProps.BA_SAU_YARD.position.y:
+		to = bo + (_sau.global_position - bo).normalized() * 0.6  # Bơ đã vào sân: bà ra tới chỗ Bơ
+		to.y = 0.0
+	_sau_walk(to, func():
+		_face(_sau, Vector3(bo.x, 0, bo.z))
+		_sau.play_once("ra_cong_nhan", "dung_yen")
+		if player.has_method("play_clip"):
+			player.play_clip("dua_tui")
+		get_tree().create_timer(2.0).timeout.connect(func():
+			_place_bag(0.0)
+			_sau_walk(_sau_home, func():
+				_sau.rotation.y = -PI / 2.0
+				_sau.play("tuoi_cay"))))
+
+
+## Bà Sáu đi tới chỗ to (clip di_bo nếu có), xong gọi then.
+func _sau_walk(to: Vector3, then: Callable, delay := 0.0) -> void:
+	var tw := create_tween()
+	if delay > 0.0:
+		tw.tween_interval(delay)
+	tw.tween_callback(func():
+		_face(_sau, to)
+		_sau.play("di_bo" if _sau.anim.has_animation("di_bo") else "dung_yen"))
+	tw.tween_property(_sau, "position", to, maxf(_flat(_sau.position, to) / 0.9, 0.3))
+	tw.tween_callback(then)
+
+
 func _place_bag(delay: float) -> void:
 	var slot := _bags_on_table
 	_bags_on_table += 1
 	get_tree().create_timer(maxf(delay, 0.01)).timeout.connect(func():
 		var bag: Node3D = preload("res://assets/models/giao/tui_3o.glb").instantiate()
 		add_child(bag)
-		bag.position = TABLE_POS + Vector3(0.05, TABLE_SIZE.y + 0.02, -0.9 + (slot % 4) * 0.55)
+		bag.position = TABLE_POS + Vector3(0.22 * (1 if slot % 2 else -1), TABLE_SIZE.y + 0.02, -0.45 + (slot % 4) * 0.4)
 		bag.rotation.y = PI / 2.0
 	)
 
@@ -852,7 +932,12 @@ func _update_yard(delta: float) -> void:
 	var p := player.global_position
 	var in_yard := YARD.has_point(Vector2(p.x, p.z))
 	var on_trellis := TRELLIS.grow(0.1).has_point(Vector2(p.x, p.z)) and p.y > TRELLIS_TOP - 0.3
+	var in_thorns := false
+	for t in THORNS:
+		in_thorns = in_thorns or (Vector2(p.x, p.z).distance_to(t) < 0.3 and p.y > 0.3 and p.y < 2.2)
 	var slow := 1.0
+	if in_thorns:
+		slow = float(DoKho.v("thorn_slow", 0.5))
 	if on_trellis:
 		slow = float(DoKho.v("thorn_slow", 0.5))
 		if _current >= 0:
@@ -880,21 +965,24 @@ func _update_kids(delta: float, chase: bool) -> void:
 		kd.cd = maxf(kd.cd - delta, 0.0)
 		var goal: Vector3 = p if chase else kd.home
 		goal.y = 0.0
-		goal.x = clampf(goal.x, -19.0, -17.7)
-		goal.z = clampf(goal.z, 18.9, 23.5)
+		goal.x = clampf(goal.x, -21.0, -18.6)  # sân phía tây bàn cỗ
+		goal.z = clampf(goal.z, 22.4, 26.0)
 		var to := goal - n.position
 		to.y = 0.0
 		var stop := 0.35 if chase else 0.1
 		if to.length() > stop:
 			n.position += to.normalized() * minf(KID_SPEED * delta, to.length() - stop)
 			n.rotation.y = atan2(to.x, to.z)
-			n.play("di_bo")
+			n.play(kd.run)
 		elif not n.busy():
-			n.play("vui")
+			n.play(kd.idle)
 		if chase and kd.cd <= 0.0 and _flat(p, n.position) < 0.45:
 			kd.cd = KID_TRIP_CD
 			player.bump("kid", n.position, float(DoKho.v("kid_trip_stun", 0.4)))
-			n.play_for("vui", 1.0)
+			if kd.trip == "vui":
+				n.play_for("vui", 1.0)
+			else:
+				n.play_once(kd.trip, kd.idle)
 
 
 ## Bà Sáu ngồi ghế tưới: tia nước quét qua lối đi tới chậu bên kia. Dính nước thì khựng (Thong thả: không khựng).
@@ -911,6 +999,11 @@ func _update_spray(delta: float) -> void:
 	if not on:
 		return
 	var a := BA_SAU_SEAT + Vector3(0.35, 0.75, -0.3)
+	if _sau_stands:
+		if _sau.current() != "tuoi_cay":
+			_spray.visible = false
+			return
+		a = _hand(_sau) + Vector3(-0.3, -0.1, 0)
 	var b: Vector3 = POTS[_spray_target] + Vector3(0, 0.35, 0)
 	_spray.position = (a + b) / 2.0
 	_spray.look_at_from_position(_spray.position, b, Vector3.UP)

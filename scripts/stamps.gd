@@ -10,9 +10,9 @@ const STAMP_MODEL := preload("res://assets/models/tem.glb")
 const PICKED_MODEL := preload("res://assets/models/tem_nhat.glb")
 ## Vị trí mặt đất đặt tem
 const SPOTS := [
-	Vector3(-25.8, 1.6, -2),   # đỉnh chồng thùng bậc thang gần lò
-	Vector3(26, 0.8, 27.5),    # trên thùng gần tiệm sửa xe
-	Vector3(14, 0.8, 18),      # trên thùng trong khối 5
+	City.CORNER_STAIR + Vector3(0, 1.6, 0),  # đỉnh chồng thùng bậc thang gần lò
+	Vector3(22.5, 0.8, 25.4),  # trên thùng vỉa hè khối 6, phía tây tiệm sửa xe
+	Vector3(10.45, 0.8, 18.5), # trên thùng sát hông khối 5
 	Vector3(-41, 0, 28),       # góc xa công viên, sau hàng rào
 	Vector3(41, 0, -28.5),     # cuối đường phía bắc khối 3
 ]

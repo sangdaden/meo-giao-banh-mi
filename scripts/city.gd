@@ -18,11 +18,13 @@ const BLOCKS := [
 const PARK_INDEX := 3
 
 const BAKERY_POINT := Vector3(-33, 0, -5.8)
-## Thùng hàng để nhảy qua (theo bản đồ) và vài chồng thêm cho vui
+## Thùng hàng lẻ: đặt sát mép vỉa hè, sát hông nhà hoặc trong hẻm, không nằm trên lòng đường
 const CRATES := [
-	Vector3(-18, 0, -12), Vector3(16, 0, 0.5), Vector3(-7, 0, 0.8), Vector3(26, 0, 27.5), Vector3(-19.4, 0, 10.5),
-	Vector3(-25, 0, -2), Vector3(5, 0, -3.5), Vector3(14, 0, 18),
+	Vector3(-12.45, 0, -12), Vector3(10.45, 0, -8.5), Vector3(-12.45, 0, 12), Vector3(22.5, 0, 25.4), Vector3(-19.4, 0, 10.5),
+	Vector3(6.2, 0, -5.6), Vector3(10.45, 0, 18.5),
 ]
+## Chồng thùng bậc thang góc khối 1 cạnh cột điện, sát mái hiên: tập nhảy, có tem ở đỉnh, Thứ Bảy leo lên mái hiên
+const CORNER_STAIR := Vector3(-24.3, 0, -5.6)
 
 const ROAD := Color("#8F8B80")
 const SIDEWALK := Color("#C9C3B3")
@@ -41,9 +43,10 @@ static func build(parent: Node3D) -> void:
 			_block(parent, BLOCKS[i], rng, i)
 	for c in CRATES:
 		CityProps.crate(parent, c)
-	# Chồng thùng bậc thang gần lò bánh: tập nhảy
-	CityProps.crate(parent, Vector3(-25.8, 0, -2))
-	CityProps.crate(parent, Vector3(-25.8, 0.8, -2))
+	# Chồng thùng bậc thang gần lò bánh: tập nhảy (bậc 0,8 m phía tây, chồng 1,6 m)
+	CityProps.crate(parent, CORNER_STAIR + Vector3(-0.85, 0, 0))
+	CityProps.crate(parent, CORNER_STAIR)
+	CityProps.crate(parent, CORNER_STAIR + Vector3(0, 0.8, 0))
 	_street_props(parent, rng)
 	CityProps.build(parent)
 	_bounds(parent)

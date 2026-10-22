@@ -10,6 +10,8 @@ const TOUCH := 1.4            ## chạm cờ trong tầm này (ngang) và lệch
 const COLORS := [Color("#C8412F"), Color("#E8913A"), Color("#F2C14E"), Color("#7DB46C"), Color("#4F9BE0"), Color("#9B6AC8")]
 
 var flags_pos: Array[Vector3] = []
+## Chỗ thấp nhất của đường đua từ cờ trước tới mỗi cờ (đường có đoạn xuống thang giữa hai mái)
+var _low_before: Array[float] = []
 var path: Array = []          ## đường đi một vòng của đối thủ (qua đủ 6 cờ, về lại cờ 1)
 var next_flag := 0
 var lap := 1
@@ -34,9 +36,16 @@ func build() -> void:
 	if route.size() < 6:
 		route = [Vector3(-26, 0, -3), Vector3(-20, 0, -3), Vector3(-10, 0, -3), Vector3(0, 0, -3), Vector3(8, 0, -3), Vector3(9, 0, -15)]
 	var n := route.size()
+	var prev := 0
 	for k in 6:
-		var p: Vector3 = route[roundi(k * (n - 1) / 5.0)]
+		var idx := roundi(k * (n - 1) / 5.0)
+		var p: Vector3 = route[idx]
 		flags_pos.append(p)
+		var low := p.y
+		for j in range(prev, idx + 1):
+			low = minf(low, route[j].y)
+		_low_before.append(low)
+		prev = idx
 		_flag_nodes.append(TroThi.flag(self, p, COLORS[k], str(k + 1)))
 	# Một vòng: theo đường sân thượng tới cờ 6, rồi ra đầu đông hẻm giữa khối 2, xuống đường lớn, về chân thùng
 	path = route.duplicate()
@@ -97,9 +106,10 @@ func tick(_delta: float) -> void:
 				return
 			toast("Vòng %d/%d!" % [lap, LAPS], 1.5)
 		_highlight()
-	# Rơi khỏi mái: Thong thả về lại cờ vừa chạm
-	if bool(DoKho.v("race_respawn_flag", false)) and _last_flag.y > 2.0 and p.y < _last_flag.y - 2.5 and player.is_on_floor() \
-			and flags_pos[next_flag].y > 1.0:
+	# Rơi khỏi mái: Thong thả về lại cờ vừa chạm. Chỉ tính là rơi khi thấp hơn chỗ thấp nhất của đường tới cờ kế
+	# (giữa cờ 3 và cờ 4 đường xuống thang gần 5 m rồi mới leo lên lại)
+	if bool(DoKho.v("race_respawn_flag", false)) and _last_flag.y > 2.0 and p.y < _low_before[next_flag] - 2.0 \
+			and player.is_on_floor() and flags_pos[next_flag].y > 1.0:
 		put_player(_last_flag, flags_pos[next_flag])
 		toast("Trượt rồi! Về lại cờ vừa qua.", 1.5)
 

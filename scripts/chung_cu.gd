@@ -91,7 +91,9 @@ var _baby_t := 0.0
 var _baby_label: Label3D
 var _hammock: Node3D
 var _baby_nodes := {}             ## Baby -> node em bé (ngủ, cựa, khóc)
-var _mom: Node3D
+var _mom: Nguoi
+var _mom_near := false          ## Bơ đang trong vùng 3 m quanh võng (ra khỏi mà bé vẫn ngủ thì Chị Thu cảm ơn)
+var _mom_thanked := false
 
 var lift := Lift.IDLE
 var lift_floor := 4.0            ## vị trí cabin tính theo tầng (0 = trệt), lúc đầu ở tầng 5
@@ -109,7 +111,7 @@ var _ong_bay: StaticBody3D
 var _call_zone: Area3D
 
 var _door_zone: Area3D
-var _be_na: Node3D
+var _be_na: Nguoi
 var _rattle: Area3D
 var _rattle_t := 0.0
 var _rattle_body: Node3D
@@ -144,6 +146,7 @@ func _ready() -> void:
 	player.pipe_speed = DoKho.v("pipe_speed", player.pipe_speed)
 	player.ledge_grabbed.connect(func(): _hint("bam", player.hang_hint(), 3.0))
 	add_child(player)
+	_mom.look_target = player  # Chị Thu quay đầu nhìn Bơ khi tới gần
 	rig = CameraRigScript.new()
 	rig.name = "CameraRig"
 	rig.target = player
@@ -309,7 +312,9 @@ func _interact() -> void:
 		return
 	if _door_zone.overlaps_body(player):
 		player.play_deliver("hand")
-		_be_na.visible = true
+		if not _be_na.visible:
+			_be_na.visible = true
+			_be_na.play_once("mo_cua", "cho_banh")
 		hud.show_toast("Cốc cốc! Bé Na ra mở cửa.", 1.2)
 	elif _call_zone.overlaps_body(player):
 		call_lift()
@@ -320,6 +325,8 @@ func _on_delivered(_kind: String) -> void:
 		return
 	delivered = true
 	playing = false
+	_be_na.visible = true
+	_be_na.play_once("nhan_banh", "vui", 3.0)
 	player.carrying = false
 	player.can_move = false
 	hud.set_timer(time_left, time_limit, false)
@@ -359,6 +366,7 @@ func _on_noise(pos: Vector3, radius: float) -> void:
 		Baby.SLEEP:
 			baby = Baby.STIR
 			_baby_t = 0.0
+			_mom.play_once("suyt", "ru_vong")
 			if playing:
 				hud.show_toast("Suỵt! Em bé trở mình, đi chậm lại (thả Shift) thôi!", 2.0)
 		Baby.STIR:
@@ -391,11 +399,15 @@ func _update_baby(delta: float) -> void:
 			_baby_label.text = "Oa oa!"
 			_baby_label.modulate = Color("#C8412F")
 			swing = 0.25
-			_mom.visible = _baby_t > 1.5
 			if _baby_t > 8.0:  # Chị Thu ru ngủ lại, nhưng nhiệm vụ phụ đã trượt
 				baby = Baby.SLEEP
-				_mom.visible = false
 	_hammock.rotation.x = sin(Time.get_ticks_msec() * 0.0025) * swing
+	# Bơ đi qua hết vùng nghe mà em bé vẫn ngủ: Chị Thu chắp tay cảm ơn (một lần)
+	var near := player.global_position.distance_to(BABY) < 3.0
+	if _mom_near and not near and not baby_woke and not _mom_thanked and baby == Baby.SLEEP:
+		_mom_thanked = true
+		_mom.play_once("cam_on", "ru_vong")
+	_mom_near = near
 	for k in _baby_nodes:
 		_baby_nodes[k].visible = k == baby
 
@@ -836,11 +848,15 @@ func _build_zones() -> void:
 	pipe.body_entered.connect(func(b): if b.has_method("enter_pipe"): b.enter_pipe(pipe))
 	pipe.body_exited.connect(func(b): if b.has_method("exit_pipe"): b.exit_pipe(pipe))
 	# Bé Na ra mở cửa 5B-1 khi Bơ gõ
-	_be_na = _person(self, Vector3(0.85, 12.0, -1.45), 1.15, Color("#F2A7C0"), Color("#F0CDB0"))
+	_be_na = Nguoi.make("bena", "cho_banh")
+	_be_na.position = Vector3(0.85, 12.0, -1.45)
+	add_child(_be_na)
 	_be_na.visible = false
 	# Chị Thu (mẹ em bé) ra ru võng khi em bé khóc
-	_mom = _person(self, Vector3(BABY.x - 1.0, 6.0, -1.3), 1.58, Color("#7FB7A4"))
-	_mom.visible = false
+	# Chị Thu (mẹ em bé, 3B-4) đứng sau võng sát tường ru em; bé trở mình thì quay ra suỵt Bơ
+	_mom = Nguoi.make("chithu", "ru_vong")
+	_mom.position = Vector3(BABY.x, 6.0, -1.45)
+	add_child(_mom)
 
 
 # ---------------------------------------------------------------- tự chơi thử (CI)
@@ -946,7 +962,6 @@ func _autotest_run() -> void:
 	# Các bước trên có đi thường ở cầu thang và đáp đất nên em bé đã bị đánh thức: cho ngủ lại rồi mới thử
 	baby = Baby.SLEEP
 	baby_woke = false
-	_mom.visible = false
 	# 5. Em bé: tiếng rón rén ở cầu thang không nghe; một tiếng bước thường thì trở mình rồi ngủ lại
 	_on_noise(Vector3(TX0 + 0.7, 6.0, -0.8), player.noise_sneak)
 	_on_noise(Vector3(TX0 + 1.2, 4.5, -4.8), player.noise_sneak)

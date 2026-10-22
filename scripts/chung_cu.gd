@@ -60,6 +60,14 @@ const AC := Color("#E4E7E2")
 const STEP := Color("#C9C3B3")
 const GUIDE := Color("#F6C945")  ## chữ/mũi tên chỉ đường
 const RAIL := Color(0.17, 0.18, 0.2, 0.45)  ## lan can song sắt: nhìn xuyên được
+## Model gói G1 đã duyệt (Blender, phong cách D). Mỗi bộ phận là node "w_<bộ phận>".
+const M_VONG := preload("res://assets/models/chung_cu/vong.glb")
+const M_EM_BE := preload("res://assets/models/chung_cu/em_be.glb")
+const M_THANG := preload("res://assets/models/chung_cu/thang_may.glb")
+const M_GIA_PHOI := preload("res://assets/models/chung_cu/gia_phoi.glb")
+const M_ONG := preload("res://assets/models/chung_cu/ong_gay.glb")
+const M_MAY_LANH := preload("res://assets/models/chung_cu/may_lanh.glb")
+const M_MAY_LANH_RUNG := preload("res://assets/models/chung_cu/may_lanh_rung.glb")
 
 enum Lift { IDLE, COMING, OPEN_GROUND, CLOSING, RIDING, STUCK, OPEN_TOP }
 enum Baby { SLEEP, STIR, CRY }
@@ -82,6 +90,7 @@ var baby_woke := false           ## đã thức lần nào trong đơn (nhiệm 
 var _baby_t := 0.0
 var _baby_label: Label3D
 var _hammock: Node3D
+var _baby_nodes := {}             ## Baby -> node em bé (ngủ, cựa, khóc)
 var _mom: Node3D
 
 var lift := Lift.IDLE
@@ -94,6 +103,7 @@ var _lift_will_stick := false
 var _cabin: AnimatableBody3D
 var _cabin_zone: Area3D
 var _lift_doors: Array[StaticBody3D] = []
+var _lift_leaves: Array[Node3D] = []   ## cánh cửa thang máy (model) từng tầng
 var _lift_label: Label3D
 var _ong_bay: StaticBody3D
 var _call_zone: Area3D
@@ -103,6 +113,7 @@ var _be_na: Node3D
 var _rattle: Area3D
 var _rattle_t := 0.0
 var _rattle_body: Node3D
+var _rattle_fx: Node3D            ## vạch rung, bụi trên cục nóng C
 var _rng := RandomNumberGenerator.new()
 var _autotest := false
 var _hints_shown := {}            ## gợi ý theo chỗ: mỗi cái hiện một lần
@@ -385,6 +396,8 @@ func _update_baby(delta: float) -> void:
 				baby = Baby.SLEEP
 				_mom.visible = false
 	_hammock.rotation.x = sin(Time.get_ticks_msec() * 0.0025) * swing
+	for k in _baby_nodes:
+		_baby_nodes[k].visible = k == baby
 
 
 # ---------------------------------------------------------------- thang máy
@@ -457,8 +470,8 @@ func _update_lift(delta: float) -> void:
 	for f in _lift_doors.size():
 		var d := _lift_doors[f]
 		var open := f == open_at
-		d.get_child(1).disabled = open
-		d.visible = not open
+		d.get_child(0).disabled = open
+		_lift_leaves[f].visible = not open
 	var shown := roundi(lift_floor) + 1
 	_lift_label.text = {Lift.IDLE: "%d" % shown, Lift.COMING: "▼ %d" % shown, Lift.RIDING: "▲ %d" % shown,
 		Lift.STUCK: "! %d" % shown}.get(lift, "%d" % shown)
@@ -470,6 +483,7 @@ func _update_rattle(delta: float) -> void:
 	var on := _rattle.overlaps_body(player) and player.is_on_floor()
 	_rattle_t = _rattle_t + delta if on else maxf(_rattle_t - delta * 2.0, 0.0)
 	_rattle_body.position.x = -0.3 + (sin(Time.get_ticks_msec() * 0.08) * 0.015 if _rattle_t > 0.6 else 0.0)
+	_rattle_fx.visible = _rattle_t > 0.6
 	if on and _rattle_t > 0.6 and _rattle_t - delta <= 0.6 and playing:
 		hud.show_toast("Cục nóng rung bần bật, nhảy tiếp đi!", 1.5)
 	if on and _rattle_t > float(DoKho.v("rattle_throw", 1.4)):
@@ -559,14 +573,19 @@ func _build_building() -> void:
 	# Xe đạp dựng ở hành lang tầng 4 (đi né)
 	Blocks.solid_box(self, Vector3(1.6, 0.9, 0.4), Vector3(8.4, 9.45, -1.3), Color("#3A6EA5"), Blocks.LAYER_PROP)
 	# Võng em bé hành lang tầng 3 (thấp 0,6 m, Bơ đi dưới được)
+	# Khung võng xếp đứng yên; vải võng và em bé đưa quanh trục móc (cao 1,42 m)
+	var hook := 1.42
+	_model(M_VONG, self, Vector3(BABY.x, 6.0, BABY.z), 0.0, ["khung_vong", "day_vong"])
 	_hammock = Node3D.new()
-	_hammock.position = Vector3(BABY.x, 6.0 + 1.9, BABY.z)
+	_hammock.position = Vector3(BABY.x, 6.0 + hook, BABY.z)
 	add_child(_hammock)
-	var cloth := Blocks.box(_hammock, Vector3(1.4, 0.18, 0.55), Vector3(0, -1.2, 0), Color("#E8B7C9"))
-	cloth.name = "Vong"
-	Blocks.box(_hammock, Vector3(0.36, 0.16, 0.22), Vector3(0, -1.05, 0), Color("#F6D9C2"))  # em bé quấn khăn
-	for sx in [-1.0, 1.0]:
-		Blocks.box(_hammock, Vector3(0.02, 1.2, 0.02), Vector3(sx * 0.7, -0.6, 0), Color("#7A6A55"))
+	_model(M_VONG, _hammock, Vector3(0, -hook, 0), 0.0, ["vai_vong"])
+	var be := _model(M_EM_BE, _hammock, Vector3(0, 0.66 - hook, 0), 0.0)
+	# ba trạng thái dựng cạnh nhau trên trang phác thảo: đưa từng cái về giữa võng
+	for k in [[Baby.SLEEP, "em_be_ngu"], [Baby.STIR, "em_be_cua"], [Baby.CRY, "em_be_khoc"]]:
+		var n: Node3D = be.find_child("w_" + k[1], true, false)
+		n.position.x -= _center(n).x
+		_baby_nodes[k[0]] = n
 	_baby_label = Blocks.label(self, "z z", BABY + Vector3(0, 0.9, 0.3), 40, Color("#9FB8C8"))
 	Blocks.label(self, "Suỵt! Em bé ngủ", Vector3(TX0 + 0.3, 6.0 + 2.4, -1.8), 26, Color("#E8A33A"))
 
@@ -609,9 +628,8 @@ func _build_tower() -> void:
 	var ly := FLOOR_H + rise
 	# Giá ngang ở nửa đông chiếu nghỉ, cách đầu vế B 0,8 m: sang vế B thì cúi chui qua, ra khỏi giá còn chỗ đứng dậy
 	var bx := (TX0 + 1.35 + TX1 - 0.1) / 2.0
-	var rack := Blocks.solid_box(self, Vector3(1.1, 2.45, 0.3), Vector3(bx, ly + 0.32 + 1.225, -5.05), Color("#C9CDD0"), Blocks.LAYER_PROP)
-	for k in 4:
-		Blocks.box(rack, Vector3(0.24, 0.9, 0.34), Vector3(-0.42 + k * 0.28, -0.75, 0), [Color("#F2EFE6"), Color("#E8B23A"), Color("#3A6EA5"), Color("#C8412F")][k])
+	Blocks.collider(self, Vector3(1.1, 2.45, 0.3), Vector3(bx, ly + 0.32 + 1.225, -5.05), Blocks.LAYER_PROP)
+	_model(M_GIA_PHOI, self, Vector3(bx, ly, -5.05), 0.0)  # đồ treo cách sàn 0,35 m
 	Blocks.label(self, "Chui qua!", Vector3(bx, ly + 0.9, -4.6), 22, Color("#F4EAD2"))
 
 
@@ -652,20 +670,32 @@ func _build_west_wall() -> void:
 		var hgt := 1.0 if kind == "cage" else 0.55
 		var size := Vector3(0.6, hgt, z1 - z0)
 		var pos := Vector3(-0.3, top - hgt / 2.0, (z0 + z1) / 2.0)
-		var body := Blocks.solid_box(self, size, pos, AC if kind != "cage" else IRON, Blocks.LAYER_PROP)
-		body.name = "Bac" + s[0]
+		var body: StaticBody3D
 		if kind == "cage":
+			body = Blocks.solid_box(self, size, pos, IRON, Blocks.LAYER_PROP)
 			Blocks.box(body, Vector3(0.05, hgt - 0.1, z1 - z0 - 0.2), Vector3(0.28, 0, 0), Color("#3D4A4A"))  # cửa sổ phía trong
 		else:
-			Blocks.box(body, Vector3(0.02, 0.4, 0.4), Vector3(-0.31, 0, 0.05), Color("#6E7471"))  # quạt cục nóng
-		if kind == "ac_rung":
-			_rattle_body = body
+			# Cục nóng trong lồng sắt: nóc lồng (1,1 m trên chân pát) là mặt đứng; lưng máy áp vào tường
+			body = Blocks.collider(self, size, pos, Blocks.LAYER_PROP)
+			var rung := kind == "ac_rung"
+			var m := _model(M_MAY_LANH_RUNG if rung else M_MAY_LANH, body, Vector3(0, hgt / 2.0 - 1.1, 0), -PI / 2.0)
+			if rung:
+				_rattle_body = body
+				_rattle_fx = m.find_child("w_rung_rung", true, false)
+				_rattle_fx.visible = false
+		body.name = "Bac" + s[0]
 	# Ống nước gãy giữa chừng: từ mái nhà bên (3,9 m) lên 10,8 m
+	# Model ống dài 2,8 m: ba đoạn nén còn 2,3 m; đoạn dưới lật ngược để đầu gãy ở chân ống
 	var pipe_len := PIPE_TOP - PIPE.y
-	Blocks.box(self, Vector3(0.12, pipe_len, 0.12), PIPE + Vector3(0, pipe_len / 2.0, 0), Color("#7A8A8E"))
+	var seg := pipe_len / 3.0
+	for i in 3:
+		var o := _model(M_ONG, self, PIPE + Vector3(0.05, seg * (i + 1) if i == 0 else seg * i, 0), 0.0,
+			["ong", "kep", "vach_bam", "dau_gay"] if i == 0 else ["ong", "kep", "vach_bam"])
+		o.scale = Vector3(1, seg / 2.8, 1)
+		if i == 0:
+			o.rotation.z = PI
+			o.position.x -= 0.1  # lật quanh trục ống, không phải quanh mép
 	Blocks.box(self, Vector3(0.12, 0.12, 0.3), PIPE + Vector3(0.05, pipe_len, 0), Color("#7A8A8E"))  # khúc cong vào tường
-	for i in int(pipe_len / 1.2):
-		Blocks.box(self, Vector3(0.1, 0.05, 0.2), PIPE + Vector3(0.04, 0.6 + i * 1.2, 0), IRON)  # kẹp ống
 	# Cửa sổ hông các tầng (để nhìn)
 	for f in FLOORS:
 		Blocks.box(self, Vector3(0.05, 1.0, 1.0), Vector3(-0.02, f * FLOOR_H + 1.5, -5.0), Color("#3D4A4A"))
@@ -700,11 +730,10 @@ func _person(parent: Node, pos: Vector3, h: float, body: Color, head := Color("#
 func _build_elevator() -> void:
 	var cx := (SHAFT_X0 + SHAFT_X1) / 2.0
 	var h := FLOORS * FLOOR_H + 1.0
-	var glass := Color("#9CC3C9", 0.25)
-	# Lồng kính: Bơ và camera nhìn xuyên được (lớp đồ nhỏ)
-	Blocks.solid_box(self, Vector3(0.08, h, 2.0), Vector3(SHAFT_X1, h / 2.0, -0.95), glass, Blocks.LAYER_PROP)
-	Blocks.solid_box(self, Vector3(1.8, h, 0.08), Vector3(cx, h / 2.0, -1.95), glass, Blocks.LAYER_PROP)
-	Blocks.solid_box(self, Vector3(1.8, h, 0.08), Vector3(cx, h / 2.0, 0.05), glass, Blocks.LAYER_PROP)
+	# Lồng kính (model mỗi tầng một đoạn 3 m, cửa quay về phía cầu thang): Bơ và camera nhìn xuyên được (lớp đồ nhỏ)
+	Blocks.collider(self, Vector3(0.08, h, 2.0), Vector3(SHAFT_X1, h / 2.0, -0.95), Blocks.LAYER_PROP)
+	Blocks.collider(self, Vector3(1.8, h, 0.08), Vector3(cx, h / 2.0, -1.95), Blocks.LAYER_PROP)
+	Blocks.collider(self, Vector3(1.8, h, 0.08), Vector3(cx, h / 2.0, 0.05), Blocks.LAYER_PROP)
 	for f in FLOORS:
 		var y := f * FLOOR_H
 		# Tường đông khối thang có ô cửa thang máy z −1,6 → −0,2
@@ -712,10 +741,11 @@ func _build_elevator() -> void:
 		Blocks.solid_box(self, Vector3(0.15, FLOOR_H - 2.2, 1.4), Vector3(TX1, y + 2.2 + (FLOOR_H - 2.2) / 2.0, -0.9), WALL2)
 		Blocks.solid_box(self, Vector3(0.15, FLOOR_H, 0.2), Vector3(TX1, y + FLOOR_H / 2.0, -0.1), WALL2)
 		# Cửa thang: tấm trượt sang nam khi mở
+		var sm := _model(M_THANG, self, Vector3(cx, y, -0.95), -PI / 2.0, ["khung_long", "kinh_long", "ray", "khung_cua", "canh_cua", "den_tang"])
+		_lift_leaves.append(sm.find_child("w_canh_cua", true, false))
 		var d := StaticBody3D.new()
 		d.position = Vector3(TX1 - 0.12, y + 1.1, -0.9)
 		add_child(d)
-		Blocks.box(d, Vector3(0.06, 2.2, 1.4), Vector3.ZERO, Color("#A7B0B3"))
 		var cs := CollisionShape3D.new()
 		var bs := BoxShape3D.new()
 		bs.size = Vector3(0.1, 2.2, 1.4)
@@ -730,8 +760,8 @@ func _build_elevator() -> void:
 	_cabin.sync_to_physics = true
 	_cabin.position = Vector3(cx, lift_floor * FLOOR_H, -0.95)
 	add_child(_cabin)
+	_model(M_THANG, _cabin, Vector3.ZERO, -PI / 2.0, ["cabin", "kinh_cabin"])
 	for part in [[Vector3(1.7, 0.1, 1.9), Vector3(0, -0.05, 0)], [Vector3(1.7, 0.1, 1.9), Vector3(0, 2.35, 0)]]:
-		Blocks.box(_cabin, part[0], part[1], Color("#8E8A80"))
 		var c := CollisionShape3D.new()
 		var b := BoxShape3D.new()
 		b.size = part[0]
@@ -761,6 +791,24 @@ func _build_elevator() -> void:
 	Blocks.box(_ong_bay, Vector3(0.3, 0.4, 0.3), Vector3(0.0, 0.0, 0.35), Color("#B08550"))  # lồng chim
 	_ong_bay.visible = false
 	add_child(_ong_bay)
+
+
+## Đặt một model .glb; keep: chỉ giữ các bộ phận này (tên không có "w_"), rỗng là giữ hết.
+func _model(scene: PackedScene, parent: Node, pos: Vector3, rot_y: float, keep: Array = []) -> Node3D:
+	var n: Node3D = scene.instantiate()
+	n.position = pos
+	n.rotation.y = rot_y
+	parent.add_child(n)
+	if not keep.is_empty():
+		for c: Node in n.find_children("w_*", "", true, false):
+			if not keep.has(c.name.substr(2)):
+				c.free()
+	return n
+
+
+func _center(n: Node3D) -> Vector3:
+	var mi: MeshInstance3D = n if n is MeshInstance3D else n.find_children("*", "MeshInstance3D", true, false)[0]
+	return mi.transform * mi.get_aabb().get_center()
 
 
 func _area(pos: Vector3, size: Vector3) -> Area3D:

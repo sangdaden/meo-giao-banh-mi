@@ -87,6 +87,12 @@ const EASY := {
 	"heat_slow": 1.0,            # 1 = tắt; Thử thách: đứng nắng trên mặt đường lâu thì còn 85% tốc độ
 	"loft_call_basket": true,    # đứng trước quầy bấm Q thì Chị Mây thả giỏ (Thử thách: phải leo lên gác)
 	"tu_wake_noise": 7.5,        # chỉ tiếng to (chạy nhanh, đáp mạnh) làm Chú Tư thức (Thử thách: cả đi thường, 6)
+	# Thứ Bảy dạo phố (gói việc thiet-ke-man/goi-viec-thu-bay.md): cả hai chế độ đều không đồng hồ
+	"paper_wait": 999.0,         # tờ báo Chú Tư chờ ở mỗi chặng mãi (Thử thách: 6 s rồi bay về chỗ cũ)
+	"hum_time": 10.0,            # ru em bé 10 s (Thử thách: 15)
+	"hum_noise_ok": true,        # đi thường gần võng vẫn được (Thử thách: phải đứng yên hoặc rón rén)
+	"muc_chapter_after": 3,      # giúp 3 người thì mở chương Chó Mực (Thử thách cũng 3)
+	# thorn_slow (gai giàn bông giấy) dùng chung với Thứ Sáu ở trên
 }
 
 

@@ -124,6 +124,7 @@ func _ready() -> void:
 	add_child(preload("res://scripts/market.gd").new())  # chợ sáng Thứ Ba (ngày khác tự gỡ)
 	add_child(preload("res://scripts/thu_sau.gd").new())  # tiệm xe chiều tà, đám giỗ Thứ Sáu (ngày khác tự gỡ)
 	add_child(preload("res://scripts/thu_tu.gd").new())  # mưa, sân thượng, bồ câu Thứ Tư (ngày khác tự gỡ)
+	add_child(preload("res://scripts/thu_bay.gd").new())  # dạo phố, Sổ hàng xóm, chương Mực Thứ Bảy (ngày khác tự gỡ)
 	add_child(preload("res://scripts/thu_nam.gd").new())  # tủ báo, cửa cuốn, gác lửng, đơn chung cư Thứ Năm (ngày khác tự gỡ)
 
 	stamps = StampsScript.new()
@@ -192,6 +193,9 @@ func start_game() -> void:
 	if ThuNam.pending():  # Thứ Năm: vừa giao Bé Na trong cảnh chung cư về
 		ThuNam.resume(self)
 		return
+	if orders.is_empty():  # ngày không có đơn (Thứ Bảy dạo phố): scripts/thu_bay.gd lo phần chơi
+		_start_free()
+		return
 	if GameState.from_quick_assemble and not _resume.is_empty():
 		_resume_after_kitchen()
 		return
@@ -222,6 +226,21 @@ func start_game() -> void:
 	else:
 		hud.show_toast("Chạy tới %s nhận đơn %d!" % [_pickup_name(orders[order_index]), order_index + 1])
 	residents.greet_shift(PlayMode.last_order(orders.size()) - order_index + 1)
+
+
+## Ngày tự do không đơn: tắt thẻ đơn, đồng hồ, mũi tên; node ngày (ThuBay) nhận phần chơi qua begin().
+func _start_free() -> void:
+	if _autotest:
+		GameState.use_test_save("user://luu_game_autotest.cfg")
+	player.carrying = false
+	player.can_move = true
+	if not _autotest:
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	hud.start_screen.visible = false
+	hud.show_playing_ui(false)
+	var free_day := get_node_or_null("ThuBay")
+	if free_day and free_day.has_method("begin"):
+		free_day.begin()
 
 
 ## Ráp nhanh xong quay về: lấy lại tiến độ ngày (Scoring giữ đơn đã chấm trong biến static) và chơi tiếp.
@@ -277,7 +296,7 @@ func restart() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if state != State.PLAY or _leaving:
+	if state != State.PLAY or _leaving or orders.is_empty():
 		return
 	if _autotest:
 		_autotest_step()

@@ -177,6 +177,9 @@ func _pill(text: String, bg: Color, fg: Color) -> PanelContainer:
 # ---------------------------------------------------------------- Thứ Hai
 
 func _build_day(id: String) -> void:
+	if Days.is_free(id):
+		_build_free_day(id)
+		return
 	var d := Days.get_day(id)
 	_detail.add_child(T.label("%s · %s" % [d.name, d.title], 30, T.INK, "display"))
 	var desc := T.label(d.blurb, 15, T.MUTED, "body")
@@ -202,6 +205,22 @@ func _build_day(id: String) -> void:
 	var orders := Days.orders(id)
 	for i in orders.size():
 		list.add_child(_order_button(id, i, orders[i]))
+
+
+## Ngày tự do (Thứ Bảy dạo phố): không bếp, không đơn, một nút vào chơi; dòng kỷ lục là số trang Sổ hàng xóm.
+func _build_free_day(id: String) -> void:
+	var d := Days.get_day(id)
+	_detail.add_child(T.label("%s · %s" % [d.name, d.title], 30, T.INK, "display"))
+	var desc := T.label(d.blurb, 15, T.MUTED, "body")
+	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_detail.add_child(desc)
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", T.box(T.CREAM, 14, 14, Color(0, 0, 0, 0), 0))
+	p.add_child(T.label(SoHangXom.summary_line(), 15, T.INK, "bold"))
+	_detail.add_child(p)
+	var go := _mode_button(id, "Đi dạo phố", "Không đồng hồ · giúp hàng xóm, chụp ảnh, làm bạn với Chó Mực", "primary", PlayMode.Mode.DELIVERY)
+	_detail.add_child(go)
+	_first_focus = go
 
 
 func _record_line(id: String) -> Control:

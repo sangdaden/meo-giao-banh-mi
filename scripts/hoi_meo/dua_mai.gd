@@ -3,11 +3,13 @@ extends TroThi
 ## xuống cầu thang gấp khúc rồi chạy dưới phố về cờ 1. Đối thủ Mít (Xiêm) và Bột (Anh lông ngắn).
 ## Thong thả: đối thủ chậm 15% (race_rival_mult), rơi khỏi mái thì về cờ vừa qua (race_respawn_flag).
 ## Thử thách: đúng tốc độ, rơi thì xuống đất leo lại.
+## Cờ đua G11 (co_dua.glb): phấp phới (phat), Bơ chạm thì quay (qua) và vải đổi cam → xanh; vòng mới lại cam.
 
 const LAPS := 3
 const RIVAL_SPEED := 4.6      ## m/s trên đường đua (Bơ chạy nhanh 8 m/s, nhưng phải leo, giữ thăng bằng)
 const TOUCH := 1.4            ## chạm cờ trong tầm này (ngang) và lệch cao dưới 1,2 m
-const COLORS := [Color("#C8412F"), Color("#E8913A"), Color("#F2C14E"), Color("#7DB46C"), Color("#4F9BE0"), Color("#9B6AC8")]
+const ORANGE := Color("#E8913A")
+const PASSED := Color("#2E7C80")
 
 var flags_pos: Array[Vector3] = []
 ## Chỗ thấp nhất của đường đua từ cờ trước tới mỗi cờ (đường có đoạn xuống thang giữa hai mái)
@@ -46,7 +48,9 @@ func build() -> void:
 			low = minf(low, route[j].y)
 		_low_before.append(low)
 		prev = idx
-		_flag_nodes.append(TroThi.flag(self, p, COLORS[k], str(k + 1)))
+		var f := DoHoi.put(self, "co_dua", p, PI)
+		DoHoi.number(f, k + 1)
+		_flag_nodes.append(f)
 	# Một vòng: theo đường sân thượng tới cờ 6, rồi ra đầu đông hẻm giữa khối 2, xuống đường lớn, về chân thùng
 	path = route.duplicate()
 	var end: Vector3 = route[n - 1]
@@ -61,6 +65,8 @@ func begin() -> void:
 	_rival_done.clear()
 	for f in _flag_nodes:
 		f.visible = true
+		DoHoi.tint(f, "co_vai", ORANGE)
+		DoHoi.anim(f, "phat")
 	_highlight()
 	var start: Vector3 = path[path.size() - 2]
 	put_player(start + Vector3(0.6, 0, 0.8), flags_pos[0])
@@ -97,6 +103,8 @@ func tick(_delta: float) -> void:
 	var f: Vector3 = flags_pos[next_flag]
 	if TroThi.flat_dist(p, f) < TOUCH and absf(p.y - f.y) < 1.2:
 		_last_flag = f
+		DoHoi.tint(_flag_nodes[next_flag], "co_vai", PASSED)
+		DoHoi.anim(_flag_nodes[next_flag], "qua")
 		next_flag += 1
 		if next_flag >= flags_pos.size():
 			next_flag = 0
@@ -105,6 +113,9 @@ func tick(_delta: float) -> void:
 				_end()
 				return
 			toast("Vòng %d/%d!" % [lap, LAPS], 1.5)
+			for fl in _flag_nodes:
+				DoHoi.tint(fl, "co_vai", ORANGE)
+				DoHoi.anim(fl, "phat")
 		_highlight()
 	# Rơi khỏi mái: Thong thả về lại cờ vừa chạm. Chỉ tính là rơi khi thấp hơn chỗ thấp nhất của đường tới cờ kế
 	# (giữa cờ 3 và cờ 4 đường xuống thang gần 5 m rồi mới leo lên lại)
@@ -116,6 +127,7 @@ func tick(_delta: float) -> void:
 
 func _end() -> void:
 	var rank := _rival_done.size() + 1
+	score = clock
 	for m in _rivals:
 		m.stop()
 		m.snap_ground = true

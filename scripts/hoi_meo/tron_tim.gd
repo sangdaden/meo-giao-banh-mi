@@ -115,6 +115,8 @@ func _spook(id: String) -> void:
 
 func _end() -> void:
 	var n := found.size()
+	if n >= HIDERS.size():
+		score = clock
 	for id in HIDERS:
 		cat(id).set_pose("dung")
 		cat(id).show_name()

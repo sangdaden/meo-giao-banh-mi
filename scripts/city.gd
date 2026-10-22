@@ -139,7 +139,8 @@ static func _park(parent: Node3D, r: Rect2, rng: RandomNumberGenerator) -> void:
 	# Bàn cờ tướng trang trí (cách góc cờ Thứ Ba của thread "Góc cờ tướng" ở (-29, 8.5) hơn 4 m)
 	var chess_sets := [Vector3(-35, 0, 14), Vector3(-32, 0, 19.5), Vector3(-38, 0, 24)]
 	for c: Vector3 in chess_sets:
-		CityProps.chess_set(parent, c)
+		if PlayMode.day != "chu_nhat":  # Chủ Nhật cất bàn cờ trang trí, nhường chỗ sân Hội mèo (G11)
+			CityProps.chess_set(parent, c)
 	# Cây vỉa hè (model cay_xanh): thân có va chạm
 	for i in 9:
 		var p := Vector3(rng.randf_range(r.position.x + 2, r.end.x - 2), 0, rng.randf_range(r.position.y + 2, r.end.y - 2))

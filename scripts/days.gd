@@ -155,7 +155,7 @@ const DATA := {
 		"time_mult": 1.0,
 		"extras": {"festival": true},
 		"orders": [
-			{"who": "Bà Mướp", "place": "Công viên khối 4", "item": "1 khay bánh mì mini", "pos": Vector3(-34.0, 0, 22.4), "time": 0.0, "color": Color("#8E8A80"), "delivery": "tray"},
+			{"who": "Bà Mướp", "place": "Công viên khối 4", "item": "1 khay bánh mì mini", "pos": Vector3(-33.0, 0, 21.0), "time": 0.0, "color": Color("#8E8A80"), "delivery": "tray"},
 		],
 	},
 }

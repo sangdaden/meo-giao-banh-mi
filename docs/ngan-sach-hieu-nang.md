@@ -23,7 +23,7 @@ Lưu ý: CI vẽ bằng CPU nên FPS ở đó không có ý nghĩa; số lệnh 
 | Lệnh vẽ (tổng) | ≤ 350 | 116–273 |
 | Vật thể nhìn thấy | ≤ 450 | 116–273 |
 | Tam giác (tổng, cả bóng) | ≤ 400 000 | 39 000–54 000 |
-| index.pck | ≤ 40 MB | 5,6 MB |
+| index.pck | ≤ 60 MB (Sang nâng 21/10/2026) | 5,6 MB |
 
 Góc nhìn từ trên cao (`tham_khao_tren_cao`) chỉ in số để tham khảo, không chấm.
 

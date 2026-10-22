@@ -5,22 +5,23 @@ extends Node3D
 ## File này lo phần riêng của xe buýt: tấp vào trạm, dừng DWELL giây mở cửa cho khách lên xuống, xi nhan,
 ## dừng và bóp còi khi Bơ đứng trước mũi (không bao giờ tông), đứng chờ khi Bơ đang đứng trên nóc xe.
 ##
-## Tuyến: sinh ở đường vành x = 99 (khuất), chạy về tây làn z = −2,5, tấp vào trạm, ra cầu kênh rồi rẽ phải
-## lên đường bờ kênh x = −63,5 và khuất. Nghỉ GAP giây ngoài vành rồi chạy chuyến sau. Ngày chợ (Thứ Ba) không chạy.
+## Tuyến: sinh ở đường bờ kênh x = −63,5 (khuất), qua cầu kênh, chạy về đông làn z = 2,5, tấp vào trạm, rồi rẽ phải
+## ở đường vành x = 99 và khuất. Nghỉ GAP giây ngoài vành rồi chạy chuyến sau. Ngày chợ (Thứ Ba) không chạy.
 
 const GLB := "res://assets/models/pho/xe_buyt.glb"        ## 3.880 tam giác, cửa đóng
 const GLB_MO := "res://assets/models/pho/xe_buyt_mo.glb"  ## cửa mở, lộ bậc lên 0,35 m
 const TRAM_GLB := "res://assets/models/pho/tram_xe_buyt.glb"
-const ROUTE := [Vector2(99, -22), Vector2(99, -2.5), Vector2(-63.5, -2.5), Vector2(-63.5, -70)]
-## Tâm trạm trên vỉa hè bắc, mặt quay ra đường. Phác thảo đặt x = −8 nhưng chỗ đó đã có thùng rác và xe máy đậu
-## của gói P4 nên dời về giữa xe máy đậu (x = −6,6) và sạp báo Chú Tư (x = −1).
-const STOP := Vector3(-4.2, 0, -5.9)
+const ROUTE := [Vector2(-63.5, 70), Vector2(-63.5, 2.5), Vector2(99, 2.5), Vector2(99, 22)]
+## Tâm trạm trên vỉa hè nam khối 6, mặt quay ra đường (model xoay nửa vòng). Phác thảo đặt ở vỉa hè bắc x = −8
+## nhưng cả dải vỉa hè bắc khối 2 đã kín: thùng rác, xe máy đậu (P4), tủ báo Thứ Năm (x −2,3), sạp báo Chú Tư;
+## mé công viên là cổng và đồ Hội mèo Chủ Nhật. Ở đây vỉa hè trống giữa thùng rác (x 24) và làn xe đẩy (x 31,3).
+const STOP := Vector3(28.0, 0, 6.0)
 const LENGTH := 8.4             ## dài cả cản trước sau
 const WIDTH := 2.3
 const HEIGHT := 3.1
-const STOP_FRONT_X := -6.4      ## mũi xe khi dừng: cửa trước x = −5,9, cửa giữa x = −1,85
+const STOP_FRONT_X := 30.6      ## mũi xe khi dừng: cửa trước x = 29,9, cửa giữa x = 25,85
 const DOORS := [0.7, 4.75]      ## khoảng cách từ mũi xe tới giữa cửa trước, cửa giữa
-const PULL_IN := 1.35           ## tấp vào trạm: lệch khỏi làn về phía vỉa hè (tâm xe z = −3,85)
+const PULL_IN := 1.35           ## tấp vào trạm: lệch khỏi làn về phía vỉa hè (tâm xe z = 3,85)
 const DWELL := 8.0
 const DOOR_OPEN := 1.0          ## dừng hẳn 1 s rồi mới mở cửa
 const DOOR_CLOSE := 7.0
@@ -108,6 +109,7 @@ static func build_stop(parent: Node3D) -> void:
 	var root := Node3D.new()
 	root.name = "TramXeBuyt"
 	root.position = STOP
+	root.rotation.y = PI  # mặt trạm (phía +z của model) quay ra đường lớn ở phía bắc
 	parent.add_child(root)
 	var mi := PhoModels.put(root, TRAM_GLB, Vector3.ZERO)
 	mi.visibility_range_end = 60.0
@@ -133,11 +135,21 @@ static func build_stop(parent: Node3D) -> void:
 
 ## Chỗ ngồi chờ trên ghế trạm (mặt ghế 0,45 m) và chỗ đứng chờ, tọa độ thế giới.
 static func seats() -> Array:
-	return [STOP + Vector3(-0.45, 0.45, -0.3), STOP + Vector3(1.15, 0.45, -0.3)]
+	return [at(Vector3(-0.45, 0.45, -0.3)), at(Vector3(1.15, 0.45, -0.3))]
 
 
 static func stands() -> Array:
-	return [STOP + Vector3(-1.5, 0, 0.55), STOP + Vector3(1.6, 0, 0.5), STOP + Vector3(0.4, 0, 0.6)]
+	return [at(Vector3(-1.5, 0, 0.55)), at(Vector3(1.6, 0, 0.5)), at(Vector3(0.4, 0, 0.6))]
+
+
+## Điểm theo trục của model trạm (+z là mặt trạm nhìn ra đường) đổi ra tọa độ thế giới.
+static func at(local: Vector3) -> Vector3:
+	return STOP + Vector3(-local.x, local.y, -local.z)
+
+
+## Hướng mặt trạm nhìn ra đường (thế giới).
+static func facing() -> Vector3:
+	return Vector3(0, 0, -1)
 
 
 ## Gắn vào chiếc Bike của traffic.gd: tìm quãng đường mũi xe tới chỗ dừng.
@@ -148,7 +160,7 @@ func setup(t: Node, b) -> void:
 	var best := INF
 	while probe_s < b.route.length:
 		var p: Vector3 = _lane_point(probe_s)
-		var d := Vector2(p.x - STOP_FRONT_X, p.z + 2.5).length()
+		var d := Vector2(p.x - STOP_FRONT_X, p.z - 2.5).length()
 		if d < best:
 			best = d
 			stop_s = probe_s
@@ -173,7 +185,7 @@ func restart() -> void:
 
 ## Xe tấp sát vỉa hè quanh trạm: lệch PULL_IN về bên phải làn, vào êm trước trạm, ra êm sau khi đón khách.
 func offset_at(s: float) -> float:
-	var into := smoothstep(stop_s - 16.0, stop_s - 3.0, s)
+	var into := smoothstep(stop_s - 12.0, stop_s - 3.0, s)  # bắt đầu tấp khi đã qua ngã tư x = 16
 	var out := smoothstep(stop_s + 1.0, stop_s + 11.0, s)
 	return PULL_IN * into * (1.0 - out)
 
@@ -280,11 +292,11 @@ func draw(f: float, cam: Camera3D) -> void:
 	if not shown:
 		return
 	global_transform = xf
-	# Xi nhan phải khi tấp vào trạm và khi rẽ ra đường bờ kênh, xi nhan trái khi rời trạm
+	# Xi nhan phải khi tấp vào trạm và khi rẽ vào đường vành x = 99, xi nhan trái khi rời trạm
 	_blink += get_process_delta_time()
 	var on := fmod(_blink, 0.8) < 0.4
 	var s: float = bike.s
-	var right_on: bool = (phase == "toi" and s > stop_s - 22.0) or (phase == "dung" and _t < DOOR_OPEN) or xf.origin.x < -54.0
+	var right_on: bool = (phase == "toi" and s > stop_s - 22.0) or (phase == "dung" and _t < DOOR_OPEN) or xf.origin.x > 88.0
 	var left_on: bool = (phase == "dung" and _t > DOOR_CLOSE) or (phase == "di" and s < stop_s + 9.0)
 	for l in _lamps_right:
 		l.visible = right_on and on

@@ -21,7 +21,7 @@ func _run() -> void:
 	var space := player.get_world_3d().direct_space_state
 
 	# Trạm: mặt ghế 0,45 m và mái 2,6 m có va chạm lớp đồ (Bơ đứng lên được)
-	for probe in [[Vector3(-3.8, 1.5, -6.25), 0.45, "ghế trạm"], [Vector3(-4.2, 4.0, -5.9), 2.64, "mái trạm"]]:
+	for probe in [[XeBuyt.at(Vector3(0.4, 1.5, -0.35)), 0.45, "ghế trạm"], [XeBuyt.at(Vector3(0, 4.0, 0.05)), 2.64, "mái trạm"]]:
 		var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(probe[0], probe[0] - Vector3(0, 4, 0), Blocks.LAYER_PROP))
 		_check(not hit.is_empty() and absf(hit.position.y - probe[1]) < 0.05, "%s cao %.2f m" % [probe[2], probe[1]])
 
@@ -49,7 +49,7 @@ func _run() -> void:
 			saw_doors = true
 			stop_pos = b.pos
 	_check(saw_doors, "xe buýt dừng ở trạm và mở cửa")
-	_check(absf(stop_pos.x - XeBuyt.STOP_FRONT_X) < 0.3 and stop_pos.z < -3.6, "đỗ sát vỉa hè trước trạm (mũi xe %s)" % stop_pos)
+	_check(absf(stop_pos.x - XeBuyt.STOP_FRONT_X) < 0.3 and stop_pos.z > 3.6, "đỗ sát vỉa hè trước trạm (mũi xe %s)" % stop_pos)
 	_check(bus.phase == "di", "đón khách xong thì chạy tiếp")
 
 	# Bơ đứng giữa làn trước mũi xe: xe dừng hẳn, bóp còi, không hất Bơ
@@ -60,7 +60,7 @@ func _run() -> void:
 	for i in 3:
 		await physics_frame
 	var fwd: Vector3 = -b.xf.basis.z
-	player.global_position = Vector3(b.pos.x, 0.1, -2.5) + Vector3(fwd.x, 0, 0) * 6.0
+	player.global_position = Vector3(b.pos.x, 0.1, 2.5) + Vector3(fwd.x, 0, 0) * 6.0
 	player.velocity = Vector3.ZERO
 	t = 0.0
 	while t < 6.0:

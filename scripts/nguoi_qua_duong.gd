@@ -22,7 +22,8 @@ const ROADS := [Rect2(-48.0, -5.0, 96.0, 10.0), Rect2(-22.0, -31.0, 8.0, 26.0), 
 const JUNCTIONS := [Rect2(-22.2, -5.2, 8.4, 10.4), Rect2(11.8, -5.2, 8.4, 10.4)]
 const NEAR_MAX := 14
 const HIDE_RANGE := 35.0
-const SHADOW_RANGE := 14.0
+const SHADOW_RANGE := 10.0
+const DRAW_RANGE := 26.0          ## người qua đường xa hơn thì thôi vẽ (người dân đứng yên vẫn 30 m)
 const OUT_LEN := 14.0           ## đi tiếp ra vành ngoài chừng này mét rồi khuất
 const CROSS_LOOK := 15.0        ## xe trong tầm này đang chạy tới thì đứng chờ ở mép đường
 const CROSS_WAIT_MAX := 14.0
@@ -49,7 +50,10 @@ const GHE := {
 	"cong_vien": {"pos": Vector3(-37.0, 0, 13.0), "face": Vector3(1, 0, 0), "anims": ["vuon_vai", "dung_yen"], "secs": [5.0, 9.0], "cap": 2},
 	"goc_co": {"pos": Vector3(-29.0, 0, 10.4), "face": Vector3(0, 0, -1), "anims": ["dung_cho"], "secs": [5.0, 9.0], "cap": 1},
 	"xe_om": {"pos": Vector3(-21.6, 0, 7.4), "face": Vector3(-1, 0, -0.6), "anims": ["noi"], "secs": [3.0, 5.0], "cap": 1},
-	"mau_giao": {"pos": Vector3(26.0, 0, 6.2), "face": Vector3(0, 0, 1), "anims": ["dung_cho", "vay_con"], "secs": [6.0, 12.0], "cap": 3},
+	# Cổng mẫu giáo ở vành nam đối diện tiệm xe (P2: x 34,4–46,5, cổng z = 31,5 nhìn bắc): phụ huynh đứng chờ trước cổng
+	"mau_giao": {"pos": Vector3(39.0, 0, 30.4), "face": Vector3(0, 0, 1), "anims": ["dung_cho", "vay_con"], "secs": [6.0, 12.0], "cap": 3},
+	# Nhà đang xây khối 5 dãy nam (P2: x −12 → −6, mặt tiền z = 24 nhìn nam): thợ ngồi ăn trưa trước công trình
+	"cong_trinh": {"pos": Vector3(-10.0, 0, 27.0), "face": Vector3(0, 0, -1), "anims": ["ngoi_an", "lau_mo_hoi"], "secs": [10.0, 18.0], "cap": 2},
 }
 ## Kiểu người (theo người gốc): chỗ hay ghé, đi chậm hay nhanh, đồ cầm tay (assets/models/nguoi, Nguoi.hold), động tác riêng
 const KIEU := {
@@ -59,7 +63,7 @@ const KIEU := {
 	"qd_sinhvien": {"ghe": ["ca_phe", "tap_hoa", "sap_bao"], "bus": 0.35, "phone": true},
 	"qd_veso": {"ghe": ["ca_phe", "goc_co", "sap_bao", "lo_banh"], "walk": "di_cham", "speed": 0.8, "do": "bang_ve_so", "hand": "hand.L", "act": "moi_ve"},
 	"qd_giaohang": {"ghe": [], "door": true, "do": "goi_hang", "speed": 1.35},
-	"qd_congnhan": {"ghe": ["tap_hoa", "xe_om", "lo_banh"], "act": "lau_mo_hoi"},
+	"qd_congnhan": {"ghe": ["cong_trinh", "tap_hoa", "xe_om", "lo_banh"], "act": "lau_mo_hoi"},
 	"qd_mehoa": {"ghe": ["mau_giao", "tap_hoa", "lo_banh"], "bus": 0.15},
 }
 ## Lịch theo buổi (AnhSang preset của ngày): số người cùng ra phố và ai ra phố
@@ -306,7 +310,7 @@ func _reachable(a: Vector3, b: Vector3) -> bool:
 # ---------------------------------------------------------------- điểm đầu, điểm cuối
 
 func _find_anchors() -> void:
-	var hub := XeBuyt.STOP + Vector3(0.4, 0, 0.6)
+	var hub: Vector3 = XeBuyt.stands()[2]
 	# Cửa nhà: dò từ mép khối vào trong, gặp mặt tiền (ô đặc đầu tiên) thì cửa ở đó
 	var avoid: Array[Vector3] = [City.BAKERY_POINT]
 	for id: String in Days.DATA:
@@ -416,7 +420,7 @@ func _spawn(mid_trip := false, from_bus := Vector3.INF) -> Khach:
 			tries += 1
 			var c := Vector2i(_rng.randi_range(0, _w - 1), _rng.randi_range(0, _h - 1))
 			var p := _world(c)
-			if astar.is_point_solid(c) or _road_cells.has(c) or not _reachable(p, XeBuyt.STOP + Vector3(0.4, 0, 0.6)):
+			if astar.is_point_solid(c) or _road_cells.has(c) or not _reachable(p, XeBuyt.stands()[2]):
 				continue
 			if player and p.distance_to(player.global_position) < 6.0:
 				continue
@@ -451,6 +455,8 @@ func _spawn(mid_trip := false, from_bus := Vector3.INF) -> Khach:
 	k.n.look_range = 4.0
 	add_child(k.n)
 	k.n.position = start
+	for mi: GeometryInstance3D in k.n.find_children("*", "GeometryInstance3D", true, false):
+		mi.visibility_range_end = DRAW_RANGE
 	var item: String = kieu.get("do", "")
 	if item != "" and ResourceLoader.exists("res://assets/models/nguoi/%s.glb" % item):
 		k.n.hold("res://assets/models/nguoi/%s.glb" % item, kieu.get("hand", "hand.R"), Vector3.ZERO)
@@ -485,6 +491,8 @@ func _make_plan(k: Khach) -> void:
 			break
 		if g == "mau_giao" and preset != "pho_chieu" and preset != "pho_sang":
 			continue  # cổng mẫu giáo: đưa con buổi sáng, đón con chiều tà
+		if g == "cong_trinh" and preset != "pho_trua" and _rng.randf() < 0.6:
+			continue  # thợ ngồi ăn ở công trình chủ yếu buổi trưa
 		if g == "ca_phe" and preset == "pho_mua":
 			continue
 		k.plan.append({"kind": "ghe", "key": g})
@@ -517,7 +525,7 @@ func _next_goal(k: Khach) -> void:
 			to = k.goal.to
 		"step_off":
 			k.state = "act"
-			k.n.rotation.y = 0.0 + PI  # bước xuống quay lưng về xe (xe ở phía nam trạm)
+			_face_dir(k, -XeBuyt.facing())  # bước xuống quay lưng về xe (xe đỗ trước mặt trạm)
 			k.n.play_once("xuong_xe_buyt", "dung_yen")
 			k.timer = 1.1
 			return
@@ -563,7 +571,7 @@ func _next_goal(k: Khach) -> void:
 				to = spots[slot]
 				to.y = 0.0
 				if k.goal.seat:
-					to += Vector3(0, 0, 0.55)
+					to += XeBuyt.facing() * 0.55
 	if to == Vector3.INF:
 		_next_goal(k)
 		return
@@ -684,7 +692,7 @@ func _step(k: Khach, delta: float) -> void:
 			if k.timer <= 0.0 or traffic == null or traffic.bus == null:
 				# Đợi lâu quá thì thôi, đi bộ ra vành
 				if k.goal.get("seat", false):
-					k.n.position = Vector3(k.n.position.x, 0, k.n.position.z + 0.55)
+					k.n.position = Vector3(k.n.position.x, 0, k.n.position.z) + XeBuyt.facing() * 0.55
 				k.plan = [{"kind": "exit", "d": _exits[_rng.randi() % _exits.size()]}] if not _exits.is_empty() else []
 				_next_goal(k)
 		"board":
@@ -814,15 +822,15 @@ func _arrive(k: Khach) -> void:
 			k.timer = 150.0
 			if k.goal.get("seat", false):
 				k.n.position = XeBuyt.seats()[k.goal.slot] + Vector3(0, -0.26, 0)
-				_face_dir(k, Vector3(0, 0, 1))
+				_face_dir(k, XeBuyt.facing())
 				k.n.play("ngoi_ghe")
 			else:
-				_face_dir(k, Vector3(1, 0, 0.6))
+				_face_dir(k, Vector3(-1, 0, 0) + XeBuyt.facing() * 0.6)  # nhìn về phía xe tới
 				k.n.play("nhin_dt" if kieu.get("phone", false) else "dung_cho")
 		"board":
 			k.state = "board"
 			k.timer = 1.25
-			_face_dir(k, Vector3(0, 0, 1))
+			_face_dir(k, XeBuyt.facing())
 			k.n.play_once("len_xe_buyt", "dung_yen")
 		_:
 			_next_goal(k)

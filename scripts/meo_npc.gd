@@ -88,6 +88,11 @@ var _clip_once := false
 var _bubble: Label3D
 var _bubble_t := 0.0
 var _name_tag: Label3D
+var _held: Node3D
+## Đồ ngậm đang cầm (model G11, gốc = điểm ngậm), null nếu không
+var held: Node3D:
+	get:
+		return _held if is_instance_valid(_held) else null
 
 
 ## Tạo một con mèo theo giống. acc: các id phụ kiện (Outfit.ACCS). Thêm vào cây cảnh rồi mới đặt vị trí.
@@ -197,6 +202,15 @@ func play(clip_name: String, speed := 1.0) -> void:
 
 
 ## Bong bóng chữ trên đầu.
+## Ngậm một món G11 ở miệng (vd "tui_tiep_suc_cam", "bang_cham"); "" = nhả ra.
+func hold(model: String) -> void:
+	if is_instance_valid(_held):
+		_held.queue_free()
+	_held = null
+	if model != "" and _skel:
+		_held = DoHoi.attach(_skel, "head", model, preload("res://scripts/player.gd").MOUTH)
+
+
 func say(text: String, seconds := 2.5) -> void:
 	if _bubble == null:
 		_bubble = _label(0.95, 30)

@@ -4,19 +4,21 @@ extends TroThi
 ## (nhan_tui) rồi mèo trước mới nhả (dua_tui). Bơ đứng ở chỗ nhận, Sữa tới thì bấm E ngậm túi.
 ## Thong thả: đội bạn chậm (relay_rival_mult 0,8), Gừng và Sữa tự chạy. Thử thách: đội bạn đúng tốc độ,
 ## ngậm xong mà chạy đi ngay (chưa giữ yên nửa giây) là đứt chuyền, túi rơi phải quay lại nhặt (relay_drop).
+## Túi G11: đội cam (Bơ, Gừng, Sữa) tui_tiep_suc_cam, đội xanh (Mít, Bột, Mun) tui_tiep_suc_xanh, gốc = miệng túi.
 
 const C := Vector3(-43.0, 0, 25.0)
 const B := Vector3(-43.0, 0, 6.0)
 const A := Vector3(-23.0, 0, 6.0)
-const FINISH := Vector3(-34.0, 0, 21.8)
+const FINISH := ChuNhat.TRAY_DROP             ## trước sân khấu
+const BAG := "tui_tiep_suc_cam"
+const RIVAL_BAG := "tui_tiep_suc_xanh"
 const LANE := Vector3(1.4, 0, 1.4)            ## đội bạn chạy làn trong
 const SPEED := 4.0
 const HOLD := 0.5
 
 var _team: Array[MeoNpc] = []
 var _rivals: Array[MeoNpc] = []
-var _bag: Node3D
-var _rival_bag: Node3D
+var _ground_bag: Node3D   ## túi rơi dưới đất (Thử thách)
 var _waiting := false     ## Sữa đã tới, đợi Bơ ngậm túi
 var _has_bag := false
 var _hold := 0.0
@@ -51,10 +53,11 @@ func begin() -> void:
 		m.stop()
 		m.snap_ground = true
 		m.set_pose("dung")
-	_bag = _make_bag(_team[0], Color("#3FA39A"))
-	_rival_bag = _make_bag(_rivals[0], Color("#C8412F"))
+	_team[0].hold(BAG)
+	_rivals[0].hold(RIVAL_BAG)
+	player.carry_model(func(h: Node3D): DoHoi.put(h, BAG, Vector3.ZERO))
 	toast("Tiếp sức! Gừng chạy chặng 1, Sữa chặng 2. Bơ đứng ở vòng vàng chờ Sữa tới rồi bấm E ngậm túi.", 4.0)
-	_run_leg(_team[0], [B], SPEED, func(): _hand(_team[0], _team[1], _bag, func(): _run_leg(_team[1], [A], SPEED * 0.85, _sua_arrived)))
+	_run_leg(_team[0], [B], SPEED, func(): _hand(_team[0], _team[1], BAG, func(): _run_leg(_team[1], [A], SPEED * 0.85, _sua_arrived)))
 	_run_leg(_rivals[0], [B + LANE], SPEED * _rm(), _rival_leg2)
 
 
@@ -63,21 +66,12 @@ func _rm() -> float:
 
 
 func _rival_leg2() -> void:
-	_hand(_rivals[0], _rivals[1], _rival_bag, func(): _run_leg(_rivals[1], [A + LANE * Vector3(-1, 0, 1)], SPEED * 0.95 * _rm(), _rival_leg3))
+	_hand(_rivals[0], _rivals[1], RIVAL_BAG, func(): _run_leg(_rivals[1], [A + LANE * Vector3(-1, 0, 1)], SPEED * 0.95 * _rm(), _rival_leg3))
 
 
 func _rival_leg3() -> void:
 	var ra := A + LANE * Vector3(-1, 0, 1)
-	_hand(_rivals[1], _rivals[2], _rival_bag, func(): _run_leg(_rivals[2], [ra + Vector3(0, 0, 13.0), FINISH + Vector3(1.5, 0, 0)], SPEED * _rm(), _rival_done))
-
-
-func _make_bag(m: MeoNpc, color: Color) -> Node3D:
-	var b := Node3D.new()
-	m.add_child(b)
-	b.position = Vector3(0, 0.3, -0.32)
-	Blocks.box(b, Vector3(0.2, 0.14, 0.1), Vector3.ZERO, color)
-	Blocks.box(b, Vector3(0.12, 0.04, 0.02), Vector3(0, 0.09, 0), Color("#3A2418"))
-	return b
+	_hand(_rivals[1], _rivals[2], RIVAL_BAG, func(): _run_leg(_rivals[2], [ra + Vector3(0, 0, 13.0), FINISH + Vector3(1.5, 0, 0)], SPEED * _rm(), _rival_done))
 
 
 func _run_leg(m: MeoNpc, pts: Array, speed: float, then: Callable) -> void:
@@ -91,19 +85,19 @@ func _leg_done(then: Callable) -> void:
 
 
 ## Chuyền túi: người nhận ngậm quai trước rồi người đưa mới nhả.
-func _hand(from: MeoNpc, to: MeoNpc, bag: Node3D, then: Callable) -> void:
+func _hand(from: MeoNpc, to: MeoNpc, bag: String, then: Callable) -> void:
 	to.face(from.global_position)
 	from.face(to.global_position)
 	to.play("nhan_tui")
 	from.play("dua_tui")
-	get_tree().create_timer(0.5).timeout.connect(_pass_bag.bind(to, bag, then))
+	get_tree().create_timer(0.5).timeout.connect(_pass_bag.bind(from, to, bag, then))
 
 
-func _pass_bag(to: Variant, bag: Variant, then: Callable) -> void:
-	if not running or not is_instance_valid(bag) or not is_instance_valid(to):
+func _pass_bag(from: Variant, to: Variant, bag: String, then: Callable) -> void:
+	if not running or not is_instance_valid(from) or not is_instance_valid(to):
 		return
-	bag.reparent(to, false)
-	bag.position = Vector3(0, 0.3, -0.32)
+	to.hold(bag)
+	from.hold("")
 	then.call()
 
 
@@ -130,7 +124,7 @@ func tick(delta: float) -> void:
 		_team[1].play("dua_tui")
 		player.play_clip("nhan_tui")
 		player.carry_tui3(true)
-		_bag.visible = false
+		_team[1].hold("")
 		toast("Ngậm túi rồi! Chạy về sân khấu, đường nào cũng được.", 2.5)
 	if _has_bag and _hold < HOLD:
 		_hold += delta
@@ -141,7 +135,8 @@ func tick(delta: float) -> void:
 		_has_bag = true
 		_hold = HOLD
 		player.carry_tui3(true)
-		_bag.visible = false
+		if is_instance_valid(_ground_bag):
+			_ground_bag.queue_free()
 		toast("Nhặt lại túi rồi!", 1.5)
 	if _has_bag and _dropped == Vector3.INF and TroThi.flat_dist(p, FINISH) < 1.4:
 		player.carry_tui3(false)
@@ -153,9 +148,7 @@ func _drop(p: Vector3) -> void:
 	_has_bag = false
 	_dropped = p + Vector3(0, 0, 0.4)
 	player.carry_tui3(false)
-	_bag.reparent(self, false)
-	_bag.visible = true
-	_bag.global_position = _dropped + Vector3(0, 0.07, 0)
+	_ground_bag = DoHoi.put(self, BAG, _dropped + Vector3(0, 0.12, 0))
 	toast("Chạy sớm quá, đứt chuyền! Túi rơi rồi, quay lại nhặt.", 2.5)
 
 
@@ -164,9 +157,12 @@ func _end() -> void:
 		m.stop()
 	_team[0].set_pose("reo")
 	_team[1].set_pose("reo")
-	for b in [_bag, _rival_bag]:
-		if is_instance_valid(b):
-			b.queue_free()
+	for m in _team + _rivals:
+		m.hold("")
+	if is_instance_valid(_ground_bag):
+		_ground_bag.queue_free()
+	player.carry_model(Callable())
+	score = clock
 	if _finish_ring:
 		_finish_ring.queue_free()
 	finish(2 if _rival_finished else 1, "đội Bơ về %s" % ("nhì" if _rival_finished else "nhất"))

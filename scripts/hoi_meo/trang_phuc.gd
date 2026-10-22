@@ -22,7 +22,7 @@ var scores: Array[int] = []
 var _ui: CanvasLayer
 var _phase := ""         ## chon | dang | cham | xong
 var _t := 0.0
-var _boards: Array[Label3D] = []
+var _boards: Array[MeoNpc] = []   ## giám khảo đang ngậm bảng chấm
 var _buttons := {}
 var _go_btn: Button
 
@@ -145,7 +145,8 @@ func _to_stage() -> void:
 		_ui = null
 	if not autotest:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	put_player(ChuNhat.STAGE + Vector3(0, ChuNhat.STAGE_H, 0), ChuNhat.STAGE + Vector3(0, 0, -5))
+	put_player(ChuNhat.STAGE + ChuNhat.POSE_SPOT + Vector3(0, ChuNhat.STAGE_H, 0), ChuNhat.STAGE + Vector3(0, 0, -5))
+	hoi.stage_camera()
 	_phase = "dang"
 	_t = 0.0
 	toast("Tạo dáng nào!", 2.0)
@@ -186,16 +187,11 @@ func _score() -> void:
 		var s := clampi(2 + match_n + (rng.randi_range(-1, 0) if match_n < 3 else rng.randi_range(0, 1)) + (1 if picked.size() > 0 else 0), 1, 5)
 		scores.append(s)
 		var m := cat(JUDGES[j])
-		var lb := Label3D.new()
-		lb.text = str(s)
-		lb.font_size = 140
-		lb.outline_size = 18
-		lb.modulate = Color("#C8412F")
-		lb.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		lb.pixel_size = 0.004
-		m.add_child(lb)
-		lb.position = Vector3(0, 0.9, 0)
-		_boards.append(lb)
+		m.face(player.global_position)
+		m.hold("bang_cham")  # bảng chấm G11 ngậm ở miệng, hiện đúng số 1–5
+		if m.held:
+			DoHoi.number(m.held, s)
+		_boards.append(m)
 		if JUDGES[j] == "ba_muop":
 			m.set_pose("noi")  # bà ngồi thùng gỗ đọc điểm
 		else:
@@ -208,13 +204,14 @@ func _end() -> void:
 	for s in scores:
 		avg += s
 	avg /= maxf(scores.size(), 1.0)
+	score = avg
 	var rank := 1
 	for r in RIVALS.values():
 		if r > avg:
 			rank += 1
 	cat("ba_muop").set_pose("ngoi_cao")
-	for b in _boards:
-		b.queue_free()
+	for m: MeoNpc in _boards:
+		m.hold("")
 	_boards.clear()
 	player.apply_outfit()  # trả đồ mượn, mặc lại đồ của tủ
 	player.can_move = true

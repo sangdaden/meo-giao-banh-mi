@@ -176,6 +176,8 @@ var _clip_prev := {}               ## động tác vừa bị thay, đang mờ r
 var _tui3: Node3D                  ## túi 3 ổ ngậm ở miệng (Thứ Sáu, giỗ)
 var _tui3_hang: Node3D
 var _tui3_on := false
+## Dựng đồ ngậm thay túi 3 ổ (Chủ Nhật: khay bánh mini, túi tiếp sức): func(holder: Node3D) đặt model vào holder
+var _carry_maker := Callable()
 var _tui3_swing := Spring.new()
 
 var _coyote := 0.0
@@ -1042,6 +1044,14 @@ func carry_tui3(on: bool) -> void:
 	_tui3_on = on
 
 
+## Đổi món ngậm của carry_tui3 (gốc model = điểm ngậm). maker: func(holder: Node3D); Callable() = túi 3 ổ.
+func carry_model(maker: Callable) -> void:
+	_carry_maker = maker
+	if is_instance_valid(_tui3):
+		_tui3.queue_free()
+	_tui3 = null
+
+
 func _clip_step(delta: float) -> void:
 	# Động tác cũ giữ nguyên mức dưới động tác mới đang vào (không lộ dáng code ở giữa), vào hẳn thì bỏ
 	if not _clip_prev.is_empty():
@@ -1176,7 +1186,10 @@ func _build_tui3() -> void:
 	_tui3.add_child(_tui3_hang)
 	# Gốc model túi ở đỉnh quai (chỗ ngậm), đặt đúng điểm miệng
 	_tui3_hang.transform = _skel.get_bone_global_rest(hi).affine_inverse() * Transform3D(Basis(), MOUTH)
-	_tui3_hang.add_child(TUI_3O.instantiate())
+	if _carry_maker.is_valid():
+		_carry_maker.call(_tui3_hang)
+	else:
+		_tui3_hang.add_child(TUI_3O.instantiate())
 	for mi: MeshInstance3D in _tui3.find_children("*", "MeshInstance3D", true, false):
 		mi.layers = LAYER_BO_BODY
 

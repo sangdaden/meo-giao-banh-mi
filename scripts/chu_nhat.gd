@@ -1,6 +1,7 @@
 class_name ChuNhat
 extends Node3D
-## Chủ Nhật · Hội mèo khu phố (gói việc thiet-ke-man/goi-viec-chu-nhat.md). Khối tạm tới khi có model G10, G11.
+## Chủ Nhật · Hội mèo khu phố (gói việc thiet-ke-man/goi-viec-chu-nhat.md). Mèo hội G10 (MeoNpc), đồ sân hội G11
+## (DoHoi, assets/models/chu_nhat; bố trí theo thiet-ke-man/goi-phac-thao/g11-hoi-meo/BAN-GIAO.md).
 ## main.gd chỉ cần add_child(preload("res://scripts/chu_nhat.gd").new()); ngày khác tự gỡ.
 ## - Sáng (trời "pho_sang"): một đơn không tính giờ (days.gd "time": 0): Bơ ngậm khay bánh mì mini từ lò
 ##   tới Bà Mướp ở sân khấu công viên khối 4. Các mèo hội đã tới phơi nắng quanh công viên.
@@ -13,26 +14,36 @@ extends Node3D
 ## Autotest: -- --autotest --ngay=chu_nhat: bot chơi đủ 5 trò ở Thong thả, tới màn tổng kết thì in AUTOTEST CHU_NHAT OK.
 
 const DAY := "chu_nhat"
-const STAGE := Vector3(-34.0, 0, 24.6)        ## giữa sân khấu thùng gỗ (mặt sân khấu cao STAGE_H), quay về bắc
-const STAGE_H := 0.5
-const STAGE_SIZE := Vector2(3.2, 1.8)
-const CRATE_H := 0.4      ## thùng gỗ Bà Mướp ngồi (khối tạm theo ảnh G10, mẫu thật thuộc G11)
-const CRATE := Vector3(-1.0, 0, 0.45)   ## chỗ thùng so với giữa sân khấu: lệch trái để camera sau lưng Bơ không bị che
-const TRAY_DROP := Vector3(-34.0, 0, 22.4)    ## chỗ giao khay bánh sáng (trước sân khấu)
-const GATE := Vector3(-27.0, 0, 5.4)          ## cổng hội "HỘI MÈO KHU PHỐ" mé bắc công viên
-const MUC_SPOT := Vector3(-25.4, 0, 4.6)
-## Chỗ ngồi xem của mèo khi không thi (trước sân khấu, hai bên)
+const STAGE := Vector3(-33.0, 0, 22.6)        ## giữa sân khấu G11 (quay về bắc), sàn cao STAGE_H
+const STAGE_H := 0.45
+const STAGE_SIZE := Vector2(3.0, 1.8)
+const SEAT_Y := 0.88                           ## mặt nệm thùng Bà Mướp ngồi
+const CRATE := Vector3(0, 0, 0.4)              ## thùng ngồi so với giữa sân khấu (nửa sau sàn)
+const POSE_SPOT := Vector3(0, 0, -0.45)        ## chỗ Bơ tạo dáng, trao huy chương: nửa trước sàn
+const TRAY_DROP := Vector3(-33.0, 0, 21.0)    ## chỗ giao khay bánh sáng (trước sân khấu)
+const GATE := Vector3(-33.0, 0, 5.6)          ## cổng hội "HỘI MÈO KHU PHỐ" mé bắc công viên
+const MUC_SPOT := Vector3(-30.9, 0, 4.9)
+const MAT := Vector3(-33.0, 0, 19.6)           ## chiếu mèo trước sân khấu (gối cao 0,08)
+const BENCHES := [Vector3(-34.7, 0, 17.6), Vector3(-31.3, 0, 17.6), Vector3(-34.7, 0, 16.2), Vector3(-31.3, 0, 16.2)]
+const CRATES := Vector3(-40.5, 0, 12.0)        ## chồng thùng (trò 2), quay 90°
+const RECORD_BOARD := Vector3(-36.5, 0, 7.4)   ## bảng kỷ lục, quay 200°
+## Chỗ xem của mèo khi không thi: 4 con trên chiếu, 3 con hai bên
 const WATCH := {
-	"tuyet": Vector3(-36.6, 0, 21.4), "lac": Vector3(-31.4, 0, 21.4), "mit": Vector3(-37.4, 0, 22.6),
-	"bot": Vector3(-30.6, 0, 22.6), "mun": Vector3(-36.0, 0, 20.4), "gung": Vector3(-32.0, 0, 20.4), "sua": Vector3(-33.0, 0, 20.0),
+	"tuyet": Vector3(-33.4, 0.08, 19.85), "sua": Vector3(-32.6, 0.08, 19.85), "mun": Vector3(-33.4, 0.08, 19.35),
+	"gung": Vector3(-32.6, 0.08, 19.35), "lac": Vector3(-34.6, 0, 20.4), "mit": Vector3(-35.4, 0, 21.0), "bot": Vector3(-31.0, 0, 20.6),
 }
 ## Sáng: mèo hội tới sớm, nằm phơi nắng quanh công viên
 const MORNING := {
 	"mit": Vector3(-29.0, 0, 13.0), "bot": Vector3(-27.5, 0, 17.5), "mun": Vector3(-40.5, 0, 22.0),
-	"tuyet": Vector3(-36.0, 0, 21.0), "lac": Vector3(-31.0, 0, 21.2), "gung": Vector3(-24.5, 0, 11.0), "sua": Vector3(-38.0, 0, 18.0),
+	"tuyet": Vector3(-36.0, 0, 21.0), "lac": Vector3(-30.0, 0, 20.6), "gung": Vector3(-24.5, 0, 11.0), "sua": Vector3(-38.0, 0, 18.0),
 }
-## Hàng xóm ra xem lúc trao huy chương (Cô Ba lấy từ residents.gd)
-const AUDIENCE := [["xemco", Vector3(-30.2, 0, 20.6), "xem"], ["dicho1", Vector3(-37.8, 0, 20.6), "xem"], ["dicho2", Vector3(-29.4, 0, 21.8), "reo"]]
+## Hàng xóm xem hội (đề xuất 2 G11): Chú Tư, Bà Sáu, Chú Năm ngồi băng ghế; Cô Ba, Ông Chín, Bé Na đứng cạnh
+## [id, vị trí, quay (rad), động tác]. Người ngồi: gốc ở đất, mặt ghế 0,45 (Bà Sáu ghế 0,42 nên nâng 0,03)
+const AUDIENCE := [
+	["chutu", Vector3(-35.25, 0, 17.62), 0.0, "dung_yen"], ["basau", Vector3(-34.7, 0.03, 17.62), 0.0, "dung_yen"],
+	["chunam", Vector3(-31.3, 0, 17.62), 0.0, "dung_yen"], ["coba", Vector3(-36.3, 0, 17.2), 0.3, "vui"],
+	["xemco", Vector3(-29.8, 0, 17.3), -0.3, "xem"], ["bena", Vector3(-30.2, 0, 16.4), -0.2, "vui"],
+]
 const CONTESTS := ["dua_mai", "nhay_thung", "tron_tim", "tiep_suc", "trang_phuc"]
 const CONTEST_COLORS := [Color("#C8412F"), Color("#E8913A"), Color("#4F7FA8"), Color("#3FA39A"), Color("#D7A9C4")]
 
@@ -46,6 +57,9 @@ var medals := {}              ## id trò -> {title, rank, note}
 var phase := "sang"           ## sang | hoi | trao | tong_ket
 var current := -1
 var _decor: Node3D
+var _stage: Node3D
+var _record_board: Node3D
+var _medal: Node3D
 var _board: CanvasLayer
 var _fade: ColorRect
 var _summary: TongKetTuan
@@ -75,7 +89,7 @@ func _ready() -> void:
 		add_child(m)
 		m.look_target = player
 		cats[id] = m
-	cats.ba_muop.global_position = STAGE + CRATE + Vector3(0, STAGE_H + CRATE_H, 0)
+	cats.ba_muop.global_position = STAGE + CRATE + Vector3(0, SEAT_Y, 0)
 	cats.ba_muop.snap_ground = false
 	cats.ba_muop.set_pose("ngoi_cao")
 	for id in MORNING:
@@ -84,6 +98,7 @@ func _ready() -> void:
 		cats[id].set_pose("nam" if id in ["mun", "sua", "lac"] else "ngoi")
 	_build_stage()
 	main.hand_off(self)
+	player.carry_model(func(h: Node3D): DoHoi.put(h, "khay_banh_mini", Vector3.ZERO))  # khay mây, gốc ở đỉnh quai
 	main.order_picked_up.connect(func(_i, _o): player.carry_tui3(true))
 	main.order_delivered.connect(_on_tray)
 	for k in CONTESTS.size():
@@ -104,6 +119,7 @@ func _ready() -> void:
 func _on_tray(_i: int, _o: Dictionary) -> void:
 	hud = main.get("hud")
 	player.carry_tui3(false)
+	player.carry_model(Callable())
 	cats.ba_muop.say("Khay bánh thơm quá! Tối nay nhớ tới hội nha Bơ!", 3.5)
 	cats.ba_muop.set_pose("cuoi")
 	get_tree().create_timer(3.5).timeout.connect(func(): cats.ba_muop.set_pose("ngoi_cao"))
@@ -133,6 +149,7 @@ func _start_festival() -> void:
 		if c:
 			c.visible = false
 	_build_festival()
+	_seat_audience()
 	for id in WATCH:
 		_to_watch(id)
 	_place_muc()
@@ -145,7 +162,7 @@ func _start_festival() -> void:
 func _to_watch(id: String) -> void:
 	var m: MeoNpc = cats[id]
 	m.stop()
-	m.snap_ground = true
+	m.snap_ground = WATCH[id].y <= 0.0  # mèo trên chiếu ngồi lên gối 0,08
 	m.global_position = WATCH[id]
 	m.face(STAGE)
 	m.set_pose("ngoi")
@@ -207,13 +224,14 @@ func _play(k: int) -> void:
 	if not _autotest:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	current = k
-	# Mèo đang xem đứng dậy nếu trò cần
+	DoHoi.anim(_stage, "go_chuong")  # Bà Mướp gõ chuông mở trò
 	contests[k].start()
 
 
 func _on_contest_done(rank: int, note: String, k: int) -> void:
 	var t := contests[k]
 	medals[CONTESTS[k]] = {"title": t.title(), "rank": rank, "note": note}
+	_save_record(k, t.score)
 	current = -1
 	hud.show_toast("%s: %s, %s! Bà Mướp ghi tên Bơ vào bảng." % [t.title(), TroThi.RANK_NAMES[rank], note], 3.0)
 	print("[hoi meo] ", t.title(), " hạng ", rank, " (", note, ")")
@@ -230,23 +248,20 @@ func _on_contest_done(rank: int, note: String, k: int) -> void:
 func _ceremony() -> void:
 	phase = "trao"
 	_ceremony_t = 0.0
-	put_player(STAGE + Vector3(-0.3, STAGE_H, -0.1), STAGE + Vector3(0, 0, -6))
+	put_player(STAGE + POSE_SPOT + Vector3(0, STAGE_H, 0), STAGE + Vector3(0, 0, -6))
+	stage_camera()
 	player.can_move = false
-	var coba: Node3D = main.residents.get("coba") if main.get("residents") else null
-	if coba:
-		coba.global_position = Vector3(-33.6, 0, 20.4)
-		coba.rotation.y = 0.0
-		if coba.has_method("play"):
-			coba.play("vui")
-	for a in AUDIENCE:
-		if Nguoi.in_scene(get_tree(), a[0]):
-			continue
-		var n := Nguoi.make(a[0], a[2])
-		add_child(n)
-		n.global_position = a[1]
+	for n: Node in get_tree().get_nodes_in_group(Nguoi.GROUP):
+		if n.has_method("play") and n.get("id") in ["coba", "bena", "xemco"]:
+			n.play("vay" if n.get("id") == "coba" else "vui")
 	cats.ba_muop.say("Huy chương cho Bơ, mèo giao bánh của tuần!", 4.0)
 	cats.ba_muop.play("trao_huy_chuong")
 	player.play_clip("nhan_huy_chuong")
+	# Huy chương tốt nhất đeo lên cổ Bơ lúc 0,85 s của nhan_huy_chuong, rồi đung đưa (clip lac)
+	var best := 4
+	for m in medals.values():
+		best = mini(best, int(m.rank))
+	get_tree().create_timer(0.85).timeout.connect(_hang_medal.bind(DoHoi.MEDALS[best]))
 	for id in WATCH:
 		cats[id].set_pose("reo")
 
@@ -383,65 +398,148 @@ func _swap_sky(preset: String) -> void:
 		GameSettings.apply_graphics(get_tree())
 
 
-## Sân khấu thùng gỗ (có cả buổi sáng để giao khay bánh).
+## Sân khấu G11 (có cả buổi sáng để giao khay bánh): hộp sàn, bậc lên góc trước trái, thùng ngồi Bà Mướp.
+## Chiếu mèo, 4 băng ghế, chồng thùng, bảng kỷ lục cũng dựng từ sáng.
 func _build_stage() -> void:
-	var s := Blocks.solid_box(self, Vector3(STAGE_SIZE.x, STAGE_H, STAGE_SIZE.y), STAGE + Vector3(0, STAGE_H / 2.0, 0), Color("#9B6A3A"), Blocks.LAYER_PROP)
-	s.name = "SanKhau"
-	for i in 4:
-		Blocks.box(self, Vector3(STAGE_SIZE.x + 0.02, 0.03, 0.04), STAGE + Vector3(0, 0.12 * (i + 1), -STAGE_SIZE.y / 2.0 - 0.01), Color("#7A5230"))
-	# Bậc lên sân khấu hai bên
-	for side in [-1.0, 1.0]:
-		Blocks.solid_box(self, Vector3(0.6, 0.25, 0.6), STAGE + Vector3(side * (STAGE_SIZE.x / 2.0 + 0.3), 0.125, -0.3), Color("#B5814E"), Blocks.LAYER_PROP)
-	# Thùng gỗ Bà Mướp ngồi (động tác ngoi_san_khau cần thùng cao 0,4 m)
-	Blocks.solid_box(self, Vector3(0.62, CRATE_H, 0.46), STAGE + CRATE + Vector3(0, STAGE_H + CRATE_H / 2.0, 0), Color("#A9805A"), Blocks.LAYER_PROP)
+	_stage = DoHoi.put(self, "san_khau", STAGE, PI)
+	DoHoi.anim(_stage, "yen")
+	var c := Blocks.collider(self, Vector3(STAGE_SIZE.x, STAGE_H, STAGE_SIZE.y), STAGE + Vector3(0, STAGE_H / 2.0, 0), Blocks.LAYER_PROP)
+	c.name = "SanKhau"
+	Blocks.collider(self, Vector3(0.65, 0.22, 0.22), STAGE + Vector3(0.925, 0.11, -1.01), Blocks.LAYER_PROP)  # bậc lên
+	Blocks.collider(self, Vector3(0.56, SEAT_Y - STAGE_H, 0.42), STAGE + CRATE + Vector3(0, (SEAT_Y + STAGE_H) / 2.0, 0), Blocks.LAYER_PROP)
+	DoHoi.put(self, "chieu_meo", MAT)
+	for b: Vector3 in BENCHES:
+		DoHoi.put(self, "bang_ghe", b)
+		Blocks.collider(self, Vector3(1.8, 0.45, 0.42), b + Vector3(0, 0.225, 0), Blocks.LAYER_PROP)
+	_record_board = DoHoi.put(self, "bang_ky_luc", RECORD_BOARD, deg_to_rad(200.0))
+	Blocks.collider(self, Vector3(1.0, 1.6, 0.5), RECORD_BOARD + Vector3(0, 0.8, 0), Blocks.LAYER_PROP)
+	_fill_records()
 
 
 func _build_festival() -> void:
 	_decor = Node3D.new()
 	_decor.name = "SanHoi"
 	add_child(_decor)
-	# Cổng hội: hai cột + băng rôn
+	# Cổng hội: va chạm hai trụ ở chân xô
+	var gate := DoHoi.put(_decor, "cong_hoi", GATE, PI)
+	DoHoi.anim(gate, "lac")
 	for side in [-1.0, 1.0]:
-		Blocks.solid_box(_decor, Vector3(0.25, 3.0, 0.25), GATE + Vector3(side * 1.8, 1.5, 0), Color("#C8412F"), Blocks.LAYER_PROP)
-	Blocks.box(_decor, Vector3(3.9, 0.6, 0.08), GATE + Vector3(0, 2.75, 0), Color("#F2C14E"))
-	var sign := Blocks.label(_decor, "HỘI MÈO KHU PHỐ", GATE + Vector3(0, 2.75, -0.06), 72, Color("#C8412F"))
-	sign.billboard = BaseMaterial3D.BILLBOARD_DISABLED
-	sign.rotation.y = PI
-	# Dây đèn lồng: từ cổng tới sân khấu và quanh sân khấu
-	var poles := [GATE + Vector3(-1.8, 3.0, 0), Vector3(-30.0, 3.0, 14.0), STAGE + Vector3(1.8, 2.8, 0.9), STAGE + Vector3(-1.8, 2.8, 0.9), Vector3(-38.0, 3.0, 14.0), GATE + Vector3(1.8, 3.0, 0)]
-	for i in range(1, 5):
-		Blocks.solid_box(_decor, Vector3(0.1, poles[i].y, 0.1), Vector3(poles[i].x, poles[i].y / 2.0, poles[i].z), Color("#5B4632"), Blocks.LAYER_PROP)
-	var colors := [Color("#FF5A3C"), Color("#FFB23C"), Color("#FF7A9C"), Color("#FFD85A")]
-	var k := 0
-	for i in poles.size() - 1:
-		var a: Vector3 = poles[i]
-		var b: Vector3 = poles[i + 1]
-		var n := int(a.distance_to(b) / 1.2)
-		for j in n:
-			var u := (j + 0.5) / n
-			var p := a.lerp(b, u) - Vector3(0, sin(u * PI) * 0.5, 0)
-			var lamp := SphereMesh.new()
-			lamp.radius = 0.13
-			lamp.height = 0.3
-			lamp.radial_segments = 8
-			lamp.rings = 4
-			var mi := Blocks.mesh(_decor, lamp, p, colors[k % colors.size()], true)
-			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			k += 1
-	# Ánh đèn lồng ấm cho sân khấu (bản web 1 đèn)
-	var spots := [STAGE + Vector3(0, 3.0, -2.0), Vector3(-34.0, 3.2, 14.0)]
-	for i in (1 if AnhSang.is_compat() else spots.size()):
+		Blocks.collider(_decor, Vector3(0.35, 2.7, 0.35), GATE + Vector3(side * 1.41, 1.35, 0), Blocks.LAYER_PROP)
+	# Dây đèn lồng: hai dây cổng → cột tre sân khấu (dọc x −34,4 và −31,6), hai dây cổng → cây hai bên
+	var top_y := 2.95
+	for x in [-34.4, -31.6]:
+		var a := Vector3(x, top_y, GATE.z)
+		var b := Vector3(x, 2.35, STAGE.z + 0.87)
+		var mid := a.lerp(b, 0.5) + Vector3(0, 0.15, 0)
+		_lanterns(a, mid)
+		_lanterns(mid, b)
+	_lanterns(GATE + Vector3(-1.45, top_y, 0), Vector3(-39.0, 3.0, 9.5))
+	_lanterns(GATE + Vector3(1.45, top_y, 0), Vector3(-27.0, 3.0, 9.5))
+	# Cờ đuôi nheo trên xà sân khấu và ngang cổng
+	var f1 := DoHoi.put(_decor, "co_duoi_nheo", Vector3(-34.45, 2.37, 21.8), 0.0, Vector3(0.48, 1, 1))
+	DoHoi.anim(f1, "bay")
+	var f2 := DoHoi.put(_decor, "co_duoi_nheo", GATE + Vector3(-1.45, 2.3, 0.1), 0.0, Vector3(2.9 / 6.0, 1, 1))
+	DoHoi.anim(f2, "bay")
+	# Ánh đèn lồng: bản PC thêm đèn cam ấm dọc hai dây (mỗi ~3 m), bản web chỉ có emission + 1 đèn sân khấu
+	var spots := [STAGE + Vector3(0, 3.0, -2.0)]
+	if not AnhSang.is_compat():
+		for x in [-34.4, -31.6]:
+			for z in [8.6, 11.6, 14.6, 17.6]:
+				spots.append(Vector3(x, 2.3, z))
+	for p: Vector3 in spots:
 		var l := OmniLight3D.new()
 		l.light_color = Color("#FFB070")
-		l.light_energy = 2.2
-		l.omni_range = 11.0
+		l.light_energy = 2.2 if p == spots[0] else 0.9
+		l.omni_range = 11.0 if p == spots[0] else 4.0
 		l.shadow_enabled = false
 		_decor.add_child(l)
-		l.global_position = spots[i]
-	# Cờ đuôi nheo trên sân khấu
-	for i in 6:
-		var f := Blocks.box(_decor, Vector3(0.02, 0.28, 0.22), STAGE + Vector3(-1.4 + i * 0.56, 2.45, 0.9), CONTEST_COLORS[i % CONTEST_COLORS.size()])
-		f.rotation.y = PI / 2.0
+		l.global_position = p
+
+
+## Một đoạn dây đèn lồng (model dài 6 m, gốc ở móc trái) kéo từ a sang b.
+func _lanterns(a: Vector3, b: Vector3) -> void:
+	var d := b - a
+	var x := d.normalized()
+	var z := x.cross(Vector3.UP).normalized()
+	var y := z.cross(x)
+	var n := DoHoi.put(_decor, "day_den_long", Vector3.ZERO)
+	n.transform = Transform3D(Basis(x * (d.length() / 6.0), y, z), a)
+	DoHoi.anim(n, "lac")
+
+
+## Hàng xóm ra xem hội (đề xuất 2 G11). Ai đã có trong cảnh thì dời tới chỗ, chưa có thì dựng.
+func _seat_audience() -> void:
+	for a in AUDIENCE:
+		var n: Node3D = null
+		for o: Node in get_tree().get_nodes_in_group(Nguoi.GROUP):
+			if o.get("id") == a[0]:
+				n = o
+		if n == null:
+			n = Nguoi.make(a[0], a[3])
+			add_child(n)
+		elif n.has_method("play"):
+			n.play(a[3])
+		n.set_physics_process(false)
+		n.global_position = a[1]
+		n.rotation.y = a[2]
+		n.set("look_target", player)
+
+
+## Huy chương G11 đeo ở socket cổ Bơ (xương neck), đung đưa khi vừa đeo.
+func _hang_medal(model: String) -> void:
+	var skel: Skeleton3D = player.get("_skel")
+	if skel == null:
+		return
+	if is_instance_valid(_medal):
+		_medal.queue_free()
+	_medal = DoHoi.attach(skel, "neck", model, DoHoi.NECK)
+	DoHoi.anim(_medal, "lac")
+
+
+# ---------------------------------------------------------------- bảng kỷ lục
+
+## Kỷ lục từng trò (lưu trong mục chu_nhat "ky_luc"): đua, trốn tìm, tiếp sức tính giây (ít hơn là hơn);
+## chồng thùng tính tầng, trang phục tính điểm (nhiều hơn là hơn).
+const LOWER_BETTER := ["dua_mai", "tron_tim", "tiep_suc"]
+
+
+func _save_record(k: int, value: float) -> void:
+	if value < 0.0:
+		return
+	var rec: Dictionary = GameState.get_day("ky_luc", {}, DAY)
+	var id: String = CONTESTS[k]
+	var old := float(rec.get(id, -1.0))
+	var better := old < 0.0 or (value < old if id in LOWER_BETTER else value > old)
+	if better:
+		rec[id] = value
+		GameState.set_day("ky_luc", rec, DAY)
+		_fill_records()
+
+
+## Ghi số lên 5 dòng trống của bảng kỷ lục (toạ độ dòng theo bàn giao G11, bảng nghiêng 10°).
+func _fill_records() -> void:
+	if _record_board == null:
+		return
+	const ROWS := [Vector3(0.242, 1.161, -0.083), Vector3(0.242, 1.054, -0.064), Vector3(0.242, 0.946, -0.045),
+		Vector3(0.242, 0.838, -0.026), Vector3(0.242, 0.731, -0.008)]
+	for l in _record_board.find_children("KyLuc*", "Label3D", false, false):
+		l.queue_free()
+	var rec: Dictionary = GameState.get_day("ky_luc", {}, DAY)
+	for k in CONTESTS.size():
+		var v := float(rec.get(CONTESTS[k], -1.0))
+		if v < 0.0:
+			continue
+		var l := Label3D.new()
+		l.name = "KyLuc%d" % k
+		l.text = str(int(round(v))) if CONTESTS[k] != "trang_phuc" else "%.1f" % v
+		l.font_size = 40
+		l.pixel_size = 0.0025
+		l.modulate = Color("#F4EFE2")
+		l.outline_size = 0
+		l.double_sided = false
+		l.position = ROWS[k] + Vector3(0, 0.012, 0.012)
+		l.rotation_degrees.x = -10.0
+		_record_board.add_child(l)
 
 
 ## Mực: đã làm bạn ở Thứ Bảy thì đứng gác cổng, chưa thì nằm ngủ ngoài cổng. AI tắt cả buổi tối.
@@ -459,6 +557,14 @@ func _place_muc() -> void:
 	dog.velocity = Vector3.ZERO
 	if dog.has_method("play_clip"):
 		dog.play_clip("dung_gac" if friend else "ngu_gat")
+
+
+## Đưa camera ra trước sân khấu nhìn vào (sau lưng Bơ lúc đứng trên sân khấu là phông vải).
+func stage_camera() -> void:
+	var rig: Node = player.get("camera_rig")
+	if rig:
+		rig.set("yaw", PI)
+		rig.set("pitch", -0.2)
 
 
 func put_player(pos: Vector3, look := Vector3.INF) -> void:

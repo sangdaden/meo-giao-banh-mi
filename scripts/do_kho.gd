@@ -99,6 +99,7 @@ const EASY := {
 	"race_respawn_flag": true,   # rơi khỏi mái thì về cờ vừa qua (Thử thách: xuống đất leo lại)
 	"crate_tries": 3,            # nhảy chồng thùng: 3 lần thử mỗi tầng (Thử thách: 1)
 	"crate_ring": true,          # vòng xanh chỉ lúc thùng đứng yên (Thử thách: không có)
+	"crate_land_tol": 0.25,      # khung đáp vững của chồng thùng G11 rộng thêm ±0,25 s (Thử thách: đúng 0,77–0,9 s)
 	"hide_time": 0.0,            # trốn tìm không giờ (Thử thách: 180 s)
 	"hide_hint_after": 30.0,     # 30 s chưa tìm thấy thì chuông kêu to, mũi tên chỉ tới (Thử thách: tắt)
 	"relay_rival_mult": 0.8,     # tiếp sức: đội bạn chậm 20% (Thử thách: đúng tốc độ)

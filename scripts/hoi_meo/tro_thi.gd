@@ -16,6 +16,7 @@ var cats := {}         ## id CAST -> MeoNpc (ChuNhat dựng sẵn)
 var running := false
 var autotest := false
 var clock := 0.0       ## giây đã chơi
+var score := -1.0      ## số ghi bảng kỷ lục (giây, tầng, điểm); -1 = không ghi
 var _done := false
 
 
@@ -61,6 +62,7 @@ func start() -> void:
 	running = true
 	_done = false
 	clock = 0.0
+	score = -1.0
 	begin()
 
 

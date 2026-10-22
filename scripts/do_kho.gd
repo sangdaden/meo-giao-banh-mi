@@ -71,6 +71,16 @@ const EASY := {
 	"water_stun": 0.0,           # dính nước tưới chỉ giũ lông, không khựng
 	"thorn_slow": 0.8,           # gai giàn bông giấy làm chậm còn 80% (Thử thách 50%)
 	"call_radius": 7.0,          # ngồi gọi khách nghe xa 7 m (Thử thách 5)
+	# Thứ Tư mưa (gói việc thiet-ke-man/goi-viec-thu-tu.md)
+	"puddle_slip_speed": 7.5,    # chỉ chạy nhanh qua vũng mới trượt (Thử thách: 5,5 m/s)
+	"puddle_slip_time": 0.25,
+	"balance_fall": false,       # chạy nhanh trên ván: chao 0,6 s rồi đứng lại (Thử thách: rơi khỏi ván)
+	"balance_speed": 2.5,
+	"flood_slow": 0.5,           # lội nước còn 50% tốc độ (Thử thách: 40%)
+	"splash_stun": 0.2,          # xe tạt nước khựng 0,2 s (Thử thách: 0,6)
+	"pigeon_blind": 1.0,         # bồ câu che mắt 1 s (Thử thách: 2)
+	"pigeon_notice": 1.5,        # đi trong 1,5 m mới làm chim bay (Thử thách: 3 m)
+	"rain_grace": 5.0,           # nhiệm vụ "dưới mái hiên": được dầm mưa tổng 5 s lúc qua đường (Thử thách: 3)
 }
 
 

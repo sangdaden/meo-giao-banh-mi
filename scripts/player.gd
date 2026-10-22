@@ -126,6 +126,9 @@ const MOUTH := Vector3(0, 0.368, 0.30)   ## điểm miệng trong hệ model Bơ
 
 ## Cảnh chung cư bật: bám mép, bật tường, leo ống nước. Thứ Hai để tắt nên khu phố không đổi.
 var climb_moves := false
+## Thứ Tư (scripts/thang_bang.gd, scripts/thu_tu.gd): nhân tốc độ khi lội nước, chặn tốc độ khi đi trên ván
+var speed_scale := 1.0
+var speed_cap := INF
 ## Đang leo: "" | "hang" (bám mép) | "pull" (đang leo lên mép) | "pipe" (ôm ống nước)
 var climb := ""
 var _climb_t := 0.0
@@ -614,6 +617,7 @@ func _physics_process(delta: float) -> void:
 	var dir := Vector3(input.x, 0, input.y).rotated(Vector3.UP, yaw)
 	_update_stance(dir, on_floor)
 	var speed: float = {"walk": walk_speed, "sprint": sprint_speed, "crouch": crouch_speed, "sneak": sneak_speed}[stance]
+	speed = minf(speed * speed_scale, speed_cap)
 	var target := Vector2(dir.x, dir.z) * speed
 	var accel := air_accel
 	if on_floor:
@@ -1626,6 +1630,13 @@ func bump(kind: String, from := Vector3.INF, stun := 0.4) -> void:
 		noise_made.emit(global_position, noise_bump)
 	bumped.emit(kind)
 	_damage_fragile()
+
+
+## Khựng tại chỗ một lúc, không văng (chao trên ván, bị xe tạt nước).
+func hold(seconds: float) -> void:
+	_stun = maxf(_stun, seconds)
+	velocity.x = 0.0
+	velocity.z = 0.0
 
 
 ## Bị Chó Mực đớp: văng ra và khựng lại một chút.

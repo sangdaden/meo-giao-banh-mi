@@ -35,6 +35,12 @@ const SIDE_QUEST_NAMES := {
 	"goi_mot_tieng": "Gọi một tiếng là Chị Mây ra",
 	"truoc_goi_hai": "Giao trước khi Anh Hùng gọi lần hai",
 	"vao_tu_gian": "Vào sân giỗ từ giàn bông giấy",
+	# Thứ Tư (gói việc thiet-ke-man/goi-viec-thu-tu.md)
+	"duoi_mai_hien": "Đi dưới mái hiên, không dầm mưa",
+	"van_vung": "Qua ván không chao lần nào",
+	"bo_cau_yen": "Không làm bồ câu bay",
+	"khong_bi_tat": "Không bị xe tạt nước",
+	"khong_truot": "Không trượt vũng nào",
 }
 
 static var orders: Array = []  # kết quả từng đơn trong ngày, mỗi phần tử là Dictionary

@@ -90,6 +90,8 @@ var autotest := false
 
 var current := -1                ## đơn đang làm (main gán lúc nhận bánh)
 var side_ok: Array[bool] = [false, false, false, false, false]
+## Nhiệm vụ phụ của ngày khác: id -> Callable trả true khi đạt (Thứ Tư: scripts/thu_tu.gd đăng ký)
+var extra_quests := {}
 var _kind: Array[String] = []
 ## Đơn ngược ("kind": "errand", gói T3-3): tạp hóa Cô Hai, chỉ tạo khi trong ngày có đơn này
 var shop: ShopTapHoa
@@ -823,6 +825,9 @@ func step(i: int, in_zone: bool, _delta: float) -> bool:
 func _deliver_tu(i: int) -> void:
 	_play_deliver("hand")
 	_celebrate(i)
+	if orders[i].get("side_quest", "") != "bao_co_ba":
+		_hand_bread(hand_point(i))  # ngày khác Chú Tư chỉ nhận bánh, không gửi báo
+		return
 	side_ok[i] = false  # chỉ thành công khi tờ báo về tới lò
 	_paper_state = "handing"  # Chú Tư đang gấp báo, chưa tới miệng Bơ
 	_hand_bread(hand_point(i), func():
@@ -924,6 +929,11 @@ func _market_quest(i: int) -> void:
 			side_ok[i] = _bumps == 0
 		"khong_do_thung":
 			side_ok[i] = _spills == 0
+		_:
+			# Nhiệm vụ phụ do màn ngày khác chấm (Thứ Tư: scripts/thu_tu.gd đăng ký)
+			var judge: Callable = extra_quests.get(orders[i].get("side_quest", ""), Callable())
+			if judge.is_valid():
+				side_ok[i] = judge.call()
 
 
 ## Chợ sáng (market.gd của gói T3-4) chỉ có trong ngày họp chợ; tìm một lần rồi nghe tín hiệu.

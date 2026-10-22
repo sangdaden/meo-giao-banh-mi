@@ -4764,6 +4764,125 @@
    "ears": "",
    "lift": 0,
    "tris": 1500
+  },
+  "nonphot": {
+   "objects": {
+    "Non_Phot": {
+     "sock": "head",
+     "kind": "cloth",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    },
+    "No_Bang": {
+     "sock": "head",
+     "kind": "cloth",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    }
+   },
+   "ears": "",
+   "lift": 0,
+   "tris": 690
+  },
+  "kinhbaoho": {
+   "objects": {
+    "Khung_BH": {
+     "sock": "head",
+     "kind": "plastic",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    },
+    "Kinh_BH": {
+     "sock": "head",
+     "kind": "glass",
+     "alpha": 0.35,
+     "emit": 0,
+     "metal": 0
+    },
+    "Day_Thun": {
+     "sock": "head",
+     "kind": "cloth",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    },
+    "Khoa_Day": {
+     "sock": "head",
+     "kind": "plastic",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    }
+   },
+   "ears": "",
+   "lift": 0,
+   "tris": 824
+  },
+  "lycaphe": {
+   "objects": {
+    "De_Ni": {
+     "sock": "head",
+     "kind": "cloth",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    },
+    "Ly_Nhua": {
+     "sock": "head",
+     "kind": "glass",
+     "alpha": 0.14,
+     "emit": 0,
+     "metal": 0
+    },
+    "Ca_Phe": {
+     "sock": "head",
+     "kind": "gloss",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    },
+    "Da_Vien": {
+     "sock": "head",
+     "kind": "glass",
+     "alpha": 0.55,
+     "emit": 0,
+     "metal": 0
+    },
+    "Nap_Vom": {
+     "sock": "head",
+     "kind": "glass",
+     "alpha": 0.4,
+     "emit": 0,
+     "metal": 0
+    },
+    "Vo_Giay": {
+     "sock": "head",
+     "kind": "paper",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    },
+    "Ong_Hut": {
+     "sock": "head",
+     "kind": "plastic",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    },
+    "Day_Cam": {
+     "sock": "head",
+     "kind": "cloth",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    }
+   },
+   "ears": "",
+   "lift": 0,
+   "tris": 5014
   }
  },
  "bo_head": {

@@ -17,8 +17,9 @@ const TAGS := {
 	"dacbiet": ["#D98E2B", "#2A1A05"],
 	"sukien": ["#C8412F", "#FFF8EA"],
 	"goi": ["#3F8A5C", "#FFF8EA"],
+	"qua": ["#8E5BA8", "#FFF8EA"],
 }
-const TAB_NAMES := ["Giống mèo · 19", "Phụ kiện · 35", "Bộ đồ · 8", "Tiệm · 4"]
+const TAB_NAMES := ["Giống mèo · 19", "Phụ kiện · 45", "Bộ đồ · 8", "Tiệm · 4"]
 const NOTES := [
 	"Bấm giống mèo khoá để xem thử trên bục, đủ tiền boa thì bấm Mua. Giống đã có bấm để chọn.",
 	"Bấm món đã có để đeo hoặc tháo. Món khoá bấm để mặc thử, đủ tiền boa thì bấm Mua.",

@@ -1,4 +1,4 @@
-"""Xuất 42 phụ kiện (35 món gốc + 7 món bán theo gói trong acc_moi.py) và 19 giống mèo (phong cách D) sang .glb nhẹ cho tủ đồ trong game.
+"""Xuất 45 phụ kiện (35 món gốc, 7 món bán theo gói trong acc_moi.py, 3 món quà Thứ Bảy trong acc_t7.py) và 19 giống mèo (phong cách D) sang .glb nhẹ cho tủ đồ trong game.
 
 Dùng mã dựng của luồng "Skin mèo và phụ kiện" (meo-3d/skins: catcore, acc, breeds, blend), không render.
 Chạy:  python3 tools/xuat_skin_game.py <thư_mục_skins> assets/models/skin [phu_kien|giong|giong_cai|all] [id,id..]
@@ -29,17 +29,21 @@ from parts import build_part
 SOCK = dict(khando='neck', khanran='neck', chuong='neck', nobuom='neck', vonghoa='neck', tuibanh='back', thung='back', dongganh='back', aochoang='back',
             canhthienthan='back', phaovit='back', noduoi='tail_mid', denlong='tail_tip', coduua='tail_tip', bongbay='tail_tip',
             tatsoc='feet', ungmua='feet', giaypatin='feet', deptoong='feet')
-# 7 món bán theo gói (luồng "Bán mèo và phụ kiện", Sang duyệt 21/10): acc_moi.py đặt cạnh acc.py.
-# Ngân sách tam giác từng bộ phận lấy theo bản đã duyệt (meta_<id>.json) để bản web nhẹ.
-try:
-    import acc_moi
-    acc.ACC.update(acc_moi.ACC)
-    SOCK.update(acc_moi.SOCK)
-except ImportError:
-    acc_moi = None
+# Món thêm sau, đặt cạnh acc.py: acc_moi.py = 7 món bán theo gói (Sang duyệt 21/10),
+# acc_t7.py = 3 món quà Thứ Bảy (G8, Sang duyệt 22/10).
+# Ngân sách tam giác từng bộ phận lấy theo bản đã duyệt (mon_moi/meta_<id>.json) để bản web nhẹ.
+EXTRA = {}
+for _mod in ('acc_moi', 'acc_t7'):
+    try:
+        _m = __import__(_mod)
+    except ImportError:
+        continue
+    acc.ACC.update(_m.ACC)
+    SOCK.update({k: s for k, s in _m.SOCK.items() if s != 'face'})  # đồ mặt dựng theo đầu (Part.head)
+    EXTRA.update(_m.ACC)
 PART_TRIS = {}
 _moi = os.path.join(SKINS, 'mon_moi')
-for _id in (acc_moi.ACC if acc_moi else ()):
+for _id in EXTRA:
     _f = os.path.join(_moi, f'meta_{_id}.json')
     if os.path.exists(_f):
         for _p in json.load(open(_f))['parts']:
@@ -166,7 +170,7 @@ def export_acc(ids):
                 V, F, C = pt.mesh
             else:
                 s = 'head' if pt.head else SOCK.get(aid, 'back')
-                r = mesh_part(pt, budget(s))
+                r = mesh_part(pt, PART_TRIS.get((aid, pt.name)) or budget(s))
                 if r is None:
                     print('EMPTY', aid, pt.name); continue
                 V, F, N = r; C = pt.colorfn(V, N) if pt.colorfn else None

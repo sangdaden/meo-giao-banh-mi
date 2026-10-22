@@ -81,6 +81,12 @@ const EASY := {
 	"pigeon_blind": 1.0,         # bồ câu che mắt 1 s (Thử thách: 2)
 	"pigeon_notice": 1.5,        # đi trong 1,5 m mới làm chim bay (Thử thách: 3 m)
 	"rain_grace": 5.0,           # nhiệm vụ "dưới mái hiên": được dầm mưa tổng 5 s lúc qua đường (Thử thách: 3)
+	# Thứ Bảy dạo phố (gói việc thiet-ke-man/goi-viec-thu-bay.md): cả hai chế độ đều không đồng hồ
+	"paper_wait": 999.0,         # tờ báo Chú Tư chờ ở mỗi chặng mãi (Thử thách: 6 s rồi bay về chỗ cũ)
+	"hum_time": 10.0,            # ru em bé 10 s (Thử thách: 15)
+	"hum_noise_ok": true,        # đi thường gần võng vẫn được (Thử thách: phải đứng yên hoặc rón rén)
+	"muc_chapter_after": 3,      # giúp 3 người thì mở chương Chó Mực (Thử thách cũng 3)
+	# thorn_slow (gai giàn bông giấy) dùng chung với Thứ Sáu ở trên
 }
 
 

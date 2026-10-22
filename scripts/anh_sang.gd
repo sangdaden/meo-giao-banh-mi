@@ -176,9 +176,10 @@ const PRESETS := {
 
 
 ## Buổi của từng ngày chơi (scripts/days.gd ORDER).
+## Thứ Bảy bắt đầu buổi sáng; scripts/thu_bay.gd ngả trời dần tới pho_hoang_hon theo số việc đã giúp.
 const DAY_PRESET := {
 	"thu_hai": "pho_sang", "thu_ba": "pho_cho", "thu_tu": "pho_mua", "thu_nam": "pho_trua",
-	"thu_sau": "pho_chieu", "thu_bay": "pho_hoang_hon", "chu_nhat": "pho_toi",
+	"thu_sau": "pho_chieu", "thu_bay": "pho_sang", "chu_nhat": "pho_toi",
 }
 
 

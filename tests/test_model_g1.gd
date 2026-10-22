@@ -1,6 +1,7 @@
 extends SceneTree
 ## Kiểm tra model gói phác thảo G1 đã duyệt (bên trong chung cư + Thứ Năm ngoài phố): mỗi .glb mở được
-## và có đủ node theo tên bộ phận trên trang phác thảo (node xuất có tiền tố "w_").
+## và có đủ node theo tên bộ phận trên trang phác thảo (node xuất có tiền tố "w_"), và không dính hình thừa
+## (lần xuất đầu lưới đo của ảnh phác lọt vào file, làm model to ra vài mét).
 ## Chạy: godot --headless --path . -s tests/test_model_g1.gd
 
 const MODELS := {
@@ -19,6 +20,10 @@ const MODELS := {
 	"res://assets/models/thu_nam/cua_cuon.glb": ["hop_cuon", "ray_cua", "la_cua", "khoa_cua", "bien_nghi"],
 }
 
+## Cạnh dài nhất của cả món (m), rộng hơn kích thước trên trang một chút.
+const MAX_SIZE := {"vong": 2.5, "em_be": 2.2, "thang_may": 3.1, "cua_thang": 6.9, "gia_phoi": 1.6, "ong_gay": 3.2,
+	"may_lanh": 1.2, "may_lanh_rung": 1.5, "bich_da": 0.8, "gac_lung": 4.4, "gio": 1.2, "vong_hung": 2.9, "cua_cuon": 5.0}
+
 var fails := 0
 
 
@@ -36,6 +41,15 @@ func _init() -> void:
 				thieu.append(part)
 		print(("  OK   " if thieu.is_empty() else "  LỖI  ") + path.get_file() + ("" if thieu.is_empty() else " thiếu " + str(thieu)))
 		fails += thieu.size()
+		var box := AABB()
+		for mi: MeshInstance3D in n.find_children("*", "MeshInstance3D", true, false):
+			var a: AABB = mi.transform * mi.get_aabb()
+			box = a if box.size == Vector3.ZERO else box.merge(a)
+		var lim: float = MAX_SIZE[path.get_file().get_basename()]
+		var big := box.get_longest_axis_size()
+		print(("  OK   " if big <= lim else "  LỖI  ") + "%s dài nhất %.2f m (≤ %.1f)" % [path.get_file(), big, lim])
+		if big > lim:
+			fails += 1
 		n.free()
 	var nguoi := load("res://assets/models/nguoi/chithu.glb") as PackedScene
 	var ct := nguoi.instantiate() if nguoi else null

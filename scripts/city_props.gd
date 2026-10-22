@@ -21,9 +21,22 @@ const CLOTH := [Color("#F2E3B8"), Color("#E39C7A"), Color("#A9C7E8"), Color("#D7
 const BOUGAIN := Color("#C8407E")
 const CAP := Color("#9C978C")
 
-## Hẻm 42: lòng hẻm x từ -20 đến -17, z từ 9 đến 24 (nhà Bà Sáu chặn cuối hẻm)
+## Hẻm 42: lòng hẻm x từ -20 đến -17, z từ 9 đến 21,6 (sân nhà Bà Sáu chặn cuối hẻm)
 const HEM42_X := Vector2(-20.0, -17.0)
-const HEM42_Z := Vector2(9.0, 24.0)
+const HEM42_Z := Vector2(9.0, 21.6)
+## Sân nhà Bà Sáu (G7, mọi ngày): cổng z 22,0 rộng 2,5 m, sân gạch 6 × 4,6 m, nhà giữ mặt tiền z 26,6
+const BA_SAU_YARD := Rect2(-21.5, 22.0, 6.0, 4.6)
+const BA_SAU_FRONT := 26.6
+const BA_SAU_GATE_W := 2.5
+const BA_SAU_CHAIR := Vector3(-20.4, 0, 25.6)   ## ghế mây cạnh lu, lưng ghế phía nhà (z + 0,28)
+const BA_SAU_LU := Vector3(-21.05, 0, 26.0)
+const BA_SAU_POTS := [Vector3(-21.05, 0, 22.9), Vector3(-21.05, 0, 23.7)]
+## Giàn bông giấy trùm lên cổng: 2,6 × 1,2 m, mặt trên 2,3 m, thang hai bên bậc 30 cm, ván đi ở x -17,9
+const GIAN_POS := Vector3(-18.5, 0, 22.0)
+const GIAN_SIZE := Vector3(2.6, 2.3, 1.2)
+const GIAN_PLANK_X := -17.9
+const GIO := "res://assets/models/gio/%s.glb"
+const PINK := Color("#E2A7B4")
 ## Chỗ hẻm giữa khối 5 đâm ra hẻm 42 (tường khối 5 hở một đoạn)
 const HEM42_GAP_Z := Vector2(14.3, 16.7)
 
@@ -193,17 +206,15 @@ static func hem_42(parent: Node3D) -> void:
 		Blocks.solid_box(parent, Vector3(0.24, 3.6, 0.24), Vector3(gx, 1.8, z0), Color("#CFC3A8"), Blocks.LAYER_PROP)
 	Blocks.box(parent, Vector3(x1 - x0 + 0.6, 0.6, 0.2), Vector3((x0 + x1) / 2.0, 3.6, z0), Color("#2E7C80"))
 	Blocks.label(parent, "HẺM 42", Vector3((x0 + x1) / 2.0, 3.6, z0 - 0.15), 48, Color("#FFF8EA"))
-	# Nhà Bà Sáu (42/7) chặn cuối hẻm, quay mặt về phía bắc: cổng xếp giữa lòng hẻm ở z = 24,4, sân trước 2,2 m
+	# Nhà Bà Sáu (42/7) chặn cuối hẻm, quay mặt về phía bắc. G7: nhà giữ mặt tiền z 26,6, cổng dời ra z 22,0
 	var gate_z := z1 + 0.4
-	var house_x1 := (x0 + x1) / 2.0 + 3.0       # cổng xếp ở giữa mặt nhà rộng 6 m
-	PhoModels.put(parent, "nha_ba_sau", Vector3(house_x1, 0, gate_z + 2.2), PI)
-	Blocks.collider(parent, Vector3(6.0, 6.5, 3.6), Vector3(house_x1 - 3.0, 3.25, gate_z + 2.2 + 1.8))
-	Blocks.collider(parent, Vector3(x1 - x0, 2.2, 0.1), Vector3((x0 + x1) / 2.0, 1.1, gate_z))  # cổng sắt (đóng)
-	Blocks.collider(parent, Vector3(6.0, 2.0, 2.2), Vector3(house_x1 - 3.0, 1.0, gate_z + 1.1)).collision_layer = Blocks.LAYER_PROP  # sân trước
+	var house_x1 := (x0 + x1) / 2.0 + 3.0       # cổng ở giữa mặt nhà rộng 6 m
+	var house := PhoModels.put(parent, "nha_ba_sau", Vector3(house_x1, 0, BA_SAU_FRONT), PI)
+	house.mesh = PhoModels.mesh_cut_front("nha_ba_sau", 1.9)  # hàng rào cũ đúc liền model (cách mặt tiền 2 m) nay nằm giữa sân
+	Blocks.collider(parent, Vector3(6.0, 6.5, 3.6), Vector3(house_x1 - 3.0, 3.25, 28.4))
 	Blocks.solid_box(parent, Vector3(-14.0 - house_x1, 4.0, 30.0 - z1), Vector3((house_x1 - 14.0) / 2.0, 2.0, (z1 + 30.0) / 2.0), WALL)  # tường giữa nhà Bà Sáu và khối 5
-	_bougainvillea(parent, Vector3((x0 + x1) / 2.0, 0, z1 - 0.4), x1 - x0)
-	Blocks.solid_box(parent, Vector3(0.6, 0.5, 0.6), Vector3(-19.5, 0.25, 22.7), Color("#C9A06A"), Blocks.LAYER_PROP)  # ghế mây Bà Sáu
-	Blocks.box(parent, Vector3(0.6, 0.6, 0.1), Vector3(-19.5, 0.8, 22.98), Color("#C9A06A"))  # lưng ghế
+	_ba_sau_yard(parent, gate_z)
+	gian_bong_giay(parent)
 	# Xe ba gác sát tường khối 5, đầu xe quay ra đầu hẻm: gầm thùng 0,32 m, Bơ chui được, Chó Mực thì không (cách A)
 	_ba_gac(parent, Vector3(-17.72, 0, 12.5), PI / 2.0)
 	# Ổ chó bằng thùng gỗ sát bờ rào, cửa ổ quay ra lòng hẻm, chừa chỗ nằm (-18, 15) trước cửa ổ
@@ -215,22 +226,78 @@ static func hem_42(parent: Node3D) -> void:
 	for k in 2:
 		var foam := Blocks.collider(parent, Vector3(0.6, 0.5, 0.45), Vector3(-19.4, 0.25 + k * 0.5, 18.6), Blocks.LAYER_PROP)
 		PhoModels.put(foam, "thung_xop", Vector3(0, -0.25, 0), 0.0, Vector3(0.6 / 0.72, 0.5 / 0.42, 0.45 / 0.48))
-	_pot(parent, Vector3(-17.35, 0, 20.5))
-	_pot(parent, Vector3(-17.35, 0, 21.3))
+	_pot(parent, Vector3(-17.35, 0, 19.3))
+	_pot(parent, Vector3(-17.35, 0, 19.9))
 
 
-static func _bougainvillea(parent: Node3D, base: Vector3, width: float) -> void:
-	# Hai cột, một thanh ngang cao 2,4 m có va chạm (sau này leo được), chùm bông phủ trên
-	for side in [-1.0, 1.0]:
-		Blocks.solid_box(parent, Vector3(0.1, 2.4, 0.1), base + Vector3(side * (width / 2.0 - 0.1), 1.2, 0), WOOD, Blocks.LAYER_PROP)
-	Blocks.solid_box(parent, Vector3(width, 0.1, 0.6), base + Vector3(0, 2.45, 0.1), WOOD, Blocks.LAYER_PROP)
-	for i in 6:
-		var s := SphereMesh.new()
-		s.radius = 0.35
-		s.height = 0.5
-		s.radial_segments = 8
-		s.rings = 4
-		Blocks.mesh(parent, s, base + Vector3(-width / 2.0 + 0.3 + i * (width - 0.6) / 5.0, 2.6 + 0.1 * (i % 2), 0.1), BOUGAIN)
+## Sân gạch nhà Bà Sáu (G7): rào gạch hồng 0,8 m + lan can sắt, cổng 2,5 m mở (cổng xếp gập bên phải),
+## bậc thềm, lu nước, chậu kiểng dọc tường trái, ghế mây. Bàn cỗ, bàn thờ của ngày giỗ do ThuSau đặt thêm.
+static func _ba_sau_yard(parent: Node3D, gate_z: float) -> void:
+	var y := BA_SAU_YARD
+	for ix in 3:
+		for iz in 2:
+			PhoModels.put(parent, GIO % "san_gach", Vector3(y.position.x + 1.0 + ix * 2.0, 0.03, y.position.y + 1.15 + iz * 2.3), 0.0, Vector3(2.0 / 2.1, 1, 2.3 / 2.1))
+	var gx0 := GIAN_POS.x - BA_SAU_GATE_W / 2.0
+	var gx1 := GIAN_POS.x + BA_SAU_GATE_W / 2.0
+	_yard_fence(parent, Vector3(y.position.x, 0, gate_z), Vector3(gx0, 0, gate_z))
+	_yard_fence(parent, Vector3(gx1, 0, gate_z), Vector3(y.end.x, 0, gate_z))
+	_yard_fence(parent, Vector3(y.position.x + 0.1, 0, gate_z), Vector3(y.position.x + 0.1, 0, BA_SAU_FRONT))
+	for gx in [gx0 - 0.05, gx1 + 0.05]:
+		Blocks.solid_box(parent, Vector3(0.3, 2.0, 0.3), Vector3(gx, 1.0, gate_z), PINK, Blocks.LAYER_PROP)
+	# Cổng xếp sắt gập sát trụ phải
+	Blocks.solid_box(parent, Vector3(0.22, 1.9, 0.12), Vector3(gx1 - 0.2, 0.95, gate_z + 0.12), IRON, Blocks.LAYER_PROP)
+	Blocks.label(parent, "42/7", Vector3(gx0 - 0.8, 1.2, gate_z - 0.13), 40, Color("#2E4A8A"))
+	# Bậc thềm trước cửa nhà
+	PhoModels.put(parent, GIO % "bac_them", Vector3(GIAN_POS.x, 0, BA_SAU_FRONT - 0.17), PI)
+	Blocks.collider(parent, Vector3(2.1, 0.165, 0.345), Vector3(GIAN_POS.x, 0.0825, BA_SAU_FRONT - 0.17), Blocks.LAYER_PROP)
+	# Lu nước, nắp gỗ, gáo dừa; chậu kiểng dọc tường trái
+	var lu := Blocks.collider(parent, Vector3(0.62, 0.85, 0.62), BA_SAU_LU + Vector3(0, 0.425, 0), Blocks.LAYER_PROP)
+	PhoModels.put(lu, GIO % "lu_nuoc", Vector3(0, -0.425, 0))
+	PhoModels.put(lu, GIO % "nap_lu", Vector3(0, 0.425, 0))
+	PhoModels.put(lu, GIO % "gao_dua", Vector3(0.05, 0.495, 0.02), 0.6)
+	for pos in BA_SAU_POTS:
+		_pot(parent, pos)
+	# Ghế mây Bà Sáu
+	Blocks.solid_box(parent, Vector3(0.6, 0.5, 0.6), BA_SAU_CHAIR + Vector3(0, 0.25, 0), Color("#C9A06A"), Blocks.LAYER_PROP)
+	Blocks.box(parent, Vector3(0.6, 0.6, 0.1), BA_SAU_CHAIR + Vector3(0, 0.8, 0.28), Color("#C9A06A"))  # lưng ghế
+
+
+## Một đoạn rào sân: tường gạch hồng 0,8 m, gờ trắng, lan can sắt 0,8 m (va chạm cao 1,7 m).
+static func _yard_fence(parent: Node3D, a: Vector3, b: Vector3) -> void:
+	var mid := (a + b) / 2.0
+	var along_x := absf(b.x - a.x) > absf(b.z - a.z)
+	var length := absf(b.x - a.x) if along_x else absf(b.z - a.z)
+	var size := func(l: float, h: float, t: float) -> Vector3: return Vector3(l, h, t) if along_x else Vector3(t, h, l)
+	Blocks.solid_box(parent, size.call(length, 0.8, 0.2), mid + Vector3(0, 0.4, 0), PINK, Blocks.LAYER_PROP)
+	Blocks.box(parent, size.call(length + 0.04, 0.1, 0.24), mid + Vector3(0, 0.85, 0), Color("#F4EFE6"))
+	Blocks.box(parent, size.call(length, 0.04, 0.04), mid + Vector3(0, 1.66, 0), IRON)
+	Blocks.collider(parent, size.call(length, 0.8, 0.2), mid + Vector3(0, 1.3, 0), Blocks.LAYER_PROP)
+	var n := int(length / 0.25)
+	for k in n:
+		var t := (k + 0.5) / n - 0.5
+		var off := Vector3(t * length, 0, 0) if along_x else Vector3(0, 0, t * length)
+		Blocks.box(parent, Vector3(0.02, 0.76, 0.02), mid + off + Vector3(0, 1.28, 0), IRON)
+
+
+## Giàn bông giấy G7 trùm lên cổng nhà Bà Sáu: 4 cột tre, thang bậc 30 cm hai bên, mặt trên đứng được
+## (ván tre ở x -17,9 nhô vào sân 0,43 m, ngay trên mẹt đầu bàn cỗ). Model soi gương để ván nằm phía đông.
+static func gian_bong_giay(parent: Node3D) -> void:
+	var c := GIAN_POS
+	var w := GIAN_SIZE.x
+	var d := GIAN_SIZE.z
+	var top := GIAN_SIZE.y
+	PhoModels.put(parent, GIO % "gian_bong_giay", c, PI, Vector3(-1, 1, 1))
+	PhoModels.put(parent, GIO % "canh_roi", c + Vector3(0, 0.07, -0.25), PI)
+	for sx in [-1.0, 1.0]:
+		for sz in [-1.0, 1.0]:
+			Blocks.collider(parent, Vector3(0.08, top + 0.1, 0.08), c + Vector3(sx * w / 2.0, (top + 0.1) / 2.0, sz * d / 2.0), Blocks.LAYER_PROP)
+		var h := 0.3
+		while h < top - 0.05:
+			Blocks.collider(parent, Vector3(0.1, 0.05, d + 0.06), c + Vector3(sx * w / 2.0, h, 0), Blocks.LAYER_PROP)
+			h += 0.3
+	var deck := Blocks.collider(parent, Vector3(w + 0.1, 0.1, d + 0.1), c + Vector3(0, top + 0.07, 0), Blocks.LAYER_PROP)
+	deck.add_to_group("gian_bong_giay")
+	Blocks.collider(parent, Vector3(0.3, 0.06, 0.45), Vector3(GIAN_PLANK_X, top + 0.09, c.z + d / 2.0 + 0.22), Blocks.LAYER_PROP)
 
 
 # ------------------------------------------------------------------ hẻm giữa khối

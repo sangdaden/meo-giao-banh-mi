@@ -126,6 +126,7 @@ func _ready() -> void:
 	add_child(preload("res://scripts/thu_tu.gd").new())  # mưa, sân thượng, bồ câu Thứ Tư (ngày khác tự gỡ)
 	add_child(preload("res://scripts/thu_bay.gd").new())  # dạo phố, Sổ hàng xóm, chương Mực Thứ Bảy (ngày khác tự gỡ)
 	add_child(preload("res://scripts/thu_nam.gd").new())  # tủ báo, cửa cuốn, gác lửng, đơn chung cư Thứ Năm (ngày khác tự gỡ)
+	add_child(preload("res://scripts/chu_nhat.gd").new())  # Hội mèo Chủ Nhật (ngày khác tự gỡ)
 
 	stamps = StampsScript.new()
 	stamps.name = "TemCoBa"

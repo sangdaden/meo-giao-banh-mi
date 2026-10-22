@@ -93,6 +93,16 @@ const EASY := {
 	"hum_noise_ok": true,        # đi thường gần võng vẫn được (Thử thách: phải đứng yên hoặc rón rén)
 	"muc_chapter_after": 3,      # giúp 3 người thì mở chương Chó Mực (Thử thách cũng 3)
 	# thorn_slow (gai giàn bông giấy) dùng chung với Thứ Sáu ở trên
+	# Chủ Nhật Hội mèo (gói việc thiet-ke-man/goi-viec-chu-nhat.md, scripts/hoi_meo/)
+	"race_rival_mult": 0.85,     # đua mái nhà: Mít, Bột chậm 15% (Thử thách: đúng tốc độ)
+	"race_respawn_flag": true,   # rơi khỏi mái thì về cờ vừa qua (Thử thách: xuống đất leo lại)
+	"crate_tries": 3,            # nhảy chồng thùng: 3 lần thử mỗi tầng (Thử thách: 1)
+	"crate_ring": true,          # vòng xanh chỉ lúc thùng đứng yên (Thử thách: không có)
+	"hide_time": 0.0,            # trốn tìm không giờ (Thử thách: 180 s)
+	"hide_hint_after": 30.0,     # 30 s chưa tìm thấy thì chuông kêu to, mũi tên chỉ tới (Thử thách: tắt)
+	"relay_rival_mult": 0.8,     # tiếp sức: đội bạn chậm 20% (Thử thách: đúng tốc độ)
+	"relay_drop": false,         # nhả túi sớm không rơi (Thử thách: rơi, phải nhặt)
+	"costume_borrow": true,      # thi trang phục được mượn đồ chưa mua (Thử thách: chỉ đồ đã có)
 }
 
 

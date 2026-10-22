@@ -145,7 +145,19 @@ const DATA := {
 			{"id": "chithu", "page": 10, "who": "Chị Thu", "place": "Chung cư tầng 3", "task": "Ru em bé: nằm cạnh võng kêu rừ rừ", "skill": "rón rén", "gift": "chuong", "gift_name": "Vòng chuông", "pose": "chup_nam"},
 		],
 	},
-	"chu_nhat": {"title": "Hội mèo", "blurb": "Năm cuộc thi với mèo cả phố: đua sân thượng, nhảy thùng, trốn tìm, giao tiếp sức, thi trang phục."},
+	# Chủ Nhật Hội mèo (gói việc thiet-ke-man/goi-viec-chu-nhat.md): sáng một đơn khay bánh không tính giờ
+	# ("time": 0), tối Hội mèo do scripts/chu_nhat.gd lo (main.hand_off), 5 trò ở scripts/hoi_meo/.
+	"chu_nhat": {
+		"title": "Hội mèo",
+		"mode": "festival",
+		"blurb": "Sáng mang khay bánh mì mini tới công viên. Tối Hội mèo: đua mái nhà, nhảy thùng, trốn tìm, giao tiếp sức, thi trang phục. Không ai thua!",
+		"intro": "Cô Ba: \"Tối nay hội mèo đó Bơ! Mình làm khay bánh mì mini mang tới góp vui nha.\"",
+		"time_mult": 1.0,
+		"extras": {"festival": true},
+		"orders": [
+			{"who": "Bà Mướp", "place": "Công viên khối 4", "item": "1 khay bánh mì mini", "pos": Vector3(-34.0, 0, 22.4), "time": 0.0, "color": Color("#8E8A80"), "delivery": "tray"},
+		],
+	},
 }
 
 

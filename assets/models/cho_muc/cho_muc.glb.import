@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://clk1gdga0mcbo"
-path="res://.godot/imported/cho_muc_nghi_ngo.glb-da9855da5f2e9f3f0d8b04b53a4ca831.scn"
+uid="uid://b72vik70l07jo"
+path="res://.godot/imported/cho_muc.glb-bc2219ba87b6186a329152d52f08952e.scn"
 
 [deps]
 
-source_file="res://assets/models/cho_muc/cho_muc_nghi_ngo.glb"
-dest_files=["res://.godot/imported/cho_muc_nghi_ngo.glb-da9855da5f2e9f3f0d8b04b53a4ca831.scn"]
+source_file="res://assets/models/cho_muc/cho_muc.glb"
+dest_files=["res://.godot/imported/cho_muc.glb-bc2219ba87b6186a329152d52f08952e.scn"]
 
 [params]
 

@@ -1,0 +1,355 @@
+<title>Bơ: động tác cả tuần</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Be+Vietnam+Pro:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Bố cục: tờ dáng hoạt hình (model sheet) — khung xem 3D ghim trên, rồi từng ngày một dải khung hình khoá như bảng phân cảnh */
+:root {
+  --bg: #EEF4F2; --paper: #FFFFFF; --ink: #1F2B29; --muted: #5C6E6A; --line: #CBDCD7;
+  --fur: #D9782A; --scarf: #B83A2B; --teal: #2E7C80; --tealsoft: #DCEDEA; --gold: #B98B1E;
+  --stage: #9CCBC1;
+  --f-display: "Baloo 2", "Trebuchet MS", system-ui, sans-serif;
+  --f-body: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121A19; --paper: #1A2523; --ink: #E4EEEB; --muted: #95AAA5; --line: #2E3F3C;
+  --fur: #F0A05A; --scarf: #E46A57; --teal: #6FC0C3; --tealsoft: #1F3533; --gold: #E2B94A; --stage: #26403C; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #121A19; --paper: #1A2523; --ink: #E4EEEB; --muted: #95AAA5; --line: #2E3F3C;
+  --fur: #F0A05A; --scarf: #E46A57; --teal: #6FC0C3; --tealsoft: #1F3533; --gold: #E2B94A; --stage: #26403C; color-scheme: dark }
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.6; margin: 0 }
+.wrap { max-width: 1180px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 64px; display: grid; gap: 36px }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; line-height: 1.15 }
+h1 { font-size: clamp(30px, 5vw, 46px); font-weight: 800 }
+h2 { font-size: 30px; font-weight: 800; color: var(--fur) }
+h3 { font-size: 22px; font-weight: 700 }
+p { margin: 0; max-width: 68ch }
+code, .mono { font-family: var(--f-mono); font-size: 12.5px }
+a { color: var(--teal) }
+.eyebrow { font-family: var(--f-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted) }
+.status { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: 13px; color: var(--scarf); border: 1.5px solid var(--scarf); border-radius: 999px; padding: 2px 12px }
+.status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--scarf) }
+header.top { display: grid; gap: 14px }
+.lede { font-size: 17px; max-width: 70ch }
+.facts { display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: 13.5px; color: var(--muted) }
+.facts b { color: var(--ink); font-variant-numeric: tabular-nums }
+
+/* khung xem 3D */
+.viewer { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 0; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; overflow: hidden }
+.stage { position: relative; background: var(--stage); aspect-ratio: 4 / 3; max-width: 100%; min-height: 0 }
+.stage canvas { display: block; width: 100%; height: 100% }
+.stage .hint { position: absolute; left: 12px; bottom: 10px; font-size: 12px; color: #1F2B29; background: rgba(255,255,255,.7); padding: 2px 8px; border-radius: 6px }
+.stage .load { position: absolute; inset: 0; display: grid; place-items: center; color: #1F2B29; font-weight: 600 }
+.panel { padding: 16px; display: grid; gap: 14px; align-content: start; border-left: 1px solid var(--line); min-width: 0 }
+.panel h3 { font-size: 19px }
+.now { display: grid; gap: 2px }
+.now .nt { font-family: var(--f-display); font-size: 20px; font-weight: 700 }
+.now .nd { font-family: var(--f-mono); font-size: 12px; color: var(--muted) }
+.ctl { display: flex; gap: 8px; align-items: center; flex-wrap: wrap }
+.ctl button, .dbtn, .play, .ab { font: inherit; font-size: 13px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); border-radius: 8px; padding: 5px 10px; cursor: pointer }
+.ctl button:hover, .dbtn:hover, .ab:hover, .play:hover { border-color: var(--teal) }
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px }
+.ctl button[aria-pressed="true"] { background: var(--teal); color: var(--paper); border-color: var(--teal) }
+input[type=range] { width: 100%; accent-color: var(--fur) }
+.tl { display: grid; gap: 4px; font-family: var(--f-mono); font-size: 12px; color: var(--muted) }
+.tl .row { display: flex; justify-content: space-between }
+.alist { display: grid; gap: 10px; max-height: 330px; overflow: auto; padding-right: 4px }
+.alist .g { display: grid; gap: 4px }
+.alist .gl { font-family: var(--f-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted) }
+.alist .gb { display: flex; flex-wrap: wrap; gap: 4px }
+.ab { padding: 3px 8px; font-size: 12.5px }
+.ab[aria-current="true"] { background: var(--fur); border-color: var(--fur); color: #fff }
+
+/* mục lục */
+.toc { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 2px 24px; list-style: none; margin: 0; padding: 0; font-size: 14px }
+.toc li { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px dotted var(--line); padding: 3px 0 }
+.toc li span { font-family: var(--f-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums }
+.toc a { text-decoration: none; color: var(--ink) }
+.toc a:hover { color: var(--teal) }
+
+/* từng ngày */
+.day { display: grid; gap: 22px }
+.dh { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; border-bottom: 3px solid var(--fur); padding-bottom: 6px }
+.dh p { color: var(--muted); font-size: 14px }
+.anim { display: grid; gap: 12px; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 18px; scroll-margin-top: 16px }
+.ah { display: flex; justify-content: space-between; align-items: baseline; gap: 10px 20px; flex-wrap: wrap }
+.ah-t { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap }
+.id { color: var(--muted) }
+.timing { display: flex; gap: 6px 14px; font-family: var(--f-mono); font-size: 12.5px; color: var(--muted); flex-wrap: wrap; font-variant-numeric: tabular-nums }
+.timing .dur { color: var(--scarf); font-weight: 600 }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center }
+.chip { font-size: 12px; background: var(--tealsoft); color: var(--ink); border-radius: 999px; padding: 1px 10px }
+.play { margin-left: auto; font-weight: 600; color: var(--teal); border-color: var(--teal) }
+.strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--stage) }
+.key { margin: 0; position: relative; border-right: 1px solid var(--line) }
+.key:last-child { border-right: 0 }
+.key img { display: block; width: 100%; height: auto }
+.key figcaption { position: absolute; left: 6px; top: 6px; display: flex; gap: 6px; font-family: var(--f-mono); font-size: 11.5px }
+.key .t { background: var(--scarf); color: #fff; border-radius: 4px; padding: 0 6px }
+.key .f { background: rgba(255,255,255,.8); color: #1F2B29; border-radius: 4px; padding: 0 6px }
+.cols { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 18px; align-items: start }
+.txt { display: grid; gap: 10px; font-size: 14.5px; min-width: 0 }
+.views { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px }
+.view { margin: 0; display: grid; gap: 2px }
+.view img { display: block; width: 100%; height: auto; border-radius: 6px; background: var(--stage); cursor: zoom-in }
+.view figcaption { font-size: 11.5px; color: var(--muted) }
+
+/* túi, rig */
+.block { display: grid; gap: 16px; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 20px }
+.gal { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px }
+.gal figure { margin: 0; display: grid; gap: 2px }
+.gal img { width: 100%; border-radius: 8px; background: var(--stage); display: block; cursor: zoom-in }
+.gal figcaption { font-size: 12px; color: var(--muted) }
+.tw { overflow-x: auto }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px }
+th, td { text-align: left; padding: 6px 10px 6px 0; border-bottom: 1px solid var(--line); vertical-align: top }
+th { font-family: var(--f-mono); font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted) }
+td.n { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--f-mono); font-size: 12.5px }
+.sw { display: inline-block; width: 14px; height: 14px; border-radius: 4px; background: var(--c); border: 1px solid var(--line); vertical-align: -2px; margin-right: 6px }
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px }
+.q { display: grid; gap: 10px }
+.q li { margin-bottom: 8px }
+.bones { display: flex; flex-wrap: wrap; gap: 4px }
+.bones code { background: var(--tealsoft); border-radius: 4px; padding: 0 6px }
+dialog { border: 0; padding: 0; background: transparent; max-width: 96vw }
+dialog img { max-width: 96vw; max-height: 90vh; border-radius: 10px; display: block }
+dialog::backdrop { background: rgba(0,0,0,.7) }
+@media (max-width: 900px) {
+  .viewer { grid-template-columns: 1fr }
+  .panel { border-left: 0; border-top: 1px solid var(--line) }
+  .cols, .two { grid-template-columns: 1fr }
+}
+@media (max-width: 560px) {
+  .strip { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  .views, .gal { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  .play { margin-left: 0 }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <span class="eyebrow">Mèo Giao Bánh Mì · Gói phác thảo G2 · đợt 1</span>
+    <h1>Bơ: động tác cả tuần</h1>
+    <div><span class="status">Chờ Sang duyệt</span></div>
+    <p class="lede">18 động tác mới của Bơ cho Thứ Tư đến Chủ Nhật, dựng trên bộ xương chính thức 22 xương (bản đã vào game). Mỗi động tác có dải khung hình khoá, 4 góc nhìn của khung chính trên lưới mét, ghi chú nhịp, và chạy thật trong khung xem 3D bên dưới. Kèm model mới: túi vải 3 ổ cho Thứ Sáu và Chủ Nhật.</p>
+    <div class="facts">
+      <span>Ảnh: Bơ chuẩn phong cách D, <b>111.602</b> tam giác, Blender Eevee</span>
+      <span>Khung xem 3D: Bơ bản game <b>15.156</b> tam giác</span>
+      <span>Lưới: ô <b>10 cm</b>, vạch đậm <b>50 cm</b></span>
+      <span>Bơ đứng cao <b>0,60 m</b> tới chóp tai</span>
+    </div>
+  </header>
+
+  <section class="viewer" aria-label="Khung xem 3D">
+    <div class="stage" id="stage"><div class="load" id="load">Đang tải Bơ 3D…</div><span class="hint">Kéo để xoay · cuộn để phóng</span></div>
+    <div class="panel">
+      <div class="now"><span class="nt" id="nt">…</span><span class="nd" id="nd"></span></div>
+      <div class="ctl">
+        <button type="button" id="bplay" aria-pressed="true">Dừng</button>
+        <button type="button" data-speed="0.25">0,25×</button>
+        <button type="button" data-speed="0.5">0,5×</button>
+        <button type="button" data-speed="1" aria-pressed="true">1×</button>
+        <button type="button" id="bctx" aria-pressed="true">Cảnh</button>
+      </div>
+      <div class="tl"><input type="range" id="scrub" min="0" max="1000" value="0" aria-label="Thời điểm"><div class="row"><span id="tnow">0,00 s</span><span id="fnow">khung 0</span></div></div>
+      <div class="alist" id="alist"></div>
+    </div>
+  </section>
+
+  <section class="block" aria-label="Mục lục">
+    <h2>Mục lục</h2>
+    <ul class="toc">%%INDEX%%<li><a href="#tui3">Túi vải 3 ổ (model mới)</a><span>%%TOTAL%% tam giác</span></li><li><a href="#rig">Bộ xương và cách ráp</a><span></span></li></ul>
+  </section>
+
+  %%SECTIONS%%
+
+  <section class="block" id="tui3">
+    <div class="dh"><h2>Túi vải 3 ổ</h2><p>Model mới · Thứ Sáu (đám giỗ) và Chủ Nhật (chuyền túi)</p></div>
+    <p>Thay khay tre theo góp ý của luồng Thiết kế màn chơi: túi vải nhỏ có quai, 3 ổ bánh mì nhỏ thò đầu ra, Bơ ngậm đỉnh quai, túi đung đưa dưới cằm. Kích thước thật đo từ file xuất: <b>%%DIMS%%</b> (rộng × dày × cao, tính cả quai và bánh). Thân túi 20 × 10 × 12 cm, nhỏ hơn đề xuất 24 × 12 × 14 cm một chút để túi treo trước ngực mà không che hai chân trước khi đi.</p>
+    <div class="gal">
+      <figure><img src="%%T3_q34%%" alt="Túi 3 ổ góc 3/4" loading="lazy"><figcaption>Góc 3/4</figcaption></figure>
+      <figure><img src="%%T3_front%%" alt="Túi 3 ổ mặt trước" loading="lazy"><figcaption>Trước (chiếu thẳng, lưới 10 cm)</figcaption></figure>
+      <figure><img src="%%T3_side%%" alt="Túi 3 ổ mặt bên" loading="lazy"><figcaption>Ngang</figcaption></figure>
+      <figure><img src="%%T3_back%%" alt="Túi 3 ổ mặt sau" loading="lazy"><figcaption>Sau</figcaption></figure>
+      <figure><img src="%%T3_top%%" alt="Túi 3 ổ nhìn từ trên" loading="lazy"><figcaption>Trên xuống</figcaption></figure>
+      <figure><img src="r/ngam_tui_side.webp" alt="Bơ ngậm túi 3 ổ, so cỡ" loading="lazy"><figcaption>So cỡ: Bơ ngậm túi khi đi</figcaption></figure>
+    </div>
+    <div class="two">
+      <div class="tw"><table><thead><tr><th>Bộ phận</th><th>Hình khối, cỡ</th><th>Màu</th><th>Chất liệu</th></tr></thead><tbody>%%PARTS%%</tbody></table></div>
+      <div class="tw"><table><thead><tr><th>Phần</th><th class="n">Số khối</th><th class="n">Tam giác phác thảo</th><th class="n">Bản game</th></tr></thead><tbody>%%TRIS%%
+        <tr><td><b>Tổng</b></td><td></td><td></td><td class="n"><b>%%TOTAL%%</b></td></tr></tbody></table>
+        <p style="margin-top:10px;font-size:13.5px">Ngân sách đồ nhỏ bản web khoảng 600 tam giác. Bản game là một mesh, một lớp màu đỉnh, không texture. Gốc toạ độ ở đỉnh quai (điểm ngậm), gắn vào xương <code>head</code> tại điểm miệng của Bơ <code>(0; 0,368; 0,30)</code> như ổ bánh giao Thứ Hai. Trạng thái: đầy 3 ổ; khi giao xong ẩn cả túi. Không có xương riêng: đung đưa bằng code (con lắc ±9°) như túi trứng Thứ Ba.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="rig">
+    <div class="dh"><h2>Bộ xương và cách ráp</h2><p>Dùng chung cho Bơ và 18 giống mèo</p></div>
+    <div class="two">
+      <div class="q">
+        <p>Mọi động tác chỉ xoay 22 xương chính đã duyệt, cộng 3 xương phụ đã có (mắt trái, mắt phải, khăn). Không thêm xương nào, nên mèo trong Hội mèo và tủ đồ dùng lại được ngay.</p>
+        <div class="bones"><code>root</code><code>hips</code><code>chest</code><code>head</code><code>ear_L/R</code><code>tail_1…4</code><code>upperarm/forearm/paw_FL/FR</code><code>thigh/shin/paw_BL/BR</code><code>eye_L/R</code><code>scarf</code></div>
+        <p>Chân dùng IK 2 đoạn: mỗi khoá đặt điểm cổ chân và độ nghiêng bàn chân, khuỷu và gối tự gập. Chân bám đất hoặc bám tường thì đứng yên theo thế giới; chân co, đung đưa thì đi theo thân. Cách này khớp với <code>_leg_ik</code> đang chạy trong <code>player.gd</code>.</p>
+      </div>
+      <div class="q">
+        <p><b>Sau khi Sang duyệt:</b> chép số liệu khoá của 18 động tác vào <code>player.gd</code> (cùng hệ toạ độ, cùng tên xương), thêm phép thử cho từng động tác như <code>tests/test_bo_rig.gd</code>, và xuất <code>tui_3o.glb</code> vào <code>assets/models/giao/</code>. Khung xem 3D trên trang này đọc đúng file <code>.glb</code> đó: Bơ bản game, 18 animation lấy mẫu 30 khung/giây.</p>
+        <p><b>Mấy chỗ có giới hạn:</b></p>
+        <ul style="margin:0;padding-left:20px">
+          <li>Bơ chưa có xương hàm, nên khi “meo” miệng không mở; mình thay bằng ngẩng cổ, mắt híp, tai hướng tới trước và bong bóng “meo”.</li>
+          <li>Huy chương ở dáng nhận giải là bản tạm để dựng dáng; mẫu 3 hạng chính thức thuộc gói G11.</li>
+          <li>Mép tường, ống nước, khe tường, ván gỗ là khối tham chiếu để đo, model thật thuộc gói G1 và G5.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</div>
+<dialog id="zoom" aria-label="Ảnh phóng to"><img id="zimg" alt=""></dialog>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+const META = %%META%%;
+const DAYN = {T4: 'Thứ Tư', T5: 'Thứ Năm', T6: 'Thứ Sáu', T7: 'Thứ Bảy', CN: 'Chủ Nhật'};
+const CTX = {ledge: ['Mep'], pipe: ['OngNuoc', 'TuongOng', 'Dai0.45', 'Dai1.05'], walls: ['TuongKhe'], plank: ['Van', 'Mai1', 'Mai2']};
+const FLOOR = {ledge: -0.8, pipe: -0.8, plank: -0.6};
+const BAG = ['TuiThan', 'TuiNap', 'TuiKhoa', 'TuiQuai'];
+const fmt = (x, d = 2) => x.toFixed(d).replace('.', ',');
+
+// danh sách động tác theo ngày
+const alist = document.getElementById('alist');
+for (const d of ['T4', 'T5', 'T6', 'T7', 'CN']) {
+  const g = document.createElement('div'); g.className = 'g';
+  g.innerHTML = `<span class="gl">${DAYN[d]}</span><div class="gb"></div>`;
+  for (const m of META.filter(x => x.day === d)) {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'ab'; b.dataset.anim = m.name; b.textContent = m.title;
+    g.querySelector('.gb').appendChild(b);
+  }
+  alist.appendChild(g);
+}
+
+// phóng to ảnh
+const dlg = document.getElementById('zoom'), zimg = document.getElementById('zimg');
+document.addEventListener('click', e => {
+  const im = e.target.closest('.view img, .gal img');
+  if (im && dlg.showModal) { zimg.src = im.src; zimg.alt = im.alt; dlg.showModal(); }
+  else if (e.target === dlg || e.target === zimg) dlg.close();
+});
+
+const stage = document.getElementById('stage');
+let renderer, scene, camera, controls, mixer, clips = {}, nodes = {}, action = null, cur = null, playing = true, speed = 1, showCtx = true, floorGrid;
+try {
+  renderer = new THREE.WebGLRenderer({antialias: true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  stage.prepend(renderer.domElement);
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x9CCBC1);
+  camera = new THREE.PerspectiveCamera(35, 4 / 3, 0.02, 40);
+  camera.position.set(1.4, 0.75, 1.5);
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.target.set(0, 0.3, 0); controls.enableDamping = true; controls.update();
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x6f8f88, 0.75));
+  const sun = new THREE.DirectionalLight(0xfff4e6, 0.9);
+  sun.position.set(1.2, 2.2, 1.2); sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02;
+  Object.assign(sun.shadow.camera, {left: -1.5, right: 1.5, top: 1.5, bottom: -1.5, near: 0.1, far: 6});
+  scene.add(sun);
+  const fill = new THREE.DirectionalLight(0xe6f0ff, 0.35); fill.position.set(-1.5, 1, -1); scene.add(fill);
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), new THREE.ShadowMaterial({opacity: 0.18}));
+  ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+  floorGrid = new THREE.Group();
+  const g1 = new THREE.GridHelper(4, 40, 0x5E9187, 0x7FB0A6); g1.material.transparent = true; g1.material.opacity = 0.55;
+  const g2 = new THREE.GridHelper(4, 8, 0x3F7268, 0x3F7268);
+  floorGrid.add(g1, g2, ground); scene.add(floorGrid);
+
+  new THREE.GLTFLoader().load('bo_g2.json', gltf => {
+    const root = gltf.scene;
+    root.traverse(o => {
+      if (o.name) nodes[o.name] = o;
+      if (o.isMesh) {
+        o.castShadow = true; o.receiveShadow = true;
+        const ms = Array.isArray(o.material) ? o.material : [o.material];
+        ms.forEach(m => { if (o.geometry.attributes.color) m.vertexColors = true; m.side = THREE.FrontSide; });
+      }
+    });
+    scene.add(root);
+    mixer = new THREE.AnimationMixer(root);
+    for (const c of gltf.animations) clips[c.name] = c;
+    document.getElementById('load').remove();
+    const start = (location.hash || '').slice(1);
+    select(META.some(m => m.name === start) ? start : 'thang_bang');
+  }, undefined, () => { document.getElementById('load').textContent = 'Không tải được model 3D. Ảnh bên dưới vẫn đủ để duyệt.'; });
+} catch (e) {
+  document.getElementById('load').textContent = 'Trình duyệt này không mở được WebGL. Ảnh bên dưới vẫn đủ để duyệt.';
+}
+
+function vis(names, on) { for (const n of names) if (nodes[n]) nodes[n].visible = on; }
+function select(name) {
+  const m = META.find(x => x.name === name); if (!m || !mixer) return;
+  cur = m;
+  for (const k in CTX) vis(CTX[k], showCtx && m.ctx === k);
+  floorGrid.position.y = FLOOR[m.ctx] || 0;
+  vis(BAG, m.bag); vis(['Tui3oPivot'], m.bag3); vis(['HCDay', 'HCDia'], m.medal);
+  if (action) action.stop();
+  action = mixer.clipAction(clips[name]);
+  action.setLoop(THREE.LoopRepeat); action.clampWhenFinished = false;
+  action.reset().play(); action.paused = !playing;
+  document.getElementById('nt').textContent = m.title;
+  document.getElementById('nd').textContent = `${DAYN[m.day]} · ${fmt(m.dur)} s · ${m.loop ? 'lặp' : 'một lần (phát lại liên tục)'}`;
+  document.querySelectorAll('.ab').forEach(b => b.setAttribute('aria-current', b.dataset.anim === name));
+  const ty = {ledge: 0.3, pipe: 0.55, walls: 0.45, plank: 0.1}[m.ctx] ?? 0.28;
+  controls.target.set(0, ty, m.ctx === 'ledge' || m.ctx === 'pipe' ? 0.2 : 0.05); controls.update();
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-anim]');
+  if (!b) return;
+  select(b.dataset.anim);
+  if (b.classList.contains('play')) document.querySelector('.viewer').scrollIntoView({behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
+});
+const bplay = document.getElementById('bplay');
+bplay.addEventListener('click', () => {
+  playing = !playing; bplay.textContent = playing ? 'Dừng' : 'Chạy'; bplay.setAttribute('aria-pressed', playing);
+  if (action) action.paused = !playing;
+});
+document.querySelectorAll('[data-speed]').forEach(b => b.addEventListener('click', () => {
+  speed = +b.dataset.speed;
+  document.querySelectorAll('[data-speed]').forEach(x => x.setAttribute('aria-pressed', x === b));
+}));
+const bctx = document.getElementById('bctx');
+bctx.addEventListener('click', () => { showCtx = !showCtx; bctx.setAttribute('aria-pressed', showCtx); if (cur) for (const k in CTX) vis(CTX[k], showCtx && cur.ctx === k); });
+const scrub = document.getElementById('scrub');
+scrub.addEventListener('input', () => {
+  if (!action || !cur) return;
+  playing = false; bplay.textContent = 'Chạy'; bplay.setAttribute('aria-pressed', false); action.paused = true;
+  action.time = scrub.value / 1000 * cur.dur; mixer.update(0);
+});
+
+function resize() {
+  if (!renderer) return;
+  const w = stage.clientWidth, h = stage.clientHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize);
+const clock = new THREE.Clock ? new THREE.Clock() : null;
+function tick() {
+  requestAnimationFrame(tick);
+  if (!renderer) return;
+  const dt = clock.getDelta();
+  if (mixer && playing) mixer.update(dt * speed);
+  if (action && cur) {
+    const t = action.time % cur.dur;
+    if (playing) scrub.value = Math.round(t / cur.dur * 1000);
+    document.getElementById('tnow').textContent = fmt(t) + ' s';
+    document.getElementById('fnow').textContent = 'khung ' + Math.round(t * 30);
+  }
+  controls.update();
+  renderer.render(scene, camera);
+}
+if (renderer) { resize(); tick(); }
+</script>

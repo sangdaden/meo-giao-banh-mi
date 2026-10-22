@@ -17,6 +17,7 @@ signal wall_kicked(count: int)          ## bật tường lần thứ count tron
 signal bumped(kind: String)              ## va "person" | "cart" | "stall" (chợ Thứ Ba); đồ dễ vỡ nghe để vỡ
 ## Đồ dễ vỡ đang ngậm (túi trứng) mất một món; remaining là số còn lại
 signal fragile_damaged(remaining: int)
+signal clip_finished(clip_name: String)    ## động tác Blender chạy một lần (play_clip) đã xong
 
 @export_group("Chạy")
 @export var walk_speed := 5.0
@@ -135,6 +136,34 @@ var _kick_lock := 0.0               ## vừa đạp tường: khóa điều khi�
 var _grab_cooldown := 0.0           ## vừa buông/nhảy khỏi chỗ bám: chưa bám lại ngay
 var _pipes: Array = []              ## ống nước đang chạm (cảnh đặt Area3D gọi enter_pipe/exit_pipe)
 var _pipe: Node3D
+
+## Động tác làm trong Blender (G2, Sang duyệt 21/10): 18 động tác nướng sẵn trên bộ 22 xương, 30 khung/giây.
+## Nguồn: tools/dong_tac_bo/ (anims.py), xuất bằng export_glb.py rồi xuat_json.py.
+## play_clip đè lên dáng tính bằng code: vào 0,12 s, ra 0,15 s, đổi động tác thì hoà hai động tác vào nhau.
+## Giống mèo khác cùng tên xương: lấy phần chênh so với dáng nghỉ của Bơ đặt lên dáng nghỉ của giống đó.
+const DONG_TAC_PATH := "res://assets/models/bo_dong_tac.json"
+const TUI_3O := preload("res://assets/models/giao/tui_3o.glb")
+const CLIP_FADE_IN := 0.12
+const CLIP_FADE_OUT := 0.15
+const CLIMB_CLIPS := ["bam_mep", "keo_len", "leo_ong"]
+## Ôm ống: trong Blender gốc thân cao hơn chân 0,45 m; game giữ thân gần khối va chạm nên hạ bớt
+const CLIP_ROOT_SHIFT := {"leo_ong": Vector3(0, -0.25, 0)}
+## Vật lý đã đẩy Bơ đi (bật tường, rơi khỏi ván): bỏ đường đi thẳng của gốc từ khung đầu tới khung cuối
+const CLIP_STRIP_MOTION := ["dap_tuong", "roi_van"]
+const TUI3_LIFT := 0.31            ## ngậm túi 3 ổ: ngẩng cằm 18° cho túi khỏi chạm ngực
+static var _dong_tac := {}
+## Động tác Blender đang chạy ("" là không có); _clip_w 0..1 là mức đè lên dáng code
+var clip := ""
+var _clip_t := 0.0
+var _clip_speed := 1.0
+var _clip_w := 0.0
+var _clip_on := false              ## false: đang mờ dần ra
+var _clip_driven := false          ## thời gian do code leo đặt (keo_len), không tự chạy
+var _clip_prev := {}               ## động tác vừa bị thay, đang mờ ra: name, t, w
+var _tui3: Node3D                  ## túi 3 ổ ngậm ở miệng (Thứ Sáu, giỗ)
+var _tui3_hang: Node3D
+var _tui3_on := false
+var _tui3_swing := Spring.new()
 
 var _coyote := 0.0
 var _buffer := 0.0
@@ -727,6 +756,7 @@ func _try_wall_kick() -> void:
 	velocity = n * wall_kick_out + Vector3.UP * wall_kick_up
 	visual.rotation.y = atan2(-n.x, -n.z)
 	visual.scale = Vector3(0.8, 1.25, 0.8)
+	play_clip("dap_tuong")
 	noise_made.emit(global_position, noise_walk)
 	wall_kicked.emit(_kicks)
 
@@ -933,6 +963,183 @@ func play_startle() -> void:
 	startled.emit()
 
 
+## Số liệu 18 động tác Blender (nạp một lần cho mọi con mèo).
+static func dong_tac() -> Dictionary:
+	if _dong_tac.is_empty() and FileAccess.file_exists(DONG_TAC_PATH):
+		_dong_tac = JSON.parse_string(FileAccess.get_file_as_string(DONG_TAC_PATH))
+	return _dong_tac
+
+
+func has_clip(clip_name: String) -> bool:
+	return dong_tac().get("clips", {}).has(clip_name)
+
+
+## Chạy động tác Blender (tên trong tools/dong_tac_bo/anims.py, vd "ngoi_goi", "chup_vay", "nhan_huy_chuong").
+## Động tác lặp chạy tới khi stop_clip(); động tác một lần xong thì phát clip_finished rồi mờ về dáng code.
+## speed âm là chạy ngược (động tác lặp).
+func play_clip(clip_name: String, speed := 1.0) -> void:
+	if not has_clip(clip_name):
+		push_warning("Không có động tác " + clip_name)
+		return
+	if clip != "" and clip != clip_name and _clip_w > 0.0:
+		_clip_prev = {"name": clip, "t": _clip_t, "w": _clip_w}
+		_clip_w = 0.0
+	clip = clip_name
+	_clip_t = 0.0
+	_clip_speed = speed
+	_clip_on = true
+	_clip_driven = false
+
+
+## Mờ dần về dáng code trong 0,15 s, giữ khung đang dừng.
+func stop_clip() -> void:
+	_clip_on = false
+
+
+## Ngậm túi 3 ổ (Thứ Sáu: giỗ 6 ổ, hai chuyến). dua_tui/nhan_tui tự đổi theo lúc nhả/ngậm.
+func carry_tui3(on: bool) -> void:
+	_tui3_on = on
+
+
+func _clip_step(delta: float) -> void:
+	# Động tác cũ giữ nguyên mức dưới động tác mới đang vào (không lộ dáng code ở giữa), vào hẳn thì bỏ
+	if not _clip_prev.is_empty():
+		if _clip_w >= 1.0 or clip == "":
+			_clip_prev = {}
+		elif not _clip_on:
+			_clip_prev.w = move_toward(_clip_prev.w, 0.0, delta / CLIP_FADE_OUT)
+	if clip == "":
+		return
+	var c: Dictionary = dong_tac().clips[clip]
+	if not _clip_on:
+		_clip_w = move_toward(_clip_w, 0.0, delta / CLIP_FADE_OUT)
+		if _clip_w <= 0.0:
+			clip = ""
+		return
+	_clip_w = move_toward(_clip_w, 1.0, delta / CLIP_FADE_IN)
+	if _clip_driven:
+		return
+	_clip_t += delta * _clip_speed
+	var dur := float(c.dur)
+	if c.loop:
+		_clip_t = fposmod(_clip_t, dur)
+	elif _clip_t >= dur:
+		_clip_t = dur
+		_clip_on = false
+		if c.has("tui3"):
+			_tui3_on = c.tui3[-1] == 1
+		clip_finished.emit(clip)
+
+
+## Đè động tác Blender lên dáng code vừa đặt trong _apply_bones (động tác cũ đang mờ ra trước, động tác mới sau).
+func _apply_clip() -> void:
+	var w_body := 0.0
+	if not _clip_prev.is_empty():
+		_apply_clip_layer(_clip_prev.name, _clip_prev.t, _clip_prev.w)
+		w_body = _clip_prev.w
+	if clip != "" and _clip_w > 0.0:
+		_apply_clip_layer(clip, _clip_t, _clip_w)
+		w_body = maxf(w_body, _clip_w)
+	if w_body > 0.0:
+		# Động tác Blender đã có đủ dáng: bớt nghiêng, nhún, thở của _body
+		var k := 1.0 - smoothstep(0.0, 1.0, w_body)
+		_body.rotation *= k
+		_body.scale = Vector3.ONE.lerp(_body.scale, k)
+
+
+func _apply_clip_layer(clip_name: String, t: float, weight: float) -> void:
+	var data := dong_tac()
+	var c: Dictionary = data.clips[clip_name]
+	var rest: Dictionary = data.rest
+	var w := smoothstep(0.0, 1.0, weight)
+	var fr := t * float(data.fps)
+	for bone_name: String in c.bones:
+		var idx: int = _bone_idx.get(bone_name, -1)
+		if idx < 0:
+			continue
+		var ch: Dictionary = c.bones[bone_name]
+		var rb: Dictionary = rest[bone_name]
+		if ch.has("r"):
+			var rq := Quaternion(rb.r[0], rb.r[1], rb.r[2], rb.r[3])
+			var q: Quaternion = _bone_rest[bone_name] * (rq.inverse() * _clip_q(ch.r, fr))
+			_skel.set_bone_pose_rotation(idx, _skel.get_bone_pose_rotation(idx).slerp(q.normalized(), w))
+		if ch.has("p"):
+			var p := _clip_v(ch.p, fr) - Vector3(rb.p[0], rb.p[1], rb.p[2])
+			if bone_name == "root":
+				p += _clip_root_fix(clip_name, ch.p, t, float(c.dur))
+			p += _skel.get_bone_rest(idx).origin
+			_skel.set_bone_pose_position(idx, _skel.get_bone_pose_position(idx).lerp(p, w))
+		if ch.has("s"):
+			_skel.set_bone_pose_scale(idx, _skel.get_bone_pose_scale(idx).lerp(_clip_v(ch.s, fr), w))
+
+
+## Gốc thân trong động tác đã gồm đường đi; phần đó trong game do vật lý/code leo đẩy nên trừ ra.
+func _clip_root_fix(clip_name: String, ch: Array, t: float, dur: float) -> Vector3:
+	var fix: Vector3 = CLIP_ROOT_SHIFT.get(clip_name, Vector3.ZERO)
+	var u := clampf(t / dur, 0.0, 1.0)
+	if clip_name == "keo_len":
+		# đúng đường kéo trong _climb_process: lên 0,52 m rồi tới 0,59 m vào mặt mép
+		fix -= Vector3(0, 0.52 * smoothstep(0.0, 0.7, u), 0.59 * smoothstep(0.45, 1.0, u))
+	elif clip_name in CLIP_STRIP_MOTION:
+		var first := _clip_v(ch, 0.0)
+		fix -= first + (_clip_v(ch, 1e9) - first) * u
+	return fix
+
+
+static func _clip_q(v: Array, fr: float) -> Quaternion:
+	var n := v.size() / 4
+	var i0 := clampi(int(fr), 0, n - 1)
+	var i1 := mini(i0 + 1, n - 1)
+	var a := Quaternion(v[i0 * 4], v[i0 * 4 + 1], v[i0 * 4 + 2], v[i0 * 4 + 3])
+	if i1 == i0:
+		return a.normalized()
+	var b := Quaternion(v[i1 * 4], v[i1 * 4 + 1], v[i1 * 4 + 2], v[i1 * 4 + 3])
+	return a.normalized().slerp(b.normalized(), clampf(fr - i0, 0.0, 1.0))
+
+
+static func _clip_v(v: Array, fr: float) -> Vector3:
+	var n := v.size() / 3
+	var i0 := clampi(int(fr), 0, n - 1)
+	var i1 := mini(i0 + 1, n - 1)
+	var a := Vector3(v[i0 * 3], v[i0 * 3 + 1], v[i0 * 3 + 2])
+	return a.lerp(Vector3(v[i1 * 3], v[i1 * 3 + 1], v[i1 * 3 + 2]), clampf(fr - i0, 0.0, 1.0))
+
+
+## Túi 3 ổ: quai ngậm ở miệng, túi luôn thòng thẳng đứng và đung đưa theo quán tính (không xoay theo đầu).
+func _update_tui3() -> void:
+	var show := _tui3_on
+	for layer in [_clip_prev, {"name": clip, "t": _clip_t, "w": _clip_w}]:
+		if layer.get("name", "") != "" and layer.w > 0.5 and dong_tac().clips[layer.name].has("tui3"):
+			var flags: Array = dong_tac().clips[layer.name].tui3
+			show = flags[clampi(int(layer.t * 30.0 + 0.5), 0, flags.size() - 1)] == 1
+	if show and not is_instance_valid(_tui3):
+		_build_tui3()
+	if not is_instance_valid(_tui3):
+		return
+	_tui3.visible = show
+	if show:
+		var dt := get_process_delta_time()
+		var swing := _tui3_swing.step(clampf(_accel * 0.03, -0.6, 0.6), 60.0, 0.25, dt)
+		_tui3_hang.global_basis = Basis(Vector3.UP, _model.global_rotation.y) * Basis(Vector3.RIGHT, swing)
+
+
+func _build_tui3() -> void:
+	var hi: int = _bone_idx.get("head", -1)
+	if hi < 0:
+		return
+	_tui3 = BoneAttachment3D.new()
+	_tui3.name = "Tui3o"
+	(_tui3 as BoneAttachment3D).bone_name = "head"
+	_skel.add_child(_tui3)
+	_tui3_hang = Node3D.new()
+	_tui3.add_child(_tui3_hang)
+	# Gốc model túi ở đỉnh quai (chỗ ngậm), đặt đúng điểm miệng
+	_tui3_hang.transform = _skel.get_bone_global_rest(hi).affine_inverse() * Transform3D(Basis(), MOUTH)
+	_tui3_hang.add_child(TUI_3O.instantiate())
+	for mi: MeshInstance3D in _tui3.find_children("*", "MeshInstance3D", true, false):
+		mi.layers = LAYER_BO_BODY
+
+
 ## Phát tiếng qua autoload Sound nếu có (chạy test riêng bằng -s thì không có autoload).
 func _sfx(name: String) -> void:
 	var snd := get_node_or_null("/root/Sound")
@@ -1045,6 +1252,26 @@ func _animate(delta: float, hspeed: float, vy: float, on_floor: bool) -> void:
 			_foot = [Vector3(0, 0.07 + 0.04 * c, 0.08), Vector3(0, 0.07 - 0.04 * c, 0.08), Vector3(0, 0.04 - 0.03 * c, 0.02), Vector3(0, 0.04 + 0.03 * c, 0.02)]
 	for i in 4:
 		_legs[i] = -atan2(_foot[i].z, 0.23)  # góc vung tương đương (dương: ra sau), cho chân góc thứ nhất
+	# Leo dùng động tác Blender (G2): bám mép lặp, kéo lên theo đúng nhịp kéo, ôm ống theo tốc độ leo
+	match climb:
+		"hang":
+			if clip != "bam_mep":
+				play_clip("bam_mep")
+		"pull":
+			if clip != "keo_len":
+				play_clip("keo_len")
+			_clip_driven = true
+			_clip_t = climb_u * float(dong_tac().clips.keo_len.dur)
+		"pipe":
+			if clip != "leo_ong":
+				play_clip("leo_ong")
+			_clip_speed = vy / pipe_speed
+		_:
+			if clip in CLIMB_CLIPS and _clip_on:
+				if clip == "keo_len":
+					_clip_t = float(dong_tac().clips.keo_len.dur)  # đã lên hẳn mép: dừng ở khung cuối
+				stop_clip()
+	_clip_step(delta)
 
 	_update_tail(delta, hspeed, vy, on_floor)
 
@@ -1108,6 +1335,8 @@ func _animate(delta: float, hspeed: float, vy: float, on_floor: bool) -> void:
 	head_pitch_target += deg_to_rad(8.0) * sneak_k               # rón rén: cúi 8°
 	# Giao cao: so với thân, đầu cúi 36° (thân ngửa 54° nên mặt vẫn ngước lên)
 	head_pitch_target += (deg_to_rad(36.0) + 0.7 * deg_to_rad(54.0)) * high
+	if _tui3_on:
+		head_pitch_target -= TUI3_LIFT
 	if not on_floor:
 		head_pitch_target += clampf(-vy * 0.03, -0.25, 0.2)  # rơi thì cúi nhìn chỗ đáp
 	_head_yaw.step(yaw_target, 60.0, 0.8, delta)
@@ -1215,6 +1444,8 @@ func _apply_bones() -> void:
 	if ti >= 0:
 		var f := 1.0 + 0.75 * _tail_fluff
 		_skel.set_bone_pose_scale(ti, Vector3(f, 1.0, f))
+	_apply_clip()
+	_update_tui3()
 
 
 ## IK hai đoạn cho một chân trong mặt phẳng dọc thân: cổ chân đặt đúng đích (chỗ đứng nghỉ + _foot),

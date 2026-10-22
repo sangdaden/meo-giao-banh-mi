@@ -2,7 +2,7 @@
 Dựng bằng SDF (smooth union) + marching cubes, rồi Blender gắn mắt, vật liệu, render Eevee.
 Dùng: python3 nguoi.py <id> <outdir> [--glb]
 Toạ độ SDF theo three.js (mét, Y lên, nhìn +Z) giống mature.py của Bơ."""
-import sys, math, json, numpy as np
+import sys, os, math, json, numpy as np
 from skimage import measure
 from sdflib import v, ellipsoid, sphere, roundcone, smin, smax, chain, hexc, sstep, noise
 
@@ -557,6 +557,10 @@ GIAO = {
 }
 
 POSE_ONLY = [False]; SUF = ['']
+def _ren():
+    import bpy
+    if not os.environ.get('NOREN'): bpy.ops.render.render(write_still=True)
+APOSE_FACES = int(os.environ.get('APOSE_FACES', 3500))
 HOOKS = []   # hàm(scn, coll, G, headw, B) gắn thêm vật vào dáng nhân vật
 def run(cid, out, glb=False):
     c = CHARS[cid]; H = .003 * (.8 if c.get('kid') else 1.0)
@@ -719,7 +723,7 @@ def run(cid, out, glb=False):
         cd.ortho_scale = max(W, Hh * 1.9)
         scn.render.resolution_y = int(scn.render.resolution_x * Hh / cd.ortho_scale)
         cam.location = (cx, -6, Hh / 2 - .05); cam.rotation_euler = (math.pi / 2, 0, 0)
-        scn.render.filepath = f'{out}/{cid}_xoay.png'; bpy.ops.render.render(write_still=True)
+        scn.render.filepath = f'{out}/{cid}_xoay.png'; _ren()
         meta['turn'] = dict(ortho=cd.ortho_scale, cx=cx, cy=Hh / 2 - .05, w=scn.render.resolution_x, h=scn.render.resolution_y, xs=[(i - 1) * gap * 1.25 for i in range(3)], bo=1.9 * gap * 1.25)
         # khớp xương (dáng A) để vẽ sơ đồ
         G = Ga; J = {}
@@ -737,14 +741,14 @@ def run(cid, out, glb=False):
     scn.render.resolution_x = 1000; scn.render.resolution_y = 1100
     tgt = Vector((.12, 0, hh * .5)); cam.location = tgt + Vector((.42, -1, .14)).normalized() * 2.4 * max(hh, 1.25)
     cam.rotation_euler = (tgt - cam.location).to_track_quat('-Z', 'Y').to_euler()
-    scn.render.filepath = f'{out}/{cid}{SUF[0]}_dang.png'; bpy.ops.render.render(write_still=True)
+    scn.render.filepath = f'{out}/{cid}{SUF[0]}_dang.png'; _ren()
     # 3) cận mặt
     show(bo_coll, False)
     Gh = Gp; FRp, upw, hw = frames(Gh); hcw = B(hw(Gh['head_c']))
     cam.location = hcw + Vector((.32, -.95, .08)) * Gh['hh'] / .29; cd.lens = 85
     cam.rotation_euler = (hcw + Vector((0, 0, -.01)) - cam.location).to_track_quat('-Z', 'Y').to_euler()
     scn.render.resolution_x = 800; scn.render.resolution_y = 800
-    scn.render.filepath = f'{out}/{cid}{SUF[0]}_mat.png'; bpy.ops.render.render(write_still=True)
+    scn.render.filepath = f'{out}/{cid}{SUF[0]}_mat.png'; _ren()
     with open(f'{out}/{cid}{SUF[0]}.json', 'w') as f: json.dump(meta, f, ensure_ascii=False)
     if glb:
       fl.hide_set(True)
@@ -754,7 +758,7 @@ def run(cid, out, glb=False):
         for o in ca_.objects:
             o.select_set(True)
             if o.type == 'MESH' and o.name.endswith('_than'):
-                md = o.modifiers.new('Dec', 'DECIMATE'); md.ratio = 3500 / max(1, len(o.data.polygons))
+                md = o.modifiers.new('Dec', 'DECIMATE'); md.ratio = min(1, APOSE_FACES / max(1, len(o.data.polygons)))
         bpy.ops.export_scene.gltf(filepath=f'{out}/{cid}.glb', use_selection=True, export_apply=True, export_vertex_color='ACTIVE')
       show(bo_coll, False); show(ca_, False); show(cp_, True)
       if True:

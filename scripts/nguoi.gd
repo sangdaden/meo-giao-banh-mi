@@ -26,16 +26,18 @@ signal finished(anim_name: String)
 
 const IDS := ["coba", "chutu", "bena", "may", "hung", "basau", "ongbay", "ongtam", "cohai", "chunam",
 	"xemco", "bancho", "hangrong", "ganhhang", "dicho1", "dicho2", "dicho3", "khachxeom",
-	"cho4", "cho5", "cho6", "cho7", "cho8"]
+	"cho4", "cho5", "cho6", "cho7", "cho8",
+	"may_mua", "cohai_mua", "bena_mua", "chunam_mua", "chutu_mua"]
 const NAMES := {
 	"coba": "Cô Ba", "chutu": "Chú Tư", "bena": "Bé Na", "may": "Chị Mây", "hung": "Anh Hùng",
 	"basau": "Bà Sáu", "ongbay": "Ông Bảy", "ongtam": "Ông Tám", "cohai": "Cô Hai", "chunam": "Chú Năm",
 	"xemco": "Ông Chín", "bancho": "Cô Tư", "hangrong": "Chú Sáu", "ganhhang": "Cô Bảy",
 	"dicho1": "Bà Tư", "dicho2": "Anh Tâm", "dicho3": "Chị Hồng", "khachxeom": "Chị Thảo",
 	"cho4": "Cô Năm", "cho5": "Bé Thư", "cho6": "Ông Út", "cho7": "Chị Mai", "cho8": "Chú Tám",
+	"may_mua": "Chị Mây", "cohai_mua": "Cô Hai", "bena_mua": "Bé Na", "chunam_mua": "Chú Năm", "chutu_mua": "Chú Tư",
 }
 ## Chiều cao mặt ghế (m) của người ngồi, khớp với ROLES trong tools/nguoi_game.py
-const SEAT := {"chutu": 0.45, "hung": 0.28, "basau": 0.42, "ongbay": 0.30, "ongtam": 0.30, "chunam": 0.45, "bancho": 0.18, "cho8": 0.32}
+const SEAT := {"chutu": 0.45, "hung": 0.28, "basau": 0.42, "ongbay": 0.30, "ongtam": 0.30, "chunam": 0.45, "bancho": 0.18, "cho8": 0.32, "chunam_mua": 0.45}
 const ONE_SHOT := ["nhan_banh", "goi_muc", "suyt", "mang", "reo", "dua_tui", "nhan_xe", "va", "xuong_xe", "goi_1", "goi_2", "nhan_banh_cau"]
 
 ## Mọi người dân Nguoi.make ra đều vào nhóm này: một người chỉ có một bản trong cảnh.
@@ -192,6 +194,22 @@ func attach(bone: String) -> Node3D:
 	ba.bone_name = bone
 	skeleton.add_child(ba)
 	return ba
+
+
+## Cầm đồ đứng thẳng (dù, giỏ, cuộn bạt): đồ đi theo vị trí xương nhưng không xoay theo bàn tay,
+## nên dù luôn dựng đứng. offset tính theo hướng người (x trái, y lên, z trước). Trả node model để chỉnh thêm.
+func hold(model: String, bone: String, offset := Vector3.ZERO) -> Node3D:
+	var holder := Node3D.new()
+	add_child(holder)
+	var m: Node3D = (load(model) as PackedScene).instantiate()
+	m.position = offset
+	holder.add_child(m)
+	var rt := RemoteTransform3D.new()
+	rt.update_rotation = false
+	rt.update_scale = false
+	attach(bone).add_child(rt)
+	rt.remote_path = rt.get_path_to(holder)
+	return m
 
 
 ## Khối va chạm cho người (Bơ không chạy xuyên qua). size theo mét, center tính từ gốc model.

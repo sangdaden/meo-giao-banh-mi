@@ -50,6 +50,7 @@ static func build(parent: Node3D) -> void:
 	_street_props(parent, rng)
 	CityProps.build(parent)
 	_bounds(parent)
+	ChiTietPho.build(parent)  # chi tiết phố P4: dây điện, xe đậu, thùng rác, cống, đồ hẻm (scripts/chi_tiet_pho.gd)
 
 
 static func _ground(parent: Node3D) -> void:

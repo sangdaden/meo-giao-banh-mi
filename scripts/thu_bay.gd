@@ -98,6 +98,7 @@ func _ready() -> void:
 	_add_action("chup_anh", KEY_P, -1)
 	_build_people()
 	_build_end_spot()
+	add_to_group("ban_do_nho")  # ghim người nhờ việc trên bản đồ nhỏ: ban_do_pins()
 	var nap := ViecNho.trinket(Vector3(0.9, 0.02, 0.6), Color("#B9826A"), "box")
 	add_child(nap)
 	nap.global_position = ViecNho.surface(get_world_3d(), NAP_SPOT.x, NAP_SPOT.y)
@@ -123,6 +124,8 @@ func begin() -> void:
 	photo.hud = hud
 	_started = true
 	ui.visible = true
+	if hud.has_method("show_minimap"):
+		hud.show_minimap(true)
 	_steps = mini(SoHangXom.done_ids().size(), SKY_STEPS)
 	_sky_goal = float(_steps) / SKY_STEPS
 	_sky_t = _sky_goal
@@ -167,6 +170,18 @@ func active_id() -> String:
 
 func muc_chapter_open() -> bool:
 	return SoHangXom.muc_friend() or SoHangXom.hearts() >= int(DoKho.v("muc_chapter_after", 3))
+
+
+## Ghim cho bản đồ nhỏ: mỗi người trong Sổ hàng xóm một trái tim; giúp xong thì có dấu tích.
+func ban_do_pins() -> Array:
+	var pins := []
+	for p in SoHangXom.pages():
+		var n: Node3D = people.get(p.id)
+		if n == null or not is_instance_valid(n):
+			continue
+		var st := "done" if SoHangXom.is_done(p.id) else ("now" if p.id == _active_id else "next")
+		pins.append({"pos": n.global_position, "kind": "favour", "text": "", "color": Color("#D7A9C4"), "state": st, "name": p.who})
+	return pins
 
 
 ## Chỗ Bơ đứng trả đồ cho người nhờ (trước mặt người đó, trên mặt đất).
@@ -372,6 +387,8 @@ func _sky_step() -> void:
 func _end_day() -> void:
 	_ended = true
 	_sky_goal = 1.0
+	if hud.has_method("show_minimap"):
+		hud.show_minimap(false)
 	player.can_move = false
 	player.play_clip("chup_nam")
 	GameState.set_day("thu_moi", true, DAY)

@@ -7,15 +7,23 @@ const BAR_Z := CityProps.GIAN_POS.z
 const XS := [-19.6, -19.0, -18.5, -18.0, -17.4]
 const STEP := Vector3(-17.45, 0, 20.75)
 
+var _basket: Node3D
+
 
 func begin() -> void:
 	line = "Bà Sáu: leo lên giàn hái 5 chùm bông giấy · 0/5"
 	CityProps.crate(self, STEP)
 	CityProps.crate(self, STEP + Vector3(0, 0.8, 0))
 	for x in XS:
-		var flower := trinket(Vector3(0.18, 0.14, 0.18), Color("#E0559A"), "sphere")
+		var flower := prop("chum_bong_giay")
 		add_child(flower)
 		add_target(Vector3(x, BAR_Y, BAR_Z), flower, 0.6, 0.6)
+	# rổ tre cạnh ghế Bà Sáu: hái được chùm nào thì chùm đó nằm trong rổ
+	var ba: Node3D = day.people.get("basau")
+	var at := (ba.global_position if ba else CityProps.BA_SAU_CHAIR) + Vector3(0.55, 0, 0.1)
+	_basket = prop("ro_tre", false)
+	add_child(_basket)
+	_basket.global_position = surface(get_world_3d(), at.x, at.z, 1.2)
 
 
 func tick(delta: float) -> void:
@@ -27,6 +35,11 @@ func tick(delta: float) -> void:
 
 func on_got(_i: int) -> void:
 	var n := got_count()
+	var bunch := prop("chum_bong_giay", false)
+	bunch.scale = Vector3.ONE * 0.6
+	_basket.add_child(bunch)
+	bunch.position = Vector3((n % 3 - 1) * 0.06, 0.1 + (n / 3) * 0.05, (n % 2) * 0.05 - 0.025)
+	bunch.rotation = Vector3(randf_range(-0.4, 0.4), randf() * TAU, randf_range(-0.4, 0.4))
 	line = "Bà Sáu: leo lên giàn hái 5 chùm bông giấy · %d/5" % n
 	day.task_line(line)
 	day.toast("Hái được một chùm! (%d/5)" % n, 1.5)

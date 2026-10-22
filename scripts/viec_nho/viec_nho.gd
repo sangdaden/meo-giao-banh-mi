@@ -244,6 +244,28 @@ static func trinket(size: Vector3, color: Color, shape := "box") -> Node3D:
 	return n
 
 
+## Đồ thật G8 (assets/models/thu_bay/<ten>.glb, gốc giữa đáy, mặt trước +Z). glow: thêm vòng sáng mờ như khối tạm
+## để dễ thấy từ xa (đồ cần tìm); đồ đứng yên (kệ, rổ, bảng) thì không.
+static func prop(ten: String, glow := true) -> Node3D:
+	var n := Node3D.new()
+	var m: Node3D = load("res://assets/models/thu_bay/%s.glb" % ten).instantiate()
+	n.add_child(m)
+	var size := Vector3(0.2, 0.2, 0.2)
+	for mi: MeshInstance3D in m.find_children("*", "MeshInstance3D", true, false):
+		size = mi.get_aabb().size
+		if size.length() < 0.6:
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	if glow:
+		var g := SphereMesh.new()
+		g.radius = maxf(size.x, size.z) * 0.9 + 0.08
+		g.height = g.radius * 2.0
+		g.radial_segments = 10
+		g.rings = 5
+		var gm := Blocks.mesh(n, g, Vector3(0, size.y / 2.0, 0), Color(1.0, 0.92, 0.55, 0.22), true)
+		gm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return n
+
+
 ## Mặt trên của vật ở (x, z) dưới độ cao from_y (mái hiên, mái nhà, mặt đất). Gọi sau khi phố đã có va chạm.
 static func surface(world: World3D, x: float, z: float, from_y := 3.4) -> Vector3:
 	var q := PhysicsRayQueryParameters3D.create(Vector3(x, from_y, z), Vector3(x, -1.0, z), Blocks.LAYER_WORLD | Blocks.LAYER_PROP)

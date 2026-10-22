@@ -39,6 +39,12 @@ const PEOPLE := {
 	# Chị Thu (G1 Sang duyệt 22/10) đứng cạnh võng ru em bé
 	"chithu": {"pos": Vector3(31.6, 0, -15.2), "yaw": -PI / 2.0, "idle": "ru_vong"},
 }
+## Động tác G9 (PR "Người dân vào game"): [lúc nhờ, lúc cảm ơn sau khi chụp]. Chưa có clip thì dùng noi / vui.
+const REACT := {
+	"coba": ["nem_banh", "khen_ngon"], "chutu": ["chi_len", "nhan_bao"], "bena": ["lo_dau", "bi_tim_thay"],
+	"may": ["chi_bang", "vo_tay"], "hung": ["cui_tim", "nhan_oc"], "basau": ["chi_gian", "nhan_bong"],
+	"ongbay": ["chi_quan_co", "reo"], "cohai": ["chong_nanh", "vo_tay"], "chunam": ["gai_dau", "chi_mai"],
+}
 const HAMMOCK := Vector3(30.6, 0, -15.6)
 ## Kết ngày: "bồn nước" (khối tạm) trên mái hiên khối 1 cạnh lò bánh; chồng thùng bên dưới để leo lên
 const END_SPOT := Vector2(-28.8, -6.55)
@@ -65,7 +71,7 @@ var autotest := false
 var _started := false
 var _active: ViecNho
 var _active_id := ""
-var _bubbles := {}                 ## id -> Label3D
+var _bubbles := {}                 ## id -> BongThoai
 var _celebrating := false
 var _sky_t := 0.0
 var _sky_goal := 0.0
@@ -204,7 +210,6 @@ func _physics_process(delta: float) -> void:
 func _process(delta: float) -> void:
 	if not _started:
 		return
-	_process_bubbles()
 	if muc_chapter_open() and not SoHangXom.muc_friend():
 		var zzz: Node3D = dog.get("_zzz")  # Mực nằm buồn chứ không ngủ
 		if zzz:
@@ -262,9 +267,10 @@ func _start(id: String) -> void:
 	_near_id = "?"
 	ui.set_line(_active.line)
 	ui.refresh()
+	_refresh_bubbles()
 	var n: Nguoi = people.get(id)
 	if n:
-		n.play_for("noi", 2.0)
+		_react(n, REACT.get(id, ["noi"])[0], 2.4, "noi")
 	if id == SoHangXom.MUC:
 		toast("Mực nằm buồn, cổ trống trơn. Thẻ tên của nó rơi đâu mất rồi...", 3.0)
 	else:
@@ -285,7 +291,14 @@ func _on_finished(id: String) -> void:
 	var n: Nguoi = people.get(id)
 	if n:
 		n.play_for("vui", 2.5)
-	player.play_clip(str(p.get("pose", "chup_vay")))
+	var shot: AnhChung = null
+	if AnhChung.has(id):  # bố cục G9: Bơ vào chỗ cạnh người, máy ảnh tạm trước mặt
+		shot = AnhChung.new()
+		add_child(shot)
+		shot.setup(id, player, people)
+		_bubbles[id].visible = false
+	else:
+		player.play_clip(str(p.get("pose", "chup_vay")))
 	get_tree().create_timer(0.9).timeout.connect(func():
 		photo.snap(id)
 		var r := SoHangXom.mark(id)
@@ -303,9 +316,24 @@ func _on_finished(id: String) -> void:
 			toast("Đủ 10 trang sổ! Chủ Nhật Bơ được ngồi hàng ghế đầu Hội mèo.", 4.0)
 	)
 	get_tree().create_timer(2.6).timeout.connect(func():
+		if shot and is_instance_valid(shot):
+			shot.done()  # trả Bơ về chỗ cũ, tắt máy ảnh tạm
+		if n and is_instance_valid(n) and REACT.has(id):
+			_react(n, REACT[id][1], 2.0, "vui")
 		player.stop_clip()
 		_celebrating = false
 		_near_id = "?")
+
+
+## Người làm động tác G9: clip một lần thì chơi xong tự về idle, clip lặp thì chơi secs giây; chưa có clip thì fallback.
+func _react(n: Nguoi, clip: String, secs: float, fallback: String) -> void:
+	if n.anim and n.anim.has_animation(clip):
+		if clip in Nguoi.ONE_SHOT:
+			n.play_once(clip)
+		else:
+			n.play_for(clip, secs)
+	else:
+		n.play_for(fallback, secs)
 
 
 ## Chương Mực xong (hoặc vào ngày khi đã làm bạn từ trước): Mực đeo lại thẻ, vẫy đuôi, ăn bánh, rồi đi theo Bơ.
@@ -458,52 +486,30 @@ func _build_people() -> void:
 		if nid in ["cohai", "chunam", "ongbay"] and not people.has(nid):
 			people[nid] = n
 	for p in SoHangXom.pages():
-		var b := Label3D.new()
-		b.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		b.font_size = 120
-		b.pixel_size = 0.004
-		b.outline_size = 18
-		b.modulate = Color("#F7D35E")
-		b.outline_modulate = Color("#1F3A3D")
-		b.no_depth_test = true
-		b.visible = false
-		add_child(b)
-		_bubbles[p.id] = b
-	var mb := Label3D.new()
-	mb.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	mb.font_size = 120
-	mb.pixel_size = 0.004
-	mb.outline_size = 18
-	mb.modulate = Color("#F7D35E")
-	mb.outline_modulate = Color("#1F3A3D")
-	mb.no_depth_test = true
-	mb.visible = false
-	add_child(mb)
-	_bubbles[SoHangXom.MUC] = mb
+		_bubbles[p.id] = _bubble(people.get(p.id))
+	_bubbles[SoHangXom.MUC] = _bubble(dog, 0.95)
 
 
+func _bubble(who: Node3D, h := -1.0) -> BongThoai:
+	var b := BongThoai.new()
+	b.follow = who
+	b.height = h
+	b.visible = false
+	add_child(b)
+	return b
+
+
+## Bong bóng G9: "cho" có việc nhờ, "dang" đang giúp, "xong" đã dán trang sổ.
 func _refresh_bubbles() -> void:
 	for id in _bubbles:
-		var b: Label3D = _bubbles[id]
-		var done := SoHangXom.is_done(id)
+		var b: BongThoai = _bubbles[id]
 		var open: bool = id != SoHangXom.MUC or muc_chapter_open()
-		b.visible = open and id != _active_id
-		b.text = "♥" if done else "!"
-		b.modulate = Color("#E0559A") if done else Color("#F7D35E")
-		b.font_size = 72 if done else 120
-
-
-func _process_bubbles() -> void:
-	for id in _bubbles:
-		var b: Label3D = _bubbles[id]
-		if not b.visible:
-			continue
-		var n: Node3D = dog if id == SoHangXom.MUC else people.get(id)
-		if n == null or not is_instance_valid(n):
-			b.visible = false
-			continue
-		var h := 1.4 if n == dog else (1.75 if Nguoi.SEAT.has((n as Nguoi).id) else 2.15)
-		b.global_position = n.global_position + Vector3(0, h + sin(Time.get_ticks_msec() * 0.004) * 0.05, 0)
+		if not open or b.follow == null:
+			b.set_state("")
+		elif SoHangXom.is_done(id):
+			b.set_state("xong")
+		else:
+			b.set_state("dang" if id == _active_id else "cho")
 
 
 func _build_end_spot() -> void:
@@ -530,6 +536,14 @@ func _show_end_spot() -> void:
 	add_child(tn)
 	Blocks.mesh(tn, tank, top + Vector3(-0.9, 0.4, -0.15), Color("#3D7FB8"))
 	_end_nodes.append(tn)
+	var card := ViecNho.prop("thiep_moi", false)  # thiệp Hội mèo đứng trên nắp bồn nước (G8)
+	tn.add_child(card)
+	card.global_position = top + Vector3(-0.9, 0.8, -0.15)
+	card.rotation.y = PI * 0.75
+	var letter := ViecNho.prop("thu_moi", false)  # phong bì mèo lạ ngậm tới, đặt trước chân
+	tn.add_child(letter)
+	letter.global_position = top + Vector3(0.55, 0.0, 0.15)
+	letter.rotation.y = PI * 0.6
 	var mark := ViecNho.trinket(Vector3(0.8, 0.02, 0.8), Color("#F2C14E"), "cyl")
 	add_child(mark)
 	mark.global_position = top

@@ -5,14 +5,24 @@ extends ViecNho
 const POSES := [["chup_dung", "Đứng ngắm"], ["chup_vay", "Vẫy tay"], ["chup_nam", "Nằm nghiêng"]]
 const ASK := [0, 2, 1]                 ## thứ tự dáng trên bảng
 const SPOT := Vector3(4.2, 0, 5.6)     ## đứng trước quầy Cà phê Mây
+const BOARD := Vector3(5.3, 0, 5.9)    ## bảng chữ A "Mèo mẫu" (G8) cạnh vòng vàng, mặt quay về phía Bơ đứng
+## Thẻ dáng trên mặt bảng (G8): cách nhau 0,185 m, cao ~0,54 m; nhãn tim dán lên thẻ khi Bơ làm đúng
+const CARD_X := 0.185
+const CARD_Y := 0.54
 
 var _step := 0
 var _board: Label3D
+var _sign: Node3D
 var _keys := [false, false, false]
 
 
 func begin() -> void:
-	_board = Blocks.label(self, "", Vector3(6.6, 1.7, 5.4), 40, Color("#FFF8EA"))
+	_sign = prop("bang_dang_mau", false)
+	add_child(_sign)
+	_sign.global_position = surface(get_world_3d(), BOARD.x, BOARD.z, 1.2)
+	var to := SPOT - BOARD
+	_sign.rotation.y = atan2(to.x, to.z)
+	_board = Blocks.label(self, "", _sign.global_position + Vector3(0, 1.35, 0), 40, Color("#FFF8EA"))
 	_board.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_board.outline_size = 10
 	_board.outline_modulate = Color("#3D2A1E")
@@ -57,6 +67,9 @@ func _pose(k: int) -> void:
 		day.toast("Chị Mây: \"Dáng này dễ thương mà chưa giống bảng, thử lại nha!\"", 2.0)
 		return
 	_sfx("stamp")
+	var heart := prop("nhan_dung", false)  # nhãn tim lên thẻ dáng vừa làm đúng
+	_sign.add_child(heart)
+	heart.position = Vector3((_step - 1) * CARD_X, CARD_Y, 0.06)
 	_step += 1
 	if _step >= POSES.size():
 		day.toast("Chị Mây: \"Đẹp quá! Thực đơn mới có mèo mẫu rồi.\"", 2.5)

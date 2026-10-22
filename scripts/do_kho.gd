@@ -49,6 +49,7 @@ const EASY := {
 	"apartment_time": 90.0,
 	"ledge_reach": 1.15,         # với tới mép cao 2,45 m (trước 2,2 m)
 	"wall_kick_max": 4,          # đạp tường 4 lần (trước 3)
+	"hang_auto_pull": 0.3,       # đang bám mép, giữ phím đi tới 0,3 s là tự leo lên (trước chỉ Space)
 	"wall_gap_max": 2.0,         # khe rộng tới 2 m vẫn bật tường được (trước 1,5 m)
 	"pipe_speed": 2.0,           # leo ống nước 2 m/s (trước 1,4)
 	"baby_min_noise": 7.0,       # chỉ tiếng to (chạy nhanh, đáp mạnh) làm em bé trở mình; đi thường không sao

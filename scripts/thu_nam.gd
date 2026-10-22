@@ -204,7 +204,7 @@ func _setup() -> void:
 	player.wall_kick_max = DoKho.v("wall_kick_max", player.wall_kick_max)
 	player.wall_gap_max = DoKho.v("wall_gap_max", player.wall_gap_max)
 	player.pipe_speed = DoKho.v("pipe_speed", player.pipe_speed)
-	player.ledge_grabbed.connect(func(): _tell("bam", "Đang bám mép: Space để leo lên, S để buông.", 3.0))
+	player.ledge_grabbed.connect(func(): _tell("bam", player.hang_hint(), 3.0))
 	player.wall_kicked.connect(func(_n): _kicked = true)
 	player.noise_made.connect(_on_noise)
 	main.order_picked_up.connect(_on_pick_up)

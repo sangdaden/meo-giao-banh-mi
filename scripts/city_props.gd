@@ -48,6 +48,7 @@ const SLOTS := [
 	{"block": 5, "row": 1, "x0": 28.3, "x1": 29.5, "kind": "khe_hong"},  # khe 1,2 m bên hông tiệm xe (G6, ThuSau.build_khe)
 	{"block": 5, "row": 1, "x0": 29.5, "x1": 35.0, "kind": "tiem_xe"},
 	{"block": 1, "row": 0, "x0": 5.6, "x1": 10.0, "kind": "tap_hoa"},  # tạp hóa Cô Hai (ShopTapHoa), mặt tiền nhìn ra phía bắc
+	{"block": 4, "row": 1, "x0": -12.0, "x1": -6.0, "kind": "nha_dang_xay"},  # nhà đang xây có giàn giáo leo được (P2, NhaRap.dang_xay)
 ]
 
 ## Bốn màu bạt mái hiên và bốn màu xe máy đậu (model)
@@ -167,6 +168,8 @@ static func build_slot(parent: Node3D, slot: Dictionary, z0: float, depth: float
 			ThuSau.build_khe(parent, slot.x0, slot.x1, z0 + depth, depth)
 		"tap_hoa":
 			ShopTapHoa.build(parent, slot.x0, slot.x1, z0, depth)
+		"nha_dang_xay":
+			NhaRap.dang_xay(parent, slot.x0, z0 + depth)
 
 
 # ------------------------------------------------------------------ hẻm 42

@@ -162,9 +162,15 @@ static func _scan_roofs(root: Node3D) -> Array:
 	return out
 
 
+## Mặt mái của nhà `h`: mẫu nhà cũ đo sẵn, hoặc nhà ráp P2 (City gắn khóa căn "rap:..." vào meta "model").
+static func _prof(h: Array) -> Array:
+	var name: String = h[3]
+	return ROOF_PROFILE.get(name, []) if ROOF_PROFILE.has(name) else NhaRap.roof_profile(name)
+
+
 ## Độ cao mặt mái nhà `h` ở z (thế giới), theo dải ngang gần x nhất (mặc định giữa nhà).
 static func roof_y(h: Array, z: float, x := NAN) -> float:
-	var prof: Array = ROOF_PROFILE.get(h[3], [])
+	var prof: Array = _prof(h)
 	if prof.is_empty():
 		return h[2]
 	var k := 1
@@ -178,7 +184,7 @@ static func roof_y(h: Array, z: float, x := NAN) -> float:
 
 ## Mái lệch nhiều nhất bao nhiêu (sân thượng phẳng ~0, mái tôn ~1,5 m).
 static func _flatness(h: Array) -> float:
-	var prof: Array = ROOF_PROFILE.get(h[3], [])
+	var prof: Array = _prof(h)
 	if prof.is_empty():
 		return 0.5
 	var row: Array = prof[0]
@@ -193,7 +199,7 @@ static func _flatness(h: Array) -> float:
 ## Hạ hộp va chạm nhà xuống chỗ thấp nhất của mái rồi lát các tấm nghiêng theo mái thật, mỗi dải ngang một lượt
 ## (dải nào giống dải giữa thì gộp). Bồn nước, chòi cầu thang trên sân thượng thành vách dốc đứng.
 func _fit_roof(h: Array) -> void:
-	var prof: Array = ROOF_PROFILE.get(h[3], [])
+	var prof: Array = _prof(h)
 	var body: StaticBody3D = h[4]
 	if prof.is_empty() or body == null:
 		return

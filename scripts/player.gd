@@ -52,6 +52,13 @@ signal called(pos: Vector3)                 ## ngồi kêu meo gọi khách (Q, 
 @export var short_hop_multiplier := 2.2  ## thả nút nhảy sớm thì nhảy thấp
 @export var coyote_time := 0.12       ## vẫn nhảy được ngay sau khi rời mép
 @export var jump_buffer := 0.12       ## bấm nhảy hơi sớm trước khi chạm đất vẫn tính
+## Gần đỉnh cú nhảy (|vy| < apex_band) mà còn giữ nút: trọng lực nhân apex_gravity, lơ lửng một nhịp cho dễ canh chỗ đáp
+@export var apex_gravity := 1.0
+@export var apex_band := 1.6
+## Bẻ hướng bay giữa không trung (rad/s): vận tốc ngang xoay dần theo phím mà không mất đà. 0 = chỉ có air_accel
+@export var air_turn := 0.0
+## Cụng đầu vào mép phía trên lúc đang bay lên: lùi ra tối đa chừng này mét để lướt qua mép (0 = tắt)
+@export var corner_nudge := 0.0
 
 @export_group("Leo (Thứ Năm, chung cư)")
 @export var ledge_min := 0.3          ## mép thấp nhất (so với chân) để bám; thấp hơn thì nhảy lên luôn
@@ -60,6 +67,10 @@ signal called(pos: Vector3)                 ## ngồi kêu meo gọi khách (Q, 
 ## Đang bám mà vẫn giữ phím đi về phía tường chừng này giây thì tự leo lên (INF: chỉ Space mới leo).
 ## Thong thả 0,3 s (DoKho "hang_auto_pull"): người chơi không biết Space vẫn không bị treo mãi trên mép.
 @export var hang_auto_pull := INF
+## Đang bay lên mà mép cao hơn đỉnh cú nhảy thì bám luôn, khỏi cụng đầu vào mái hiên rồi rơi (Thử thách: chỉ bám khi gần đỉnh)
+@export var rise_grab := false
+## Sàn ngay dưới chân trong chừng này mét thì đáp xuống thay vì bám mép phía trên (0 = luôn bám như cũ)
+@export var grab_land_gap := 0.0
 @export var wall_kick_up := 8.5
 @export var wall_kick_out := 4.5
 @export var wall_kick_max := 3        ## số lần đạp tối đa trước khi chạm đất
@@ -239,6 +250,12 @@ var _accel := 0.0
 var _was_floor_anim := true
 var _lean := Spring.new()        # nghiêng người khi quẹo
 var _pitch := Spring.new()       # chúi/ngả người khi tăng tốc, phanh, nhảy
+var _squash := Spring.new()      # co giãn cả hình: dương duỗi dọc (bật lên), âm nén bẹt (tiếp đất)
+var _land_dip := Spring.new()    # hạ thân khi tiếp đất (mét, âm là khuỵu xuống) rồi bật lại
+var _pop := Vector3.ONE          # cú nảy đặt thẳng (bám mép, đạp tường, bị hất), mờ dần về 1
+var _air_vy := 0.0               ## vận tốc rơi ở khung vật lý trước, để biết cú đáp mạnh cỡ nào
+var _face_yaw := 0.0             ## hướng mặt cần quay tới (tính trong _physics_process)
+var _face_rate := 0.0            ## tốc độ quay (0: không tự quay, để cảnh khác tự đặt hướng)
 var _head_yaw := Spring.new()
 var _head_pitch := Spring.new()
 var _ear := [Spring.new(), Spring.new()]      # cụp ra sau
@@ -303,6 +320,10 @@ func _ready() -> void:
 	fragile_fall = DoKho.v("fragile_fall", fragile_fall)
 	hang_auto_pull = DoKho.v("hang_auto_pull", hang_auto_pull)
 	fragile_bump_speed = DoKho.v("fragile_bump_speed", fragile_bump_speed)
+	# Cú nhảy (Sang 22/10: nhảy chưa mượt, trên không không quay hướng được). Thử thách giữ số cũ.
+	for k in ["jump_velocity", "gravity", "fall_multiplier", "short_hop_multiplier", "coyote_time",
+			"jump_buffer", "apex_gravity", "air_accel", "air_turn", "rise_grab", "grab_land_gap", "corner_nudge"]:
+		set(k, DoKho.v(k, get(k)))
 	collision_layer = 2
 	collision_mask = Blocks.LAYER_WORLD | Blocks.LAYER_PROP
 	floor_snap_length = 0.3
@@ -543,7 +564,9 @@ func apply_outfit(worn := {}) -> void:
 			n.queue_free()
 	_acc_nodes.clear()
 	var is_bo := breed == "bo" and not _cai_model  # Bơ chuẩn có sẵn khăn và túi dựng trong code
-	_wear_bag = is_bo and worn.get("back", "") == "tuibanh"
+	# Túi bánh làm kỹ (22/10) có model phụ kiện: Bơ đực đeo bản đó như mọi giống, túi khối hộp trong code chỉ còn
+	# hiện khi mang bánh mà không đeo túi, giỏ nào
+	_wear_bag = is_bo and worn.get("back", "") == "tuibanh" and not OutfitView.has_model("tuibanh")
 	if _scarf_mesh:
 		if _hidden_mat == null:
 			_hidden_mat = StandardMaterial3D.new()
@@ -556,7 +579,7 @@ func apply_outfit(worn := {}) -> void:
 	_acc_lift = 0.0
 	for slot in worn:
 		var id: String = worn[slot]
-		if id == "" or (is_bo and (id == "tuibanh" or (id == "khando" and not OutfitView.has_model("khando")))):
+		if id == "" or (is_bo and id in ["tuibanh", "khando"] and not OutfitView.has_model(id)):
 			continue
 		_acc_nodes.append_array(OutfitView.attach(_skel, id, breed, sex if _cai_model else "duc"))
 		_ears_down = _ears_down or OutfitView.ears_down(id)
@@ -598,6 +621,7 @@ func _physics_process(delta: float) -> void:
 	_grab_cooldown = maxf(_grab_cooldown - delta, 0.0)
 	_kick_lock = maxf(_kick_lock - delta, 0.0)
 	if climb != "":
+		_face_rate = 0.0
 		_climb_process(delta)
 		_curr_pos = global_position
 		return
@@ -612,7 +636,9 @@ func _physics_process(delta: float) -> void:
 
 	if not on_floor:
 		var g := gravity
-		if velocity.y < 0.0:
+		if apex_gravity != 1.0 and absf(velocity.y) < apex_band and Input.is_action_pressed("jump"):
+			g *= apex_gravity
+		elif velocity.y < 0.0:
 			g *= fall_multiplier
 		elif not Input.is_action_pressed("jump"):
 			g *= short_hop_multiplier
@@ -622,7 +648,7 @@ func _physics_process(delta: float) -> void:
 		velocity.y = jump_velocity
 		_buffer = 0.0
 		_coyote = 0.0
-		visual.scale = Vector3(0.8, 1.25, 0.8)
+		_squash.v += 7.0  # bật lên: duỗi người dọc (lò xo trong _process, không giật cục)
 		jumped.emit()
 	elif climb_moves and _buffer > 0.0 and not on_floor and _stun <= 0.0:
 		_try_wall_kick()
@@ -643,6 +669,10 @@ func _physics_process(delta: float) -> void:
 			accel = oil_accel
 	var hv := Vector2(velocity.x, velocity.z)
 	if _kick_lock <= 0.0:
+		if not on_floor and air_turn > 0.0 and target.length() > 0.1 and hv.length() > 0.5:
+			# Trên không: xoay hướng bay về phía phím, giữ nguyên đà
+			var da := angle_difference(hv.angle(), target.angle())
+			hv = hv.rotated(clampf(da, -air_turn * delta, air_turn * delta))
 		hv = hv.move_toward(target, accel * delta)
 	velocity.x = hv.x
 	velocity.z = hv.y
@@ -653,7 +683,10 @@ func _physics_process(delta: float) -> void:
 	_sliding = sliding
 
 	var speed_before := hv.length()
+	var vy_before := velocity.y
 	move_and_slide()
+	if corner_nudge > 0.0 and vy_before > 1.0 and is_on_ceiling():
+		_corner_nudge(vy_before, hv)
 	_check_bump(speed_before, delta)
 	if climb_moves and can_move and _stun <= 0.0 and _act == "":
 		if not _try_pipe(dir):
@@ -664,13 +697,17 @@ func _physics_process(delta: float) -> void:
 	if not is_on_floor():
 		_fall_from = maxf(_fall_from, global_position.y)
 	if is_on_floor() and not _was_on_floor:
-		visual.scale = Vector3(1.25, 0.75, 1.25)
+		# Tiếp đất: nén người theo độ mạnh cú rơi (rơi càng cao càng khuỵu sâu)
+		var impact := clampf(-_air_vy / 10.0, 0.25, 1.0)
+		_squash.v -= 9.0 * impact
+		_land_dip.v -= 1.4 * impact
 		landed.emit()
 		if _fall_from - global_position.y > 1.0:
 			noise_made.emit(global_position, noise_land)
 		if _fall_from - global_position.y > fragile_fall:
 			_damage_fragile()
 	_was_on_floor = is_on_floor()
+	_air_vy = velocity.y
 	_act_t += delta
 	if _act == "deliver" and not _released and _act_t >= (0.7 if _act_kind == "under_car" else 0.8):
 		_released = true
@@ -683,11 +720,15 @@ func _physics_process(delta: float) -> void:
 		if done == "deliver":
 			deliver_finished.emit(_act_kind)
 
+	# Hướng mặt: xoay mỗi khung hình trong _process (màn 120 Hz không bị giật theo nhịp vật lý 60 Hz)
+	_face_rate = 0.0
 	if first_person:
 		# Góc nhìn thứ nhất: người (và bóng) luôn quay theo hướng nhìn, đi tới là đi theo mắt
-		visual.rotation.y = lerp_angle(visual.rotation.y, yaw, 1.0 - exp(-turn_speed * 2.0 * delta))
+		_face_yaw = yaw
+		_face_rate = turn_speed * 2.0
 	elif dir.length() > 0.1 and _act == "":
-		visual.rotation.y = lerp_angle(visual.rotation.y, atan2(-dir.x, -dir.z), 1.0 - exp(-turn_speed * delta))
+		_face_yaw = atan2(-dir.x, -dir.z)
+		_face_rate = turn_speed
 
 	# Rơi khỏi bản đồ thì đưa về chỗ cũ
 	if global_position.y < -10.0:
@@ -699,9 +740,10 @@ func _physics_process(delta: float) -> void:
 # ---------------------------------------------------------------- leo (Thứ Năm)
 
 ## Đang bay và đẩy về phía tường: nếu mép tường cao hơn chân từ ledge_min tới ledge_reach
-## và trên mép đủ chỗ đứng thì bám lại. Đang bay lên nhanh thì chưa bám (nhảy qua bậc thấp vẫn như cũ).
+## và trên mép đủ chỗ đứng thì bám lại. Đang bay lên nhanh thì chưa bám (nhảy qua bậc thấp vẫn như cũ),
+## trừ khi rise_grab và mép cao hơn đỉnh cú nhảy.
 func _try_grab(dir: Vector3) -> bool:
-	if is_on_floor() or _grab_cooldown > 0.0 or velocity.y > 1.0 or dir.length() < 0.1:
+	if is_on_floor() or _grab_cooldown > 0.0 or dir.length() < 0.1:
 		return false
 	var fwd := dir.normalized()
 	var space := get_world_3d().direct_space_state
@@ -724,6 +766,13 @@ func _try_grab(dir: Vector3) -> bool:
 	if h2.is_empty() or h2.normal.y < 0.7:
 		return false
 	var ledge_y: float = h2.position.y
+	if velocity.y > 1.0 and (not rise_grab or ledge_y - global_position.y < velocity.y * velocity.y / (2.0 * gravity) + 0.1):
+		return false  # đang bay lên và sẽ qua được mép: để Bơ nhảy qua bậc thấp như cũ
+	if grab_land_gap > 0.0:
+		# Sắp đáp xuống sàn ngay dưới chân (gác lửng dưới ban công): đáp luôn, không bám mép cao phía trên
+		var below := space.intersect_ray(PhysicsRayQueryParameters3D.create(global_position + Vector3.UP * 0.1, global_position - Vector3.UP * grab_land_gap, collision_mask, [get_rid()]))
+		if not below.is_empty() and below.normal.y > 0.7:
+			return false
 	var on_top: Vector3 = hit.position - n * 0.32
 	on_top.y = ledge_y + 0.02
 	if _shape_hits(_stand_shape, Transform3D(Basis.IDENTITY, on_top)):
@@ -736,9 +785,24 @@ func _try_grab(dir: Vector3) -> bool:
 	velocity = Vector3.ZERO
 	global_position = Vector3(hit.position.x, ledge_y - 0.5, hit.position.z) + n * 0.27
 	visual.rotation.y = atan2(n.x, n.z)
-	visual.scale = Vector3(0.9, 1.15, 0.9)
+	_pop = Vector3(0.9, 1.15, 0.9)
 	ledge_grabbed.emit()
 	return true
+
+
+## Đang bay lên mà cụng đầu vào mép mái hiên, ban công: lùi ra tối đa corner_nudge mét nếu chỗ đó trống,
+## giữ đà bay lên để Bơ lướt qua mép (hoặc bám mép) thay vì rơi bịch xuống.
+func _corner_nudge(vy: float, hv: Vector2) -> void:
+	if hv.length() < 0.1:
+		return
+	var back := -Vector3(hv.x, 0, hv.y).normalized()
+	var d := 0.1
+	while d <= corner_nudge + 0.001:
+		if not _shape_hits(_stand_shape, global_transform.translated(back * d + Vector3.UP * 0.08)):
+			global_position += back * d
+			velocity.y = vy
+			return
+		d += 0.1
 
 
 ## Ôm ống nước: đang chạm ống và đẩy về phía tường sau ống.
@@ -778,7 +842,7 @@ func _try_wall_kick() -> void:
 	_kick_lock = 0.18
 	velocity = n * wall_kick_out + Vector3.UP * wall_kick_up
 	visual.rotation.y = atan2(-n.x, -n.z)
-	visual.scale = Vector3(0.8, 1.25, 0.8)
+	_pop = Vector3(0.8, 1.25, 0.8)
 	play_clip("dap_tuong")
 	noise_made.emit(global_position, noise_walk)
 	wall_kicked.emit(_kicks)
@@ -1222,7 +1286,15 @@ func smooth_position() -> Vector3:
 
 func _process(delta: float) -> void:
 	visual.global_position = smooth_position()
-	visual.scale = visual.scale.lerp(Vector3.ONE, 1.0 - exp(-12.0 * delta))
+	if _face_rate > 0.0:
+		visual.rotation.y = lerp_angle(visual.rotation.y, _face_yaw, 1.0 - exp(-_face_rate * delta))
+	# Co giãn: _pop là các cú nảy đặt thẳng (bám mép, đạp tường) mờ dần; _squash là lò xo nhảy/đáp
+	_pop = _pop.lerp(Vector3.ONE, 1.0 - exp(-12.0 * delta))
+	var air_stretch := 0.0
+	if not (preview or is_on_floor()) and climb == "":
+		air_stretch = clampf(velocity.y * 0.018, -0.06, 0.12)  # lên nhanh thì duỗi, gần đỉnh tròn lại
+	var s := clampf(_squash.step(air_stretch, 160.0, 0.45, delta), -0.3, 0.3)
+	visual.scale = _pop * Vector3(1.0 - 0.5 * s, 1.0 + s, 1.0 - 0.5 * s)
 	_animate(delta, Vector2(velocity.x, velocity.z).length(), velocity.y, preview or is_on_floor())
 
 
@@ -1286,12 +1358,19 @@ func _animate(delta: float, hspeed: float, vy: float, on_floor: bool) -> void:
 			_step_side = side
 			_footstep()
 	else:
-		# Trên không: chân trước vươn ra trước, chân sau co lên
-		var tl := 1.0 - exp(-10.0 * delta)
+		# Trên không theo pha: bật lên thì chân sau duỗi đạp ra sau, chân trước co;
+		# gần đỉnh thì co gọn cả bốn chân; rơi xuống thì chân trước vươn tới, chân sau đưa xuống đón đất
+		var tl := 1.0 - exp(-12.0 * delta)
+		var rise := smoothstep(0.5, 4.0, vy)
+		var fall := smoothstep(-0.5, -4.0, vy)
 		for i in 4:
 			var air := Vector3(0, 0.05, 0.07) if i < 2 else Vector3(0, 0.07, -0.06)
+			if i < 2:
+				air = air.lerp(Vector3(0, 0.08, 0.03), rise).lerp(Vector3(0, 0.01, 0.11), fall)
+			else:
+				air = air.lerp(Vector3(0, 0.0, -0.11), rise).lerp(Vector3(0, 0.02, 0.03), fall)
 			_foot[i] = _foot[i].lerp(air, tl)
-			_paw_tilt[i] = lerpf(_paw_tilt[i], 0.5, tl)
+			_paw_tilt[i] = lerpf(_paw_tilt[i], lerpf(0.5, 0.15, fall), tl)
 		_bob = lerpf(_bob, 0.0, tl)
 	# Leo (tạm, thay bằng tư thế Blender khi Sang duyệt): bám thì chân trước vươn lên mép,
 	# chân sau buông; leo lên thì chân sau đạp; ôm ống thì bốn chân thay nhau với
@@ -1364,7 +1443,8 @@ func _animate(delta: float, hspeed: float, vy: float, on_floor: bool) -> void:
 	_hips_pitch = -_pitch.x - SIT_PITCH * _sit - 0.3 * startle
 	_chest_pitch = 0.55 * startle
 	# Hạ thân: chui 0,13 m, rón rén 0,05 m, giao cao ngồi trên cổ chân sau 0,06 m, ngồi 0,07 m
-	_root_off = Vector3(0, _bob - 0.13 * cr - 0.05 * sneak_k - 0.06 * high - 0.07 * _sit, 0)
+	var dip := clampf(_land_dip.step(0.0, 220.0, 0.55, delta), -0.09, 0.03)  # tiếp đất: khuỵu rồi bật lại
+	_root_off = Vector3(0, _bob + dip - 0.13 * cr - 0.05 * sneak_k - 0.06 * high - 0.07 * _sit, 0)
 	_body.position = Vector3(0, _acc_lift, 0)
 
 	# Thở khi đứng yên: ngực phồng nhẹ
@@ -1668,7 +1748,7 @@ func bump(kind: String, from := Vector3.INF, stun := 0.4) -> void:
 		velocity.x = away.x * 2.5
 		velocity.z = away.z * 2.5
 		_stun = maxf(_stun, stun)
-		visual.scale = Vector3(1.12, 0.88, 1.12)
+		_pop = Vector3(1.12, 0.88, 1.12)
 		noise_made.emit(global_position, noise_bump)
 	bumped.emit(kind)
 	_damage_fragile()
@@ -1699,4 +1779,4 @@ func knockback(from: Vector3, strength := 9.0, stun := 0.45) -> void:
 	play_startle()
 	velocity = away * strength + Vector3.UP * 4.5
 	_stun = stun
-	visual.scale = Vector3(1.3, 0.7, 1.3)
+	_pop = Vector3(1.3, 0.7, 1.3)

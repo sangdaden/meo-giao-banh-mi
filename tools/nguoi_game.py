@@ -26,6 +26,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'khu
 import numpy as np
 import nguoi as N
 import nguoi3 as N3  # 7 người Thứ Ba (CHARS) và dáng DANG (trang "Chợ sáng Thứ Ba" Sang duyệt 21/10)
+import nguoi4 as N4  # 5 người mặc áo mưa Thứ Tư (*_mua, trang G5 Sang duyệt 22/10)
 from sdflib import v, hexc
 import bpy
 from mathutils import Vector, Matrix, Quaternion
@@ -66,6 +67,12 @@ ROLES = {
     'cho8': dict(base='ngoi', seat=.32, tempo=.9, energy=.9),    # Chú Tám ngồi ghế đẩu (hông 0,4 như DANG)
     # Chị Thảo khách xe ôm: ngồi yên sau xe Chú Năm (hông 0,95), xuống xe thì đứng
     'khachxeom': dict(base='dung', tempo=1.0, energy=1.0),
+    # Người mặc áo mưa Thứ Tư (nguoi4.py): động tác theo người gốc (N4 'base'), cộng dáng riêng ở MUA
+    'may_mua':    dict(base='dung', tempo=1.05, energy=1.0, giao='may'),
+    'cohai_mua':  dict(base='dung', tempo=1.0, energy=1.0),
+    'bena_mua':   dict(base='dung', tempo=1.25, energy=1.3, giao='bena'),
+    'chunam_mua': dict(base='ngoi', seat=.45, tempo=.9, energy=.9),
+    'chutu_mua':  dict(base='dung', tempo=.9, energy=.8, giao='chutu'),  # đứng dọn bạt, khác ngày thường ngồi
 }
 
 # Bản dựng: '' đủ chi tiết (~3,8k tam giác, người gần camera); 'nhe' ~1,4k cho người chợ, phố đông;
@@ -131,6 +138,10 @@ def bone_table(J):
     return [(n, J[a], J[b], p) for n, a, b, p in t]
 
 
+COAT_PARTS = ('aomua', 'aomua2', 'taimeo')
+PONCHO = False  # build_person đặt theo coat_kind của người đang dựng
+
+
 def allowed_bones(part, x):
     sd = 'L' if x > 0 else 'R'
     if part in HEAD_PARTS:
@@ -162,12 +173,23 @@ def skin_weights(P3, parts, FR, bones):
     body = [p for p in parts if not p['sep']]
     D = np.stack([p['fn'](FR[p['frame']](P3)) for p in body], 1)
     near = D.argmin(1)
+    # Áo mưa (nguoi4.py) bọc ngoài: đỉnh áo theo bộ phận nằm dưới nó (tay áo theo tay, mũ trùm theo đầu).
+    # Thân áo cánh dơi phủ tới gối thì theo hông và hai đùi, không tách theo từng chân.
+    coat = np.array([p['name'] in COAT_PARTS for p in body])
+    if coat.any():
+        under = np.where(coat[None, :], np.inf, D).argmin(1)
+        near = np.where(coat[near], under, near)
+        in_coat = coat[D.argmin(1)]
+    else:
+        in_coat = np.zeros(len(P3), bool)
     seg = {n: (np.asarray(a, np.float32), np.asarray(b, np.float32)) for n, a, b, _ in bones}
     dist = {n: seg_dist(P3, a, b) for n, (a, b) in seg.items()}
     out = []
     sigma = .018
     for i in range(len(P3)):
         names = allowed_bones(body[near[i]]['name'], P3[i, 0])
+        if in_coat[i] and PONCHO and body[near[i]]['name'] in LEG_PARTS:
+            names = ['hips', 'spine', 'thigh.L', 'thigh.R']
         ds = np.array([dist[n][i] for n in names])
         w = np.exp(-(ds - ds.min()) / sigma)
         order = np.argsort(-w)[:3]
@@ -205,7 +227,9 @@ def paint(ob, rgba):
 
 
 def build_person(cid):
+    global PONCHO
     c = N.CHARS[cid]
+    PONCHO = c.get('coat_kind') == 'poncho'
     bpy.ops.wm.read_factory_settings(use_empty=True)
     scn = bpy.context.scene
     scn.render.fps = FPS
@@ -1474,10 +1498,36 @@ def hung_thu_sau(R):
     R.keyframe_world('dung_cho', [(1, S([])), (30, S([('chest', 'X', -2), ('head', 'Z', -8)])), (60, S([]))])
 
 
+def mua_clips(R, role, cid):
+    """Dáng riêng của người mặc áo mưa (trang G5 Thứ Tư): 'dang_mua' giữ dáng đã duyệt (lặp, có thở),
+    Chú Tư thêm 'cuon_bat' cuộn bạt sạp báo. Dù, giỏ, cuộn bạt là đồ rời gắn vào tay trong Godot."""
+    g = dang_pose(R, cid, N4.POSES[cid]())
+    legs = bike_legs(R) if cid == 'chunam_mua' else {}
+
+    def hold(t):
+        br = osc(t, 3.0)
+        return add(base(t, R, role), legs, g, {'chest': {'fw': br * 1.2}, 'head': {'tw': osc(t, 6.0) * 6, 'fw': br}})
+    out = [('dang_mua', 6.0, hold, True)]
+    if cid == 'chutu_mua':
+        def roll(t):
+            a = 2 * math.pi * t / 1.2
+            return add(base(t, R, role), g, {
+                'spine': {'fw': 22}, 'chest': {'fw': 12}, 'head': {'fw': 15},
+                'upperarm.L': {'aim': (.25, -.55 + math.sin(a) * .15, 1), 'aim_ref': 'chest'},
+                'upperarm.R': {'aim': (.25, -.55 + math.sin(a) * .15, 1), 'aim_ref': 'chest'},
+                'forearm.L': {'aim': (-.35, -.2 + math.cos(a) * .3, 1), 'aim_ref': 'chest'},
+                'forearm.R': {'aim': (-.35, -.2 + math.cos(a) * .3, 1), 'aim_ref': 'chest'},
+            })
+        out.append(('cuon_bat', 2.4, roll, True))
+    return out
+
+
 def build_anims(info, cid):
     R = Rig(info)
     R.c = info['c']
     role = ROLES[cid]
+    mua = cid if cid in N4.POSES else None
+    cid = N.CHARS[cid].get('base', cid) if mua else cid  # người áo mưa cử động như người gốc
     tp = role['tempo']
     L = lambda sec: int(round(sec * FPS))  # noqa: E731
     R.keyframe('dung_yen', L(12.0 / tp), anim_idle(R, role))  # chu kỳ dài để không thấy lặp
@@ -1509,6 +1559,9 @@ def build_anims(info, cid):
         R.keyframe('keo_day', L(1.6 / tp), anim_rope(R, role))
     if cid == 'basau':
         R.keyframe('goi_muc', L(3.2), anim_call(R, role), loop=False)
+    if mua:
+        for name, sec, fn, loop in mua_clips(R, role, mua):
+            R.keyframe(name, L(sec), fn, loop=loop)
     if cid == 'hung':
         hung_thu_sau(R)
     return R

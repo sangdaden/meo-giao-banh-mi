@@ -282,13 +282,13 @@ func show_end(lines: Array) -> void:
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 12)
 	v.add_child(h)
-	# Chơi liền các ngày: nút chính sang ngày kế; chơi thử từ màn Chọn ngày thì nút chính về đó.
+	# Chơi liền các ngày: nút chính sang ngày kế; chơi thử từ màn Chọn màn thì nút chính về đó.
 	var menu: Button
 	if PlayMode.continuous:
 		menu = T.button(PlayMode.next_label(), "primary", 60)
 		menu.pressed.connect(func(): end_closed.emit("next"))
 	else:
-		menu = T.button("Về chọn ngày", "primary", 60)
+		menu = T.button("Về chọn màn", "primary", 60)
 		menu.pressed.connect(func(): end_closed.emit("menu"))
 	menu.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(menu)

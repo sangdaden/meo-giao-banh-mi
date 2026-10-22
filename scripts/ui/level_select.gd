@@ -1,7 +1,7 @@
 class_name LevelSelectPanel
 extends Control
-## Màn Chọn ngày: game chơi liền các ngày (nút Bắt đầu), muốn chọn ngày thì bấm Esc ở trang chủ
-## hoặc "Chọn ngày" trong menu tạm dừng. "Cả ca" của một ngày chơi tiếp mạch tuần từ ngày đó;
+## Màn Chọn màn: game chơi liền các ngày (Chơi tiếp ở trang chủ), muốn chọn ngày thì bấm Chọn màn hay Esc ở trang chủ
+## hoặc "Chọn màn" trong menu tạm dừng. "Cả ca" của một ngày chơi tiếp mạch tuần từ ngày đó;
 ## chỉ bếp, chỉ giao, một đơn là chơi tập, xong không sang ngày kế.
 ## Bên trái là bảy ngày trong tuần (theo trang thiết kế màn chơi), bên phải là các cách chơi của ngày đang chọn.
 ## Ngày đã làm (Days.playable) có: cả ca, chỉ bếp, chỉ giao 5 đơn, hoặc giao một đơn. Ngày chưa làm hiện "Sắp có".
@@ -45,7 +45,7 @@ func _ready() -> void:
 	var back := T.icon_button("back", "Quay lại (Esc)")
 	back.pressed.connect(close)
 	head.add_child(back)
-	head.add_child(T.label("Chọn ngày", 42, T.INK, "display"))
+	head.add_child(T.label("Chọn màn", 42, T.INK, "display"))
 	_note = T.label("", 15, T.MUTED, "bold")
 	var note := _note
 	note.size_flags_horizontal = Control.SIZE_EXPAND_FILL

@@ -1,6 +1,6 @@
 class_name PlayMode
 ## Người chơi chơi gì: cả tuần liền mạch (nút Bắt đầu), hoặc một ngày, một phần, một đơn chọn ở màn
-## Chọn ngày (scripts/ui/level_select.gd, mở bằng Esc).
+## Chọn màn (scripts/ui/level_select.gd, nút Chọn màn hay Esc ở trang chủ).
 ## Biến static giữ nguyên khi đổi scene, giống GameState.
 ## Mặc định là cả ca, nên chạy thẳng main.tscn hay --autotest vẫn như cũ.
 ##
@@ -63,6 +63,19 @@ static func next_of(id: String) -> Array:
 ## Bắt đầu (trang chủ): chơi tiếp ngày đang dở trong hồ sơ.
 static func play_week(tree: SceneTree) -> void:
 	start_day(tree, current_day())
+
+
+## Chơi mới (trang chủ): ngày đang chơi về Thứ Hai tuần 1. Kỷ lục, ví, tủ đồ giữ nguyên.
+static func new_game(tree: SceneTree) -> void:
+	reset_week()
+	start_day(tree, current_day())
+
+
+## Phần lưu của Chơi mới: chỉ đưa ngày và tuần về đầu.
+static func reset_week() -> void:
+	GameState.set_global("tuan", 1)
+	GameState.set_global("ngay_tiep", _playable_from(Days.ORDER[0])[0])
+	GameState.write_save()
 
 
 ## Chơi cả một ngày trong mạch tuần: ngày có bếp thì vào bếp, ngày tự do (Thứ Bảy) vào thẳng phố.

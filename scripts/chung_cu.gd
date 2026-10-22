@@ -142,7 +142,7 @@ func _ready() -> void:
 	player.wall_kick_max = DoKho.v("wall_kick_max", player.wall_kick_max)
 	player.wall_gap_max = DoKho.v("wall_gap_max", player.wall_gap_max)
 	player.pipe_speed = DoKho.v("pipe_speed", player.pipe_speed)
-	player.ledge_grabbed.connect(func(): _hint("bam", "Đang bám mép: Space để leo lên, S để buông.", 3.0))
+	player.ledge_grabbed.connect(func(): _hint("bam", player.hang_hint(), 3.0))
 	add_child(player)
 	rig = CameraRigScript.new()
 	rig.name = "CameraRig"

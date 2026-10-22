@@ -70,6 +70,12 @@ var _tip_time := 0.0
 var _goal := Vector3.ZERO
 var _has_goal := false
 var _playing := false
+## Bản đồ nhỏ góc phải (scripts/ui/ban_do_nho.gd) và bản đồ lớn phím B. Màn nào có khu phố thì gọi enable_minimap(true).
+var minimap: BanDoNho
+var minimap_card: Control
+var big_map: Control
+var big_map_view: BanDoNho
+var _minimap_on := false
 
 
 func _ready() -> void:
@@ -93,6 +99,7 @@ func _ready() -> void:
 	_build_tip()
 	_build_eggs()
 	_build_day_card()
+	_build_minimap()
 
 	edge_arrow = EdgeArrow.new()
 	edge_arrow.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -126,6 +133,10 @@ func _ready() -> void:
 	root.add_child(end_screen)
 	end_text = T.label("", 20, PAPER)  # dùng khi show_end(lines) được gọi kiểu cũ
 
+	big_map = _build_big_map()
+	big_map.visible = false
+	root.add_child(big_map)
+
 	if settings == null:  # _build_pause đã tạo rồi thì dùng lại, không tạo bảng thứ hai
 		settings = SettingsPanel.new()
 		settings.visible = false
@@ -146,6 +157,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif event.physical_keycode == KEY_F1 and hint:
 			GameSettings.set_value("hints", not GameSettings.get_value("hints"))
 			hint.visible = _playing and GameSettings.get_value("hints")
+	if _minimap_on and big_map and (event.is_action_pressed("ban_do") or (big_map.visible and event.is_action_pressed("pause"))):
+		if big_map.visible or (minimap_card.visible and not get_tree().paused):
+			toggle_big_map()
+			get_viewport().set_input_as_handled()
+			return
 	# Lúc đang tạm dừng, main.gd bị dừng theo nên HUD tự bắt phím Esc để chơi tiếp
 	if get_tree().paused and pause_screen.visible and not (settings and settings.visible) and event.is_action_pressed("pause"):
 		toggle_pause()
@@ -194,6 +210,10 @@ func show_playing_ui(on: bool) -> void:
 		tip_card.visible = false
 	if egg_pill and not on:
 		egg_pill.visible = false
+	if minimap_card:
+		minimap_card.visible = on and _minimap_on
+	if big_map and big_map.visible and not on:
+		toggle_big_map()
 
 
 ## color và initial là tuỳ chọn: màu áo và chữ cái của khách cho hình đại diện.
@@ -242,6 +262,9 @@ func set_distance(meters: float, what: String) -> void:
 func set_goal(world_pos: Vector3, on := true) -> void:
 	_goal = world_pos
 	_has_goal = on
+	if minimap:
+		minimap.set_goal(world_pos, on)
+		big_map_view.set_goal(world_pos, on)
 
 
 ## Túi bánh đang mang: what = món, heat 0..1 (1 là vừa ra lò).
@@ -638,6 +661,126 @@ func _build_eggs() -> void:
 	egg_pill.visible = false
 
 
+## Bật bản đồ nhỏ cho màn có khu phố (main.gd). Màn bếp, cảnh chung cư không bật thì không hiện.
+func enable_minimap(on := true) -> void:
+	_minimap_on = on
+	if minimap_card:
+		minimap_card.visible = on and _playing
+	if fps_label:  # dời số FPS xuống dưới bản đồ cho khỏi đè
+		_place(fps_label, 1.0, 0.0, Rect2(-260, 346 if on else 92, 232, 24))
+	if not InputMap.has_action("ban_do"):
+		InputMap.add_action("ban_do", 0.2)
+		var k := InputEventKey.new()
+		k.physical_keycode = KEY_B
+		InputMap.action_add_event("ban_do", k)
+		var j := InputEventJoypadButton.new()
+		j.button_index = JOY_BUTTON_DPAD_UP
+		InputMap.action_add_event("ban_do", j)
+
+
+## Hiện bản đồ nhỏ cả khi không có thẻ đơn (Thứ Bảy dạo phố tự dựng giao diện riêng, không bật show_playing_ui).
+func show_minimap(on := true) -> void:
+	if minimap_card:
+		minimap_card.visible = on and _minimap_on
+
+
+## Thẻ giấy bo góc viền mực, bên trong là bản đồ xoay theo camera; dưới đáy có nhãn phím B.
+func _build_minimap() -> void:
+	minimap_card = Control.new()
+	minimap_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_place(minimap_card, 1.0, 0.0, Rect2(-248, 98, 220, 238))
+	minimap_card.visible = false
+	play_root.add_child(minimap_card)
+	var mask := Panel.new()
+	mask.add_theme_stylebox_override("panel", T.box(PAPER, 22, 0, Color(0, 0, 0, 0), 0))
+	mask.clip_children = CanvasItem.CLIP_CHILDREN_AND_DRAW
+	mask.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mask.position = Vector2.ZERO
+	mask.size = Vector2(220, 220)
+	minimap_card.add_child(mask)
+	minimap = BanDoNho.new()
+	minimap.position = Vector2.ZERO
+	minimap.size = mask.size
+	mask.add_child(minimap)
+	var frame := Panel.new()
+	frame.add_theme_stylebox_override("panel", T.box(Color(0, 0, 0, 0), 22, 0, INK, 3))
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.size = mask.size
+	minimap_card.add_child(frame)
+	var chip := PanelContainer.new()
+	chip.add_theme_stylebox_override("panel", T.box(INK, 999, 10, Color(0, 0, 0, 0), 0))
+	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var chip_text := T.label("B · bản đồ lớn", 13, PAPER, "bold")
+	chip.add_child(chip_text)
+	chip.position = Vector2(56, 206)
+	chip.size = Vector2(108, 26)
+	minimap_card.add_child(chip)
+
+
+## Bản đồ lớn: nền mờ, thẻ giấy giữa màn hình, bắc ở trên, có chú thích. Mở thì tạm dừng cho người chơi xem thong thả.
+func _build_big_map() -> Control:
+	var c := Control.new()
+	c.set_anchors_preset(Control.PRESET_FULL_RECT)
+	c.mouse_filter = Control.MOUSE_FILTER_STOP
+	var dim := ColorRect.new()
+	dim.color = Color(INK, 0.55)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	c.add_child(dim)
+	var card := PanelContainer.new()
+	card.add_theme_stylebox_override("panel", T.box(PAPER, 22, 18, INK, 3, 6))
+	_place(card, 0.5, 0.5, Rect2(-520, -330, 1040, 0))
+	c.add_child(card)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 10)
+	card.add_child(v)
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 12)
+	v.add_child(top)
+	var title := T.label("Bản đồ khu phố", 28, INK, "display")
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top.add_child(title)
+	top.add_child(T.label("B hoặc Esc để đóng · đồng hồ tạm dừng", 15, T.MUTED))
+	var mask := Panel.new()
+	mask.add_theme_stylebox_override("panel", T.box(PAPER, 16, 0, Color(0, 0, 0, 0), 0))
+	mask.clip_children = CanvasItem.CLIP_CHILDREN_AND_DRAW
+	mask.custom_minimum_size = Vector2(1000, 560)
+	mask.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.add_child(mask)
+	big_map_view = BanDoNho.new()
+	big_map_view.full = true
+	big_map_view.set_anchors_preset(Control.PRESET_FULL_RECT)
+	mask.add_child(big_map_view)
+	var legend := HBoxContainer.new()
+	legend.add_theme_constant_override("separation", 22)
+	legend.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.add_child(legend)
+	for item in [[T.FUR, "Bơ"], [RED, "Đang tới"], [CRUST, "Lò Cô Ba"], [T.SAND, "Số: đơn sắp tới"], [PAPER, "Dấu tích: đã xong"]]:
+		var h := HBoxContainer.new()
+		h.add_theme_constant_override("separation", 6)
+		var dot := Panel.new()
+		dot.custom_minimum_size = Vector2(16, 16)
+		dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		dot.add_theme_stylebox_override("panel", T.box(item[0], 999, 0, INK, 2))
+		h.add_child(dot)
+		h.add_child(T.label(item[1], 15, INK, "bold"))
+		legend.add_child(h)
+	if DoKho.v("map_path", false):
+		legend.add_child(T.label("Chấm đỏ: đường gợi ý", 15, T.MUTED))
+	return c
+
+
+func toggle_big_map() -> void:
+	var open := not big_map.visible
+	big_map.visible = open
+	get_tree().paused = open
+	if open:
+		_mouse_before = Input.mouse_mode
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	else:
+		Input.mouse_mode = _mouse_before
+
+
 func _build_day_card() -> void:
 	day_card = PanelContainer.new()
 	day_card.add_theme_stylebox_override("panel", T.box(PAPER, 22, 26, INK, 4, 8))
@@ -757,8 +900,8 @@ const HELP_NOTE_PHO := "Tay cầm: cần trái chạy, A nhảy, Start mở menu
 
 
 ## Menu Esc dùng chung cho phố, bếp và leo chung cư: thẻ giấy giữa màn hình với Tiếp tục, Chơi lại,
-## Cài đặt, Chọn ngày, Về trang chủ; bên phải là thẻ "Cách chơi" của màn đó.
-## Chơi lại phát restart_pressed (màn nào không nối thì tải lại cảnh); Chọn ngày phát menu_pressed.
+## Cài đặt, Chọn màn, Về trang chủ; bên phải là thẻ "Cách chơi" của màn đó.
+## Chơi lại phát restart_pressed (màn nào không nối thì tải lại cảnh); Chọn màn phát menu_pressed.
 func _build_pause(help := HELP_PHO, note := HELP_NOTE_PHO) -> Control:
 	if settings == null:
 		settings = SettingsPanel.new()
@@ -802,7 +945,7 @@ func _build_pause(help := HELP_PHO, note := HELP_NOTE_PHO) -> Control:
 	var st := T.button("  Cài đặt", "secondary", 56, 19)
 	st.pressed.connect(func(): settings.open())
 	col.add_child(st)
-	var pick := T.button("  Chọn ngày", "secondary", 56, 19)
+	var pick := T.button("  Chọn màn", "secondary", 56, 19)
 	pick.pressed.connect(_on_menu_select)
 	col.add_child(pick)
 	var home := T.button("  Về trang chủ", "secondary", 56, 19)

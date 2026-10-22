@@ -147,6 +147,8 @@ func _ready() -> void:
 	add_child(preload("res://scripts/sound_director.gd").new())  # nhạc và tiếng động
 	add_child(FirstHints.new())  # mẹo lần đầu: gầm thấp, gần Chó Mực, tới khách
 	hud.menu_pressed.connect(_to_menu)
+	hud.enable_minimap(true)
+	add_to_group("ban_do_nho")  # ghim lò bánh và các đơn trên bản đồ nhỏ: ban_do_pins()
 	deliveries.setup(player, dog, hud, "--autotest" in OS.get_cmdline_user_args())
 
 	GameSettings.apply_graphics(get_tree())
@@ -349,6 +351,22 @@ func _current_goal() -> Vector3:
 		return City.BAKERY_POINT
 	var order: Dictionary = orders[order_index]
 	return _drop_point(order) if player.carrying else _pickup_point(order)
+
+
+## Ghim cho bản đồ nhỏ (scripts/ui/ban_do_nho.gd): lò bánh và chỗ khách của từng đơn trong ngày.
+## Đơn đã giao có dấu tích, đơn đang làm và các đơn sắp tới mang số thứ tự và màu áo khách.
+func ban_do_pins() -> Array:
+	var pins := [{"pos": City.BAKERY_POINT, "kind": "bakery", "text": "Lò", "color": Color("#D98E2B"), "state": "next"}]
+	var first := PlayMode.first_order()
+	var last := mini(PlayMode.last_order(orders.size()), orders.size() - 1)
+	for i in range(first, last + 1):
+		var o: Dictionary = orders[i]
+		var st := "done" if i < order_index or state == State.END else ("now" if i == order_index and state == State.PLAY else "next")
+		if st == "now" and not player.carrying and not _is_errand(o):
+			st = "next"  # đang về lò nhận bánh: ghim lò mới là đích
+		pins.append({"pos": o.pos, "kind": "order", "text": str(i + 1), "color": o.get("color", Color("#D98E2B")), "state": st,
+			"name": "%d. %s" % [i + 1, o.who]})
+	return pins
 
 
 ## Đơn ngược: tới chỗ khách lấy đồ rồi mang về lò (vd. mua túi trứng ở tạp hóa Cô Hai, Thứ Ba).

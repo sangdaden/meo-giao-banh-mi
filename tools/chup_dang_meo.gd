@@ -1,7 +1,7 @@
 extends SceneTree
 ## Chụp Bơ (hoặc một giống mèo) ở 6 dáng chạy + 2 động tác chờ + 6 tư thế Thứ Hai, góc ngang và góc trên,
 ## để duyệt model (quy trình duyệt model mèo, bước 4). Ảnh ra: <thư_mục>/<dáng>_<ngang|tren>.png
-##   godot --path . -s tools/chup_dang_meo.gd -- <thư_mục_ra> [giống]
+##   godot --path . -s tools/chup_dang_meo.gd -- <thư_mục_ra> [giống] [duc|cai] [phụ_kiện,phụ_kiện]
 ## Thêm --rendering-driver opengl3 để xem bản web (Compatibility).
 
 const POSES := [
@@ -38,7 +38,17 @@ func _go() -> void:
 	root.add_child(p)
 	await process_frame
 	var c = p.cat
-	if args.size() > 1:
+	if args.size() > 2:
+		# Mèo NPC chỉ có một bản (Bà Mướp G10 chỉ có bản cái): đặt thẳng giống, giới và phụ kiện "id,id"
+		c.breed = args[1]
+		c.sex = args[2]
+		c._load_model()
+		var worn := {}
+		if args.size() > 3:
+			for id in args[3].split(","):
+				worn["pk%d" % worn.size()] = id
+		c.apply_outfit(worn if not worn.is_empty() else {"neck": ""})
+	elif args.size() > 1:
 		c.set_breed(args[1])
 	c.set_process(false)
 	p.set_process(false)

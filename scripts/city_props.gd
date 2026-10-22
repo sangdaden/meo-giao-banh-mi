@@ -424,7 +424,8 @@ static func _lo_banh(parent: Node3D, x0: float, x1: float, z0: float, depth: flo
 		if tiem_den:
 			var lamp := Tiem.make("den_long_tiem", 1.4 * i)
 			parent.add_child(lamp)
-			lamp.position = Vector3(lx, 2.85, face_z + 0.25)
+			lamp.position = Vector3(lx, 2.86, face_z + 0.25)
+			lamp.scale = Vector3.ONE * 1.8  # cỡ bằng đèn lồng phố cũ (đèn tiệm vẽ cho bếp, nhỏ hơn)
 		else:
 			PhoModels.put(parent, "den_long", Vector3(lx, 2.45, face_z + 0.25))
 	if Tiem.shown("bang_hieu_go"):

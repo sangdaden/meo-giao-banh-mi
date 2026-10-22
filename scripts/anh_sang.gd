@@ -289,7 +289,9 @@ static func build(parent: Node, preset: String) -> DirectionalLight3D:
 		var lamps := DenToi.new()
 		lamps.name = "DenToi"
 		lamps.strength = p.lights
+		lamps.add_to_group("den_toi")
 		parent.add_child(lamps)
+		Tiem.glow.call_deferred(parent.get_tree(), p.lights)  # đèn lồng tiệm Cô Ba người chơi đã bày (dựng phố sau)
 
 	if GiuFps.wanted():
 		var guard := GiuFps.new()

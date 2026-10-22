@@ -81,6 +81,12 @@ const EASY := {
 	"pigeon_blind": 1.0,         # bồ câu che mắt 1 s (Thử thách: 2)
 	"pigeon_notice": 1.5,        # đi trong 1,5 m mới làm chim bay (Thử thách: 3 m)
 	"rain_grace": 5.0,           # nhiệm vụ "dưới mái hiên": được dầm mưa tổng 5 s lúc qua đường (Thử thách: 3)
+	# Thứ Năm trưa oi (gói việc thiet-ke-man/goi-viec-thu-nam.md, scripts/thu_nam.gd)
+	"shelf_height": 1.6,         # nóc tủ báo Chú Tư (Thử thách 1,9 m)
+	"ice_melt_time": 120.0,      # bịch đá tan hết sau 120 s (Thử thách 45), chỉ để nhìn và nhiệm vụ phụ
+	"heat_slow": 1.0,            # 1 = tắt; Thử thách: đứng nắng trên mặt đường lâu thì còn 85% tốc độ
+	"loft_call_basket": true,    # đứng trước quầy bấm Q thì Chị Mây thả giỏ (Thử thách: phải leo lên gác)
+	"tu_wake_noise": 7.5,        # chỉ tiếng to (chạy nhanh, đáp mạnh) làm Chú Tư thức (Thử thách: cả đi thường, 6)
 	# Thứ Bảy dạo phố (gói việc thiet-ke-man/goi-viec-thu-bay.md): cả hai chế độ đều không đồng hồ
 	"paper_wait": 999.0,         # tờ báo Chú Tư chờ ở mỗi chặng mãi (Thử thách: 6 s rồi bay về chỗ cũ)
 	"hum_time": 10.0,            # ru em bé 10 s (Thử thách: 15)

@@ -176,6 +176,8 @@ var _spills := 0
 var _basket_period := BASKET_PERIOD
 ## Thứ Sáu (scripts/thu_sau.gd): ngồi gọi, cầu nâng, bàn cỗ giỗ. ThuSau tự gán khi ngày đó chơi.
 var thu_sau: ThuSau
+## Thứ Năm (scripts/thu_nam.gd): tủ báo, cửa cuốn tiệm xe, gác lửng, cảnh chung cư. ThuNam tự gán.
+var thu_nam: ThuNam
 
 
 # ---------------------------------------------------------------- dựng cảnh
@@ -210,6 +212,8 @@ func build_static(parent: Node3D, order_list: Array) -> void:
 					chess = ChessCorner.new()
 			"call", "lift", "gio_table":
 				pass  # Thứ Sáu: khách và đồ do scripts/thu_sau.gd dựng
+			"shelf", "shutter", "loft", "scene":
+				pass  # Thứ Năm: khách và đồ do scripts/thu_nam.gd dựng
 			"on_seat":
 				# Xe và Chú Năm chạy đi được nên dựng trong _ready (không gộp lệnh vẽ)
 				_xe_om_home = p
@@ -656,6 +660,8 @@ func _body_layer(n: Node3D) -> void:
 
 ## Chỗ Bơ cần đứng để giao (cho autotest dịch chuyển tới).
 func stand_point(i: int) -> Vector3:
+	if thu_nam and _kind[i] in ThuNam.KINDS:
+		return thu_nam.stand_point(i)
 	if _kind[i] == "basket":
 		return _ground_spot if _ground else _moto_na
 	if _kind[i] == "on_seat":
@@ -724,6 +730,8 @@ func on_pick_up(i: int) -> void:
 func step(i: int, in_zone: bool, _delta: float) -> bool:
 	if thu_sau and _kind[i] in ThuSau.KINDS:
 		return thu_sau.step(i, in_zone, _delta)
+	if thu_nam and _kind[i] in ThuNam.KINDS:
+		return thu_nam.step(i, in_zone, _delta)
 	var kind := _kind[i]
 	var pressed := _pressed()
 	var ready := in_zone

@@ -175,6 +175,11 @@ jobs:
           # Thứ Năm leo chung cư: xoay được camera ngoài hẻm và trong lồng cầu thang
           timeout 300 ~/godot/godot --headless --path . -s tests/test_xoay_camera.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee xoay_camera.log
           grep -q "XOAY CAMERA OK" xoay_camera.log
+          # Thứ Năm cả ngày: 4 đơn phố, đơn 5 sang cảnh chung cư rồi về phố tổng kết; leo thật tủ báo, khe hông, gác lửng
+          timeout 600 ~/godot/godot --headless --path . -- --autotest --ngay=thu_nam 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee thu_nam.log
+          grep -q "AUTOTEST THU_NAM OK" thu_nam.log
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_thu_nam.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee thu_nam_test.log
+          grep -q "THU NAM TEST OK" thu_nam_test.log
           mkdir -p export
           ~/godot/godot --headless --path . --export-release "macOS" "export/$ZIP_NAME"
           unzip -l "export/$ZIP_NAME" | grep -q "_CodeSignature/CodeResources"

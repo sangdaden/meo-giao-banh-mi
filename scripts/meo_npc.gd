@@ -2,15 +2,15 @@ class_name MeoNpc
 extends Node3D
 ## Mèo hàng xóm không do người chơi điều khiển: mèo trong Hội mèo Chủ Nhật, hai mèo lạ trên sân thượng
 ## Thứ Bảy, sau này mèo trong "Tuần mới". Dùng model 19 giống trong tủ đồ (assets/models/skin/giong, cùng
-## bộ 22 xương với Bơ) và phụ kiện 35 món (OutfitView.attach). Bản tạm tới khi gói G10 xuất model riêng:
-## Bà Mướp tạm là giống Mướp đeo kính cận, to hơn một chút.
+## bộ 22 xương với Bơ) và phụ kiện (OutfitView.attach). Gói G10 (PR #106): Bà Mướp có giống riêng "bamuop"
+## (chỉ bản cái), bản web dùng model nhẹ giong_nhe / phu_kien_nhe, 13 động tác hội trong meo_hoi_dong_tac.json.
 ##
 ## Dùng:
 ##   var m := MeoNpc.from_cast("mit")          # hoặc MeoNpc.make("xiem", "duc", ["bangdo"], "Mít")
 ##   parent.add_child(m); m.global_position = ...
 ##   m.walk_to(p) / m.run_to(p) / m.follow_path([p1, p2...], 4.5)  → phát arrived khi tới nơi
-##   m.set_pose("ngoi")                        # dung | ngoi | nam | ngu | tron | reo
-##   m.play("nhan_tui")                        # động tác Blender của Bơ (bo_dong_tac.json), một lần → clip_finished
+##   m.set_pose("ngoi")                        # dung | ngoi | nam | ngu | tron | reo | vay_duoi | kieu | ngoi_cao
+##   m.play("nhan_tui")                        # động tác Blender (Bơ G2 hoặc mèo hội G10), một lần → clip_finished
 ##   m.say("Meo!")                             # bong bóng chữ trên đầu
 ##
 ## Không có vật lý: đi thẳng tới đích, tự bám mặt đất/mái nhà bằng tia dò (snap_ground). Đi theo đường
@@ -23,29 +23,39 @@ signal clip_finished(clip_name: String)
 ## 8 mèo Hội mèo (gói việc goi-viec-chu-nhat.md). Mun và Gừng còn là 2 mèo lạ trên sân thượng Thứ Bảy.
 ## breed: id giống trong Outfit.BREEDS · acc: phụ kiện đeo sẵn · scale: cỡ so với giống gốc
 const CAST := {
-	"ba_muop": {"ten": "Bà Mướp", "breed": "muop", "sex": "cai", "acc": ["kinhcan"], "scale": 1.1, "tinh": "chậm rãi, hay cười"},
-	"mit": {"ten": "Mít", "breed": "xiem", "sex": "duc", "acc": ["bangdo"], "tinh": "nhanh nhẹn, ngại nước"},
+	"ba_muop": {"ten": "Bà Mướp", "breed": "bamuop", "sex": "cai", "acc": ["kinhlao", "daykinh", "khanchoang"], "tinh": "chậm rãi, hay cười"},
+	"mit": {"ten": "Mít", "breed": "xiem", "sex": "cai", "acc": ["kinhphicong"], "tinh": "nhanh nhẹn, ngại nước"},
 	"bot": {"ten": "Bột", "breed": "khoaimon", "sex": "duc", "acc": ["khanran"], "tinh": "chắc chân, không bao giờ trượt"},
-	"mun": {"ten": "Mun", "breed": "mun", "sex": "cai", "acc": ["chuong"], "tinh": "lặng lẽ, giỏi trốn"},
-	"tuyet": {"ten": "Tuyết", "breed": "tuyet", "sex": "cai", "acc": ["nobuom", "hoadambut"], "tinh": "điệu đà"},
-	"lac": {"ten": "Lạc", "breed": "vobanh", "sex": "duc", "acc": ["noduoi"], "tinh": "vui tính, nhảy kém"},
-	"gung": {"ten": "Gừng", "breed": "que", "sex": "duc", "acc": ["khautrang"], "tinh": "hăng hái"},
-	"sua": {"ten": "Sữa", "breed": "suadac", "sex": "cai", "acc": ["vonghoa"], "tinh": "hiền, chậm"},
+	"mun": {"ten": "Mun", "breed": "mun", "sex": "duc", "acc": ["chuong"], "tinh": "lặng lẽ, giỏi trốn"},
+	"tuyet": {"ten": "Tuyết", "breed": "tuyet", "sex": "cai", "acc": ["vuongmien"], "tinh": "điệu đà"},
+	"lac": {"ten": "Lạc", "breed": "vobanh", "sex": "duc", "acc": ["nonsinhnhat"], "tinh": "vui tính, nhảy kém"},
+	"gung": {"ten": "Gừng", "breed": "que", "sex": "duc", "acc": ["bangdo"], "tinh": "hăng hái"},
+	"sua": {"ten": "Sữa", "breed": "suadac", "sex": "cai", "acc": ["hoadambut"], "tinh": "hiền, chậm"},
 }
 ## Dáng giữ bằng động tác Blender: [tên động tác, giây giữ (-1 = chạy lặp)]
 const POSES := {
-	"ngoi": ["ngoi_goi", 0.55],
+	"ngoi": ["ngoi_xem", -1.0],
 	"nam": ["phoi_nang", -1.0],
 	"ngu": ["ngu_cuon", -1.0],
-	"tron": ["phoi_nang", 0.3],
-	"reo": ["chup_vay", -1.0],
+	"tron": ["tron", -1.0],
+	"reo": ["reo", -1.0],
+	"vay_duoi": ["vay_duoi", -1.0],
+	"kieu": ["tao_dang_kieu", -1.0],
+	"ngoi_cao": ["ngoi_san_khau", -1.0],   ## Bà Mướp ngồi thùng gỗ 0,4 m
+	"noi": ["noi", -1.0],                   ## Bà Mướp nói (trên thùng)
+	"cuoi": ["cuoi", -1.0],                 ## Bà Mướp cười (trên thùng)
 }
+## Động tác hội mèo (G10), dạng lệch so với dáng nghỉ nên chạy trên mọi giống
+const HOI_DONG_TAC := "res://assets/models/meo_hoi_dong_tac.json"
+## Giống chân ngắn: độ hạ gốc (root) của động tác nhân theo hệ số chân, không thì thân lún xuống đất
+const LEG_K := {"vobanh": 0.62}
 const WALK_SPEED := 1.6
 const RUN_SPEED := 4.5
 const LEGS := [["upperarm_FL", "forearm_FL"], ["upperarm_FR", "forearm_FR"], ["thigh_BL", "shin_BL"], ["thigh_BR", "shin_BR"]]
 const TAIL := ["tail_1", "tail_2", "tail_3", "tail_4"]
 
 static var _scenes := {}
+static var _data := {}
 
 var ten := ""
 var cast_id := ""
@@ -103,7 +113,8 @@ static func from_cast(id: String) -> MeoNpc:
 func _ready() -> void:
 	var key := breed + "_" + sex
 	if not _scenes.has(key):
-		_scenes[key] = OutfitView.breed_scene(breed, sex)
+		var light := "res://assets/models/skin/giong_nhe/%s.glb" % key
+		_scenes[key] = load(light) if OS.has_feature("web") and ResourceLoader.exists(light) else OutfitView.breed_scene(breed, sex)
 	var scene: PackedScene = _scenes[key]
 	if scene == null:
 		scene = load("res://assets/models/bo.glb")
@@ -122,7 +133,7 @@ func _ready() -> void:
 			_rest[n] = _skel.get_bone_rest(i).basis.get_rotation_quaternion()
 		var worn_sex := sex if OutfitView.has_sex_model(breed, sex) else "duc"
 		for a in acc:
-			OutfitView.attach(_skel, a, breed, worn_sex)
+			OutfitView.attach(_skel, a, breed, worn_sex, OS.has_feature("web"))
 	_t = randf() * 10.0
 	# Ra khỏi màn hình thì ngừng tính xương cho nhẹ
 	var vis := VisibleOnScreenNotifier3D.new()
@@ -166,7 +177,7 @@ func face(pos: Vector3) -> void:
 		rotation.y = atan2(-d.x, -d.z)
 
 
-## Đổi dáng: dung | ngoi | nam | ngu | tron | reo. Dáng khác "dung" thì đứng yên tại chỗ.
+## Đổi dáng: một khóa của POSES, hoặc "dung". Dáng khác "dung" thì đứng yên tại chỗ.
 func set_pose(p: String) -> void:
 	pose = p
 	if POSES.has(p):
@@ -176,7 +187,8 @@ func set_pose(p: String) -> void:
 		_clip = ""
 
 
-## Chạy một động tác Blender của Bơ (vd. "nhan_tui", "dua_tui", "nhan_huy_chuong", "chup_dung").
+## Chạy một động tác Blender một lần: của Bơ ("nhan_tui", "dua_tui", "chup_dung"...) hay mèo hội ("nhay", "lo_dau",
+## "gio_bang", "trao_huy_chuong").
 ## Động tác một lần xong thì phát clip_finished rồi về dáng đang đặt.
 func play(clip_name: String, speed := 1.0) -> void:
 	if not _clips().has(clip_name):
@@ -295,8 +307,21 @@ func _rot(bone_name: String, axis: Vector3, angle: float) -> void:
 
 # ---------------------------------------------------------------- động tác Blender
 
+## Động tác của Bơ (G2) gộp với động tác mèo hội (G10): cùng dáng nghỉ, cùng 30 khung/giây.
+static func dong_tac() -> Dictionary:
+	if _data.is_empty():
+		var bo: Dictionary = preload("res://scripts/player.gd").dong_tac()
+		_data = {"fps": bo.get("fps", 30), "rest": bo.get("rest", {}), "clips": bo.get("clips", {}).duplicate()}
+		if FileAccess.file_exists(HOI_DONG_TAC):
+			var hoi: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(HOI_DONG_TAC))
+			_data.clips.merge(hoi.get("clips", {}), true)
+			if _data.rest.is_empty():
+				_data.rest = hoi.get("rest", {})
+	return _data
+
+
 static func _clips() -> Dictionary:
-	return preload("res://scripts/player.gd").dong_tac().get("clips", {})
+	return dong_tac().get("clips", {})
 
 
 func _start_clip(clip_name: String, speed: float, hold: float, once: bool) -> void:
@@ -337,7 +362,7 @@ func _clip_step(delta: float) -> void:
 func _apply_clip() -> void:
 	if _clip == "" or _clip_w <= 0.0:
 		return
-	var data: Dictionary = preload("res://scripts/player.gd").dong_tac()
+	var data := dong_tac()
 	var c: Dictionary = data.clips[_clip]
 	var rest: Dictionary = data.rest
 	var w := smoothstep(0.0, 1.0, _clip_w)
@@ -356,6 +381,7 @@ func _apply_clip() -> void:
 		if ch.has("p") and bone_name == "root":
 			var p: Vector3 = P._clip_v(ch.p, fr) - Vector3(rb.p[0], rb.p[1], rb.p[2])
 			p.z = 0.0  # động tác đi chỗ khác (bật tường...) thì giữ mèo tại chỗ
+			p.y *= float(LEG_K.get(breed, 1.0))
 			_skel.set_bone_pose_position(idx, _skel.get_bone_pose_position(idx).lerp(_skel.get_bone_rest(idx).origin + p, w))
 
 

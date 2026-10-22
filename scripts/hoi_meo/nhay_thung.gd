@@ -95,7 +95,7 @@ func _rivals_try() -> void:
 		var m := cat(id)
 		if m:
 			m.say("Qua tầng %d!" % tier if ok else ("Ối, rớt rồi! Cố lên Bơ ơi!" if id == "lac" else "Hụt rồi!"), 2.5)
-			m.play("nhan_huy_chuong" if ok else "truot_chan")
+			m.play("nhay" if ok else "truot_chan")
 	toast("Tầng %d: %s. Tới lượt Bơ!" % [tier, ", ".join(lines)], 2.5)
 
 

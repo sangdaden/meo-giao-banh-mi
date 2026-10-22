@@ -418,7 +418,7 @@ static func _lo_banh(parent: Node3D, x0: float, x1: float, z0: float, depth: flo
 	var w := x1 - x0
 	var face_z := z0 + depth
 	PhoModels.put_house(parent, "lo_banh", x0, w, 5.2, face_z, true)
-	Blocks.collider(parent, Vector3(w - 0.15, 7.0, depth), Vector3((x0 + x1) / 2.0, 3.5, z0 + depth / 2.0))
+	Blocks.collider(parent, Vector3(w - 0.15, 7.0, depth), Vector3((x0 + x1) / 2.0, 3.5, z0 + depth / 2.0)).set_meta("model", "lo_banh")
 	awning(parent, w, Vector3((x0 + x1) / 2.0, 2.9, face_z + 0.5), "mai_hien_do", 1.0)
 	# Hai đèn lồng dưới mái hiên (tách khỏi model nhà): đèn lồng tiệm nếu người chơi đã mua và đang bày
 	var tiem_den := Tiem.shown("den_long_tiem")

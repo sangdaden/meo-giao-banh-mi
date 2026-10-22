@@ -122,7 +122,8 @@ static func _house(parent: Node3D, model: String, x: float, w: float, z0: float,
 	var out := 1.0 if faces_south else -1.0
 	PhoModels.put_house(parent, model, x, w, PhoModels.FILLERS[model], face_z, faces_south)
 	var h := PhoModels.aabb(model).end.y - 1.0  # thân nhà, chừa phần mái
-	Blocks.collider(parent, Vector3(w - 0.15, h, depth), Vector3(x + w / 2.0, h / 2.0, z0 + depth / 2.0))
+	var body := Blocks.collider(parent, Vector3(w - 0.15, h, depth), Vector3(x + w / 2.0, h / 2.0, z0 + depth / 2.0))
+	body.set_meta("model", model)  # SanThuong (Thứ Tư) đo mái thật theo mẫu nhà
 	CityProps.awning(parent, w, Vector3(x + w / 2.0, 2.9, face_z + 0.5 * out), CityProps.AWNINGS[rng.randi() % CityProps.AWNINGS.size()], out)
 
 

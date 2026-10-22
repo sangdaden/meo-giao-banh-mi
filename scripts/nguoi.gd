@@ -52,6 +52,8 @@ var id := ""
 ## Bản model: "" đủ chi tiết (~3,8k tam giác), "nhe" ~1,4k (người chợ, phố đông), "dong" ~600 (đám đông xa).
 ## Đặt trước khi thêm vào cây cảnh: n.ban = "nhe". Cùng xương và animation với bản đủ.
 var ban := ""
+## Model đang mặc nếu khác id (vd. "may_mua" ngày mưa, xem wear()); id vẫn giữ để code khác tìm người.
+var model_id := ""
 ## Animation khi rảnh; play_once xong thì quay về đây.
 var idle_anim := "viec_rieng"
 ## Đầu quay nhìn theo node này khi trong tầm look_range mét (null = không nhìn).
@@ -212,6 +214,47 @@ func hold(model: String, bone: String, offset := Vector3.ZERO) -> Node3D:
 	return m
 
 
+## Đổi sang model khác cùng khung xương (bộ đồ theo ngày, vd. áo mưa Thứ Tư "may_mua") khi người đã vào cảnh.
+## Giữ id, vị trí, va chạm và animation đang chơi; đồ gắn bằng attach()/hold() trước đó phải gắn lại.
+func wear(new_model: String) -> void:
+	var old: Node = skeleton.owner if skeleton else null
+	if old == null or not ResourceLoader.exists("res://assets/models/nguoi/%s.glb" % new_model):
+		return
+	model_id = new_model
+	var key := new_model + ("_" + ban if ban != "" else "")
+	if not _scenes.has(key):
+		_scenes[key] = load("res://assets/models/nguoi/%s.glb" % key)
+	var model: Node3D = _scenes[key].instantiate()
+	var pos := anim.current_animation_position if anim and anim.is_playing() else 0.0
+	var playing := _current
+	if anim and anim.animation_finished.is_connected(_on_finished):
+		anim.animation_finished.disconnect(_on_finished)
+	if _look:
+		_look.get_parent().remove_child(_look)
+	remove_child(old)
+	old.queue_free()
+	add_child(model)
+	move_child(model, 0)
+	skeleton = null
+	anim = null
+	for n in model.find_children("*", "Skeleton3D", true, false):
+		skeleton = n
+	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
+		_apply_style(mi)
+	for n in model.find_children("*", "AnimationPlayer", true, false):
+		anim = n
+	if anim:
+		for a in anim.get_animation_list():
+			anim.get_animation(a).loop_mode = Animation.LOOP_NONE if a in ONE_SHOT else Animation.LOOP_LINEAR
+		anim.animation_finished.connect(_on_finished)
+		_current = ""
+		play(playing if anim.has_animation(playing) else idle_anim, 0.0)
+		if anim.is_playing():
+			anim.seek(minf(pos, anim.current_animation_length), true)
+	if skeleton and _look:
+		skeleton.add_child(_look)
+
+
 ## Khối va chạm cho người (Bơ không chạy xuyên qua). size theo mét, center tính từ gốc model.
 func add_collision(size: Vector3, center: Vector3) -> StaticBody3D:
 	var body := StaticBody3D.new()
@@ -232,7 +275,7 @@ func _apply_style(mi: MeshInstance3D) -> void:
 	mi.visibility_range_end = 30.0  # xa hơn chỉ còn vài điểm ảnh, khỏi vẽ
 	mi.lod_bias = 0.5  # đổi sang mức LOD thấp sớm hơn (người nhỏ trong khung)
 	if RenderingServer.get_rendering_device() == null:
-		var key := id + ("_" + ban if ban != "" else "")
+		var key := (model_id if model_id != "" else id) + ("_" + ban if ban != "" else "")
 		if not _srgb_meshes.has(key):
 			_srgb_meshes[key] = _srgb_copy(mi.mesh)
 		mi.mesh = _srgb_meshes[key]

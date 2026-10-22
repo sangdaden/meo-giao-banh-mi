@@ -14,6 +14,8 @@ class_name Days
 ##   note: ghi chú món trên phiếu: "" | "khong_ot" | "them_pate" | "nhieu_do_chua"
 ##   errand_item: món phải mang về khi kind = "errand" ("trung6" = túi 6 trứng)
 ##   basket_period: giây một lượt giỏ Bé Na đưa qua lại (deliveries.gd, mặc định của Thứ Hai)
+##   gio, gio_group, dog_start: đơn giỗ Thứ Sáu (scripts/thu_sau.gd)
+## Khóa của một ngày: orders_hard (nếu có) thay cho orders ở Chế độ thử thách.
 
 ## Thứ tự các ngày trong tuần
 const ORDER := ["thu_hai", "thu_ba", "thu_tu", "thu_nam", "thu_sau", "thu_bay", "chu_nhat"]
@@ -56,7 +58,33 @@ const DATA := {
 	},
 	"thu_tu": {"title": "Trời mưa", "blurb": "Mưa trơn trượt, đi đường sân thượng và giữ thăng bằng trên mép tường."},
 	"thu_nam": {"title": "Chung cư", "blurb": "Giao lên các tầng chung cư: bám mép và bật tường để leo."},
-	"thu_sau": {"title": "Đám giỗ Bà Sáu", "blurb": "Ngày đông khách nhất: tiệm sửa xe và nhà Bà Sáu đặt bánh cho đám giỗ."},
+	# Thứ Sáu chiều tà (gói việc thiet-ke-man/goi-viec-thu-sau.md): giờ là số Thử thách, Thong thả ×2 qua DoKho.
+	# Ba cách giao mới call, lift, gio_table ở scripts/thu_sau.gd. Đơn "gio": ngậm túi 3 ổ tới nhà Bà Sáu.
+	# Thong thả 6 ổ / 2 chuyến, mỗi chuyến giờ riêng. Thử thách (orders_hard) 10 ổ / 4 chuyến, đơn "gio_group"
+	# dùng chung đồng hồ gio_shared_time giây. Cảnh tiệm xe, sân giỗ là khối tạm chờ model G6, G7.
+	"thu_sau": {
+		"title": "Đám giỗ Bà Sáu",
+		"blurb": "Chiều tan tầm: gọi khách bằng tiếng meo, cầu nâng tiệm xe, rồi chạy nhiều chuyến bánh cho đám giỗ nhà Bà Sáu.",
+		"intro": "Cô Ba: \"Chiều nay giỗ ông nhà Bà Sáu, cô làm thêm cả mâm bánh. Bơ chạy mấy chuyến giùm cô nha, thằng Mực bữa nay thức hoài đó!\"",
+		"time_mult": 1.0,
+		"extras": {"evening": true, "gio": true, "dog_alert": true},
+		"orders": [
+			{"who": "Chị Mây", "place": "Cà phê Mây", "item": "2 ổ thịt nguội", "pos": Vector3(5.4, 0, 4.6), "time": 20.0, "color": Color("#7FB7A4"), "delivery": "call", "side_quest": "goi_mot_tieng"},
+			{"who": "Anh Hùng", "place": "Sửa xe", "item": "3 ổ xíu mại", "pos": ThuSau.LIFT_SPOT, "time": 26.0, "color": Color("#5E6F6C"), "delivery": "lift", "side_quest": "truoc_goi_hai"},
+			{"who": "Cô Hai", "place": "Tạp hóa", "item": "1 bó nhang + hộp đèn cầy", "kind": "errand", "errand_item": "nhang", "pos": Vector3(7.8, 0, -18.9), "time": 22.0, "color": Color("#E39C7A"), "delivery": "errand_nhe", "side_quest": "khong_dung_nguoi"},
+			{"who": "Bà Sáu", "place": "Nhà bông giấy", "item": "3 ổ chả cá (chuyến 1)", "pos": ThuSau.GIO_GATE, "time": 24.0, "color": Color("#C8412F"), "delivery": "call", "side_quest": "muc_ngu_yen", "boss": true, "gio": true},
+			{"who": "Bà Sáu", "place": "Nhà bông giấy", "item": "3 ổ chả cá + mâm nhang (chuyến 2)", "pos": ThuSau.GIO_TABLE, "time": 24.0, "color": Color("#C8412F"), "delivery": "gio_table", "side_quest": "vao_tu_gian", "boss": true, "gio": true, "dog_start": "peek"},
+		],
+		"orders_hard": [
+			{"who": "Chị Mây", "place": "Cà phê Mây", "item": "2 ổ thịt nguội", "pos": Vector3(5.4, 0, 4.6), "time": 20.0, "color": Color("#7FB7A4"), "delivery": "call", "side_quest": "goi_mot_tieng"},
+			{"who": "Anh Hùng", "place": "Sửa xe", "item": "3 ổ xíu mại", "pos": ThuSau.LIFT_SPOT, "time": 26.0, "color": Color("#5E6F6C"), "delivery": "lift", "side_quest": "truoc_goi_hai"},
+			{"who": "Cô Hai", "place": "Tạp hóa", "item": "1 bó nhang + hộp đèn cầy", "kind": "errand", "errand_item": "nhang", "pos": Vector3(7.8, 0, -18.9), "time": 22.0, "color": Color("#E39C7A"), "delivery": "errand_nhe", "side_quest": "khong_dung_nguoi"},
+			{"who": "Bà Sáu", "place": "Nhà bông giấy", "item": "3 ổ chả cá (chuyến 1)", "pos": ThuSau.GIO_GATE, "time": 120.0, "color": Color("#C8412F"), "delivery": "call", "side_quest": "muc_ngu_yen", "boss": true, "gio": true, "gio_group": true},
+			{"who": "Bà Sáu", "place": "Nhà bông giấy", "item": "3 ổ chả cá + mâm nhang (chuyến 2)", "pos": ThuSau.GIO_TABLE, "time": 120.0, "color": Color("#C8412F"), "delivery": "gio_table", "side_quest": "vao_tu_gian", "boss": true, "gio": true, "gio_group": true, "dog_start": "peek"},
+			{"who": "Bà Sáu", "place": "Nhà bông giấy", "item": "2 ổ chả cá (chuyến 3)", "pos": ThuSau.GIO_GATE, "time": 120.0, "color": Color("#C8412F"), "delivery": "call", "boss": true, "gio": true, "gio_group": true},
+			{"who": "Bà Sáu", "place": "Nhà bông giấy", "item": "2 ổ chả cá (chuyến 4)", "pos": ThuSau.GIO_TABLE, "time": 120.0, "color": Color("#C8412F"), "delivery": "gio_table", "boss": true, "gio": true, "gio_group": true},
+		],
+	},
 	"thu_bay": {"title": "Dạo phố", "blurb": "Không có đồng hồ: đi giúp hàng xóm, chụp ảnh, và làm bạn với Chó Mực."},
 	"chu_nhat": {"title": "Hội mèo", "blurb": "Năm cuộc thi với mèo cả phố: đua sân thượng, nhảy thùng, trốn tìm, giao tiếp sức, thi trang phục."},
 }
@@ -73,7 +101,7 @@ static func get_day(id: String) -> Dictionary:
 		"intro": d.get("intro", ""),
 		"time_mult": float(d.get("time_mult", 1.0)),
 		"extras": d.get("extras", {}),
-		"orders": d.get("orders", []),
+		"orders": d.get("orders_hard", d.get("orders", [])) if DoKho.hard() else d.get("orders", []),
 	}
 
 

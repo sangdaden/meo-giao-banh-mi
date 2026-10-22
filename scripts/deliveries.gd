@@ -43,6 +43,9 @@ const QUESTS := {
 	"kip_xe_om": "Giao trước khi khách xe ôm tới",
 	"khong_dung_nguoi": "Không đụng người đi chợ nào",
 	"khong_do_thung": "Không làm đổ thúng nào",
+	"goi_mot_tieng": "Gọi đúng một tiếng là Chị Mây ra",
+	"truoc_goi_hai": "Giao trước khi Anh Hùng gọi lần hai",
+	"vao_tu_gian": "Vào sân giỗ từ giàn bông giấy",
 }
 
 const PAPER := Color("#E8E2D0")
@@ -169,6 +172,8 @@ var _market: Node
 var _bumps := 0
 var _spills := 0
 var _basket_period := BASKET_PERIOD
+## Thứ Sáu (scripts/thu_sau.gd): ngồi gọi, cầu nâng, bàn cỗ giỗ. ThuSau tự gán khi ngày đó chơi.
+var thu_sau: ThuSau
 
 
 # ---------------------------------------------------------------- dựng cảnh
@@ -178,7 +183,8 @@ func build_static(parent: Node3D, order_list: Array) -> void:
 	orders = order_list
 	for i in orders.size():
 		var o: Dictionary = orders[i]
-		var kind: String = "errand" if o.get("kind", "deliver") == "errand" else o.get("delivery", "hand")
+		# Đơn ngược mua trứng dùng tạp hóa ShopTapHoa; đơn ngược khác (nhang Thứ Sáu) theo khóa delivery
+		var kind: String = "errand" if o.get("kind", "deliver") == "errand" and o.get("errand_item", "trung6") == "trung6" else o.get("delivery", "hand")
 		_kind.append(kind)
 		var p: Vector3 = o.pos
 		var title := "%d. %s\n%s" % [i + 1, o.who, o.place]
@@ -200,6 +206,8 @@ func build_static(parent: Node3D, order_list: Array) -> void:
 				if chess == null:
 					ChessCorner.build_static(parent)
 					chess = ChessCorner.new()
+			"call", "lift", "gio_table":
+				pass  # Thứ Sáu: khách và đồ do scripts/thu_sau.gd dựng
 			"on_seat":
 				# Xe và Chú Năm chạy đi được nên dựng trong _ready (không gộp lệnh vẽ)
 				_xe_om_home = p
@@ -712,6 +720,8 @@ func on_pick_up(i: int) -> void:
 
 ## Gọi mỗi nhịp vật lý khi đang mang bánh đơn i. Trả true khi khách đã nhận bánh.
 func step(i: int, in_zone: bool, _delta: float) -> bool:
+	if thu_sau and _kind[i] in ThuSau.KINDS:
+		return thu_sau.step(i, in_zone, _delta)
 	var kind := _kind[i]
 	var pressed := _pressed()
 	var ready := in_zone

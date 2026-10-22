@@ -59,6 +59,18 @@ const EASY := {
 	"lift_stuck_chance": 0.1,    # thang kẹt 10% (trước 20%), kẹt 1,5 s (trước 3)
 	"lift_stuck_time": 1.5,
 	"rattle_throw": 2.5,         # cục nóng rung đứng được 2,5 s mới hất (trước 1,4)
+	# Thứ Sáu chiều tà, đám giỗ (scripts/thu_sau.gd)
+	"gio_trips": 2,              # chuyến giỗ (Thử thách 4)
+	"gio_shared_time": 0.0,      # 0 = mỗi chuyến giờ riêng (Thử thách: chung 120 s cho 4 chuyến)
+	"dog_sleep_t6": 6.0,         # Mực Thứ Sáu ngủ chập chờn (Thử thách 4 / 3)
+	"dog_peek_t6": 2.0,
+	"lift_period": 3.5,          # cầu nâng tiệm xe một lượt lên xuống (Thử thách 2,5 s)
+	"air_push": 0.4,             # vòi hơi thổi Bơ dạt 0,4 m (Thử thách 1,2)
+	"tyre_stun": 0.2,
+	"kid_trip_stun": 0.15,
+	"water_stun": 0.0,           # dính nước tưới chỉ giũ lông, không khựng
+	"thorn_slow": 0.8,           # gai giàn bông giấy làm chậm còn 80% (Thử thách 50%)
+	"call_radius": 7.0,          # ngồi gọi khách nghe xa 7 m (Thử thách 5)
 }
 
 

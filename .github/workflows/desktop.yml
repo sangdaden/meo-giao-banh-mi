@@ -183,6 +183,9 @@ jobs:
           grep -q "AUTOTEST THU_NAM OK" thu_nam.log
           timeout 300 ~/godot/godot --headless --path . -s tests/test_thu_nam.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee thu_nam_test.log
           grep -q "THU NAM TEST OK" thu_nam_test.log
+          # Chủ Nhật Hội mèo: khay bánh sáng không tính giờ, bot chơi đủ 5 trò, tới tổng kết tuần
+          timeout 600 ~/godot/godot --headless --path . -- --autotest --ngay=chu_nhat 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee chu_nhat.log
+          grep -q "AUTOTEST CHU_NHAT OK" chu_nhat.log
           mkdir -p export
           ~/godot/godot --headless --path . --export-release "macOS" "export/$ZIP_NAME"
           unzip -l "export/$ZIP_NAME" | grep -q "_CodeSignature/CodeResources"

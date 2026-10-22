@@ -65,6 +65,7 @@ func _ready() -> void:
 	hud = main.get("hud")
 	_autotest = "--autotest" in OS.get_cmdline_user_args()
 	_swap_sky("pho_sang")
+	add_to_group("ban_do_nho")  # ghim sân khấu Hội mèo trên bản đồ nhỏ: ban_do_pins()
 	san = SanThuong.new()
 	add_child(san)
 	san.build(main)
@@ -331,6 +332,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		if k >= 0:
 			_play(k)
 			get_viewport().set_input_as_handled()
+
+
+## Ghim cho bản đồ nhỏ: sân khấu Hội mèo (tối mới đông vui, sáng vẫn hiện để biết chỗ).
+func ban_do_pins() -> Array:
+	return [{"pos": STAGE, "kind": "place", "text": "★", "color": Color("#F2C14E"), "state": "done" if phase == "xong" else "next",
+		"name": "Sân khấu Hội mèo · %d/5 trò" % medals.size() if phase != "sang" else "Sân khấu Hội mèo"}]
 
 
 ## Thẻ HUD và mũi tên trên đầu Bơ trong lúc thi.

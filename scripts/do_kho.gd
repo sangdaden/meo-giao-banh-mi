@@ -104,6 +104,8 @@ const EASY := {
 	"relay_rival_mult": 0.8,     # tiếp sức: đội bạn chậm 20% (Thử thách: đúng tốc độ)
 	"relay_drop": false,         # nhả túi sớm không rơi (Thử thách: rơi, phải nhặt)
 	"costume_borrow": true,      # thi trang phục được mượn đồ chưa mua (Thử thách: chỉ đồ đã có)
+	# Bản đồ nhỏ (scripts/ui/ban_do_nho.gd)
+	"map_path": true,            # đường chấm đỏ chỉ đường tới đích (Thử thách: chỉ có ghim, tự tìm đường)
 }
 
 

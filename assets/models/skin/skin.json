@@ -3403,6 +3403,98 @@
    },
    "size": 0.93,
    "tris": 15443
+  },
+  "bamuop_cai": {
+   "hc": [
+    0.0,
+    0.3906,
+    0.15810000000000002
+   ],
+   "hr": [
+    0.11258207999999999,
+    0.09569699999999999,
+    0.09925146
+   ],
+   "pivot": [
+    0.0,
+    0.3069000121951103,
+    0.11159999750554563
+   ],
+   "basis": [
+    0.9589946866035461,
+    0.059952013194561005,
+    -0.27701085805892944,
+    -0.06314553320407867,
+    0.9980009198188782,
+    -0.0026138501707464457,
+    0.2763004004955292,
+    0.019998665899038315,
+    0.9608632922172546
+   ],
+   "sockets": {
+    "head": [
+     0.0,
+     0.3906,
+     0.15810000000000002
+    ],
+    "head_top": [
+     0.0,
+     0.48629700000000003,
+     0.1395
+    ],
+    "face": [
+     0.0,
+     0.399714,
+     0.259656
+    ],
+    "neck": [
+     0.0,
+     0.30225,
+     0.12090000000000001
+    ],
+    "shoulder": [
+     0.0,
+     0.3255,
+     0.0558
+    ],
+    "back": [
+     0.0,
+     0.325872,
+     -0.028458
+    ],
+    "tail_mid": [
+     0.0,
+     0.2604,
+     -0.32922
+    ],
+    "tail_tip": [
+     0.018600000000000002,
+     0.3813,
+     -0.35247
+    ],
+    "pawFL": [
+     -0.059892,
+     0.020088,
+     0.13671
+    ],
+    "pawBL": [
+     -0.06844800000000001,
+     0.020088,
+     -0.14043
+    ],
+    "pawFR": [
+     0.059892,
+     0.020088,
+     0.09486
+    ],
+    "pawBR": [
+     0.06844800000000001,
+     0.020088,
+     -0.10323
+    ]
+   },
+   "size": 0.93,
+   "tris": 15499
   }
  },
  "phu_kien": {
@@ -4623,6 +4715,55 @@
    "ears": "",
    "lift": 0,
    "tris": 832
+  },
+  "kinhlao": {
+   "objects": {
+    "Gong_KinhLao": {
+     "sock": "head",
+     "kind": "metal",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 1
+    },
+    "Trong_KinhLao": {
+     "sock": "head",
+     "kind": "glass",
+     "alpha": 0.3,
+     "emit": 0,
+     "metal": 0
+    }
+   },
+   "ears": "",
+   "lift": 0,
+   "tris": 4500
+  },
+  "daykinh": {
+   "objects": {
+    "Day_Kinh": {
+     "sock": "neck",
+     "kind": "metal",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 1
+    }
+   },
+   "ears": "",
+   "lift": 0,
+   "tris": 1500
+  },
+  "khanchoang": {
+   "objects": {
+    "Khan_Choang": {
+     "sock": "neck",
+     "kind": "cloth",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    }
+   },
+   "ears": "",
+   "lift": 0,
+   "tris": 1500
   }
  },
  "bo_head": {
@@ -4714,5 +4855,71 @@
    0.0216,
    -0.108
   ]
+ },
+ "giong_nhe": {
+  "bamuop_cai": {
+   "tris": 5900,
+   "src": "giong/bamuop_cai.glb"
+  },
+  "xiem_cai": {
+   "tris": 5900,
+   "src": "giong/xiem_cai.glb"
+  },
+  "khoaimon_duc": {
+   "tris": 5899,
+   "src": "giong/khoaimon_duc.glb"
+  },
+  "mun_duc": {
+   "tris": 5899,
+   "src": "giong/mun_duc.glb"
+  },
+  "tuyet_cai": {
+   "tris": 5900,
+   "src": "giong/tuyet_cai.glb"
+  },
+  "vobanh_duc": {
+   "tris": 5900,
+   "src": "giong/vobanh_duc.glb"
+  },
+  "que_duc": {
+   "tris": 5899,
+   "src": "giong/que_duc.glb"
+  },
+  "suadac_cai": {
+   "tris": 5899,
+   "src": "giong/suadac_cai.glb"
+  }
+ },
+ "phu_kien_nhe": {
+  "bangdo": {
+   "tris": 700
+  },
+  "chuong": {
+   "tris": 2100
+  },
+  "daykinh": {
+   "tris": 700
+  },
+  "hoadambut": {
+   "tris": 2100
+  },
+  "khanchoang": {
+   "tris": 700
+  },
+  "khanran": {
+   "tris": 700
+  },
+  "kinhlao": {
+   "tris": 1400
+  },
+  "kinhphicong": {
+   "tris": 2100
+  },
+  "nonsinhnhat": {
+   "tris": 2800
+  },
+  "vuongmien": {
+   "tris": 1400
+  }
  }
 }

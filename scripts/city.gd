@@ -49,12 +49,12 @@ static func build(parent: Node3D) -> void:
 	CityProps.crate(parent, CORNER_STAIR + Vector3(0, 0.8, 0))
 	_street_props(parent, rng)
 	CityProps.build(parent)
-	_bounds(parent)
+	VanhPho.build(parent)  # vành phố, phông chân trời, mép mềm thay tường thấp
 
 
 static func _ground(parent: Node3D) -> void:
-	# Mặt đường: một khối phẳng lớn có va chạm
-	Blocks.solid_box(parent, Vector3(SIZE.x + 20, 1, SIZE.y + 20), Vector3(0, -0.5, 0), ROAD)
+	# Mặt đường vùng chơi (chỉ để nhìn, đúng 96 x 60 m cho khỏi đè đường và kênh của vành phố); nền va chạm do VanhPho dựng
+	Blocks.box(parent, Vector3(SIZE.x, 1, SIZE.y), Vector3(0, -0.5, 0), ROAD)
 	# Vạch kẻ đường đứt khúc: trục ngang z=0, hai trục dọc x=-18 và x=16
 	var x := -46.0
 	while x < 46.0:
@@ -190,17 +190,3 @@ static func _street_props(parent: Node3D, rng: RandomNumberGenerator) -> void:
 		var bike := Blocks.collider(parent, Vector3(0.5, 0.9, 1.6), Vector3(along, 0.45, z), Blocks.LAYER_PROP)
 		bike.rotation.y = deg_to_rad(rng.randf_range(-15, 15))
 		PhoModels.put(bike, CityProps.BIKES[i % CityProps.BIKES.size()], Vector3(0, -0.45, 0), PI / 2.0 if i % 3 else -PI / 2.0)
-
-
-static func _bounds(parent: Node3D) -> void:
-	var hx := SIZE.x / 2.0
-	var hz := SIZE.y / 2.0
-	Blocks.invisible_wall(parent, Vector3(1, 20, SIZE.y + 2), Vector3(-hx - 0.5, 10, 0))
-	Blocks.invisible_wall(parent, Vector3(1, 20, SIZE.y + 2), Vector3(hx + 0.5, 10, 0))
-	Blocks.invisible_wall(parent, Vector3(SIZE.x + 2, 20, 1), Vector3(0, 10, -hz - 0.5))
-	Blocks.invisible_wall(parent, Vector3(SIZE.x + 2, 20, 1), Vector3(0, 10, hz + 0.5))
-	# Tường thấp nhìn thấy được ở mép bản đồ
-	Blocks.box(parent, Vector3(SIZE.x, 1.2, 0.3), Vector3(0, 0.6, -hz), Color("#B8B2A2"))
-	Blocks.box(parent, Vector3(SIZE.x, 1.2, 0.3), Vector3(0, 0.6, hz), Color("#B8B2A2"))
-	Blocks.box(parent, Vector3(0.3, 1.2, SIZE.y), Vector3(-hx, 0.6, 0), Color("#B8B2A2"))
-	Blocks.box(parent, Vector3(0.3, 1.2, SIZE.y), Vector3(hx, 0.6, 0), Color("#B8B2A2"))

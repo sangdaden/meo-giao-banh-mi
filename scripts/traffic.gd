@@ -22,14 +22,23 @@ enum Light { GREEN, YELLOW, RED }
 ## Đường chạy của xe (x, z). Xe chạy bên phải: đi về đông ở làn z = 2,5, về tây ở làn z = -2,5;
 ## đường dọc làn x = tâm + 2 đi lên bắc, x = tâm - 2 đi xuống nam.
 ## Đường dọc x = -18 phía nam là hẻm 42 của Chó Mực nên xe chỉ vào ra từ phía bắc rồi rẽ phải.
+## Tuyến kéo dài ra vành phố (VanhPho, gói P1): xe sinh ra và biến mất ở các ngã ba khuất ngoài vành
+## (đường vành z = ±83, x = 100, đường bờ kênh x = −64,5), chạy qua cầu kênh phía tây, không còn chui ra từ mép bản đồ.
 const ROUTES := [
-	{"pts": [Vector2(-52, 2.5), Vector2(52, 2.5)], "bikes": 4, "market_bikes": 2},
-	{"pts": [Vector2(52, -2.5), Vector2(-52, -2.5)], "bikes": 3, "market_bikes": 1},
-	{"pts": [Vector2(18, 33), Vector2(18, -33)], "bikes": 3},
-	{"pts": [Vector2(14, -33), Vector2(14, 33)], "bikes": 3},
-	{"pts": [Vector2(-20, -33), Vector2(-20, -2.5), Vector2(-52, -2.5)], "bikes": 2},
-	{"pts": [Vector2(52, -2.5), Vector2(-16, -2.5), Vector2(-16, -33)], "bikes": 2},
+	{"pts": [Vector2(-63.5, 70), Vector2(-63.5, 2.5), Vector2(99, 2.5), Vector2(99, 22)], "bikes": 4, "market_bikes": 2},
+	{"pts": [Vector2(99, -22), Vector2(99, -2.5), Vector2(-63.5, -2.5), Vector2(-63.5, -70)], "bikes": 3, "market_bikes": 1},
+	{"pts": [Vector2(30, 82), Vector2(18, 82), Vector2(18, -82), Vector2(30, -82)], "bikes": 3},
+	{"pts": [Vector2(-30, -82), Vector2(14, -82), Vector2(14, 84), Vector2(30, 84)], "bikes": 3},
+	{"pts": [Vector2(-30, -82), Vector2(-20, -82), Vector2(-20, -2.5), Vector2(-63.5, -2.5), Vector2(-63.5, -70)], "bikes": 2},
+	{"pts": [Vector2(99, -22), Vector2(99, -2.5), Vector2(-16, -2.5), Vector2(-16, -84), Vector2(-30, -84)], "bikes": 2},
 ]
+## Xe ở xa ngoài vành (|x| > FAR_X hoặc |z| > FAR_Z) chạy nhanh gấp FAR_SPEEDUP: tuyến dài gấp đôi mà vẫn giữ
+## số xe (và tam giác) như cũ, mật độ xe trong vùng chơi không đổi.
+const FAR_X := 62.0
+const FAR_Z := 42.0
+const FAR_SPEEDUP := 3.0
+## Xe xa camera hơn chừng này thì thôi vẽ (sương và khoảng cách làm xe chỉ còn vài điểm ảnh)
+const BIKE_DRAW_RANGE := 85.0
 const CORNER_RADIUS := 3.0
 ## Vạch dừng: xe đông tây dừng cách tâm 5,6 m; xe bắc nam dừng trước vạch qua đường (z = ±6,5).
 const STOP_EW := Vector2(5.6, 5.5)
@@ -89,6 +98,9 @@ class Bike:
 	var pass_cd := 0.0
 	var prev_xf := Transform3D()
 	var xf := Transform3D()
+	var paint := Color.WHITE
+	var shirt := Color.WHITE
+	var helmet := Color.WHITE
 
 
 class Walker:
@@ -120,6 +132,7 @@ var _honk_label: Label3D
 var _honk_time := 0.0
 
 var _mm_paint: MultiMesh
+var _mm_bike_shadow: MultiMesh
 var _mm_dark: MultiMesh
 var _mm_rider: MultiMesh
 var _mm_shirt: MultiMesh
@@ -144,6 +157,7 @@ func _ready() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 42
 	_build_lights()
+	slow_zones.append({"rect": VanhPho.MARKET_SLOW, "speed": 2.5})  # chợ ngoài đầu đường x = −18 phía bắc
 	_build_routes(rng)
 	_build_walkers(rng)
 	_build_carts(rng)
@@ -243,8 +257,14 @@ func _build_routes(rng: RandomNumberGenerator) -> void:
 
 	# Model xe dài theo trục +X, đầu xe ở +X: xoay 90° cho đầu xe về -Z như hướng chạy
 	var parts := _glb_parts(BIKE_GLB, Basis(Vector3.UP, PI / 2), ["son"])
-	_mm_paint = _multimesh(parts[0], _bikes.size(), true)
-	_mm_dark = _multimesh(parts[1], _bikes.size(), false)
+	# Thân xe chi tiết (1,4k tam giác) không đổ bóng; bóng xe là hộp thấp (_mm_bike_shadow) cho nhẹ lượt bóng đổ
+	var no_shadow := GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_mm_paint = _multimesh(parts[0], _bikes.size(), true, false, no_shadow)
+	_mm_dark = _multimesh(parts[1], _bikes.size(), false, false, no_shadow)
+	var proxy := BoxMesh.new()
+	proxy.size = Vector3(0.3, 0.75, 1.6)
+	_mm_bike_shadow = _multimesh(_offset_mesh(proxy, Vector3(0, 0.45, 0)), _bikes.size(), false, false,
+		GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY)
 	_mm_rider = _multimesh(_rider_mesh(), _bikes.size(), false)
 	var torso := BoxMesh.new()
 	torso.size = Vector3(0.4, 0.5, 0.26)
@@ -255,10 +275,10 @@ func _build_routes(rng: RandomNumberGenerator) -> void:
 	helmet.radial_segments = 10
 	helmet.rings = 5
 	_mm_helmet = _multimesh(_offset_mesh(helmet, Vector3(0, 1.74, 0.2)), _bikes.size(), true)
-	for i in _bikes.size():
-		_mm_paint.set_instance_color(i, PAINTS[rng.randi() % PAINTS.size()])
-		_mm_shirt.set_instance_color(i, SHIRTS[rng.randi() % SHIRTS.size()])
-		_mm_helmet.set_instance_color(i, HELMETS[rng.randi() % HELMETS.size()])
+	for b in _bikes:
+		b.paint = PAINTS[rng.randi() % PAINTS.size()]
+		b.shirt = SHIRTS[rng.randi() % SHIRTS.size()]
+		b.helmet = HELMETS[rng.randi() % HELMETS.size()]
 
 
 ## Bo tròn các góc rẽ cho xe ôm cua, trả về điểm 3D trên mặt đường.
@@ -318,6 +338,7 @@ func _place(b: Bike) -> void:
 	var turn := b.dir.cross(new_dir).y
 	b.dir = new_dir
 	b.pos = a.lerp(c, t)
+	b.pos.y = VanhPho.road_y(b.pos.x, b.pos.z)  # mặt cầu kênh vồng lên
 	b.lean = lerpf(b.lean, clampf(turn * 4.0, -0.35, 0.35), 0.2)
 	var basis := Basis.looking_at(b.dir).rotated(b.dir, b.lean)
 	b.xf = Transform3D(basis, b.pos)
@@ -342,6 +363,8 @@ func _update_bike(b: Bike, delta: float) -> void:
 		return
 
 	var limit := b.cruise
+	if absf(b.pos.x) > FAR_X or absf(b.pos.z) > FAR_Z:
+		limit *= FAR_SPEEDUP  # ngoài vành phố khuất tầm nhìn: chạy nhanh cho xe sớm quay lại, phố trong vẫn đông như cũ
 	var stop_at := INF  # vạch phải dừng trước (nếu có)
 	# Đèn ở ngã tư sắp tới
 	for stop in b.route.stops:
@@ -506,7 +529,7 @@ func _offset_mesh(m: PrimitiveMesh, pos: Vector3) -> Mesh:
 	return st.commit()
 
 
-func _multimesh(m: Mesh, count: int, instance_colors: bool, unshaded := false) -> MultiMesh:
+func _multimesh(m: Mesh, count: int, instance_colors: bool, unshaded := false, shadow := GeometryInstance3D.SHADOW_CASTING_SETTING_ON) -> MultiMesh:
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.use_colors = instance_colors
@@ -520,6 +543,7 @@ func _multimesh(m: Mesh, count: int, instance_colors: bool, unshaded := false) -
 	var mmi := MultiMeshInstance3D.new()
 	mmi.multimesh = mm
 	mmi.material_override = mat
+	mmi.cast_shadow = shadow
 	add_child(mmi)
 	return mm
 
@@ -854,18 +878,29 @@ func _process(_delta: float) -> void:
 
 ## Vẽ xe và người ở giữa hai nhịp vật lý cho mượt trên màn hình tần số cao.
 func _draw(f: float) -> void:
-	var hidden := Transform3D(Basis().scaled(Vector3.ZERO), Vector3(0, -50, 0))
-	for i in _bikes.size():
-		var b := _bikes[i]
+	# Chỉ vẽ xe trong vành phố và gần camera (BIKE_DRAW_RANGE): xếp các xe đó lên đầu MultiMesh rồi cắt
+	# visible_instance_count, xe ở xa tít đầu kia vành không tốn tam giác (cả lượt bóng đổ).
+	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
+	var n := 0
+	for b in _bikes:
 		var xf := b.prev_xf.interpolate_with(b.xf, f)
-		var on_map := absf(xf.origin.x) < 48.3 and absf(xf.origin.z) < 30.3
-		if not b.active or not on_map:
-			xf = hidden
-		_mm_paint.set_instance_transform(i, xf)
-		_mm_dark.set_instance_transform(i, xf)
-		_mm_rider.set_instance_transform(i, xf)
-		_mm_shirt.set_instance_transform(i, xf)
-		_mm_helmet.set_instance_transform(i, xf)
+		var in_ring := absf(xf.origin.x) < 108.0 and absf(xf.origin.z) < 92.0
+		if not b.active or not in_ring:
+			continue
+		if cam and cam.global_position.distance_to(xf.origin) > BIKE_DRAW_RANGE:
+			continue
+		_mm_paint.set_instance_transform(n, xf)
+		_mm_dark.set_instance_transform(n, xf)
+		_mm_bike_shadow.set_instance_transform(n, xf)
+		_mm_rider.set_instance_transform(n, xf)
+		_mm_shirt.set_instance_transform(n, xf)
+		_mm_helmet.set_instance_transform(n, xf)
+		_mm_paint.set_instance_color(n, b.paint)
+		_mm_shirt.set_instance_color(n, b.shirt)
+		_mm_helmet.set_instance_color(n, b.helmet)
+		n += 1
+	for mm in [_mm_paint, _mm_dark, _mm_bike_shadow, _mm_rider, _mm_shirt, _mm_helmet]:
+		mm.visible_instance_count = n
 	for i in _walkers.size():
 		var w := _walkers[i]
 		var xf := w.prev_xf.interpolate_with(w.xf, f)

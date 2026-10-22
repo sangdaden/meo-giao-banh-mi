@@ -1675,6 +1675,16 @@ func hold(seconds: float) -> void:
 	velocity.z = 0.0
 
 
+## Chạm mép vùng chơi ở đầu đường (VanhPho): quay mặt về `dir`, lùi nhẹ vào trong, khựng một chút.
+func turn_back(dir: Vector3) -> void:
+	dir.y = 0.0
+	dir = dir.normalized()
+	velocity.x = dir.x * 3.0
+	velocity.z = dir.z * 3.0
+	_stun = maxf(_stun, 0.35)
+	visual.rotation.y = atan2(-dir.x, -dir.z)
+
+
 ## Bị Chó Mực đớp: văng ra và khựng lại một chút.
 func knockback(from: Vector3, strength := 9.0, stun := 0.45) -> void:
 	var away := global_position - from

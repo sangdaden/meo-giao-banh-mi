@@ -757,8 +757,8 @@ const HELP_NOTE_PHO := "Tay cầm: cần trái chạy, A nhảy, Start mở menu
 
 
 ## Menu Esc dùng chung cho phố, bếp và leo chung cư: thẻ giấy giữa màn hình với Tiếp tục, Chơi lại,
-## Cài đặt, Chọn ngày, Về trang chủ; bên phải là thẻ "Cách chơi" của màn đó.
-## Chơi lại phát restart_pressed (màn nào không nối thì tải lại cảnh); Chọn ngày phát menu_pressed.
+## Cài đặt, Chọn màn, Về trang chủ; bên phải là thẻ "Cách chơi" của màn đó.
+## Chơi lại phát restart_pressed (màn nào không nối thì tải lại cảnh); Chọn màn phát menu_pressed.
 func _build_pause(help := HELP_PHO, note := HELP_NOTE_PHO) -> Control:
 	if settings == null:
 		settings = SettingsPanel.new()
@@ -802,7 +802,7 @@ func _build_pause(help := HELP_PHO, note := HELP_NOTE_PHO) -> Control:
 	var st := T.button("  Cài đặt", "secondary", 56, 19)
 	st.pressed.connect(func(): settings.open())
 	col.add_child(st)
-	var pick := T.button("  Chọn ngày", "secondary", 56, 19)
+	var pick := T.button("  Chọn màn", "secondary", 56, 19)
 	pick.pressed.connect(_on_menu_select)
 	col.add_child(pick)
 	var home := T.button("  Về trang chủ", "secondary", 56, 19)

@@ -57,6 +57,15 @@ func _initialize() -> void:
 	Scoring.end_day()
 	_check("Scoring.end_day lưu ngày kế tiếp", PlayMode.current_day() == PlayMode.next_of("thu_ba")[0])
 
+	# Chơi mới: về Thứ Hai tuần 1, ví và kỷ lục giữ nguyên (không đổi cảnh trong bài thử: chỉ gọi phần lưu)
+	GameState.set_global("ngay_tiep", "thu_sau")
+	GameState.set_global("tuan", 3)
+	GameState.set_global("vi", 12345)
+	GameState.set_day("sao_cao_nhat", 14, "thu_hai")
+	PlayMode.reset_week()
+	_check("chơi mới về Thứ Hai tuần 1, giữ ví và kỷ lục", PlayMode.current_day() == "thu_hai" and PlayMode.week() == 1
+		and int(GameState.get_global("vi", 0)) == 12345 and int(GameState.get_day("sao_cao_nhat", -1, "thu_hai")) == 14)
+
 	print("LIEN NGAY TEST ", "OK" if fails == 0 else "FAIL (%d)" % fails)
 	quit(0 if fails == 0 else 1)
 

@@ -1,6 +1,6 @@
 extends Control
-## Màn hình chính (artboard 1): logo, Bắt đầu (chơi tiếp ngày đang dở trong tuần), Tủ đồ của Bơ, Cài đặt, Thoát,
-## Esc mở màn Chọn ngày,
+## Màn hình chính (artboard 1): logo, Chơi tiếp (ngày đang dở trong tuần), Chơi mới (lại từ Thứ Hai tuần 1),
+## Chọn màn (cũng mở bằng Esc), Tủ đồ của Bơ, Cài đặt, Thoát,
 ## và Bơ đứng trong tủ kính xe bánh mì Cô Ba.
 
 const T = preload("res://scripts/ui/ui_theme.gd")
@@ -12,6 +12,7 @@ var settings: SettingsPanel
 var wardrobe: WardrobePanel
 var level_select: LevelSelectPanel
 var start_btn: Button
+var confirm_new: Control
 var showcase_cat: BoPreview
 
 
@@ -72,12 +73,30 @@ func _ready() -> void:
 	start_btn = T.button("  " + _start_text(), "primary", 72, 26)
 	start_btn.pressed.connect(_start)
 	nav.add_child(start_btn)
+	# Chơi mới, Chọn màn (Sang 22/10/2026). Chưa có ngày lưu thì "Bắt đầu" đã là chơi mới, chỉ còn Chọn màn.
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	nav.add_child(row)
+	if _has_progress():
+		var fresh := T.button("  Chơi mới", "secondary", 62, 21)
+		fresh.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		fresh.pressed.connect(func(): _ask_new_game())
+		row.add_child(fresh)
+	var pick := T.button("  Chọn màn", "secondary", 62, 21)
+	pick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pick.pressed.connect(func(): level_select.open())
+	row.add_child(pick)
+	var row2 := HBoxContainer.new()
+	row2.add_theme_constant_override("separation", 12)
+	nav.add_child(row2)
 	var wd := T.button("  Tủ đồ của Bơ", "secondary", 62, 21)
+	wd.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	wd.pressed.connect(func(): wardrobe.open())
-	nav.add_child(wd)
+	row2.add_child(wd)
 	var st := T.button("  Cài đặt", "secondary", 62, 21)
+	st.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	st.pressed.connect(func(): settings.open())
-	nav.add_child(st)
+	row2.add_child(st)
 	if not OS.has_feature("web"):
 		var quit := T.button("  Thoát game", "secondary", 52, 18)
 		var clear := T.box(Color(0, 0, 0, 0), 18, 22, Color(0, 0, 0, 0), 0)
@@ -90,12 +109,6 @@ func _ready() -> void:
 	T.place(enter_hint, 1.0, 0.5, Rect2(-70, -10, 50, 20))
 	start_btn.add_child(enter_hint)
 
-	# Chọn ngày nằm ở phím Esc (Sang 22/10/2026); dòng chữ bấm được cho người dùng chuột
-	var pick := T.button("Esc · Chọn ngày", "secondary", 40, 15)
-	pick.add_theme_stylebox_override("normal", T.box(Color(0, 0, 0, 0), 14, 12, Color(0, 0, 0, 0), 0))
-	pick.pressed.connect(func(): level_select.open())
-	T.place(pick, 0.0, 1.0, Rect2(260, -50, 220, 40))
-	add_child(pick)
 
 	add_child(_showcase())
 
@@ -134,6 +147,12 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if settings.visible or wardrobe.visible or level_select.visible:
 		return
+	if confirm_new and confirm_new.visible:
+		if event.is_action_pressed("ui_cancel"):
+			confirm_new.visible = false
+			start_btn.grab_focus()
+			get_viewport().set_input_as_handled()
+		return
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode in [KEY_ENTER, KEY_KP_ENTER]:
 		_start()
 		get_viewport().set_input_as_handled()
@@ -142,15 +161,66 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
-## Bắt đầu: chơi liền các ngày, vào ngày kế tiếp lưu trong hồ sơ. Chọn ngày thì Esc.
+## Chơi tiếp: chơi liền các ngày, vào ngày kế tiếp lưu trong hồ sơ. Chọn màn thì nút Chọn màn hoặc Esc.
 func _start() -> void:
 	PlayMode.play_week(get_tree())
+
+
+## Đã có ngày lưu trong hồ sơ (đã bấm Bắt đầu hay chơi cả ca ít nhất một lần).
+static func _has_progress() -> bool:
+	return GameState.save_file().has_section_key("chung", "ngay_tiep")
+
+
+## Chơi mới: hỏi lại trước khi đưa ngày đang chơi về Thứ Hai tuần 1.
+func _ask_new_game() -> void:
+	if confirm_new == null:
+		confirm_new = _build_confirm()
+		add_child(confirm_new)
+	confirm_new.visible = true
+	(confirm_new.get_meta("no") as Button).grab_focus.call_deferred()
+
+
+func _build_confirm() -> Control:
+	var scr := Control.new()
+	T.full_rect(scr)
+	var dim := ColorRect.new()
+	dim.color = Color(T.INK, 0.6)
+	scr.add_child(T.full_rect(dim))
+	var card := PanelContainer.new()
+	card.add_theme_stylebox_override("panel", T.box(T.PAPER, 24, 30, T.INK, 4, 8))
+	T.place(card, 0.5, 0.5, Rect2(-300, -150, 600, 0))
+	scr.add_child(card)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 14)
+	card.add_child(v)
+	v.add_child(T.label("Chơi mới từ Thứ Hai?", 34, T.INK, "display"))
+	var where: String = GameState.DAY_NAMES.get(PlayMode.current_day(), "")
+	var body := T.label("Đang tới %s, tuần %d. Chơi mới sẽ quay về Thứ Hai tuần 1. " % [where, PlayMode.week()]
+		+ "Kỷ lục sao, tiền trong ví và đồ trong tủ vẫn giữ nguyên.", 17, T.MUTED, "body")
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(body)
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 12)
+	v.add_child(h)
+	var yes := T.button("Chơi mới", "primary", 60, 20)
+	yes.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	yes.pressed.connect(func(): PlayMode.new_game(get_tree()))
+	h.add_child(yes)
+	var no := T.button("Thôi, chơi tiếp", "secondary", 60, 20)
+	no.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	no.pressed.connect(func():
+		scr.visible = false
+		start_btn.grab_focus())
+	h.add_child(no)
+	scr.set_meta("no", no)
+	T.wire_clicks(scr)
+	return scr
 
 
 ## "Bắt đầu" lần đầu; đã chơi rồi thì "Chơi tiếp · Thứ Ba", sang tuần sau thì kèm số tuần.
 static func _start_text() -> String:
 	var name: String = GameState.DAY_NAMES.get(PlayMode.current_day(), "")
-	if not GameState.save_file().has_section_key("chung", "ngay_tiep"):
+	if not _has_progress():
 		return "Bắt đầu"
 	return "Chơi tiếp · %s%s" % [name, " · tuần %d" % PlayMode.week() if PlayMode.week() > 1 else ""]
 

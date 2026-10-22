@@ -35,7 +35,7 @@ SOCK = dict(khando='neck', khanran='neck', chuong='neck', nobuom='neck', vonghoa
 # acc_mc.py = 11 món mặt + chân làm kỹ (Sang duyệt 22/10; đồ chân đã tách sẵn từng chiếc, tên <bộ phận>__FL...).
 # Ngân sách tam giác từng bộ phận lấy theo bản đã duyệt (mon_moi/meta_<id>.json) để bản web nhẹ.
 EXTRA = {}
-for _mod in ('acc_moi', 'acc_t7', 'acc_dau', 'co_duoi', 'acc_mc'):
+for _mod in ('acc_moi', 'acc_t7', 'acc_dau', 'co_duoi', 'acc_mc', 'acc_lung'):
     try:
         _m = __import__(_mod)
     except ImportError:
@@ -62,7 +62,11 @@ FEET_DETAIL = {'tatsoc': 2.5, 'ungmua': 2.0, 'giaypatin': 1.6}
 PART_MIN = {('giaypatin', 'Banh_Xe'): 320, ('giaypatin', 'Truc'): 128}
 # Kim loại trong game không có gì phản chiếu nên đen sì (cà mèn, 22/10): khung, trục patin dùng nhựa bóng màu bạc
 METAL_GLOSS = {('giaypatin', 'Khung'), ('giaypatin', 'Truc')}
-LEG_OVERLAP = .01   # phần cổ chồng xuống phần bàn 1 cm: chân gập khi chạy không hở khe
+LEG_OVERLAP = .01
+# Đồ lưng làm kỹ (acc_lung): bộ phận bám da (quai, đai, đế lót) uốn theo thân như lông (game chép trọng số xương
+# của đỉnh lông gần nhất), còn lại là đồ cứng đi theo trung bình ngực và hông (OutfitView.attach)
+BAM_DA = {'Quai', 'Dem_Vai', 'Dai_Nguc', 'Dai_Than', 'De_Lot', 'Khan_Lot', 'De_Canh', 'Day_Canh', 'Day_Tet', 'Day_Buoc'}
+TREO_GANH = ('Thung_May', 'Day_Thung', 'Banh_Thung')   # thúng đòn gánh đung đưa quanh móc treo   # phần cổ chồng xuống phần bàn 1 cm: chân gập khi chạy không hở khe
 WHEEL_DZ = .03   # bánh patin: hai trục cách giữa ±3 cm theo z (acc_mc.giaypatin)
 
 
@@ -230,7 +234,9 @@ def export_acc(ids):
     cc.configure(S)
     socks = cc.sockets()
     META['bo_head'] = head_info()
-    META['bo_sockets'] = socks
+    # Model game của Bơ đực (bo.glb) lưng thấp hơn mèo dựng 3 mm: đồ lưng đặt thấp xuống cho khỏi hở (đo bằng
+    # tests/test_khe_lung.gd). Chỉ đổi điểm đặt trong game, lưới vẫn tính từ điểm gắn gốc.
+    META['bo_sockets'] = {k: (list(p_) if k != 'back' else [p_[0], round(float(p_[1]) - .003, 4), p_[2]]) for k, p_ in socks.items()}
     for aid in ids:
         bl.reset()
         parts, opt = acc.ACC[aid]()
@@ -300,6 +306,11 @@ def export_acc(ids):
                     move = getattr(pt, 'move', None) or ('vai' if getattr(pt, 'uvfn', None) else None)
                     if aid == 'giaypatin' and base_name(pt.name) in ('Banh_Xe', 'Truc'):
                         move = 'quay'
+                    if pt.name in TREO_GANH and opt.get('sway'):
+                        move = 'lac'
+                        pt.hinge = opt['sway'][0]   # hai móc đối xứng: cùng y, z nên một trục x chung
+                    if opt.get('flap') and pt.name.startswith('Canh_'):
+                        move = 'xoe'
                     tx = tex_spec(aid, pt.name) if aid in getattr(sys.modules.get('co_duoi'), 'ACC', {}) else None
                     if move in ('vai', 'rung') or tx:
                         Vb = build_coords(ob, off)
@@ -332,6 +343,14 @@ def export_acc(ids):
                     if not os.path.exists(f'{OUT}/phu_kien/tex/{tx[0]}.png'):
                         save_png(os.path.abspath(f'{OUT}/phu_kien/tex/{tx[0]}.png'), tx[1]())
                     info[ob.name]['tex'] = f'phu_kien/tex/{tx[0]}.png'
+                if aid in getattr(sys.modules.get('acc_lung'), 'ACC', {}) and sk == 'back' and move is None:
+                    # cổ áo choàng và khoá trên cổ: ôm theo cổ (nửa hông nửa ngực thì lệch khi cúi liếm)
+                    info[ob.name]['lung'] = 'bam' if pt.name in BAM_DA or aid == 'aochoang' else 'cung'
+                if move == 'xoe':
+                    # cánh thiên thần: xoay quanh gốc cánh ra ngoài khi nhảy, rơi (vai_bay mode 4)
+                    side = -1 if pt.name.endswith('Trai') else 1
+                    root = sys.modules['acc_lung']._wing_frame(side)[0]
+                    info[ob.name]['cloth'] = dict(mode=4, hinge=[round(float(a - b), 4) for a, b in zip(root, off)], dir=side, ridge=0)
                 if move in ('vai', 'rung', 'lac', 'quay'):
                     cl = dict(hinge=[round(float(a - b), 4) for a, b in zip(pt.hinge, off)]) if move != 'quay' else {}
                     if move == 'rung':

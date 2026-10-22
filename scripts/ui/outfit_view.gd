@@ -19,8 +19,8 @@ const BONE := {
 const EARS_DOWN := []
 ## Đầu Bơ D cao hơn đầu mèo mẫu bên luồng skin: nâng vài món đội đầu lên (m, theo trục dọc của đầu)
 const LIFT := {"muphuthuy": 0.012}
-## Giỏ giao bánh: ổ bánh bên trong chỉ hiện khi Bơ đang mang bánh
-const BASKETS := ["giomay", "giodan"]
+## Giỏ, túi, thúng giao bánh: ổ bánh bên trong chỉ hiện khi Bơ đang mang bánh
+const BASKETS := ["giomay", "giodan", "tuibanh", "dongganh"]
 
 static var _meta := {}
 
@@ -111,6 +111,13 @@ static func attach(skel: Skeleton3D, id: String, breed := "bo", sex := "duc", li
 			bone = skel.find_bone(n) if bone < 0 else bone
 		if bone < 0:
 			continue
+		if oi.has("lung"):
+			var sk := _skinned_copy(skel, mi.mesh, _socket_xform(sock, breed, sex), oi.lung == "bam", compat)
+			if sk:
+				_finish(sk.get_child(0), id, mi, oi)
+				sk.get_child(0).set_meta("lung", oi.lung)
+				out.append(sk)
+				continue
 		var att := BoneAttachment3D.new()
 		att.bone_idx = bone
 		skel.add_child(att)
@@ -125,16 +132,170 @@ static func attach(skel: Skeleton3D, id: String, breed := "bo", sex := "duc", li
 		if compat:
 			copy.mesh = srgb_mesh(mi.mesh)
 		holder.add_child(copy)
-		# Ổ bánh trong giỏ giao bánh (hiện khi đang mang bánh). Chỉ giỏ: bánh xe patin, huy hiệu bánh nổi cũng tên "Banh"
-		if id in BASKETS and (str(mi.name).begins_with("Banh") or str(mi.get_parent().name).begins_with("Banh")):
-			copy.set_meta("loaf", true)
-		style(copy, oi)
-		if not oi.get("shadow", true):
-			copy.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF  # vành mũ rộng làm tối cả mặt
-		copy.layers = 1 << 10  # cùng lớp thân Bơ: góc nhìn thứ nhất không vẽ
+		_finish(copy, id, mi, oi)
 		out.append(att)
 	scene.free()
 	return out
+
+
+static func _finish(copy: MeshInstance3D, id: String, mi: MeshInstance3D, oi: Dictionary) -> void:
+	# Ổ bánh trong giỏ, túi, thúng giao bánh (hiện khi đang mang bánh). Bánh xe patin, huy hiệu bánh nổi cũng tên "Banh"
+	if id in BASKETS and (str(mi.name).begins_with("Banh") or str(mi.get_parent().name).begins_with("Banh")):
+		copy.set_meta("loaf", true)
+	style(copy, oi)
+	if not oi.get("shadow", true):
+		copy.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF  # vành mũ rộng làm tối cả mặt
+	copy.layers = 1 << 10  # cùng lớp thân Bơ: góc nhìn thứ nhất không vẽ
+
+
+## Đồ lưng làm kỹ: thay vì gắn cứng vào xương ngực (lưng cong khi thở, ngồi, liếm thì hở khỏi lưng, lỗi Bơ đực),
+## lưới được skin theo chính bộ xương thân mèo. bam = true (quai, đai, đế lót): mỗi đỉnh chép trọng số của đỉnh lông
+## gần nhất nên ôm lưng như lông; bam = false (thân túi, thùng, giỏ): nửa ngực nửa hông, đi theo hướng giữa lưng.
+## Trả về Node3D con của skel chứa lưới, null nếu mèo không có lưới thân skin (khi đó gắn cứng như cũ).
+static func _skinned_copy(skel: Skeleton3D, src: Mesh, xf: Transform3D, bam: bool, compat: bool) -> Node3D:
+	var body := _body_of(skel)
+	if body == null:
+		return null
+	var bw := _body_weights(body)
+	var to_body := body.transform.affine_inverse() * xf
+	var rigid := PackedInt32Array()
+	if not bam:
+		for n in ["chest", "hips"]:
+			var b := _bind_of(body.skin, skel, n)
+			if b < 0:
+				return null
+			rigid.append(b)
+	var dst := ArrayMesh.new()
+	for s in src.get_surface_count():
+		var a := src.surface_get_arrays(s)
+		var vs: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+		var ns: PackedVector3Array = a[Mesh.ARRAY_NORMAL]
+		var bones := PackedInt32Array()
+		var weights := PackedFloat32Array()
+		bones.resize(vs.size() * 4)
+		weights.resize(vs.size() * 4)
+		for i in vs.size():
+			var p := to_body * vs[i]
+			vs[i] = p
+			if ns.size() > i:
+				ns[i] = (to_body.basis * ns[i]).normalized()
+			if bam:
+				var k := _nearest(bw, p)
+				for j in 4:
+					bones[i * 4 + j] = bw.bones[k * 4 + j]
+					weights[i * 4 + j] = bw.weights[k * 4 + j]
+			else:
+				bones[i * 4] = rigid[0]
+				bones[i * 4 + 1] = rigid[1]
+				weights[i * 4] = 0.5
+				weights[i * 4 + 1] = 0.5
+		a[Mesh.ARRAY_VERTEX] = vs
+		a[Mesh.ARRAY_NORMAL] = ns
+		a[Mesh.ARRAY_TANGENT] = null
+		a[Mesh.ARRAY_BONES] = bones
+		a[Mesh.ARRAY_WEIGHTS] = weights
+		var cols = a[Mesh.ARRAY_COLOR]
+		if compat and cols is PackedColorArray:
+			for k in cols.size():
+				cols[k] = cols[k].linear_to_srgb()
+			a[Mesh.ARRAY_COLOR] = cols
+		dst.add_surface_from_arrays(src.surface_get_primitive_type(s), a)
+	var holder := Node3D.new()
+	skel.add_child(holder)
+	var copy := MeshInstance3D.new()
+	copy.mesh = dst
+	copy.transform = body.transform
+	holder.add_child(copy)
+	copy.skin = body.skin
+	copy.skeleton = copy.get_path_to(skel)
+	copy.set_meta("pk", true)
+	return holder
+
+
+## Lưới thân mèo (skin theo bộ xương, nhiều đỉnh nhất), không tính phụ kiện đã skin.
+static func _body_of(skel: Skeleton3D) -> MeshInstance3D:
+	var best: MeshInstance3D = null
+	var nb := 0
+	for mi: MeshInstance3D in skel.get_parent().find_children("*", "MeshInstance3D", true, false):
+		if mi.skin == null or mi.has_meta("pk"):
+			continue  # đồ lưng đã skin
+		var n := 0
+		for s in mi.mesh.get_surface_count():
+			n += mi.mesh.surface_get_array_len(s)
+		if n > nb:
+			best = mi
+			nb = n
+	return best
+
+
+static func _bind_of(skin: Skin, skel: Skeleton3D, bone_name: String) -> int:
+	var bi := skel.find_bone(bone_name)
+	for b in skin.get_bind_count():
+		if skin.get_bind_bone(b) == bi and bi >= 0 or skin.get_bind_name(b) == StringName(bone_name):
+			return b
+	return -1
+
+
+static var _bw_cache := {}
+const CELL := 0.015
+
+## Đỉnh thân (vị trí, 4 xương + trọng số mạnh nhất) xếp vào lưới ô 1,5 cm để tìm đỉnh gần nhất nhanh. Nhớ theo lưới.
+static func _body_weights(body: MeshInstance3D) -> Dictionary:
+	var key := body.mesh.get_instance_id()
+	if _bw_cache.has(key):
+		return _bw_cache[key]
+	var pos := PackedVector3Array()
+	var bones := PackedInt32Array()
+	var weights := PackedFloat32Array()
+	var grid := {}
+	for s in body.mesh.get_surface_count():
+		var a := body.mesh.surface_get_arrays(s)
+		var vs: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+		var bo = a[Mesh.ARRAY_BONES]
+		var we = a[Mesh.ARRAY_WEIGHTS]
+		if not (bo is PackedInt32Array) or vs.is_empty():
+			continue
+		var n: int = bo.size() / vs.size()
+		for i in vs.size():
+			var pairs := []
+			for j in n:
+				pairs.append([we[i * n + j], bo[i * n + j]])
+			pairs.sort_custom(func(x, y): return x[0] > y[0])
+			var tot := 0.0
+			for j in 4:
+				tot += pairs[j][0] if j < n else 0.0
+			for j in 4:
+				bones.append(pairs[j][1] if j < n else 0)
+				weights.append(pairs[j][0] / maxf(tot, 1e-6) if j < n else 0.0)
+			var c := Vector3i((vs[i] / CELL).floor())
+			if not grid.has(c):
+				grid[c] = PackedInt32Array()
+			grid[c].append(pos.size())
+			pos.append(vs[i])
+	var bw := {"pos": pos, "bones": bones, "weights": weights, "grid": grid}
+	_bw_cache[key] = bw
+	return bw
+
+
+static func _nearest(bw: Dictionary, p: Vector3) -> int:
+	var c := Vector3i((p / CELL).floor())
+	var best := 0
+	var bd := INF
+	for r in [1, 2, 4]:
+		for dx in range(-r, r + 1):
+			for dy in range(-r, r + 1):
+				for dz in range(-r, r + 1):
+					var cell = bw.grid.get(c + Vector3i(dx, dy, dz))
+					if cell == null:
+						continue
+					for k in cell:
+						var d: float = p.distance_squared_to(bw.pos[k])
+						if d < bd:
+							bd = d
+							best = k
+		if bd < INF:
+			return best
+	return best
 
 
 ## Vật liệu cho phụ kiện: màu đỉnh, độ nhám theo loại chất liệu như blend.py.

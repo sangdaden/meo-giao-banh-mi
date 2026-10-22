@@ -10,7 +10,7 @@ uniform float fall = 0.0;    // -1 đang bật lên .. 1 đang rơi: rơi thì �
 uniform float turn = 0.0;    // -1..1 quẹo: gấu áo văng ra phía ngoài vòng
 uniform vec3 hinge = vec3(0.0, 0.056, 0.12);  // mép cổ áo / điểm treo (toạ độ mesh)
 uniform float roughness_v = 0.9;
-uniform int mode = 0;        // 0 vải bay, 1 lá cờ (chỉ sóng, không xoay quanh cán), 2 đồ treo lắc (con lắc quanh hinge), 3 bánh xe lăn
+uniform int mode = 0;        // 0 vải bay, 1 lá cờ (chỉ sóng, không xoay quanh cán), 2 đồ treo lắc (con lắc quanh hinge), 3 bánh xe lăn, 4 cánh xoè
 uniform float amp = 1.0;     // biên độ (nơ bướm rung nhẹ 0,25)
 uniform float ridge = 1.0;   // 1: dùng UV2.x để bung phẳng (áo choàng); 0: UV2 là toạ độ ảnh hoa văn
 uniform float lac_dir = 1.0; // đồ treo dưới điểm treo 1, đồ bay trên điểm treo (bóng bay) -1: đều văng ra sau
@@ -32,6 +32,18 @@ void vertex() {
 		vec3 q = p - c;
 		q = vec3(q.x, q.y * ca - q.z * sa, q.y * sa + q.z * ca);
 		p = q + c;
+	} else if (mode == 4) {
+		// cánh thiên thần: xoay quanh trục dọc thân (z) qua gốc cánh; nhảy, rơi thì xoè ra ~0,63 rad,
+		// chạy thì vỗ nhẹ, đứng yên khẽ phập phồng. lac_dir = -1 cánh trái, 1 cánh phải
+		float air = clamp(abs(fall) * 1.6, 0.0, 1.0);
+		float a = 0.63 * air + s * 0.12 * (0.5 + 0.5 * sin(TIME * 9.0)) + 0.025 * sin(TIME * 1.8);
+		a *= -lac_dir;
+		ca = cos(a); sa = sin(a);
+		vec3 q = p - hinge;
+		q = vec3(q.x * ca - q.y * sa, q.x * sa + q.y * ca, q.z);
+		p = q + hinge;
+		NORMAL = vec3(NORMAL.x * ca - NORMAL.y * sa, NORMAL.x * sa + NORMAL.y * ca, NORMAL.z);
+		ca = 1.0; sa = 0.0;
 	} else if (mode == 2) {
 		float a = lac_dir * (s * 0.35 + clamp(fall, -0.25, 1.0) * 0.25 + 0.05 * sin(TIME * 2.2) * (1.0 + s));
 		ca = cos(a); sa = sin(a);

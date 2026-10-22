@@ -48,14 +48,16 @@ func _go() -> void:
 				worn["neck"] = "khando"
 			c.set_breed(b, worn, sex)
 			var poses := [["dung", 0.0, false]]
-			if id in ["giomay", "giodan"]:
+			if id in OutfitView.BASKETS:
 				poses.append(["mangbanh", 0.0, true])
-			if a[3] in ["neck", "tail", "feet"]:
+			if a[3] in ["neck", "tail", "feet", "back"]:
 				poses.append(["chay", 8.0, false])  # vải bay, đồ treo lắc, cổ tất theo cẳng chân, bánh patin lăn
+			if id == "canhthienthan":
+				poses.append(["roi", 0.0, false])  # đang rơi: cánh xoè
 			for pose in poses:
 				c.carrying = pose[2]
 				for i in 90:
-					c._animate(1.0 / 60.0, pose[1], 0.0, true)
+					c._animate(1.0 / 60.0, pose[1], -4.0 if pose[0] == "roi" else 0.0, pose[0] != "roi")
 				var views := [["truoc", PI - 0.7], ["sau", 0.9]]
 				if a[3] == "face":
 					views = [["thang", PI], ["truoc", PI - 0.7]]   # đồ mặt: nhìn thẳng mặt và 3/4

@@ -1,6 +1,7 @@
 extends SceneTree
 ## Soát 7 món bán theo gói (giỏ mây, cà mèn, giỏ đan, bao lì xì, cành mai, khăn len, khăn huy hiệu)
-## trên vài giống đực/cái: góc 3/4 trước và 3/4 sau; giỏ chụp thêm lúc mang bánh, khăn len lúc chạy nhanh.
+## (hoặc các món truyền vào) trên vài giống đực/cái: góc 3/4 trước và 3/4 sau; giỏ chụp thêm lúc mang bánh,
+## đồ cổ và đuôi chụp thêm lúc chạy nhanh.
 ## Ảnh ra: <thư_mục>/<giống>_<giới>__<món>_<góc>.png
 ##   godot --path . -s tools/chup_mon_moi.gd -- <thư_mục_ra> [giống_giới,..] [món,..]
 
@@ -49,16 +50,24 @@ func _go() -> void:
 			var poses := [["dung", 0.0, false]]
 			if id in ["giomay", "giodan"]:
 				poses.append(["mangbanh", 0.0, true])
-			if id == "khanlen":
-				poses.append(["chay", 8.0, false])
+			if a[3] in ["neck", "tail", "feet"]:
+				poses.append(["chay", 8.0, false])  # vải bay, đồ treo lắc, cổ tất theo cẳng chân, bánh patin lăn
 			for pose in poses:
 				c.carrying = pose[2]
 				for i in 90:
 					c._animate(1.0 / 60.0, pose[1], 0.0, true)
-				for view in [["truoc", PI - 0.7], ["sau", 0.9]]:
+				var views := [["truoc", PI - 0.7], ["sau", 0.9]]
+				if a[3] == "face":
+					views = [["thang", PI], ["truoc", PI - 0.7]]   # đồ mặt: nhìn thẳng mặt và 3/4
+				for view in views:
 					c.visual.rotation.y = view[1]
 					var t := Vector3(0, 0.3, 0.02)
-					p.cam.position = t + Vector3(0, 0.3, 1.0).normalized() * 1.25
+					var dist := 1.25
+					if a[3] == "feet":
+						t = Vector3(0, 0.07, 0.02); dist = 0.75   # đồ chân: chụp gần bàn chân
+					elif a[3] == "face":
+						t = Vector3(0, 0.4, 0.1); dist = 0.9
+					p.cam.position = t + Vector3(0, 0.3, 1.0).normalized() * dist
 					p.cam.look_at(t)
 					await _snap(p, out, "%s__%s_%s_%s.png" % [cat, id, pose[0], view[0]])
 	print("đã chụp ", out)

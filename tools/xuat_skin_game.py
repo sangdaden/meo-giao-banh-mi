@@ -30,16 +30,19 @@ SOCK = dict(khando='neck', khanran='neck', chuong='neck', nobuom='neck', vonghoa
             canhthienthan='back', phaovit='back', noduoi='tail_mid', denlong='tail_tip', coduua='tail_tip', bongbay='tail_tip',
             tatsoc='feet', ungmua='feet', giaypatin='feet', deptoong='feet')
 # Món thêm sau, đặt cạnh acc.py: acc_moi.py = 7 món bán theo gói (Sang duyệt 21/10),
-# acc_t7.py = 3 món quà Thứ Bảy (G8, Sang duyệt 22/10).
+# acc_t7.py = 3 món quà Thứ Bảy (G8, Sang duyệt 22/10), acc_dau.py = 13 món đội đầu làm kỹ (Sang duyệt 22/10,
+# ghi đè cành mai, nón phớt, ly cà phê của hai module trước), co_duoi.py = 11 món cổ + đuôi làm kỹ,
+# acc_mc.py = 11 món mặt + chân làm kỹ (Sang duyệt 22/10; đồ chân đã tách sẵn từng chiếc, tên <bộ phận>__FL...).
 # Ngân sách tam giác từng bộ phận lấy theo bản đã duyệt (mon_moi/meta_<id>.json) để bản web nhẹ.
 EXTRA = {}
-for _mod in ('acc_moi', 'acc_t7'):
+for _mod in ('acc_moi', 'acc_t7', 'acc_dau', 'co_duoi', 'acc_mc'):
     try:
         _m = __import__(_mod)
     except ImportError:
         continue
     acc.ACC.update(_m.ACC)
-    SOCK.update({k: s for k, s in _m.SOCK.items() if s != 'face'})  # đồ mặt dựng theo đầu (Part.head)
+    SOCK.update({k: s for k, s in getattr(_m, 'SOCK', {}).items() if s != 'face'})  # đồ mặt dựng theo đầu (Part.head)
+    SOCK.update({k: 'feet' for k in getattr(_m, 'FEET', ())})
     EXTRA.update(_m.ACC)
 PART_TRIS = {}
 _moi = os.path.join(SKINS, 'mon_moi')
@@ -49,6 +52,24 @@ for _id in EXTRA:
         for _p in json.load(open(_f))['parts']:
             PART_TRIS[(_id, _p['name'])] = max(120, _p['tris'])
 EARS_DOWN = ('mucoi', 'nonla', 'muphuthuy')
+TALL_FEET = ('tatsoc', 'ungmua', 'giaypatin')
+LEG_SPLIT = .045
+# Sọc tất 2,2 cm, viền phản quang ủng 3 mm, chỉ khâu giày patin: tô bằng màu đỉnh nên cần lưới dày hơn ngân sách
+# trên trang duyệt, giảm theo đúng ngân sách thì sọc nhoè thành vệt loang
+FEET_DETAIL = {'tatsoc': 2.5, 'ungmua': 2.0, 'giaypatin': 1.6}
+# Bánh xe và trục patin nhỏ: giảm theo ngân sách trang duyệt chỉ còn ~12 tam giác một bánh, lưới gãy và lật mặt
+# (bánh vàng hoá đen). Giữ tối thiểu số tam giác này cho mỗi bộ phận của một chân.
+PART_MIN = {('giaypatin', 'Banh_Xe'): 320, ('giaypatin', 'Truc'): 128}
+# Kim loại trong game không có gì phản chiếu nên đen sì (cà mèn, 22/10): khung, trục patin dùng nhựa bóng màu bạc
+METAL_GLOSS = {('giaypatin', 'Khung'), ('giaypatin', 'Truc')}
+LEG_OVERLAP = .01   # phần cổ chồng xuống phần bàn 1 cm: chân gập khi chạy không hở khe
+WHEEL_DZ = .03   # bánh patin: hai trục cách giữa ±3 cm theo z (acc_mc.giaypatin)
+
+
+def base_name(n):
+    return n[:-4] if n[-4:-2] == '__' and n[-2:] in PAWS else n
+# Vành mũ rộng đổ bóng tối cả mặt trong game: phần mũ này không đổ bóng (Sang duyệt 22/10)
+NO_SHADOW = {('nonla', 'Non_La'), ('mucoi', 'Mu_Coi'), ('muphuthuy', 'Mu_Phu_Thuy')}
 PAWS = ('FL', 'FR', 'BL', 'BR')
 
 os.makedirs(f'{OUT}/phu_kien', exist_ok=True)
@@ -136,6 +157,57 @@ def recolor(o, colorfn, off):
     ca.data.foreach_set('color', np.concatenate([L, np.ones((n, 1))], 1).astype(np.float32).ravel())
 
 
+# ---------------------------------------------------------------- hoa văn bằng ảnh lặp
+# Ô caro nhỏ (khăn rằn, cờ đua) và chấm bi (nơ bướm) mất khi giảm lưới nếu tô bằng màu đỉnh (lỗi cũ), nên vẽ thành
+# ảnh 64×64 một chu kỳ hoa văn, lặp theo UV. Toạ độ ảnh tính bằng đúng hàm hoa văn của co_duoi.py.
+TEX_PX = 64
+
+
+def _img(fn, px=TEX_PX):
+    """fn(a, b) với a, b ∈ [0, 1) một chu kỳ -> màu sRGB (N×3)."""
+    g = (np.arange(px) + .5) / px
+    A, Bm = np.meshgrid(g, g)   # hàng = b (từ trên xuống), cột = a
+    return np.clip(fn(A.ravel(), Bm.ravel()), 0, 1).reshape(px, px, 3)
+
+
+def tex_spec(aid, name):
+    """(tên ảnh, ảnh, hàm uv(V, uv_chuyển_động) -> toạ độ ảnh tính theo chu kỳ) cho bộ phận có hoa văn, hoặc None."""
+    import co_duoi as cd
+    from sdflib import hexc
+    if aid == 'khanran' and name in ('Khan_Ran', 'Khan_Ran_Duoi'):
+        cell = .0105; gm = cd.gingham(cell)
+        img = ('gingham', lambda: _img(lambda a, b: gm(a * 2 * cell, b * 2 * cell)))
+        if name == 'Khan_Ran':
+            def uv(V, U):
+                ang, hgt = cd.band_coords(V); return np.stack([ang * .055, hgt], 1) / (2 * cell)
+        else:
+            def uv(V, U):   # đuôi khăn: ngang theo bề rộng dải (X ∈ -1..1, nửa rộng ~2 cm), dọc theo chiều dài (~10 cm)
+                return np.stack([U[:, 0] * .02, U[:, 1] * .1], 1) / (2 * cell)
+        return img + (uv,)
+    if aid == 'nobuom' and name == 'No_Buom':
+        k = cd.neck_front(-.55, .03); side = np.array([1, 0, 0], np.float32); up = cd.nrm(cd.L()['neck'][1])
+        R = np.stack([side, up, np.cross(side, up)], 1); per = 2 * np.pi / 300
+        def dots(a, b):
+            d = cd.sstep(.55, .75, np.sin(a * 2 * np.pi) * np.sin(b * 2 * np.pi))[:, None]
+            return hexc('#2B3A67') * (1 - d) + hexc('#F4F1E8') * d
+        return ('cham_bi', lambda: _img(dots), lambda V, U: cd.local(V, k, R)[:, :2] / per)
+    if aid == 'coduua' and name == 'La_Co':
+        def chk(a, b):
+            on = ((np.floor(a * 2) + np.floor(b * 2)) % 2 == 0)[:, None]
+            return np.where(on, hexc('#1F2226'), hexc('#F4F1E8'))
+        return ('ca_ro', lambda: _img(chk), lambda V, U: np.stack([U[:, 1] * 3, (U[:, 0] + 1)], 1))
+    return None
+
+
+def save_png(path, img):
+    h, w, _ = img.shape
+    im = bpy.data.images.new(os.path.basename(path), w, h, alpha=False)
+    lin = np.concatenate([img[::-1], np.ones((h, w, 1))], 2).astype(np.float32)   # Blender đọc ảnh từ hàng dưới lên
+    im.pixels.foreach_set(lin.ravel())
+    im.filepath_raw = path; im.file_format = 'PNG'; im.save()
+    bpy.data.images.remove(im)
+
+
 def build_coords(o, off):
     """Toạ độ dựng (như hàm SDF) của các đỉnh object."""
     me = o.data
@@ -179,44 +251,112 @@ def export_acc(ids):
                               rough=pt.rough, metal=pt.metal, emit=pt.emit, alpha=pt.alpha)
             pieces = []
             if s == 'feet':
-                # Tách 4 chiếc theo bàn chân gần nhất, gốc ở tâm bàn chân
+                # Tách 4 chiếc theo bàn chân gần nhất, gốc ở tâm bàn chân (acc_mc đã tách sẵn: tên kết thúc __FL...)
                 cen = np.array([socks['paw' + p] for p in PAWS], np.float32)
                 fc = V[F].mean(1)
-                near = np.argmin(((fc[:, None, :] - cen[None]) ** 2).sum(-1), 1)
+                if pt.name[-4:-2] == '__' and pt.name[-2:] in PAWS:
+                    near = np.full(len(F), PAWS.index(pt.name[-2:]))
+                    base = pt.name[:-4]
+                else:
+                    near = np.argmin(((fc[:, None, :] - cen[None]) ** 2).sum(-1), 1)
+                    base = pt.name
+                # Tất, ủng, patin cao 9–10 cm: phần cổ trên 4,5 cm theo cẳng chân (forearm/shin), phần dưới theo bàn chân
+                tall = aid in TALL_FEET
                 for k, paw in enumerate(PAWS):
-                    Fk = F[near == k]
-                    if len(Fk) == 0:
-                        continue
-                    used = np.unique(Fk); remap = -np.ones(len(V), np.int64); remap[used] = np.arange(len(used))
-                    pieces.append((f'{pt.name}__{paw}', V[used] - cen[k], remap[Fk].astype(np.int32),
-                                   None if C is None else C[used], 'paw' + paw, cen[k]))
+                    for leg in ((False, True) if tall else (False,)):
+                        sel = (near == k) & (((fc[:, 1] > LEG_SPLIT - LEG_OVERLAP) if leg else (fc[:, 1] <= LEG_SPLIT)) if tall else True)
+                        Fk = F[sel]
+                        if len(Fk) == 0:
+                            continue
+                        used = np.unique(Fk); remap = -np.ones(len(V), np.int64); remap[used] = np.arange(len(used))
+                        Vk = V[used].copy()
+                        if leg:
+                            # phần chồng lùi vào trong 0,8 mm (về trục cẳng chân): đứng yên không chớp hai lớp trùng nhau
+                            lo_ = Vk[:, 1] <= LEG_SPLIT
+                            if lo_.any():
+                                ax = Vk[~lo_][:, [0, 2]].mean(0) if (~lo_).any() else Vk[:, [0, 2]].mean(0)
+                                dxz = Vk[lo_][:, [0, 2]] - ax
+                                n_ = np.linalg.norm(dxz, axis=1, keepdims=True) + 1e-6
+                                Vk[np.ix_(lo_, [0, 2])] = ax + dxz * np.maximum(0, 1 - .0008 / n_)
+                        pieces.append((f'{base}_Co__{paw}' if leg else f'{base}__{paw}', Vk - cen[k], remap[Fk].astype(np.int32),
+                                       None if C is None else C[used], ('leg' if leg else 'paw') + paw, cen[k], len(Fk) / max(1, (near == k).sum())))
             else:
                 org = np.asarray(socks[s], np.float32)
-                pieces.append((pt.name, V - org, F, C, s, org))
-            for name, Vp, Fp, Cp, sk, off in pieces:
+                pieces.append((pt.name, V - org, F, C, s, org, 1.0))
+            for name, Vp, Fp, Cp, sk, off, frac in pieces:
                 ob = bl.make_mesh(name, Vp, Fp, Cp, smooth=pt.smooth, coll=coll)
                 ob.data.materials.append(mat)
                 select_only([ob])
                 for md in list(ob.modifiers):
                     bpy.ops.object.modifier_apply(modifier=md.name)
                 uv = getattr(pt, 'uv', None)
+                cape = uv is not None
                 if uv is None:
-                    target = PART_TRIS.get((aid, pt.name)) or min(budget(s), max(800, len(Fp) // 5))   # bộ phận nhỏ (quai, viền) không cần đủ ngân sách
+                    target = PART_TRIS.get((aid, pt.name))
+                    target = max(int(target * frac * FEET_DETAIL.get(aid, 1.0)), PART_MIN.get((aid, base_name(pt.name)), 0)) if target else min(budget(s), max(800, len(Fp) // 5))   # bộ phận nhỏ (quai, viền) không cần đủ ngân sách
                     decimate(ob, target)
                     if pt.colorfn and Cp is not None:
                         recolor(ob, pt.colorfn, off)
-                    if getattr(pt, 'uvfn', None):
-                        uv = pt.uvfn(build_coords(ob, off))  # đuôi khăn bay: UV tính lại trên lưới đã giảm
+                    move = getattr(pt, 'move', None) or ('vai' if getattr(pt, 'uvfn', None) else None)
+                    if aid == 'giaypatin' and base_name(pt.name) in ('Banh_Xe', 'Truc'):
+                        move = 'quay'
+                    tx = tex_spec(aid, pt.name) if aid in getattr(sys.modules.get('co_duoi'), 'ACC', {}) else None
+                    if move in ('vai', 'rung') or tx:
+                        Vb = build_coords(ob, off)
+                        U = pt.uvfn(Vb) if move in ('vai', 'rung') else np.zeros((len(Vb), 2), np.float32)
+                        if isinstance(U, tuple):
+                            U = U[0]   # khăn len (acc_moi): (UV, UV2 trống)
+                        U = np.asarray(U, np.float32)
+                        T2 = np.zeros_like(U)
+                        if tx:
+                            T2 = tx[2](Vb, U).astype(np.float32)
+                            T2[:, 1] = -T2[:, 1]   # glTF lật trục dọc của UV
+                        if move in ('vai', 'rung'):
+                            uv = (U, T2)    # UV: chuyển động vải; UV2: hoa văn
+                        else:
+                            uv = (T2, np.zeros_like(T2))   # đồ đứng yên có hoa văn: UV là hoa văn
                         add_uvs(ob, uv)
                 else:
+                    move = 'vai'
+                    tx = None
                     add_uvs(ob, uv)  # đồ vải (áo choàng): giữ nguyên lưới để shader uốn theo UV
                 bake_color(ob)
                 objs.append(ob)
                 info[ob.name] = dict(sock=sk, kind=pt.kind, alpha=pt.alpha, emit=pt.emit, metal=pt.metal)
-                if uv is not None:
-                    info[ob.name]['cloth'] = dict(hinge=[round(float(a - b), 4) for a, b in zip(pt.hinge, org)])
+                if (aid, base_name(pt.name)) in METAL_GLOSS:
+                    info[ob.name].update(kind='gloss', metal=0)
+                if (aid, pt.name) in NO_SHADOW:
+                    info[ob.name]['shadow'] = False
+                if tx:
+                    os.makedirs(f'{OUT}/phu_kien/tex', exist_ok=True)
+                    if not os.path.exists(f'{OUT}/phu_kien/tex/{tx[0]}.png'):
+                        save_png(os.path.abspath(f'{OUT}/phu_kien/tex/{tx[0]}.png'), tx[1]())
+                    info[ob.name]['tex'] = f'phu_kien/tex/{tx[0]}.png'
+                if move in ('vai', 'rung', 'lac', 'quay'):
+                    cl = dict(hinge=[round(float(a - b), 4) for a, b in zip(pt.hinge, off)]) if move != 'quay' else {}
+                    if move == 'rung':
+                        cl['amp'] = .25
+                    if getattr(pt, 'flagmode', False):
+                        cl['mode'] = 1
+                    if move == 'quay':
+                        # 4 bánh patin (2 trục, cách tâm bàn chân ±3 cm theo z): quay quanh trục x theo quãng đường
+                        # tâm lấy từ chính lưới bánh: giữa 4 bánh (y = tâm bánh, z = giữa hai trục)
+                        cw = build_coords(ob, off)
+                        cw = (cw.min(0) + cw.max(0)) / 2 - np.asarray(off)
+                        cl = dict(mode=3, hinge=[round(float(c_), 4) for c_ in cw], axle=WHEEL_DZ)
+                    if move == 'lac':
+                        cl['mode'] = 2
+                        cy = build_coords(ob, off)[:, 1].mean()
+                        cl['dir'] = -1 if cy > pt.hinge[1] else 1   # bóng bay ở trên điểm treo
+                    if not cape:
+                        cl['ridge'] = 0   # chỉ áo choàng dùng UV2 để bung phẳng
+                    info[ob.name]['cloth'] = cl
         if not objs:
             continue
+        # Cả món đồ treo lắc như một khối: mọi bộ phận theo hướng của bộ phận treo đầu tiên (chuông, ông sao, bóng)
+        lac = [o['cloth'] for o in info.values() if o.get('cloth', {}).get('mode') == 2]
+        for c_ in lac:
+            c_['dir'] = lac[0]['dir']
         export(f'{OUT}/phu_kien/{aid}.glb', objs)
         META['phu_kien'][aid] = dict(objects=info, ears='down' if aid in EARS_DOWN else '', lift=opt.get('lift', 0),
                                      tris=sum(len(o.data.polygons) for o in objs))

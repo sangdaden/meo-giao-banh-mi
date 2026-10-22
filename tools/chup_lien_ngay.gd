@@ -35,6 +35,9 @@ func _run() -> void:
 	change_scene_to_file("res://scenes/menu.tscn")
 	await _wait(30)
 	await _shot("2_trang_chu_choi_tiep")
+	current_scene._ask_new_game()
+	await _shot("2b_hoi_choi_moi")
+	current_scene.confirm_new.visible = false
 	current_scene.level_select.open()
 	await _shot("3_esc_chon_ngay")
 

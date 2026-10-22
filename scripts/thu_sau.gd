@@ -455,13 +455,36 @@ func _build_yard() -> void:
 	_helper_home = Vector3(-19.0, 0, 23.0)
 	if not _sau_stands:
 		_helper = _person("cho4", _helper_home, PI, "noi", "dong")
+	if _has_model("thanh"):
+		_build_guests_g7()
+		return
 	_person("cho6", Vector3(-19.6, 0, 25.0), PI / 2.0, "noi", "dong")
 	_person("dicho1", Vector3(-16.85, 0, 24.9), -PI / 2.0, "xem", "dong")
 	# Hai đứa nhỏ
 	for k in 2:
 		var home := Vector3(-20.0 + k * 0.8, 0, 23.4 + k * 1.8)
 		var kid := _person(["cho5", "bena"][k], home, PI, "vui")
-		_kids.append({"node": kid, "home": home, "cd": 0.0})
+		_kids.append({"node": kid, "home": home, "cd": 0.0, "run": "di_bo", "idle": "vui", "trip": "vui"})
+
+
+## Người nhà và khách giỗ G7 (luồng "Người dân vào game"): Chú Thành, Cô Loan cầm nhang khấn trước bàn thờ,
+## Ông Mười ngồi ghế đẩu ăn cỗ, Chị Hạnh đứng nói chuyện, Bé Bin chạy theo Bơ, Bé Mít ngồi xổm vuốt mèo trong cổng.
+func _build_guests_g7() -> void:
+	for g in [["thanh", Vector3(-16.85, 0, 25.45)], ["loan", Vector3(-16.2, 0, 25.45)]]:
+		var n := _person(g[0], g[1], 0.0, "chap_tay_khan")
+		n.hold(CityProps.GIO % "nhang_thap", "hand.R", Vector3(0, 0.02, 0.06))
+		n.add_collision(Vector3(0.45, 1.6, 0.3), Vector3(0, 0.8, 0))
+	_person("muoi", Vector3(-18.52, 0, 25.2), PI / 2.0, "ngoi_an")
+	_person("hanh", Vector3(-19.7, 0, 25.0), PI / 2.0, "dung_noi_chuyen").add_collision(Vector3(0.45, 1.6, 0.3), Vector3(0, 0.8, 0))
+	var home := Vector3(-20.0, 0, 23.6)
+	var bin := _person("bin", home, PI, "cuoi_om_bung")
+	_kids.append({"node": bin, "home": home, "cd": 0.0, "run": "chay_theo", "idle": "cuoi_om_bung", "trip": "vap_nhe"})
+	var mit := _person("mit", Vector3(-19.35, 0, 22.75), PI, "ngoi_xom_vuot")
+	mit.add_collision(Vector3(0.4, 0.7, 0.4), Vector3(0, 0.35, 0))
+
+
+static func _has_model(id: String) -> bool:
+	return ResourceLoader.exists("res://assets/models/nguoi/%s.glb" % id)
 
 
 ## Bà Sáu: có clip G7 thì đứng tưới hàng chậu dọc tường trái, Bơ gọi thì ra cổng nhận túi;
@@ -950,13 +973,16 @@ func _update_kids(delta: float, chase: bool) -> void:
 		if to.length() > stop:
 			n.position += to.normalized() * minf(KID_SPEED * delta, to.length() - stop)
 			n.rotation.y = atan2(to.x, to.z)
-			n.play("di_bo")
+			n.play(kd.run)
 		elif not n.busy():
-			n.play("vui")
+			n.play(kd.idle)
 		if chase and kd.cd <= 0.0 and _flat(p, n.position) < 0.45:
 			kd.cd = KID_TRIP_CD
 			player.bump("kid", n.position, float(DoKho.v("kid_trip_stun", 0.4)))
-			n.play_for("vui", 1.0)
+			if kd.trip == "vui":
+				n.play_for("vui", 1.0)
+			else:
+				n.play_once(kd.trip, kd.idle)
 
 
 ## Bà Sáu ngồi ghế tưới: tia nước quét qua lối đi tới chậu bên kia. Dính nước thì khựng (Thong thả: không khựng).

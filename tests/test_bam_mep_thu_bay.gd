@@ -5,8 +5,10 @@ extends SceneTree
 ## Thử thách: giữ phím đi tới vẫn treo (như cũ), Space mới leo.
 ## Chạy: godot --headless --path . -s tests/test_bam_mep_thu_bay.gd
 
-const CRATE_TOP := 1.6           ## hai thùng chồng ở (-25,8; -2) trong city.gd
-const START := Vector3(-28.0, 0.1, -2.0)
+const CRATE_TOP := 1.6           ## hai thùng chồng ở City.CORNER_STAIR
+const START := City.CORNER_STAIR + Vector3(0, 0.1, 2.0)   ## phía nam chồng thùng, nhảy về bắc
+const TOWARD := "move_forward"   ## camera yaw 0: đi tới là về phía -z
+const AWAY := "move_back"
 
 var m: Node3D
 var bo: CharacterBody3D
@@ -26,26 +28,26 @@ func _run() -> void:
 	_check(bo.climb_moves, "Thứ Bảy bật bám mép")
 	# 1. Giữ phím đi tới suốt: bám rồi tự leo lên nóc thùng
 	await _put(START)
-	_check(await _jump_toward("move_right", true), "nhảy vào chồng thùng thì bám mép")
-	Input.action_press("move_right")
+	_check(await _jump_toward(TOWARD, true), "nhảy vào chồng thùng thì bám mép")
+	Input.action_press(TOWARD)
 	var pulled := false
 	for i in int((bo.hang_auto_pull + bo.pull_time) * 60) + 30:
 		await physics_frame
 		pulled = pulled or bo.climb == "pull"
 		if pulled and bo.climb == "":
 			break  # lên tới nóc thì thả phím (thùng chỉ rộng 0,8 m)
-	Input.action_release("move_right")
+	Input.action_release(TOWARD)
 	await _frames(10)
 	_check(bo.climb == "" and absf(bo.global_position.y - CRATE_TOP) < 0.15, "giữ phím đi tới là tự leo lên nóc thùng (y = %.2f)" % bo.global_position.y)
 	await _frames(20)
 	_check(bo.clip == "", "leo xong không còn kẹt động tác (clip = '%s')" % bo.clip)
 	# 2. Bám rồi đẩy ra xa tường: buông, rơi xuống đất
 	await _put(START)
-	_check(await _jump_toward("move_right", false), "bám lại mép")
+	_check(await _jump_toward(TOWARD, false), "bám lại mép")
 	await _frames(15)
-	Input.action_press("move_left")
+	Input.action_press(AWAY)
 	await _frames(40)
-	Input.action_release("move_left")
+	Input.action_release(AWAY)
 	_check(bo.climb == "" and bo.global_position.y < 0.3, "đẩy ra xa tường là buông (y = %.2f)" % bo.global_position.y)
 	await _frames(20)
 	_check(bo.clip == "", "buông xong không còn kẹt động tác (clip = '%s')" % bo.clip)
@@ -53,10 +55,10 @@ func _run() -> void:
 	print("Thử thách:")
 	await _load(1)
 	await _put(START)
-	_check(await _jump_toward("move_right", true), "bám mép")
-	Input.action_press("move_right")
+	_check(await _jump_toward(TOWARD, true), "bám mép")
+	Input.action_press(TOWARD)
 	await _frames(60)
-	Input.action_release("move_right")
+	Input.action_release(TOWARD)
 	_check(bo.climb == "hang", "giữ phím đi tới vẫn treo như cũ")
 	Input.action_press("jump")
 	await _frames(3)

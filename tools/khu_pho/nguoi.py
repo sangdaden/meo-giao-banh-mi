@@ -3,6 +3,7 @@ Dựng bằng SDF (smooth union) + marching cubes, rồi Blender gắn mắt, v�
 Dùng: python3 nguoi.py <id> <outdir> [--glb]
 Toạ độ SDF theo three.js (mét, Y lên, nhìn +Z) giống mature.py của Bơ."""
 import sys, os, math, json, numpy as np
+DANG_FACES = int(os.environ.get('DANG_FACES', 6000))
 from skimage import measure
 from sdflib import v, ellipsoid, sphere, roundcone, smin, smax, chain, hexc, sstep, noise
 
@@ -241,14 +242,17 @@ def build(c, posed):
         m = np.full(len(V), 'top', object)
         u_ = np.clip(1 - (x / (.075 * s)) ** 2, 0, 1)
         neck_open = (((y > (1.21 * s - .035 * s * u_)) & (z > 0)) | (y > 1.225 * s)) & (np.abs(x) < .075 * s)
-        if tk == 'shirt': neck_open = (y > 1.13 * s - np.abs(x) * .3) & (np.abs(x) < .06 * s) & (z > .05 * s)
+        if tk == 'shirt': neck_open = (z > .04 * s) & (np.abs(x) < (y - 1.12 * s) * .75) & (y < 1.235 * s) | (y > 1.235 * s) & (np.abs(x) < .075 * s)   # cổ chữ V
         if tk == 'singlet': neck_open |= (np.abs(x) > .1 * bw * s) & (y > 1.06 * s) | ((y > 1.15 * s) & (np.abs(x) < .09 * s) & (z > 0))
         m[neck_open] = 'skin'
         return m
     add('chest', lambda p: ellipsoid(p, sc(0, 1.065, 0), sc(.155 * bw, .17, .105)), chest_mat, 'up', k=.05 * s)
     add('belly', lambda p: ellipsoid(p, sc(0, .95, .012 * (bel - 1) * 4), sc(.14 * max(bel, bw * .95), .13, .102 * bel)), 'top', 'up', k=.05 * s)
+    hem_y = {'baba': .76, 'tee': .82, 'shirt': .82, 'singlet': .84, 'dress': .84}[tk]
     def pelvis_mat(V):
-        return np.full(len(V), 'skirt' if bot['kind'] == 'skirt' else 'bottom', object)
+        m = np.full(len(V), 'skirt' if bot['kind'] == 'skirt' else 'bottom', object)
+        if bot['kind'] != 'skirt': m[V[:, 1] > hem_y * s] = 'top'   # vạt áo phủ hông: đường lai áo thẳng, không lòi màu áo xuống đáy quần
+        return m
     add('pelvis', lambda p: ellipsoid(p, sc(0, .83, 0), sc(.148 * hip, .11, .105 * max(1, bel * .9))), pelvis_mat, 'root', k=.05 * s)
     # vạt áo phủ qua quần
     hem_y = {'baba': .76, 'tee': .82, 'shirt': .82, 'singlet': .84, 'dress': .84}[tk]
@@ -277,9 +281,17 @@ def build(c, posed):
         tdir = sd_ if sd_ @ fwd > 0 else -sd_
         hs = s * (1.25 if kid else 1.15) * (.95 + .1 * ar)
         pc = wr + d * .045 * hs
-        def hand(p, pc=pc, d=d, nn=nn, sd_=sd_, tdir=tdir, hs=hs):
+        grip = bool(posed and side in c['pose'].get('grip', ()))
+        def hand(p, pc=pc, d=d, nn=nn, sd_=sd_, tdir=tdir, hs=hs, grip=grip):
             q = p - pc; loc = np.stack([q @ sd_, q @ d, q @ nn], -1)
             dd = ellipsoid(loc, v(0, 0, 0), v(.036, .042, .017) * hs)
+            if grip:   # bàn tay nắm: 3 ngón cuộn về phía lòng bàn tay, ngón cái ôm lại
+                for off in (-.022, 0, .022):
+                    b = pc + d * .028 * hs + sd_ * off * hs
+                    m1 = b + d * .022 * hs + nn * .008 * hs; m2 = m1 + d * .006 * hs + nn * .024 * hs; tp = m2 - d * .014 * hs + nn * .006 * hs
+                    dd = smin(dd, chain(p, [b, m1, m2, tp], [.0115 * hs, .011 * hs, .0105 * hs, .0095 * hs], .004 * hs), .008 * hs)
+                tb = pc + tdir * .025 * hs - d * .01 * hs; tt = tb + (tdir * .25 + d * .6 + nn * .75) * .035 * hs
+                return smin(dd, roundcone(p, tb, tt, .013 * hs, .011 * hs), .01 * hs)
             for off in (-.022, 0, .022):
                 b = pc + d * .028 * hs + sd_ * off * hs - nn * .004 * hs
                 t = b + d * (.042 - abs(off) * .35) * hs - nn * .012 * hs
@@ -296,16 +308,20 @@ def build(c, posed):
         cm = kn + (an - kn) * .3 + v(0, 0, -.012 * s)
         add('calf', (lambda cm, kn, an: lambda p: ellipsoid(p, cm, v(.05 * lr * s, .095 * s, .052 * lr * s)))(cm, kn, an), 'skin', 'world', k=.03 * s)
         if bot['kind'] in ('pants', 'shorts'):
+            def pant_mat(V):   # phần quần trên đường lai áo bị vạt áo che
+                m = np.full(len(V), 'bottom', object)
+                if not (posed and c['pose'].get('sit')): m[V[:, 1] > hem_y * s] = 'top'
+                return m
             if bot['kind'] == 'pants':
                 a2 = kn + (an - kn) * .9
-                add('pant', (lambda hp, kn, a2: lambda p: chain(p, [hp, kn, a2], [.09 * lr * s, .07 * lr * s, .058 * lr * s], .03))(hp, kn, a2), 'bottom', 'world', k=.01)
+                add('pant', (lambda hp, kn, a2: lambda p: chain(p, [hp, kn, a2], [.09 * lr * s, .07 * lr * s, .058 * lr * s], .03))(hp, kn, a2), pant_mat, 'world', k=.01)
             else:
                 k2 = hp + (kn - hp) * .82
-                add('pant', (lambda hp, k2: lambda p: roundcone(p, hp, k2, .094 * lr * s, .078 * lr * s))(hp, k2), 'bottom', 'world', k=.01)
+                add('pant', (lambda hp, k2: lambda p: roundcone(p, hp, k2, .094 * lr * s, .078 * lr * s))(hp, k2), pant_mat, 'world', k=.01)
         # bàn chân + dép
-        fdir = nrm(v(0, 0, 1) + v(side * .12, 0, 0)); fc = an + v(0, (-an[1] + .034 * s) if an[1] < .2 * s else -.04 * s, 0) + fdir * .05 * s   # chân gác lên gác chân xe: theo cổ chân
+        fdir = nrm(v(0, 0, 1) + v(side * .12, 0, 0)); fc = an + v(0, max(-.04 * s, -an[1] + .034 * s), 0) + fdir * .05 * s   # chân gác lên gác chân xe: theo cổ chân
         add('foot', (lambda fc: lambda p: ellipsoid(p, fc, v(.05 * s, .036 * s, .105 * s)))(fc), 'skin' if c.get('sandal', True) else 'shoe', 'world', k=.025 * s)
-        add('sole', (lambda fc: lambda p: ellipsoid(p, fc + v(0, -.02 * s, .004 * s), v(.06 * s, .016 * s, .118 * s)))(fc), 'shoe', 'world', k=.004)
+        add('sole', (lambda fc: lambda p: ellipsoid(p, fc + v(0, -.022 * s, .004 * s), v(.054 * s, .012 * s, .112 * s)))(fc), 'shoe', 'world', k=.004)
         add('strap', (lambda fc: lambda p: smax(ellipsoid(p, fc + v(0, -.004 * s, .03 * s), v(.05 * s, .036 * s, .028 * s)), -(p[..., 1] - (fc[1] - .01 * s)), .004))(fc), 'shoe', 'world', k=.004)
 
     # ---- phụ kiện trên người
@@ -428,7 +444,7 @@ def make_field(parts, G, FR, sep, H):
     s = G['s']; h = G['h']; Hc = 2 * H
     sel = [p for p in parts if p['sep'] == sep]
     if not sel: return None
-    xs = np.arange(-.48 * s, .48 * s, Hc, dtype=np.float32); ys = np.arange(-.01, h + .12 * s, Hc, dtype=np.float32); zs = np.arange(-.36 * s, .58 * s, Hc, dtype=np.float32)
+    XW = max(.48 * s, .5); xs = np.arange(-XW, XW, Hc, dtype=np.float32); ys = np.arange(-.01, h + .12 * s, Hc, dtype=np.float32); zs = np.arange(-max(.36 * s, .38), max(.58 * s, .64), Hc, dtype=np.float32)   # trẻ con với tay ra trước không bị cắt cụt bàn tay
     fc = np.empty((len(xs), len(ys), len(zs)), np.float32)
     Y, Z = np.meshgrid(ys, zs, indexing='ij')
     for i0 in range(0, len(xs), 24):
@@ -557,11 +573,11 @@ GIAO = {
 }
 
 POSE_ONLY = [False]; SUF = ['']
+HOOKS = []   # hàm(scn, coll, G, headw, B) gắn thêm vật vào dáng nhân vật
 def _ren():
     import bpy
     if not os.environ.get('NOREN'): bpy.ops.render.render(write_still=True)
 APOSE_FACES = int(os.environ.get('APOSE_FACES', 3500))
-HOOKS = []   # hàm(scn, coll, G, headw, B) gắn thêm vật vào dáng nhân vật
 def run(cid, out, glb=False):
     c = CHARS[cid]; H = .003 * (.8 if c.get('kid') else 1.0)
     import bpy
@@ -766,7 +782,7 @@ def run(cid, out, glb=False):
         for o in cp_.objects:
             o.select_set(True)
             if o.type == 'MESH' and (o.name.endswith('_than') or o.name.endswith('_do')):
-                md = o.modifiers.new('Dec', 'DECIMATE'); md.ratio = (6000 if o.name.endswith('_than') else 1500) / max(1, len(o.data.polygons))
+                md = o.modifiers.new('Dec', 'DECIMATE'); md.ratio = min(1, (DANG_FACES if o.name.endswith('_than') else DANG_FACES // 5) / max(1, len(o.data.polygons)))
         bpy.ops.export_scene.gltf(filepath=f'{out}/{cid}{SUF[0]}_dang.glb', use_selection=True, export_apply=True, export_vertex_color='ACTIVE')
     print('done', cid)
 

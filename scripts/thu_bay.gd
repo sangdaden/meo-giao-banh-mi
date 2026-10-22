@@ -29,14 +29,15 @@ const VIEC := {
 }
 ## Người nhờ chưa có trong phố hôm nay thì dựng ở đây (Cô Ba, Cô Hai, Chú Năm do residents.gd dựng; hai ông do
 ## ChessCorner). seat: ngồi ghế đẩu cao Nguoi.SEAT; chair: ghế có sẵn (ghế mây Bà Sáu). model: người đứng tạm.
+## idle: clip đứng chờ (mặc định viec_rieng).
 const PEOPLE := {
 	"chutu": {"pos": Vector3(-1.0, 0, -6.63), "yaw": 0.0, "seat": true},
 	"bena": {"pos": Vector3(24.0, 0, -15.6), "yaw": 0.0},
 	"may": {"pos": Vector3(5.2, 0, 6.8), "yaw": PI},
 	"hung": {"pos": Vector3(33.8, 0, 25.0), "yaw": 0.0, "seat": true},
 	"basau": {"pos": Vector3(-19.5, 0.08, 22.63), "yaw": PI, "chair": true},
-	# Chị Thu chưa có model (G1 chờ duyệt): mượn Chị Hồng đứng tạm cạnh võng
-	"chithu": {"pos": Vector3(31.6, 0, -15.2), "yaw": -PI / 2.0, "model": "dicho3"},
+	# Chị Thu (G1 Sang duyệt 22/10) đứng cạnh võng ru em bé
+	"chithu": {"pos": Vector3(31.6, 0, -15.2), "yaw": -PI / 2.0, "idle": "ru_vong"},
 }
 const HAMMOCK := Vector3(30.6, 0, -15.6)
 ## Kết ngày: "bồn nước" (khối tạm) trên mái hiên khối 1 cạnh lò bánh; chồng thùng bên dưới để leo lên
@@ -425,7 +426,7 @@ func _build_people() -> void:
 		var model: String = spec.get("model", id)
 		if Nguoi.in_scene(get_tree(), model):
 			continue
-		var n := Nguoi.make(model, "viec_rieng")
+		var n := Nguoi.make(model, spec.get("idle", "viec_rieng"))
 		n.position = spec.pos
 		n.rotation.y = spec.yaw
 		add_child(n)

@@ -44,6 +44,7 @@ var week_stars := 0
 var week_stars_max := 0
 var extra_medal := ""        ## "Hàng xóm thân" khi sổ đã đủ trang
 var autotest := false
+var new_week_text := "Tuần mới"   ## chơi liền các ngày: PlayMode.next_label()
 
 var _summary: Control
 var _credits: Control
@@ -151,7 +152,7 @@ func _end_credits() -> void:
 	panel.add_child(v)
 	v.add_child(_text("Hết tuần rồi!", 30, AMBER))
 	v.add_child(_text("Đã mở \"Tuần mới\": sáng Thứ Hai lại có bánh nóng chờ Bơ.", 18))
-	var nw := _button("Tuần mới")
+	var nw := _button(new_week_text)
 	nw.pressed.connect(func(): new_week.emit())
 	v.add_child(nw)
 	var home := _button("Về màn hình chính")

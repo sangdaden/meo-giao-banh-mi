@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://6mmmb0hrt8sm"
-path="res://.godot/imported/lan_can_mai.glb-76d1f69c75b5de6561f08a2e2d43ea39.scn"
+uid="uid://btx6qoq6yu4vk"
+path="res://.godot/imported/gian_sat_1159_-327_815.glb-48aadb6a56067f914a404df9029763b2.scn"
 
 [deps]
 
-source_file="res://assets/models/thu_tu/lan_can_mai.glb"
-dest_files=["res://.godot/imported/lan_can_mai.glb-76d1f69c75b5de6561f08a2e2d43ea39.scn"]
+source_file="res://assets/models/thu_tu/gian_sat_1159_-327_815.glb"
+dest_files=["res://.godot/imported/gian_sat_1159_-327_815.glb-48aadb6a56067f914a404df9029763b2.scn"]
 
 [params]
 

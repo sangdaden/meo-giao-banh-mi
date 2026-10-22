@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://ivjfq2jhylgt"
-path="res://.godot/imported/cau_thang_253_323_95.glb-6c2430602ed932b499fb92868c1e8d17.scn"
+uid="uid://da71dhxvvcd2t"
+path="res://.godot/imported/cau_thang_332_425_95.glb-99d2226a89e7d11b209ad2811fbcd776.scn"
 
 [deps]
 
-source_file="res://assets/models/thu_tu/cau_thang_253_323_95.glb"
-dest_files=["res://.godot/imported/cau_thang_253_323_95.glb-6c2430602ed932b499fb92868c1e8d17.scn"]
+source_file="res://assets/models/thu_tu/cau_thang_332_425_95.glb"
+dest_files=["res://.godot/imported/cau_thang_332_425_95.glb-99d2226a89e7d11b209ad2811fbcd776.scn"]
 
 [params]
 

@@ -16,6 +16,9 @@ const SIDE_ROADS := [Rect2(-22.0, -26.0, 8.0, 21.0), Rect2(12.0, -26.0, 8.0, 21.
 const MAIN_ROAD_HALF := 4.9
 ## Vũng mới trên vỉa hè (x, z, bán kính x, bán kính z): trước quán cà phê Mây, dọc vỉa hè khối 1–2
 const PUDDLES := [Vector4(2.6, 5.7, 0.8, 0.45), Vector4(7.6, 5.5, 0.9, 0.4), Vector4(-27.5, -5.6, 0.9, 0.4), Vector4(-8.0, -5.7, 1.0, 0.45)]
+## Người mặc áo mưa Thứ Tư: id người dân -> model
+const RAIN_OUTFIT := {"may": "may_mua", "cohai": "cohai_mua", "bena": "bena_mua", "chunam": "chunam_mua", "chutu": "chutu_mua"}
+const BAT_CUON := "res://assets/models/nguoi/bat_cuon.glb"
 const SPLASH_REACH := 2.2          ## xe chạy cách Bơ chừng này (ngang) thì tạt trúng
 const SPLASH_MIN_SPEED := 3.0
 const BIKE_HIT_SIDE := 0.45        ## gần hơn nữa là xe tông (traffic.gd lo)
@@ -47,6 +50,7 @@ var _bike_cd := {}
 var _told := {}
 var _tarp_bao: Node3D
 var _spouts: Array[Node3D] = []      ## nước xối chân ống xối, tắt lúc tạnh mưa
+var _tu: Nguoi                       ## Chú Tư mặc áo mưa, tạnh mưa thì cuộn bạt
 var _blind: Control
 var _autotest := false
 
@@ -82,6 +86,7 @@ func _ready() -> void:
 	pigeons.scattered.connect(func(_p): scatters += 1)
 	pigeons.blinded.connect(_on_blinded)
 	_build_props()
+	_dress_people()
 	_build_side_floods()
 	_build_puddles()
 	_build_blind()
@@ -122,7 +127,7 @@ func _apply_order(order: Dictionary, instant: bool) -> void:
 		thoi_tiet.ngap(f.x, 0.0 if instant else f.y)
 	match order.get("pigeons", ""):
 		"roof":
-			pigeons.perch_at(san.coop + Vector3(0, 0, 1.2), 1.2)
+			pigeons.perch_at(san.perch, 1.2)
 		"street":
 			pigeons.perch_at(Vector3(4.0, 0.04, -5.9), 1.0)
 	if order.get("clear", false):
@@ -332,6 +337,31 @@ func _build_props() -> void:
 			_spouts.append(ThuTuModels.put(self, "nuoc_chay", pipe + Vector3(0, 0, 0.4)))
 
 
+## Khách và hàng xóm mặc áo mưa G5 (thread Người dân vào game, PR #94): đổi model tại chỗ, giữ cách giao bánh.
+func _dress_people() -> void:
+	for node in get_tree().get_nodes_in_group(Nguoi.GROUP):
+		var n := node as Nguoi
+		if n == null or not RAIN_OUTFIT.has(n.id):
+			continue
+		if n.id == "cohai" and n.get_parent().name == "TapHoaCoHai":
+			# Hôm nay Cô Hai ra cửa sau nhận bánh (đơn 2), trong tiệm để trống
+			n.visible = false
+			for c in n.get_children():
+				if c is StaticBody3D:
+					(c as StaticBody3D).collision_layer = 0
+			continue
+		n.wear(RAIN_OUTFIT[n.id])
+		match n.id:
+			"may":
+				n.idle_anim = "dang_mua"
+				n.play("dang_mua")
+				n.hold("res://assets/models/nguoi/du_tay.glb", "hand.R", Vector3(0, -0.02, 0))
+			"chutu":
+				# Áo mưa thì đứng cạnh ghế (không ngồi), ra trước dưới bạt sạp báo
+				n.position += Vector3(0, 0, 0.45)
+				_tu = n
+
+
 ## Mặt nước ngập hai đường dọc phía bắc, đi theo mức nước của ThoiTiet.
 func _build_side_floods() -> void:
 	for r: Rect2 in SIDE_ROADS:
@@ -378,6 +408,14 @@ func _clear_sky(instant: bool) -> void:
 				p.emitting = false
 	for sp in _spouts:
 		sp.visible = false
+	if _tu:
+		if instant:
+			_tu.hold(BAT_CUON, "hand.R", Vector3(0.1, -0.06, 0.05))
+		else:
+			_tu.play_for("cuon_bat", 3.0)
+			get_tree().create_timer(3.0).timeout.connect(func():
+				if is_instance_valid(_tu):
+					_tu.hold(BAT_CUON, "hand.R", Vector3(0.1, -0.06, 0.05)))
 	if _tarp_bao:
 		if instant:
 			_tarp_bao.visible = false

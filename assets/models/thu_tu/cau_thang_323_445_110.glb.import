@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://cacdj7boo4wbw"
-path="res://.godot/imported/mang_xoi.glb-8b410485fd9022559b4e8eb64034758d.scn"
+uid="uid://cy8qws04ctyge"
+path="res://.godot/imported/cau_thang_323_445_110.glb-dae38f210a44005cb442f0b4f50422b9.scn"
 
 [deps]
 
-source_file="res://assets/models/thu_tu/mang_xoi.glb"
-dest_files=["res://.godot/imported/mang_xoi.glb-8b410485fd9022559b4e8eb64034758d.scn"]
+source_file="res://assets/models/thu_tu/cau_thang_323_445_110.glb"
+dest_files=["res://.godot/imported/cau_thang_323_445_110.glb-dae38f210a44005cb442f0b4f50422b9.scn"]
 
 [params]
 

@@ -6,17 +6,12 @@ class_name ThuTuModels
 
 const DIR := "res://assets/models/thu_tu/%s.glb"
 ## Cầu thang có sẵn: [cao, ngang, rộng] (m). Gốc ở chân thang giữa bề ngang, lên theo -Z, chiếu nghỉ 0,9 ở đỉnh.
-const STAIRS := [[4.04, 4.815, 0.9], [3.728, 5.131, 1.1], [2.128, 2.929, 1.1], [3.9, 5.368, 1.1], [3.15, 4.336, 1.1],
-	[3.576, 4.577, 0.95], [2.526, 3.233, 0.95]]
-## Giàn sắt có sẵn: [cao đầu tây, chênh đầu đông] (m), dài 7,45 m. Gốc ở giữa sàn trên mặt đất.
-const GANTRIES := [[10.728, 0.0], [10.728, -3.15]]
-const GANTRY_LEN := 7.45
+const STAIRS := [[4.08, 4.86235, 0.9], [3.19679, 4.4, 1.1], [3.23311, 4.45, 1.1], [3.323333, 4.253673, 0.95],
+	[3.44, 4.402999, 0.95]]
+## Giàn sắt có sẵn: [cao đầu tây, chênh đầu đông, dài] (m). Gốc ở giữa sàn trên mặt đất.
+const GANTRIES := [[11.594, 0.004, 8.15], [11.594, -3.272, 8.15]]
 
 static var _scenes := {}
-
-
-static func exists(model: String) -> bool:
-	return ResourceLoader.exists(DIR % model)
 
 
 ## Đặt một món; trả node gốc của model.
@@ -66,8 +61,9 @@ static func gantry(parent: Node, a: Vector3, b: Vector3) -> Node3D:
 	for g: Array in GANTRIES:
 		if absf(g[1] - (b.y - a.y)) < absf(best[1] - (b.y - a.y)):
 			best = g
-	var n := put(parent, "gian_sat_%d_%d" % [roundi(best[0] * 100), roundi(best[1] * 100)], Vector3((a.x + b.x) / 2.0, 0, a.z))
-	var sx := (b.x - a.x) / GANTRY_LEN
+	var n := put(parent, "gian_sat_%d_%d_%d" % [roundi(best[0] * 100), roundi(best[1] * 100), roundi(best[2] * 100)],
+		Vector3((a.x + b.x) / 2.0, 0, a.z))
+	var sx: float = (b.x - a.x) / float(best[2])
 	var sy: float = a.y / float(best[0])
 	if absf(sx - 1.0) > 0.01 or absf(sy - 1.0) > 0.01 or absf(best[1] - (b.y - a.y)) > 0.05:
 		n.scale = Vector3(sx, sy, 1.0)

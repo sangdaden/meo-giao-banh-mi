@@ -11,6 +11,10 @@ signal view_changed(first_person: bool)
 @export var stick_speed := 2.8
 @export var distance := 3.2
 @export var follow_speed := 18.0
+## Bơ đang bay: camera theo chiều dọc chậm hơn để cú nhảy không làm khung hình giật lên giật xuống
+## (lệch tối đa air_lag_max mét, rơi xa vẫn bám kịp)
+@export var air_follow_y := 6.0
+@export var air_lag_max := 0.7
 @export var look_height := 0.55
 @export var fp_height := 0.44     ## độ cao mắt Bơ so với chân
 @export var fp_forward := 0.04    ## mắt nằm trước tâm người bao nhiêu
@@ -98,7 +102,11 @@ func _process(delta: float) -> void:
 		if first_person:
 			_snap()  # góc thứ nhất bám sát mắt, không trễ, để khỏi chóng mặt
 		else:
-			global_position = global_position.lerp(_goal(), 1.0 - exp(-follow_speed * delta))
+			var goal := _goal()
+			var p := global_position.lerp(goal, 1.0 - exp(-follow_speed * delta))
+			if target.has_method("is_on_floor") and not target.is_on_floor() and str(target.get("climb")) == "":
+				p.y = clampf(lerpf(global_position.y, goal.y, 1.0 - exp(-air_follow_y * delta)), goal.y - air_lag_max, goal.y + air_lag_max)
+			global_position = p
 	rotation = Vector3(pitch, yaw, 0)
 
 

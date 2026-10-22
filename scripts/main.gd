@@ -19,7 +19,8 @@ const BITE_PENALTY := 3.0
 ## Rơi từ cao hơn mức này khi đang mang bánh thì mất sao nguyên vẹn.
 const FALL_BREAK_HEIGHT := 3.0
 
-enum State { MENU, PLAY, END }
+## EVENT: hết đơn, một ngày tự lo phần chơi tiếp theo (Hội mèo Chủ Nhật) qua hand_off()
+enum State { MENU, PLAY, END, EVENT }
 
 @export var time_multiplier := 1.0  ## tăng lên nếu thấy đơn quá gấp khi chơi thử
 
@@ -65,6 +66,9 @@ var residents: Node3D  ## Cô Ba ở quầy và hàng xóm (scripts/residents.gd
 ## Biến static nên còn nguyên khi đổi scene. Hợp đồng: thiet-ke-man/hop-dong-bep-thu-ba.md.
 static var _resume := {}
 var _leaving := false  # đang chờ đổi sang bếp ráp nhanh
+
+## Node nhận phần chơi sau đơn cuối (hand_off). Có thì _end_game giao cho nó thay vì hiện bảng kết quả.
+var _after_orders: Node
 
 ## Một đơn lẻ đã giao xong nhưng nhiệm vụ phụ còn dở (tờ báo Chú Tư chưa về lò): chờ về lò rồi mới tổng kết.
 var _finishing := false
@@ -170,6 +174,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		State.END:
 			if event.is_action_pressed("ui_accept"):
 				restart()
+		State.EVENT:
+			if event.is_action_pressed("pause"):
+				hud.set_pause_info("")
+				hud.toggle_pause()
 		State.PLAY:
 			if event.is_action_pressed("pause"):
 				hud.set_pause_info(_pause_info())
@@ -252,6 +260,8 @@ func _pause_info() -> String:
 	if order_index >= orders.size():
 		return ""
 	var order: Dictionary = orders[order_index]
+	if player.carrying and _untimed(order):
+		return "Đơn %d/%d · %s · không tính giờ" % [order_index + 1, orders.size(), order.who]
 	if player.carrying:
 		return "Đơn %d/%d · %s · đồng hồ đứng ở 0:%02d" % [order_index + 1, orders.size(), order.who, int(ceil(time_left))]
 	return "Đơn %d/%d · đang tới %s" % [order_index + 1, orders.size(), _pickup_name(order)]
@@ -284,7 +294,7 @@ func _physics_process(delta: float) -> void:
 		var done: bool = bakery_zone.overlaps_body(player) if errand else deliveries.step(order_index, customer_zones[order_index].overlaps_body(player), delta)
 		if done:
 			_deliver(order)
-		elif time_left <= 0.0 and not late:
+		elif time_left <= 0.0 and not late and not _untimed(order):
 			_go_late(order)
 	stamps.set_active(not player.carrying)
 	_update_hud()
@@ -361,8 +371,21 @@ func _pick_up(order: Dictionary) -> void:
 		hud.show_toast("Nhận %s! Coi chừng Chó Mực canh hẻm!" % order.item, 2.5)
 
 
+## Đơn "time": 0 không tính giờ (khay bánh sáng Chủ Nhật): không trễ, không hiện đồng hồ, chấm như còn đủ giờ.
+static func _untimed(order: Dictionary) -> bool:
+	return float(order.get("time", 1.0)) <= 0.0
+
+
+## Một ngày tự lo phần chơi sau đơn cuối (Hội mèo Chủ Nhật): đơn cuối xong, main chuyển sang State.EVENT
+## và gọi node.begin_after_orders() thay cho bảng kết quả. Node tự tổng kết và lưu (Scoring.end_day).
+func hand_off(node: Node) -> void:
+	_after_orders = node
+
+
 ## Thời gian cho một đơn: số giây gốc nhân hệ số, cộng giây thưởng của ổ bánh từ màn bếp.
 func _time_limit(order: Dictionary) -> float:
+	if _untimed(order):
+		return 0.0
 	return order.time * time_multiplier * float(day.time_mult) * float(DoKho.v("order_time_mult", 1.0)) + Scoring.bonus_seconds(order_index)
 
 
@@ -370,7 +393,7 @@ func _deliver(order: Dictionary) -> void:
 	_ghost_path.append(player.global_position)
 	side_quest_ok = deliveries.side_ok[order_index]
 	var r := Scoring.order_done(order_index, {
-		"time_ratio": 0.0 if late else time_left / _time_limit(order),
+		"time_ratio": 1.0 if _untimed(order) else (0.0 if late else time_left / _time_limit(order)),
 		"late": late,
 		# Góc cờ: bị mắng thì mất 1 sao. Ổ ráp sai phiếu ghi món cũng mất sao nguyên vẹn.
 		"intact": intact and not deliveries.star_lost(order_index) and _note_ok(order_index),
@@ -384,6 +407,8 @@ func _deliver(order: Dictionary) -> void:
 	residents.order_done(r.stars, late)
 	results.append(r.stars)
 	var note := "trễ giờ" if late else "dư %d giây" % int(ceil(time_left))
+	if _untimed(order):
+		note = "không tính giờ"
 	if order.get("boss", false):
 		note = "qua mặt Chó Mực" + (", bị đớp %d lần" % bites if bites > 0 else "")
 	elif not intact:
@@ -500,6 +525,11 @@ func _settle_side_quests() -> void:
 
 
 func _end_game() -> void:
+	if _after_orders and is_instance_valid(_after_orders):
+		state = State.EVENT
+		_settle_side_quests()
+		_after_orders.call("begin_after_orders")
+		return
 	state = State.END
 	player.can_move = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -593,7 +623,7 @@ func _update_hud() -> void:
 		return
 	if player.carrying:
 		hud.set_order(order_index, orders.size(), "%s · %s" % [order.who, order.place], _item_text(order), order.color)
-		hud.set_timer(time_left, _time_limit(order), true)
+		hud.set_timer(time_left, _time_limit(order), not _untimed(order))
 		hud.set_distance(player.global_position.distance_to(order.pos), order.place)
 		hud.set_goal(order.pos + Vector3.UP)
 		hud.set_bread(true, order.item, 1.0 - carry_time / float(DoKho.v("bread_cool", 45.0)))  # nguội hẳn sau 45 giây

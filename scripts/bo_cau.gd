@@ -1,7 +1,7 @@
 class_name BoCau
 extends Node3D
-## Đàn bồ câu (Thứ Tư trở đi, con vật nền, không phải boss). Khối tạm vẽ bằng một MultiMesh cho tới khi có
-## model G5 có rig (đậu, mổ, đi, cất cánh, bay tán loạn).
+## Đàn bồ câu (Thứ Tư trở đi, con vật nền, không phải boss). Model G5 bo_cau_nhe (812 tam giác, 13 xương) với các
+## clip dau (đậu), mo (mổ), di (đi), cat_canh, bay, bay_tan_loan.
 ## Đậu thì mổ lia lịa; Bơ đi sát (trong bán kính DoKho "pigeon_notice") mà không rón rén/chui thì cả đàn bay
 ## tán loạn, ai đứng gần bị che tầm nhìn (blinded), bay vòng trên cao một lúc rồi đáp về chỗ cũ.
 
@@ -12,7 +12,6 @@ const COUNT := 8
 const SCATTER_TIME := 2.2          ## bay tán loạn (lao ra, vỗ cánh)
 const CIRCLE_TIME := 5.0           ## lượn vòng trên cao trước khi đáp lại
 const LAND_TIME := 1.6
-const GREY := Color("#8E949A")
 
 class Bird:
 	var home := Vector3.ZERO
@@ -21,13 +20,15 @@ class Bird:
 	var yaw := 0.0
 	var phase := 0.0
 	var from := Vector3.ZERO       ## chỗ bắt đầu đáp
+	var node: Node3D
+	var anim: AnimationPlayer
+	var idle_t := 0.0              ## đậu: đổi dáng (đậu / mổ / đi vài bước) sau chừng này giây
 
 var player: CharacterBody3D
 var state := "perch"               ## perch | scatter | circle | land
 var scatters := 0
 var _birds: Array[Bird] = []
 var _t := 0.0
-var _mm: MultiMeshInstance3D
 var _center := Vector3.ZERO
 var _rng := RandomNumberGenerator.new()
 
@@ -35,16 +36,13 @@ var _rng := RandomNumberGenerator.new()
 func _ready() -> void:
 	name = "BoCau"
 	_rng.seed = 404
-	_mm = MultiMeshInstance3D.new()
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.mesh = _bird_mesh()
-	mm.instance_count = COUNT
-	_mm.multimesh = mm
-	_mm.material_override = Blocks.mat(GREY)
-	add_child(_mm)
 	for i in COUNT:
-		_birds.append(Bird.new())
+		var b := Bird.new()
+		b.node = ThuTuModels.put(self, "bo_cau_nhe", Vector3.ZERO)
+		b.anim = b.node.find_children("*", "AnimationPlayer", true, false)[0]
+		for clip in ["dau", "di", "bay"]:
+			b.anim.get_animation(clip).loop_mode = Animation.LOOP_LINEAR
+		_birds.append(b)
 
 
 ## Đặt đàn đậu quanh `center` (trên mái hoặc mặt đường) trong vòng `radius` mét.
@@ -58,6 +56,7 @@ func perch_at(center: Vector3, radius := 1.6) -> void:
 		b.pos = b.home
 		b.yaw = _rng.randf() * TAU
 		b.phase = _rng.randf() * TAU
+		b.idle_t = 0.0
 	state = "perch"
 	_t = 0.0
 	visible = true
@@ -96,22 +95,42 @@ func _physics_process(delta: float) -> void:
 				_go("perch")
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if not visible:
 		return
-	var now := Time.get_ticks_msec() * 0.001
-	for i in COUNT:
-		var b := _birds[i]
-		var basis := Basis(Vector3.UP, b.yaw)
-		var p := b.pos
-		if state == "perch":
-			# Mổ: chúi đầu theo nhịp, thỉnh thoảng nhích người
-			basis = basis * Basis(Vector3.RIGHT, -maxf(sin(now * 6.0 + b.phase), 0.0) * 0.5)
-		else:
-			# Vỗ cánh: thân dập dềnh
-			p.y += sin(now * 22.0 + b.phase) * 0.04
-			basis = basis.scaled(Vector3(1.0 + 0.6 * absf(sin(now * 22.0 + b.phase)), 1.0, 1.0))
-		_mm.multimesh.set_instance_transform(i, Transform3D(basis, p))
+	for b in _birds:
+		# Model nhìn +Z, yaw tính theo hướng -Z
+		b.node.position = b.pos
+		b.node.rotation.y = b.yaw + PI
+		match state:
+			"perch":
+				b.idle_t -= delta
+				if b.idle_t <= 0.0 or not b.anim.is_playing():
+					var r := _rng.randf()
+					_play(b, "mo" if r < 0.5 else ("dau" if r < 0.85 else "di"))
+					b.idle_t = _rng.randf_range(1.0, 3.0)
+				if b.anim.current_animation == "di":
+					# Đi lững thững, ra xa chỗ đậu quá nửa mét thì quay đầu
+					b.pos += Vector3(-sin(b.yaw), 0, -cos(b.yaw)) * 0.25 * delta
+					if Vector2(b.pos.x - b.home.x, b.pos.z - b.home.z).length() > 0.5:
+						b.yaw += PI
+			"scatter":
+				if b.anim.current_animation != "bay_tan_loan" and b.anim.current_animation != "bay":
+					_play(b, "bay_tan_loan")
+				elif not b.anim.is_playing():
+					_play(b, "bay")
+			"circle":
+				_play(b, "bay")
+			"land":
+				_play(b, "cat_canh" if _t > LAND_TIME - 0.5 else "bay")
+
+
+func _play(b: Bird, clip: String) -> void:
+	if b.anim.current_animation == clip and b.anim.is_playing():
+		return
+	b.anim.play(clip, 0.15)
+	if clip in ["dau", "di", "bay"]:
+		b.anim.seek(b.phase / TAU * b.anim.get_animation(clip).length, true)
 
 
 func _check_player() -> void:
@@ -143,20 +162,3 @@ func scatter(from: Vector3) -> void:
 func _go(s: String) -> void:
 	state = s
 	_t = 0.0
-
-
-## Khối tạm một con: thân, đầu, đuôi (dài ~0,3 m), mỏ hướng -Z.
-static func _bird_mesh() -> ArrayMesh:
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var parts := [
-		[Vector3(0.12, 0.11, 0.2), Vector3(0, 0.1, 0)],
-		[Vector3(0.08, 0.08, 0.08), Vector3(0, 0.19, -0.11)],
-		[Vector3(0.1, 0.03, 0.1), Vector3(0, 0.12, 0.14)],
-		[Vector3(0.22, 0.02, 0.1), Vector3(0, 0.15, 0.0)],
-	]
-	for part in parts:
-		var bm := BoxMesh.new()
-		bm.size = part[0]
-		st.append_from(bm, 0, Transform3D(Basis.IDENTITY, part[1]))
-	return st.commit()

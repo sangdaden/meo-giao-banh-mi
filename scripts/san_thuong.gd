@@ -1,6 +1,7 @@
 class_name SanThuong
 extends Node3D
-## Đường sân thượng Thứ Tư (gói việc thiet-ke-man/goi-viec-thu-tu.md), bản khối tạm tới khi có model G5.
+## Đường sân thượng Thứ Tư (gói việc thiet-ke-man/goi-viec-thu-tu.md). Phần nhìn là model G5 (ThuTuModels):
+## cầu thang sắt, ván, giàn sắt, cổng chào, chuồng bồ câu, lan can mái; va chạm là hộp vô hình như bản khối tạm.
 ## Dãy nhà phía nam của khối 1 → 2 → 3 (dãy nhìn ra đường lớn). Độ cao mái đo lúc chạy từ hộp va chạm nhà
 ## City dựng, nên nhà đổi model thì đường tự khớp theo.
 ## - Bậc mái: hai nhà lệch mái thì có cầu thang sắt (va chạm là dốc 36°, nhìn là bậc) dựa tường nhà cao,
@@ -13,8 +14,6 @@ extends Node3D
 
 const STEEL := Color("#4A4E4F")
 const STEEL_DARK := Color("#34383A")
-const WOOD := Color("#9A6B3F")
-const GANTRY := Color("#6F7A7C")
 const PAW := Color("#F2C14E")
 
 const SLOPE := deg_to_rad(36.0)      ## dốc cầu thang (CharacterBody3D đi được tới 45°)
@@ -34,6 +33,10 @@ const AWNING_TOP := 2.96             ## mặt mái hiên (CityProps.awning)
 const ARCH_X := -23.75
 const ARCH_W := 0.9
 const ARCH_Z := Vector2(-6.9, 7.15)
+const ARCH_GAP := 5.9                ## lan can phía đông cổng dừng ở đây (tính từ giữa cổng) để bước ra chiếu nghỉ
+const ARCH_WEST_FROM := -6.0         ## lan can phía tây bắt đầu từ đây (đầu bắc để trống, lối từ mái hiên vào)
+const ARCH_STAIR_RUN := 3.96         ## cầu thang cổng chào: 18 bậc 0,22 m
+const COOP_DOOR := Vector3(-0.525, 0.88, 0.322)  ## bản lề cửa lưới ô dưới bên trái, mặt trước chuồng (+Z)
 
 ## Ván đang có: [{xf: Transform3D (gốc ở giữa mặt ván, trục X dọc ván), len, w}] (ThangBang đọc)
 var planks: Array = []
@@ -43,6 +46,8 @@ var routes := {}
 var coop := Vector3.ZERO
 ## Mái từng khối: [[x0, x1, cao]] từ tây sang đông
 var roofs: Array = []
+## Cửa lưới chuồng bồ câu (xoay quanh trục đứng để mở)
+var coop_door: Node3D
 
 var _paws: Array[Transform3D] = []
 var _easy := true
@@ -100,6 +105,7 @@ func build(city_root: Node3D) -> void:
 			low = h
 	coop = Vector3((low[0] + low[1]) / 2.0, low[2], -11.6)
 	_coop(coop)
+	_parapets()
 	for key in routes:
 		_paw_trail(routes[key])
 	_draw_paws()
@@ -218,35 +224,54 @@ func _switchback(x_edge: float, side: float, height: float, line: Array) -> void
 	line.append_array([Vector3(x_in, 0, end_z), Vector3(x_out, 0, end_z)])
 
 
-## Cổng chào bắc qua đường lớn ngang mái hiên khối 1, đầu nam có dốc xuống đầu hẻm 42.
+## Cổng chào bắc qua đường lớn ngang mái hiên khối 1 (model cong_chao_game), đầu nam có chiếu nghỉ và cầu thang
+## sắt xuống phía đông, tới đầu hẻm 42.
 func _arch(crate_top_x: float) -> Array:
 	var len_z := ARCH_Z.y - ARCH_Z.x
-	var beam := Blocks.solid_box(self, Vector3(ARCH_W, 0.14, len_z), Vector3(ARCH_X, AWNING_TOP - 0.07, (ARCH_Z.x + ARCH_Z.y) / 2.0), Color("#B8412F"))
+	var mid_z := (ARCH_Z.x + ARCH_Z.y) / 2.0
+	var beam := Blocks.collider(self, Vector3(ARCH_W, 0.14, len_z), Vector3(ARCH_X, AWNING_TOP - 0.07, mid_z))
 	beam.name = "CongChao"
-	# Mép tây dầm (x -24,2) gối lên mái hiên khối 1 (tới x -24,1). Hai cặp trụ đứng ngoài lối đi.
-	for z in [-5.6, 5.7]:
+	ThuTuModels.put(self, "cong_chao_game", Vector3(ARCH_X, 0, mid_z), -PI / 2.0)
+	# Mép tây dầm (x -24,2) gối lên mái hiên khối 1 (tới x -24,1). Hai khung cổng mỗi khung hai cột đứng ngoài lối đi.
+	for z in [ARCH_Z.x + 1.3, ARCH_Z.y - 1.45]:
 		for sx in [-1.0, 1.0]:
-			Blocks.solid_box(self, Vector3(0.3, 4.6, 0.3), Vector3(ARCH_X + sx * 0.65, 2.3, z), Color("#B8412F"), Blocks.LAYER_PROP)
-		Blocks.box(self, Vector3(1.6, 0.5, 0.08), Vector3(ARCH_X, 4.35, z), Color("#F2C14E"))
-	Blocks.label(self, "KHU PHỐ BÁNH MÌ", Vector3(ARCH_X, 4.7, 0), 36, Color("#F2C14E"))
-	_rail_wall(Vector3(ARCH_X - ARCH_W / 2.0 - 0.03, AWNING_TOP, -0.2), Vector3(0.06, 0, len_z - 1.6), 1.0)
-	_rail_wall(Vector3(ARCH_X + ARCH_W / 2.0 + 0.03, AWNING_TOP, -0.4), Vector3(0.06, 0, len_z - 2.6), 1.0)
-	var top := Vector3(ARCH_X + ARCH_W / 2.0, AWNING_TOP, ARCH_Z.y - 0.45)
-	var foot := top + Vector3(AWNING_TOP / tan(SLOPE), -AWNING_TOP, 0)
-	_ramp(foot, top, 0.9)
+			Blocks.collider(self, Vector3(0.3, 4.6, 0.3), Vector3(ARCH_X + sx * 0.65, 2.3, z), Blocks.LAYER_PROP)
+	# Lan can: phía tây chừa đầu bắc (bước từ mái hiên khối 1 vào), phía đông dừng trước chiếu nghỉ cầu thang
+	var west_z := mid_z + ARCH_WEST_FROM
+	_rail_wall(Vector3(ARCH_X - ARCH_W / 2.0 - 0.03, AWNING_TOP, (west_z + ARCH_Z.y) / 2.0), Vector3(0.06, 0, ARCH_Z.y - west_z), 1.0, false)
+	var gap_z := mid_z + ARCH_GAP
+	_rail_wall(Vector3(ARCH_X + ARCH_W / 2.0 + 0.03, AWNING_TOP, (ARCH_Z.x + 0.3 + gap_z) / 2.0), Vector3(0.06, 0, gap_z - ARCH_Z.x - 0.3), 1.0, false)
+	# Chiếu nghỉ 0,9 m rồi cầu thang (model: 18 bậc, ngang 3,96 m)
+	var stair_z := ARCH_Z.y - 0.45
+	var land_x := ARCH_X + ARCH_W / 2.0
+	_flat(Vector3(land_x + 0.45, AWNING_TOP, stair_z), Vector3(0.9, 0, 1.05), false)
+	var top := Vector3(land_x + 0.9, AWNING_TOP, stair_z)
+	var foot := top + Vector3(ARCH_STAIR_RUN, -AWNING_TOP, 0)
+	_ramp(foot, top, 0.9, false)
 	_rails_along(foot, top, 0.9, [1.0, -1.0])
 	return [Vector3(crate_top_x, 2.4, -5.6), Vector3(crate_top_x, AWNING_TOP, -6.5), Vector3(ARCH_X, AWNING_TOP, -6.5),
-		Vector3(ARCH_X, AWNING_TOP, top.z), top, foot, foot + Vector3(0.8, 0, 1.2)]
+		Vector3(ARCH_X, AWNING_TOP, stair_z), Vector3(land_x + 0.45, AWNING_TOP, stair_z), top, foot, foot + Vector3(0.8, 0, 1.2)]
+
+
+## Lan can mái (model lan_can_mai, có va chạm) dọc mép mặt tiền mái khối 2 và 3, chỗ lối đi chạy sát mép.
+func _parapets() -> void:
+	for b in [1, 2]:
+		for h: Array in roofs[b]:
+			var w: float = h[1] - h[0] - 0.1
+			var n := maxi(1, int(ceil(w / 2.04)))
+			for k in n:
+				var x: float = h[0] + 0.05 + (k + 0.5) * w / n
+				ThuTuModels.put(self, "lan_can_mai", Vector3(x, h[2], ROW_Z.y - 0.15), 0.0, Vector3(w / n / 2.04, 1, 1))
+			Blocks.collider(self, Vector3(w, 1.0, 0.3), Vector3((h[0] + h[1]) / 2.0, h[2] + 0.5, ROW_Z.y - 0.15))
 
 
 # ---------------------------------------------------------------- khối
 
-## Mặt dốc đi được từ foot (thấp) tới top (cao) theo một trục X hoặc Z; nhìn là bậc thang sắt.
-func _ramp(foot: Vector3, top: Vector3, width: float) -> void:
+## Mặt dốc đi được từ foot (thấp) tới top (cao) theo một trục X hoặc Z; nhìn là cầu thang sắt G5 (dress).
+func _ramp(foot: Vector3, top: Vector3, width: float, dress := true) -> void:
 	var d := top - foot
 	var horiz := Vector3(d.x, 0, d.z)
 	var run := horiz.length()
-	var dir := horiz / run
 	var length := Vector3(run, d.y, 0).length()
 	var body := StaticBody3D.new()
 	body.collision_layer = Blocks.LAYER_WORLD
@@ -260,18 +285,8 @@ func _ramp(foot: Vector3, top: Vector3, width: float) -> void:
 	shape.shape = bs
 	body.add_child(shape)
 	body.transform = Transform3D(basis, (foot + top) / 2.0 - basis.z * 0.15 - basis.y * (thick / 2.0))
-	# Bậc: mỗi bậc cao ~0,22 m
-	var steps := maxi(2, int(ceil(d.y / 0.22)))
-	for k in steps:
-		var t := (k + 0.5) / steps
-		var p := foot.lerp(top, t)
-		var st := Blocks.box(self, Vector3(width, 0.05, run / steps + 0.02) if absf(dir.z) > 0.5 else Vector3(run / steps + 0.02, 0.05, width), p - Vector3(0, 0.03, 0), STEEL)
-		st.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-	# Hai thanh dầm hai bên
-	for s in [-1.0, 1.0]:
-		var side: Vector3 = dir.cross(Vector3.UP) * s * (width / 2.0)
-		var beam := Blocks.box(self, Vector3(0.05, 0.16, length + 0.1), Vector3.ZERO, STEEL_DARK)
-		beam.transform = Transform3D(basis, (foot + top) / 2.0 + side - basis.y * 0.08)
+	if dress:
+		ThuTuModels.stairs(self, foot, top, width)
 
 
 ## Lan can hai bên dốc: side 1 = bên phải hướng đi lên, -1 = bên trái.
@@ -282,8 +297,8 @@ func _rails_along(foot: Vector3, top: Vector3, width: float, sides: Array) -> vo
 		_slope_rail(foot + off, top + off)
 
 
-## Lan can theo dốc: va chạm vô hình là các đoạn tường đứng 0,6 m nối bậc (không chồm ra chiếu nghỉ),
-## cao 1 m trên mặt dốc; thanh vịn nhìn thấy nghiêng theo dốc ở 0,75 m.
+## Lan can theo dốc (tay vịn đã có trên model): va chạm vô hình là các đoạn tường đứng 0,6 m nối bậc
+## (không chồm ra chiếu nghỉ), cao 1 m trên mặt dốc.
 func _slope_rail(foot: Vector3, top: Vector3) -> void:
 	var d := top - foot
 	var horiz := Vector3(d.x, 0, d.z)
@@ -297,62 +312,60 @@ func _slope_rail(foot: Vector3, top: Vector3) -> void:
 		var c := (p0 + p1) / 2.0
 		var seg := Vector3(absf(p1.x - p0.x), 0, absf(p1.z - p0.z))
 		Blocks.collider(self, Vector3(maxf(seg.x, 0.06), hi - lo, maxf(seg.z, 0.06)), Vector3(c.x, (lo + hi) / 2.0, c.z))
-	var basis := Basis.looking_at(-d.normalized(), Vector3.UP)
-	var bar := Blocks.box(self, Vector3(0.04, 0.04, d.length()), Vector3.ZERO, STEEL_DARK)
-	bar.transform = Transform3D(basis, (foot + top) / 2.0 + Vector3.UP * 0.75)
 
 
-## Mặt phẳng đi được (chiếu nghỉ): pos là giữa mặt trên, size.y bỏ qua (dày 0,2 m).
-func _flat(top_center: Vector3, size: Vector3) -> void:
-	Blocks.solid_box(self, Vector3(size.x, 0.2, size.z), top_center - Vector3(0, 0.1, 0), STEEL)
+## Mặt phẳng đi được (chiếu nghỉ): pos là giữa mặt trên, size.y bỏ qua (dày 0,2 m). Tấm thép nhìn thấy thấp hơn
+## mặt va chạm 1,5 cm cho khỏi chập với chiếu nghỉ của model cầu thang; show = false khi model đã có sàn.
+func _flat(top_center: Vector3, size: Vector3, show := true) -> void:
+	Blocks.collider(self, Vector3(size.x, 0.2, size.z), top_center - Vector3(0, 0.1, 0))
+	if show:
+		Blocks.box(self, Vector3(size.x, 0.2, size.z), top_center - Vector3(0, 0.115, 0), STEEL)
 
 
-## Lan can: va chạm vô hình từ base.y cao `height`, có thanh vịn nhìn thấy ở trên cùng.
-func _rail_wall(base: Vector3, size: Vector3, height: float) -> void:
+## Lan can: va chạm vô hình từ base.y cao `height`, có thanh vịn nhìn thấy ở trên cùng (show).
+func _rail_wall(base: Vector3, size: Vector3, height: float, show := true) -> void:
 	Blocks.collider(self, Vector3(maxf(size.x, 0.06), height, maxf(size.z, 0.06)), base + Vector3(0, height / 2.0, 0))
-	Blocks.box(self, Vector3(maxf(size.x, 0.04), 0.04, maxf(size.z, 0.04)), base + Vector3(0, height - 0.25, 0), STEEL_DARK)
+	if show:
+		Blocks.box(self, Vector3(maxf(size.x, 0.04), 0.04, maxf(size.z, 0.04)), base + Vector3(0, height - 0.25, 0), STEEL_DARK)
 
 
-## Ván gỗ bắc qua khe: gốc a, ngọn b cùng độ cao. Thong thả có lan can vô hình thấp hai bên cho khỏi rớt.
+## Ván gỗ bắc qua khe (model van_vua 2,0 m kéo theo chiều dài): gốc a, ngọn b cùng độ cao.
+## Thong thả có lan can vô hình thấp hai bên cho khỏi rớt.
 func _plank(a: Vector3, b: Vector3) -> void:
 	var c := (a + b) / 2.0
 	var length := a.distance_to(b)
 	var w := 0.45 if _easy else 0.3
 	var body := Blocks.collider(self, Vector3(length, PLANK_THICK + 0.1, w), c - Vector3(0, (PLANK_THICK + 0.1) / 2.0, 0))
 	body.name = "Van"
-	Blocks.box(self, Vector3(length, PLANK_THICK, PLANK_W), c - Vector3(0, PLANK_THICK / 2.0, 0), WOOD)
+	ThuTuModels.put(self, "van_vua", c - Vector3(0, 0.061, 0), 0.0, Vector3(length / 2.0, 1, 1))
 	if _easy:
 		for s in [-1.0, 1.0]:
 			Blocks.collider(self, Vector3(length - 0.6, 0.6, 0.06), c + Vector3(0, 0.3, s * 0.33))  # mặt trong cách giữa ván 0,3 m (Bơ rộng 0,25)
 	planks.append({"xf": Transform3D(Basis.IDENTITY, c), "len": length, "w": PLANK_W})
 
 
-## Giàn sắt bắc ngang đường (khung biển quảng cáo): mặt đi rộng 0,9 m, lan can hai bên, hai trụ xuống đất.
+## Giàn sắt bắc ngang đường (model gian_sat_*: sàn rộng 0,9 m, giàn lan can hai bên, hai cột phía bắc, biển
+## "Bánh mì Cô Ba" treo dưới bụng phía nam).
 func _gantry(a: Vector3, b: Vector3) -> void:
 	var d := b - a
-	var run := Vector3(d.x, 0, d.z).length()
 	var length := d.length()
 	var basis := Basis.looking_at(-d.normalized(), Vector3.UP)
-	var deck := Blocks.solid_box(self, Vector3(GANTRY_W, 0.12, length + 0.1), Vector3.ZERO, GANTRY)
+	var deck := Blocks.collider(self, Vector3(GANTRY_W, 0.12, length + 0.1), Vector3.ZERO)
 	deck.transform = Transform3D(basis, (a + b) / 2.0 - basis.y * 0.06)
 	for s in [-1.0, 1.0]:
 		var off := Vector3(0, 0, s * (GANTRY_W / 2.0 + 0.03))
 		_slope_rail(a + off, b + off)
 	for p in [a, b]:
-		Blocks.solid_box(self, Vector3(0.3, p.y, 0.3), Vector3(p.x, p.y / 2.0 - 0.1, p.z + GANTRY_W / 2.0 + 0.3), STEEL_DARK, Blocks.LAYER_PROP)
-	# Biển quảng cáo treo dưới giàn
-	Blocks.box(self, Vector3(run * 0.7, 1.2, 0.06), (a + b) / 2.0 + Vector3(0, -0.9, GANTRY_W / 2.0 + 0.1), Color("#E8DFC8"))
+		Blocks.collider(self, Vector3(0.3, p.y, 0.3), Vector3(p.x, p.y / 2.0 - 0.1, p.z - GANTRY_W / 2.0 - 0.3), Blocks.LAYER_PROP)
+	ThuTuModels.gantry(self, a, b)
 
 
-## Chuồng bồ câu gỗ có cửa (khối tạm; model G5 thay sau).
+## Chuồng bồ câu gỗ có cửa lưới (model chuong_bo_cau_game, gốc giữa thân; cửa gốc ở bản lề).
 func _coop(p: Vector3) -> void:
-	var body := Blocks.solid_box(self, Vector3(1.2, 0.9, 0.8), p + Vector3(0, 0.75, 0), Color("#B48A5A"), Blocks.LAYER_PROP)
+	var body := Blocks.collider(self, Vector3(1.2, 1.7, 0.75), p + Vector3(0, 0.85, 0), Blocks.LAYER_PROP)
 	body.name = "ChuongBoCau"
-	for k in 3:
-		Blocks.box(self, Vector3(0.2, 0.2, 0.02), p + Vector3(-0.35 + k * 0.35, 0.85, 0.41), Color("#2B2622"))
-	Blocks.box(self, Vector3(1.4, 0.06, 1.0), p + Vector3(0, 1.23, 0), Color("#8A5A3A"))
-	for x in [-0.5, 0.5]:
-		Blocks.box(self, Vector3(0.06, 0.3, 0.06), p + Vector3(x, 0.15, 0), Color("#6A4A2A"))
+	ThuTuModels.put(self, "chuong_bo_cau_game", p)
+	coop_door = ThuTuModels.put(self, "cua_chuong_game", p + COOP_DOOR)
 
 
 # ---------------------------------------------------------------- dấu chân

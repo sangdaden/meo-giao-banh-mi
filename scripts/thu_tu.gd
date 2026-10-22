@@ -46,6 +46,7 @@ var _in_puddle := false
 var _bike_cd := {}
 var _told := {}
 var _tarp_bao: Node3D
+var _spouts: Array[Node3D] = []      ## nước xối chân ống xối, tắt lúc tạnh mưa
 var _blind: Control
 var _autotest := false
 
@@ -296,20 +297,39 @@ func _build_blind() -> void:
 # ---------------------------------------------------------------- dựng cảnh mưa
 
 func _build_props() -> void:
-	# Bàn ghế nhựa quán cà phê xếp chồng thành bậc lên mái hiên quán (cạnh đông quán, 0,9 m rồi 1,8 m)
-	Blocks.solid_box(self, Vector3(0.5, 0.9, 0.5), Vector3(10.5, 0.45, 5.65), Color("#C8412F"), Blocks.LAYER_PROP)
-	Blocks.solid_box(self, Vector3(0.5, 1.8, 0.5), Vector3(10.5, 0.9, 6.35), Color("#3D7FC1"), Blocks.LAYER_PROP)
-	# Bạt che sạp báo Chú Tư (đơn 5 tạnh mưa thì dọn), bạt che xe ôm Chú Năm, bạt che ổ Chó Mực
-	_tarp_bao = Blocks.box(self, Vector3(1.9, 0.04, 0.9), Vector3(0.4, 1.02, -6.6), Color("#3F6FA8"))
-	_tarp(Vector3(-17.5, 2.25, 10.2), Vector2(2.4, 2.0), Color("#3F6FA8"))
-	_tarp(Vector3(-18.6, 1.45, 15.0), Vector2(1.6, 1.4), Color("#5E8A5A"))
-
-
-func _tarp(top: Vector3, size: Vector2, color: Color) -> void:
-	Blocks.box(self, Vector3(size.x, 0.04, size.y), top, color)
-	for sx in [-1.0, 1.0]:
-		for sz in [-1.0, 1.0]:
-			Blocks.box(self, Vector3(0.04, top.y, 0.04), Vector3(top.x + sx * (size.x / 2.0 - 0.05), top.y / 2.0, top.z + sz * (size.y / 2.0 - 0.05)), Color("#6E6A62"))
+	# Bàn ghế nhựa quán cà phê chồng thành ba bậc lên mái hiên quán (cạnh đông quán): 0,59 → 1,06 → 1,79 m
+	for st: Array in [["bac_ghe_1", Vector3(9.97, 0, 5.65), Vector3(0.36, 0.59, 0.36)],
+			["bac_ghe_2", Vector3(10.5, 0, 5.65), Vector3(0.6, 1.06, 0.6)],
+			["bac_ghe_3", Vector3(10.5, 0, 6.35), Vector3(0.6, 1.78, 0.64)]]:
+		Blocks.collider(self, st[2], st[1] + Vector3(0, st[2].y / 2.0, 0), Blocks.LAYER_PROP)
+		ThuTuModels.put(self, st[0], st[1])
+	# Dù quán che bàn cà phê, dù xếp và xô dù cạnh quán
+	for x in [-4.5, -0.5]:
+		ThuTuModels.put(self, "du_quan_mo", Vector3(x, 0, 6.0), 0.3 * x)
+	ThuTuModels.put(self, "du_quan_xep", Vector3(-6.6, 0, 6.6))
+	ThuTuModels.put(self, "xo_du", Vector3(4.2, 0, 6.75))
+	# Bạt che sạp báo Chú Tư (đơn 5 tạnh mưa thì dọn), bạt che xe ôm Chú Năm, bạt phủ ổ Chó Mực
+	_tarp_bao = ThuTuModels.put(self, "bat_sap_bao", Vector3(0.4, 0, -5.95))
+	ThuTuModels.put(self, "bat_xe_om", Vector3(-17.5, 0, 10.2))
+	ThuTuModels.put(self, "bat_o_cho", Vector3(-19.45, 0, 14.0), PI / 2.0)
+	for aw in get_tree().get_nodes_in_group("mai_hien"):
+		var body := aw as StaticBody3D
+		if body == null or body.get_child_count() == 0 or not body.get_child(0) is CollisionShape3D:
+			continue
+		var shape := (body.get_child(0) as CollisionShape3D).shape as BoxShape3D
+		if shape == null:
+			continue
+		var p := body.global_position
+		var w := shape.size.x
+		if p.z > 0.0 and absf(p.x - 7.0) < 1.0:
+			# Rèm ni-lông quán Mây cuộn lên dưới mép mái hiên (đang bán nên không hạ)
+			ThuTuModels.put(self, "rem_cuon", Vector3(p.x, p.y - 0.3, p.z - 0.4), 0.0, Vector3(w / 5.7, 1, 1))
+		elif p.z < 0.0 and p.x > -31.0 and p.x < 12.0:
+			# Dãy bắc khối 1–2: ống xối từ mái hiên xuống, nước xối ra vỉa hè lúc mưa
+			var wall_z := p.z - 0.5
+			var pipe := Vector3(p.x + w / 2.0 - 0.2, 0, wall_z + 0.17)
+			ThuTuModels.put(self, "ong_xoi", pipe)
+			_spouts.append(ThuTuModels.put(self, "nuoc_chay", pipe + Vector3(0, 0, 0.4)))
 
 
 ## Mặt nước ngập hai đường dọc phía bắc, đi theo mức nước của ThoiTiet.
@@ -356,6 +376,8 @@ func _clear_sky(instant: bool) -> void:
 			var p: GPUParticles3D = thoi_tiet.get(n)
 			if p:
 				p.emitting = false
+	for sp in _spouts:
+		sp.visible = false
 	if _tarp_bao:
 		if instant:
 			_tarp_bao.visible = false

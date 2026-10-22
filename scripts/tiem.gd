@@ -49,6 +49,8 @@ static func grant(id: String) -> void:
 ## start_offset: lệch thời điểm bắt đầu clip (hai đèn lồng không đung đưa cùng nhịp).
 static func make(id: String, start_offset := 0.0) -> Node3D:
 	var node: Node3D = load(DIR + id + ".glb").instantiate()
+	if id == "den_long_tiem":
+		node.add_to_group("den_long_tiem")
 	if RenderingServer.get_rendering_device() == null and DisplayServer.get_name() != "headless":
 		for mi: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
 			mi.mesh = _srgb(id + mi.name, mi.mesh)
@@ -60,6 +62,33 @@ static func make(id: String, start_offset := 0.0) -> Node3D:
 		ap.play(list[0])
 		ap.seek(start_offset, true)
 	return node
+
+
+## Thắp đèn lồng tiệm khi chiều tối (AnhSang.build gọi khi preset có "lights"): thân lồng phát sáng,
+## bản PC thêm một OmniLight nhỏ trong lồng, bản web không (mỗi đèn thật vẽ lại vật trong tầm).
+static func glow(tree: SceneTree, strength: float) -> void:
+	for lamp: Node3D in tree.get_nodes_in_group("den_long_tiem"):
+		for mi: MeshInstance3D in lamp.find_children("Than", "MeshInstance3D", true, false):
+			var m: StandardMaterial3D = mi.mesh.surface_get_material(0).duplicate()
+			m.emission_enabled = true
+			m.emission = Color("#FF6A3D")
+			m.emission_energy_multiplier = 0.8 * strength  # mạnh hơn thì lồng cháy thành vàng trắng
+			mi.set_surface_override_material(0, m)
+			if not AnhSang.is_compat():
+				var l := OmniLight3D.new()
+				l.light_color = Color("#FF8A4A")
+				l.light_energy = 0.6 * strength
+				l.omni_range = 1.2
+				l.shadow_enabled = false
+				l.add_to_group("den_phu")
+				mi.add_child(l)
+		# Đèn lồng tròn của dãy phố (DenToi) trùng chỗ đèn tiệm thì cất đi cho khỏi treo hai cái
+		for dt in tree.get_nodes_in_group("den_toi"):
+			var mm: MultiMesh = dt.get_node("DenLong").multimesh
+			for i in dt.anchors.size():
+				var a: Vector3 = dt.anchors[i]
+				if Vector2(a.x - lamp.global_position.x, a.z - lamp.global_position.z).length() < 1.5:
+					mm.set_instance_transform(i, Transform3D(Basis().scaled(Vector3.ZERO), a))
 
 
 static var _srgb_meshes := {}

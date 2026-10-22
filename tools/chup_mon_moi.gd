@@ -1,6 +1,7 @@
 extends SceneTree
 ## Soát 7 món bán theo gói (giỏ mây, cà mèn, giỏ đan, bao lì xì, cành mai, khăn len, khăn huy hiệu)
-## trên vài giống đực/cái: góc 3/4 trước và 3/4 sau; giỏ chụp thêm lúc mang bánh, khăn len lúc chạy nhanh.
+## (hoặc các món truyền vào) trên vài giống đực/cái: góc 3/4 trước và 3/4 sau; giỏ chụp thêm lúc mang bánh,
+## đồ cổ và đuôi chụp thêm lúc chạy nhanh.
 ## Ảnh ra: <thư_mục>/<giống>_<giới>__<món>_<góc>.png
 ##   godot --path . -s tools/chup_mon_moi.gd -- <thư_mục_ra> [giống_giới,..] [món,..]
 
@@ -49,8 +50,8 @@ func _go() -> void:
 			var poses := [["dung", 0.0, false]]
 			if id in ["giomay", "giodan"]:
 				poses.append(["mangbanh", 0.0, true])
-			if id == "khanlen":
-				poses.append(["chay", 8.0, false])
+			if a[3] in ["neck", "tail"]:
+				poses.append(["chay", 8.0, false])  # vải bay, đồ treo lắc
 			for pose in poses:
 				c.carrying = pose[2]
 				for i in 90:

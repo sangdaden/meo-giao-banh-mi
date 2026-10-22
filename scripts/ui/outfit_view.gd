@@ -12,8 +12,9 @@ const BONE := {
 	"pawFL": ["paw_FL", "leg_FL"], "pawFR": ["paw_FR", "leg_FR"], "pawBL": ["paw_BL", "leg_BL"], "pawBR": ["paw_BR", "leg_BR"],
 }
 
-## Mũ trùm kín đầu: cụp tai xuống cho khỏi đâm xuyên mũ (thêm vào cờ "ears" trong skin.json)
-const EARS_DOWN := ["mubaohiem", "munlen"]
+## Mũ trùm kín đầu: cụp tai xuống cho khỏi đâm xuyên mũ (thêm vào cờ "ears" trong skin.json).
+## Mũ bảo hiểm và mũ len làm kỹ (22/10) có lỗ cho tai thò ra nên không cụp nữa (Sang: không được mất tai).
+const EARS_DOWN := []
 ## Đầu Bơ D cao hơn đầu mèo mẫu bên luồng skin: nâng vài món đội đầu lên (m, theo trục dọc của đầu)
 const LIFT := {"muphuthuy": 0.012}
 
@@ -116,6 +117,8 @@ static func attach(skel: Skeleton3D, id: String, breed := "bo", sex := "duc", li
 		if str(mi.name).begins_with("Banh") or str(mi.get_parent().name).begins_with("Banh"):
 			copy.set_meta("loaf", true)
 		style(copy, oi)
+		if not oi.get("shadow", true):
+			copy.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF  # vành mũ rộng làm tối cả mặt
 		copy.layers = 1 << 10  # cùng lớp thân Bơ: góc nhìn thứ nhất không vẽ
 		out.append(att)
 	scene.free()
@@ -126,10 +129,21 @@ static func attach(skel: Skeleton3D, id: String, breed := "bo", sex := "duc", li
 ## Đồ vải bay (có "cloth" trong skin.json) dùng shader vai_bay; player.gd đẩy tốc độ vào qua cloth_drive().
 static func style(mi: MeshInstance3D, oi: Dictionary) -> void:
 	var kind: String = oi.get("kind", "cloth")
+	var tex: Texture2D = load(DIR + str(oi.tex)) if oi.has("tex") else null  # hoa văn lặp (ô caro, chấm bi)
 	if oi.has("cloth"):
 		var sm := ShaderMaterial.new()
 		sm.shader = preload("res://shaders/vai_bay.gdshader")
 		sm.set_shader_parameter("hinge", _v(oi.cloth.get("hinge", [0, 0.056, 0.12])))
+		sm.set_shader_parameter("mode", int(oi.cloth.get("mode", 0)))  # 1 lá cờ, 2 đồ treo lắc
+		sm.set_shader_parameter("amp", float(oi.cloth.get("amp", 1.0)))
+		sm.set_shader_parameter("ridge", float(oi.cloth.get("ridge", 1.0)))
+		sm.set_shader_parameter("lac_dir", float(oi.cloth.get("dir", 1.0)))
+		if tex:
+			sm.set_shader_parameter("use_tex", true)
+			sm.set_shader_parameter("tex", tex)
+		var rough := {"gloss": .25, "metal": .4, "paper": .85, "wood": .7}
+		sm.set_shader_parameter("roughness_v", rough.get(kind, 0.9))
+		sm.set_shader_parameter("emit", float(oi.get("emit", 0.0)))
 		for i in mi.mesh.get_surface_count():
 			mi.set_surface_override_material(i, sm)
 		mi.set_meta("cloth", sm)
@@ -139,7 +153,10 @@ static func style(mi: MeshInstance3D, oi: Dictionary) -> void:
 		"wood": .7, "gloss": .2, "paper": .85}
 	for i in mi.mesh.get_surface_count():
 		var m := StandardMaterial3D.new()
-		m.vertex_color_use_as_albedo = true
+		m.vertex_color_use_as_albedo = tex == null
+		if tex:
+			m.albedo_texture = tex
+			m.texture_repeat = true
 		m.roughness = rough.get(kind, 0.7)
 		m.metallic = float(oi.get("metal", 0.0)) if kind != "metal" else maxf(float(oi.get("metal", 1.0)), 0.6)
 		var alpha := float(oi.get("alpha", 1.0))

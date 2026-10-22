@@ -547,12 +547,13 @@ func apply_outfit(worn := {}) -> void:
 			_hidden_mat = StandardMaterial3D.new()
 			_hidden_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 			_hidden_mat.albedo_color = Color(1, 1, 1, 0)
-		var on: bool = worn.get("neck", "") == "khando"
+		# Khăn đỏ làm kỹ (đuôi khăn bay) có model phụ kiện riêng: tắt khăn liền trong model Bơ, đeo bản phụ kiện
+		var on: bool = worn.get("neck", "") == "khando" and not OutfitView.has_model("khando")
 		_scarf_mesh.set_surface_override_material(_scarf_surface, _scarf_mat if on else _hidden_mat)
 	_ears_down = false
 	for slot in worn:
 		var id: String = worn[slot]
-		if id == "" or (is_bo and id in ["khando", "tuibanh"]):
+		if id == "" or (is_bo and (id == "tuibanh" or (id == "khando" and not OutfitView.has_model("khando")))):
 			continue
 		_acc_nodes.append_array(OutfitView.attach(_skel, id, breed, sex if _cai_model else "duc"))
 		_ears_down = _ears_down or OutfitView.ears_down(id)

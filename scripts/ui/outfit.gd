@@ -7,7 +7,7 @@ extends RefCounted
 
 const PATH := "user://tu_do.cfg"
 const SLOTS := [["head", "Đầu"], ["face", "Mặt"], ["neck", "Cổ"], ["back", "Lưng"], ["tail", "Đuôi"], ["feet", "Chân"]]
-const RARITY := {"mac": "Mặc định", "thuong": "Thường", "hiem": "Hiếm", "dacbiet": "Đặc biệt", "sukien": "Sự kiện"}
+const RARITY := {"mac": "Mặc định", "thuong": "Thường", "hiem": "Hiếm", "dacbiet": "Đặc biệt", "sukien": "Sự kiện", "goi": "Gói"}
 
 # id, tên, độ hiếm, ô gắn
 const ACCS := [

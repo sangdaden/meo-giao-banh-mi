@@ -178,6 +178,9 @@ jobs:
           # Thứ Năm leo chung cư: xoay được camera ngoài hẻm và trong lồng cầu thang
           timeout 300 ~/godot/godot --headless --path . -s tests/test_xoay_camera.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee xoay_camera.log
           grep -q "XOAY CAMERA OK" xoay_camera.log
+          # Cú nhảy của Bơ: bay đủ cao, trên không quay mặt và bẻ hướng theo phím (Thong thả + Thử thách)
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_nhay_bo.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee nhay_bo.log
+          grep -q "NHAY TEST OK" nhay_bo.log
           # Model G1 đã duyệt (chung cư + Thứ Năm ngoài phố): mở được, đủ node theo tên bộ phận
           timeout 300 ~/godot/godot --headless --path . -s tests/test_model_g1.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee model_g1.log
           grep -q "MODEL G1 OK" model_g1.log

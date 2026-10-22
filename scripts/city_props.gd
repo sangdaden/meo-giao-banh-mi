@@ -32,6 +32,7 @@ const SLOTS := [
 	{"block": 0, "row": 1, "x0": -35.6, "x1": -30.4, "kind": "lo_banh"},
 	{"block": 2, "row": 0, "x0": 22.0, "x1": 42.0, "kind": "chung_cu"},
 	{"block": 4, "row": 0, "x0": 4.0, "x1": 10.0, "kind": "cafe_may"},
+	{"block": 5, "row": 1, "x0": 28.3, "x1": 29.5, "kind": "khe_hong"},  # khe 1,2 m bên hông tiệm xe (G6, ThuSau.build_khe)
 	{"block": 5, "row": 1, "x0": 29.5, "x1": 35.0, "kind": "tiem_xe"},
 	{"block": 1, "row": 0, "x0": 5.6, "x1": 10.0, "kind": "tap_hoa"},  # tạp hóa Cô Hai (ShopTapHoa), mặt tiền nhìn ra phía bắc
 ]
@@ -149,6 +150,8 @@ static func build_slot(parent: Node3D, slot: Dictionary, z0: float, depth: float
 			_chung_cu(parent, slot.x0, slot.x1, z0, depth)
 		"tiem_xe":
 			_tiem_xe(parent, slot.x0, slot.x1, z0, depth)
+		"khe_hong":
+			ThuSau.build_khe(parent, slot.x0, slot.x1, z0 + depth, depth)
 		"tap_hoa":
 			ShopTapHoa.build(parent, slot.x0, slot.x1, z0, depth)
 
@@ -489,10 +492,14 @@ static func _tiem_xe(parent: Node3D, x0: float, x1: float, z0: float, depth: flo
 	for bz in [zc - 1.2, zc + 1.8]:
 		var bike := Blocks.collider(parent, Vector3(0.5, 0.9, 1.6), Vector3(30.5, 0.45, bz), Blocks.LAYER_PROP)  # xe máy dựng chân chống
 		PhoModels.put(bike, "xe_may_xanh" if bz < zc else "xe_may_do", Vector3(0, -0.45, 0), PI / 2.0)
+	if PlayMode.day == "thu_sau":
+		# Thứ Sáu: lòng tiệm, kệ, cầu nâng, máy nén, lốp là model G6 do ThuSau dựng; kệ chỉ giữ va chạm
+		Blocks.collider(parent, Vector3(0.4, 2.0, 1.8), Vector3(x0 + 0.4, 1.0, z0 + 1.6), Blocks.LAYER_PROP)
+		return
+	Blocks.solid_box(parent, Vector3(0.4, 2.0, 1.8), Vector3(x0 + 0.4, 1.0, z0 + 1.6), WOOD, Blocks.LAYER_PROP)  # kệ đồ nghề
 	var lift := Blocks.collider(parent, Vector3(0.9, 0.6, 2.2), Vector3(34.0, 0.3, zc + 1.0), Blocks.LAYER_PROP)  # bàn nâng
 	PhoModels.put(lift, "ban_nang", Vector3(0, -0.3, 0), PI / 2.0)
 	Blocks.collider(parent, Vector3(0.5, 0.9, 1.6), Vector3(34.0, 1.05, zc + 1.0), Blocks.LAYER_PROP)          # xe trên bàn nâng
-	Blocks.solid_box(parent, Vector3(0.4, 2.0, 1.8), Vector3(x0 + 0.4, 1.0, z0 + 1.6), WOOD, Blocks.LAYER_PROP)  # kệ đồ nghề
 	var tyres := Blocks.collider(parent, Vector3(0.6, 0.56, 0.6), Vector3(34.4, 0.28, z0 + 1.0), Blocks.LAYER_PROP)  # chồng lốp
 	PhoModels.put(tyres, "lop_xe", Vector3(0, -0.28, 0))
 	var comp := Blocks.collider(parent, Vector3(0.45, 0.8, 0.9), Vector3(33.9, 0.4, z0 + 2.3), Blocks.LAYER_PROP)  # máy nén khí

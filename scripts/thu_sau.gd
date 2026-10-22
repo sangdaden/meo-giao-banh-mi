@@ -1,13 +1,15 @@
 class_name ThuSau
 extends Node3D
 ## Thứ Sáu chiều tà, đám giỗ Bà Sáu (gói việc thiet-ke-man/goi-viec-thu-sau.md, trang thiết kế màn mục 06–07).
-## Bản khối tạm: model thật tới sau từ "Phác thảo tiệm xe chiều tà" (G6) và "Phác thảo đám giỗ" (G7).
+## Tiệm xe dùng model G6 (Sang duyệt 22/10, bàn giao thiet-ke-man/goi-phac-thao/g6-tiem-xe/BAN-GIAO.md,
+## file ở assets/models/thu_sau/). Sân giỗ còn là khối tạm, chờ model G7 "Phác thảo đám giỗ".
 ## main.gd thêm node này mọi ngày, ngày khác tự gỡ. Phần giao của ba cách giao mới ở đây,
 ## deliveries.gd chỉ chuyển qua (deliveries.thu_sau.step):
 ## - call: tới gần khách, bấm Q ngồi kêu "meo" (clip ngoi_goi), khách nghe (trong call_radius, không bị tường che)
 ##   thì nhận bánh. Chị Mây ở quầy kín khách, Bà Sáu ở cổng sân giỗ. Lại sát khách bấm E cũng được.
-## - lift: Anh Hùng ngồi trên giàn sửa xe cao 1,5 m. Cầu nâng lên xuống theo nhịp lift_period:
-##   đứng lên cầu cho nó đưa lên, tới tay anh thì bấm E. Vòi hơi thổi ngang lối vào, lốp lăn ra đường.
+## - lift: Anh Hùng đứng cạnh cầu nâng sửa xe. Cầu lên xuống theo nhịp lift_period: Bơ đứng lên dải thảm
+##   của cầu cho nó nâng tới tay anh rồi bấm E. Vòi hơi thổi ngang lối vào, lốp lăn từ giá ra đường.
+##   Lối tắt: khe 1,2 m bên hông tiệm (build_khe, đạp tường qua cổng tôn) ra hẻm sau, vào cửa sau.
 ## - gio_table: chuyến giỗ cuối: đặt túi 3 ổ lên bàn dài trong sân. Leo giàn bông giấy (gai làm chậm)
 ##   vào sân từ trên cao thì khỏi qua con nít chạy theo và bình tưới của Bà Sáu.
 ## Đơn giỗ (khóa "gio": true) ngậm túi 3 ổ (player.carry_tui3). Thử thách: các đơn "gio_group" dùng
@@ -17,24 +19,33 @@ extends Node3D
 const DAY_ID := "thu_sau"
 const KINDS := ["call", "lift", "gio_table"]
 
-## Tiệm xe Anh Hùng (CityProps._tiem_xe: x 29,5..35, mặt tiền z ≈ 25,1, lối đi giữa x 31,4..33,2)
-const LIFT_SPOT := Vector3(32.3, 0, 24.4)       ## chỗ đứng trước cầu nâng (mũi tên chỉ tới đây)
-const LIFT_POS := Vector3(32.3, 0, 23.3)        ## tâm cầu nâng
-const LIFT_SIZE := Vector3(0.8, 1.6, 1.0)       ## trụ cầu nâng (mặt cầu là mặt trên, phía dưới đặc nên không chui được)
-const LIFT_LOW := 0.12
-const LIFT_HIGH := 1.45
-const HUNG_DECK := Vector3(34.2, 1.5, 24.0)     ## mặt giàn sửa xe Anh Hùng ngồi
-const HUNG_DECK_SIZE := Vector3(1.0, 1.5, 0.9)
-const HUNG_REACH := 2.0                         ## đứng cao từ 1,1 m, cách Anh Hùng dưới mức này thì đưa được
-const HOSE_ZONE := Rect2(30.0, 24.3, 5.0, 0.8)  ## luồng hơi thổi ngang lối vào (x, z), cao tới 1,2 m
-const HOSE_PERIOD := 3.5
-const HOSE_ON := 1.0
-const TYRE_LANE_X := 33.15
-const TYRE_FROM_Z := 19.6
-const TYRE_TO_Z := 29.0
+## Tiệm xe Anh Hùng: model G6 dựng cho lòng tiệm sâu 8,4 m, mặt tiền z 25; ô tiệm trong phố là x 29,5..35,
+## mặt tiền z 24, sâu 7,3 m nên toạ độ trong tiệm co theo G6_DEPTH. g6(x, y) đổi toạ độ Blender của cảnh G6
+## (x sang phải, y vào trong tiệm, gốc giữa mép mặt tiền) sang toạ độ Godot.
+const SHOP_X := 32.25
+const SHOP_FRONT := 24.0
+const G6_DEPTH := 7.3 / 8.4
+const MODELS := "res://assets/models/thu_sau/%s.glb"
+const LIFT_SPOT := Vector3(33.2, 0, 22.75)      ## chỗ đứng đầu cầu nâng (mũi tên chỉ tới đây)
+const LIFT_AT := Vector2(1.6, 3.4)              ## cầu nâng (Blender), xoay -90°: dài 2,2 m theo z, dải thảm quay ra lối đi
+const LIFT_DECK := Vector3(1.0, 1.2, 2.2)       ## khối va chạm dưới mặt cầu: đặc tới sàn, không chui được
+const DECK_ABOVE_BONE := 0.05                   ## mặt cầu cao hơn xương "mat" (mặt thấp 0,30 m, cao 1,05 m)
+const HUNG_AT := Vector2(0.62, 3.25)            ## Anh Hùng đứng cạnh cầu, quay mặt +x
+const HUNG_REACH := 1.4                         ## Bơ đứng trên cầu (cao từ 0,8 m), cách Anh Hùng dưới mức này thì đưa được
+const HUNG_CALL2 := 0.4                         ## gọi lần hai khi đồng hồ còn 40%
+const HOSE_AT := Vector2(-1.35, 1.0)            ## vòi hơi thổi +x ngang lối vào, cao 0,32 m
+const HOSE_REACH := Vector2(0.3, 2.2)           ## luồng gió từ x +0,3 tới +2,2 tính từ chân vòi
+const HOSE_HALF_W := 0.4
+const HOSE_CLIPS := [["bao_truoc", 0.66], ["thoi", 1.5], ["nghi", 2.0]]
+const TYRES := ["lop_nho", "lop_vua", "lop_to"]
+const TYRE_R := {"lop_nho": 0.28, "lop_vua": 0.25, "lop_to": 0.32}
+const RACK_AT := Vector2(-1.9, -0.8)            ## giá lốp trên vỉa hè
 const TYRE_EVERY := 4.5
-const TYRE_SPEED := 2.4
-const TYRE_R := 0.28
+const TYRE_ROLL := 4.0                          ## lăn 4 m thì đổ
+## Khe hông tiệm (x 28,3..29,5): cổng tôn 1,9 m cách mặt tiền 3,4 m (G6), thùng gỗ 0,45 m làm bậc
+const KHE_LEN := 8.4
+const KHE_GATE := 3.4
+const KHE_GATE_H := 1.9
 
 ## Sân giỗ cuối hẻm 42 (x -20..-17): cổng sân z 18,8, cổng nhà Bà Sáu z 24,4
 const GIO_GATE := Vector3(-18.5, 0, 18.3)       ## đứng đây ngồi gọi Bà Sáu
@@ -63,10 +74,8 @@ const WALK_SPEED := 1.2
 const RED := Color("#C8412F")
 const WOOD := Color("#9B6A3A")
 const BAMBOO := Color("#B9A05A")
-const STEEL := Color("#7C8584")
 const YELLOW := Color("#E3B23C")
 const WATER := Color(0.62, 0.8, 0.95, 0.55)
-const AIR := Color(1, 1, 1, 0.35)
 
 var _main: Node
 var player: CharacterBody3D
@@ -84,14 +93,17 @@ var _speech_until := 0.0
 
 # Cầu nâng, vòi hơi, lốp
 var _lift: AnimatableBody3D
-var _lift_t := 0.0
-var _lift_period := 3.5
+var _lift_skel: Skeleton3D
+var _lift_bone := -1
+var _hose: AnimationPlayer
+var _hose_step := 0
 var _hose_t := 0.0
-var _jets: Array[MeshInstance3D] = []
+var _hose_from := Vector3.ZERO
 var _gust_done := false
 var _push_left := 0.0
-var _tyres: Array = []             # {"node", "spin", "z"}
+var _tyres: Array = []             # {"node", "spin", "speed", "r", "start", "fallen"}
 var _tyre_t := 0.0
+var _rng := RandomNumberGenerator.new()
 var _tyre_cd := 0.0
 var _hose_hint := false
 var _tyre_hint := false
@@ -166,6 +178,7 @@ func _setup() -> void:
 	while deliveries.side_ok.size() < orders.size():
 		deliveries.side_ok.append(false)
 	_more_dots()
+	player.climb_moves = true  # khe hông tiệm xe: đạp tường qua cổng tôn; giàn bông giấy
 	_base_walk = player.walk_speed
 	_base_sprint = player.sprint_speed
 	if _main.day.extras.get("dog_alert", false) and dog:
@@ -206,38 +219,165 @@ func _gio_orders() -> Array:
 
 # ---------------------------------------------------------------- dựng cảnh
 
-## Tiệm xe chiều tà: cầu nâng chạy nhịp, giàn Anh Hùng ngồi sửa xe, vòi hơi, lốp lăn.
+## Toạ độ Godot của một điểm trong cảnh G6 (Blender: x sang phải, y vào trong tiệm).
+static func g6(at: Vector2, y := 0.0) -> Vector3:
+	return Vector3(SHOP_X + at.x, y, SHOP_FRONT - at.y * G6_DEPTH)
+
+
+## Tiệm xe chiều tà (model G6): lòng tiệm, cầu nâng chạy nhịp, Anh Hùng đứng sửa xe, vòi hơi, giá lốp, đèn.
+## CityProps._tiem_xe ngày Thứ Sáu bỏ bàn nâng, chồng lốp, máy nén cũ để model này thay vào.
 func _build_shop() -> void:
-	_lift_period = float(DoKho.v("lift_period", 2.5))
+	_rng.seed = 6
+	put_model(self, "long_tiem", Vector3(SHOP_X, 0, SHOP_FRONT), 0.0, Vector3(1, 1, G6_DEPTH))
+	Blocks.collider(self, Vector3(1.25, 0.98, 0.6), g6(Vector2(-1.43, 7.87), 0.49), Blocks.LAYER_PROP)   # bàn thợ máy
+	Blocks.collider(self, Vector3(0.54, 0.75, 0.35), g6(Vector2(2.3, 0.55), 0.375), Blocks.LAYER_PROP)   # bàn thờ thần tài
+	var door := put_model(self, "cua_sau", CityProps.SHOP_BACK_DOOR)
+	_play_held(door, "mo_san")
+	put_model(self, "may_nen_khi", g6(Vector2(1.8, 6.3)), PI)
+	Blocks.collider(self, Vector3(0.9, 0.7, 0.46), g6(Vector2(1.8, 6.3), 0.35), Blocks.LAYER_PROP)
+	for y in [2.2, 5.0]:
+		put_model(self, "den_bong", g6(Vector2(0, y), 2.4))
+	for x in [-1.6, 1.6]:
+		var den := put_model(self, "den_long_ong", g6(Vector2(x, -0.55), 2.08))
+		_play_loop(den, "lac", _rng.randf())
+	put_model(self, "gia_lop", g6(RACK_AT), 0.2)
+	Blocks.collider(self, Vector3(1.2, 1.18, 0.75), g6(RACK_AT, 0.59), Blocks.LAYER_PROP)
+	put_model(self, "hang_nhot", g6(Vector2(2.25, -0.55)), -0.2)
+	Blocks.collider(self, Vector3(0.84, 0.86, 0.5), g6(Vector2(2.25, -0.55), 0.43), Blocks.LAYER_PROP)
+	put_model(self, "hang_lop", g6(Vector2(1.2, -0.75)), 0.3)
+	Blocks.collider(self, Vector3(1.0, 0.64, 0.6), g6(Vector2(1.45, -0.75), 0.32), Blocks.LAYER_PROP)
+	# Cầu nâng: AnimationPlayer chạy "chu_ky" lặp (2,5 s một lượt ở Thử thách), khối va chạm bám xương "mat"
+	var lift := put_model(self, "cau_nang", g6(LIFT_AT), -PI / 2.0)
+	_lift_skel = lift.find_children("*", "Skeleton3D", true, false)[0]
+	_lift_bone = _lift_skel.find_bone("mat")
+	var ap := _play_loop(lift, "chu_ky")
+	if ap:
+		ap.speed_scale = 2.5 / float(DoKho.v("lift_period", 2.5))
 	_lift = AnimatableBody3D.new()
 	_lift.name = "CauNang"
 	_lift.collision_layer = Blocks.LAYER_PROP
-	_lift.sync_to_physics = true
+	_lift.sync_to_physics = false
+	_lift.top_level = true
 	add_child(_lift)
 	var shape := CollisionShape3D.new()
 	var bs := BoxShape3D.new()
-	bs.size = LIFT_SIZE
+	bs.size = LIFT_DECK
 	shape.shape = bs
 	_lift.add_child(shape)
-	Blocks.box(_lift, Vector3(LIFT_SIZE.x + 0.1, 0.08, LIFT_SIZE.z + 0.1), Vector3(0, LIFT_SIZE.y / 2.0 - 0.04, 0), YELLOW)
-	Blocks.box(_lift, Vector3(0.3, LIFT_SIZE.y, 0.3), Vector3.ZERO, STEEL)
-	_lift.position = LIFT_POS + Vector3(0, LIFT_LOW - LIFT_SIZE.y / 2.0, 0)
-	# Giàn sửa xe, ghế đẩu và Anh Hùng ngồi trên đó, quay về phía cầu nâng
-	Blocks.solid_box(self, HUNG_DECK_SIZE, HUNG_DECK - Vector3(0, HUNG_DECK_SIZE.y / 2.0, 0), WOOD, Blocks.LAYER_PROP)
-	Blocks.solid_box(self, Vector3(0.32, 0.28, 0.32), HUNG_DECK + Vector3(0.18, 0.14, 0), Color("#D94F3D"), Blocks.LAYER_PROP)
+	_update_lift()
 	if _has_order("lift"):
-		_hung = _person("hung", HUNG_DECK + Vector3(0.1, 0, 0), -PI / 2.0, "viec_rieng")
-		_hung.add_collision(Vector3(0.5, 1.1, 0.6), Vector3(0, 0.55, 0.1))
-		Blocks.label(self, _title("lift"), HUNG_DECK + Vector3(0, 1.9, 0), 40)
-	# Vòi hơi: máy nén có sẵn trong tiệm, ống dây dọc vách tây, đầu vòi thổi ngang lối vào
-	Blocks.box(self, Vector3(0.06, 0.06, 5.6), Vector3(29.75, 0.05, 21.9), Color("#2B2622"))
-	Blocks.solid_box(self, Vector3(0.25, 0.5, 0.25), Vector3(29.8, 0.25, HOSE_ZONE.position.y + HOSE_ZONE.size.y / 2.0), Color("#C8412F"), Blocks.LAYER_PROP)
-	for k in 5:
-		var jet := Blocks.box(self, Vector3(0.9, 0.04, 0.04), Vector3.ZERO, AIR)
-		jet.material_override.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		jet.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		jet.visible = false
-		_jets.append(jet)
+		# Anh Hùng đứng cạnh cầu (clip sua_xe, goi_1, goi_2, nhan_banh_cau do luồng "Người dân vào game" thêm vào hung.glb)
+		_hung = _person("hung", g6(HUNG_AT), PI / 2.0, "sua_xe")
+		_hung.add_collision(Vector3(0.5, 1.6, 0.35), Vector3(0, 0.8, 0))
+		if ResourceLoader.exists("res://assets/models/nguoi/co_le.glb"):
+			_attach_wrench.call_deferred(_hung)
+		Blocks.label(self, _title("lift"), g6(HUNG_AT, 2.3), 40)
+	# Vòi hơi: báo trước → thổi → nghỉ, luồng gió chỉ đẩy trong lúc "thoi"
+	var hose := put_model(self, "voi_hoi", g6(HOSE_AT))
+	_hose = hose.find_children("*", "AnimationPlayer", true, false)[0] if not hose.find_children("*", "AnimationPlayer", true, false).is_empty() else null
+	_hose_from = g6(HOSE_AT)
+	_hose_step = 2
+	_hose_t = 0.0
+	_next_hose_clip()
+
+
+func _attach_wrench(n: Nguoi) -> void:
+	if n.skeleton == null:
+		return
+	var at := n.attach("hand.R")
+	at.add_child(load("res://assets/models/nguoi/co_le.glb").instantiate())
+
+
+## Khe 1,2 m bên hông tiệm xe (gói G6): nhà bên trái hẹp lại, hai vách cách nhau 1,2 m để đạp tường,
+## cổng tôn 1,9 m chắn ngang (không chui được), thùng gỗ 0,45 m làm bậc đầu. CityProps gọi khi dựng ô "khe_hong",
+## mọi ngày đều có. front_z: mép vỉa hè (mặt tiền dãy nhà), depth: sâu tới hẻm giữa khối.
+static func build_khe(parent: Node3D, x0: float, x1: float, front_z: float, depth: float) -> void:
+	var cx := (x0 + x1) / 2.0
+	var k := depth / KHE_LEN
+	put_model(parent, "khe_hong", Vector3(cx, 0, front_z), 0.0, Vector3(1, 1, k))
+	Blocks.collider(parent, Vector3(x1 - x0, KHE_GATE_H, 0.08), Vector3(cx, KHE_GATE_H / 2.0, front_z - KHE_GATE * k))
+	Blocks.collider(parent, Vector3(0.45, 0.45, 0.45 * k), Vector3(cx - 0.275, 0.225, front_z - 2.325 * k), Blocks.LAYER_PROP)
+	Blocks.collider(parent, Vector3(0.24, 0.3, 0.24), Vector3(cx + 0.35, 0.15, front_z - 1.4 * k), Blocks.LAYER_PROP)
+
+
+static var _model_scenes := {}
+static var _mats := {}
+
+
+## Đặt model G6. Màu nằm ở màu đỉnh (COLOR_0); vật liệu tên "den_sang" thì tự sáng (chiều tối),
+## "gio" trong mờ không đổ bóng. Bản web (Compatibility) đổi màu đỉnh linear sang sRGB như PhoModels.
+static func put_model(parent: Node, model: String, pos: Vector3, rot_y := 0.0, scale := Vector3.ONE) -> Node3D:
+	if not _model_scenes.has(model):
+		_model_scenes[model] = load(MODELS % model)
+	var n: Node3D = _model_scenes[model].instantiate()
+	n.position = pos
+	n.rotation.y = rot_y
+	n.scale = scale
+	parent.add_child(n)
+	var web := RenderingServer.get_rendering_device() == null
+	for mi: MeshInstance3D in n.find_children("*", "MeshInstance3D", true, false):
+		var src: Mesh = mi.mesh
+		if web:
+			mi.mesh = _srgb_mesh(src, model + ":" + str(mi.name))
+		for i in src.get_surface_count():
+			var mname := src.surface_get_material(i).resource_name if src.surface_get_material(i) else ""
+			mi.set_surface_override_material(i, _material(mname))
+			if mname == "gio":
+				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return n
+
+
+static var _srgb_cache := {}
+
+static func _srgb_mesh(src: Mesh, key: String) -> Mesh:
+	if _srgb_cache.has(key):
+		return _srgb_cache[key]
+	var dst := ArrayMesh.new()
+	for i in src.get_surface_count():
+		var arrays := src.surface_get_arrays(i)
+		if arrays[Mesh.ARRAY_COLOR] != null:
+			var cols: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+			for c in cols.size():
+				cols[c] = cols[c].linear_to_srgb()
+			arrays[Mesh.ARRAY_COLOR] = cols
+		dst.add_surface_from_arrays(src.surface_get_primitive_type(i), arrays, [], {}, src.surface_get_format(i) & Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS)
+		dst.surface_set_material(i, src.surface_get_material(i))
+	_srgb_cache[key] = dst
+	return dst
+
+
+static func _material(mname: String) -> StandardMaterial3D:
+	var kind := mname if mname in ["den_sang", "gio"] else "solid"
+	if not _mats.has(kind):
+		var m := StandardMaterial3D.new()
+		m.vertex_color_use_as_albedo = true
+		m.roughness = 0.85
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		if kind == "den_sang":
+			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED  # bóng đèn, ô cửa sáng lúc chiều tối
+		elif kind == "gio":
+			m.albedo_color = Color(1, 1, 1, 0.5)
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_mats[kind] = m
+	return _mats[kind]
+
+
+static func _play_loop(n: Node, clip: String, offset := 0.0) -> AnimationPlayer:
+	for ap: AnimationPlayer in n.find_children("*", "AnimationPlayer", true, false):
+		if ap.has_animation(clip):
+			ap.get_animation(clip).loop_mode = Animation.LOOP_LINEAR
+			ap.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_PHYSICS
+			ap.play(clip)
+			ap.seek(offset * ap.get_animation(clip).length, true)
+			return ap
+	return null
+
+
+static func _play_held(n: Node, clip: String) -> void:
+	for ap: AnimationPlayer in n.find_children("*", "AnimationPlayer", true, false):
+		if ap.has_animation(clip):
+			ap.play(clip)
 
 
 ## Cà phê Mây giờ tan tầm: bốn khách đứng kín quầy, Chị Mây sau quầy.
@@ -433,7 +573,7 @@ func step(i: int, in_zone: bool, _delta: float) -> bool:
 				_pending = false
 				return _deliver_call(i)
 		"lift":
-			var up := _hung and player.global_position.y > 1.1 and _flat(player.global_position, _hung.global_position) < HUNG_REACH
+			var up := _hung and player.global_position.y > 0.8 and _flat(player.global_position, _hung.global_position) < HUNG_REACH
 			ready = in_zone or up
 			hint = "[E] Đưa bánh cho Anh Hùng" if up else "Nhảy lên cầu nâng, đợi nó đưa lên"
 			if (pressed and up) or (autotest and in_zone):
@@ -507,7 +647,7 @@ func _deliver_lift(i: int) -> bool:
 	_play_deliver("hand")
 	deliveries._hand_bread(_hand(_hung))
 	if _hung:
-		_hung.play_once("nhan_banh", "vui", 2.0)
+		_hung.play_once("nhan_banh_cau" if _hung.anim and _hung.anim.has_animation("nhan_banh_cau") else "nhan_banh", "vui", 2.0)
 	_say(_hung, "\"Kịp lắm! Bơ ngồi chơi chút nha.\"" if deliveries.side_ok[i] else "\"Tới rồi hả, cảm ơn Bơ!\"", 2.5, 0.8)
 	return true
 
@@ -590,7 +730,7 @@ func _physics_process(delta: float) -> void:
 	if playing and Input.is_action_just_pressed("goi") and player.has_method("sit_call"):
 		player.sit_call()
 	_update_shared(delta)
-	_update_lift(delta)
+	_update_lift()
 	_update_hose(delta)
 	_update_tyres(delta)
 	_update_walkers(delta)
@@ -613,69 +753,76 @@ func _update_shared(delta: float) -> void:
 		hud.set_timer(_shared_left, float(DoKho.v("gio_shared_time", 120.0)), true)
 
 
-func _update_lift(delta: float) -> void:
-	_lift_t = fmod(_lift_t + delta, _lift_period)
-	# Đứng lại một chút ở dưới và ở trên cho dễ nhảy lên, dễ đưa bánh
-	var k := clampf(0.5 - 0.62 * cos(TAU * _lift_t / _lift_period), 0.0, 1.0)
-	var top := lerpf(LIFT_LOW, LIFT_HIGH, k)
-	_lift.position = LIFT_POS + Vector3(0, top - LIFT_SIZE.y / 2.0, 0)
+## Khối va chạm của mặt cầu bám theo xương "mat" (AnimationPlayer chạy ở nhịp vật lý nên không lệch nhau).
+func _update_lift() -> void:
+	if _lift_skel == null or _lift_bone < 0:
+		return
+	var top := (_lift_skel.global_transform * _lift_skel.get_bone_global_pose(_lift_bone)).origin
+	_lift.global_transform = Transform3D(Basis.IDENTITY, Vector3(top.x, top.y + DECK_ABOVE_BONE - LIFT_DECK.y / 2.0, top.z))
+
+
+func _next_hose_clip() -> void:
+	_hose_step = (_hose_step + 1) % HOSE_CLIPS.size()
+	_hose_t = 0.0
+	if _hose and _hose.has_animation(HOSE_CLIPS[_hose_step][0]):
+		_hose.play(HOSE_CLIPS[_hose_step][0])
 
 
 func _update_hose(delta: float) -> void:
-	_hose_t = fmod(_hose_t + delta, HOSE_PERIOD)
-	var on := _hose_t < HOSE_ON
+	_hose_t += delta
+	if _hose_t >= HOSE_CLIPS[_hose_step][1]:
+		_next_hose_clip()
+	var on: bool = HOSE_CLIPS[_hose_step][0] == "thoi"
 	if not on:
 		_gust_done = false
-	var z := HOSE_ZONE.position.y + HOSE_ZONE.size.y / 2.0
-	for k in _jets.size():
-		var jet := _jets[k]
-		jet.visible = on
-		if on:
-			var f := fmod(_hose_t * 3.0 + k * 0.2, 1.0)
-			jet.position = Vector3(HOSE_ZONE.position.x + 0.5 + f * (HOSE_ZONE.size.x - 1.0), 0.3 + 0.15 * (k % 3), z - 0.25 + 0.12 * k)
 	var p := player.global_position
-	if on and not _gust_done and p.y < 1.2 and HOSE_ZONE.has_point(Vector2(p.x, p.z)):
+	var dx := p.x - _hose_from.x
+	if on and not _gust_done and p.y < 0.7 and dx > HOSE_REACH.x and dx < HOSE_REACH.y and absf(p.z - _hose_from.z) < HOSE_HALF_W:
 		_gust_done = true
 		_push_left = float(DoKho.v("air_push", 1.2))
 		if not _hose_hint:
 			_hose_hint = true
-			_toast("Phì! Vòi hơi thổi Bơ dạt ra. Canh lúc vòi tắt mà qua.", 2.5)
+			_toast("Phì! Vòi hơi thổi Bơ dạt ra. Canh lúc vòi nghỉ mà qua.", 2.5)
 	if _push_left > 0.0:
 		var stepx := minf(_push_left, 5.0 * delta)
 		_push_left -= stepx
 		player.move_and_collide(Vector3(stepx, 0, 0))
 
 
+## Lốp từ giá lăn ra đường (theo +z), 1,5–2,5 m/s, lăn 4 m thì đổ nằm rồi biến mất.
 func _update_tyres(delta: float) -> void:
 	_tyre_cd = maxf(_tyre_cd - delta, 0.0)
 	_tyre_t += delta
 	if _tyre_t >= TYRE_EVERY:
 		_tyre_t = 0.0
+		var model: String = TYRES[_rng.randi() % TYRES.size()]
+		var r: float = TYRE_R[model]
+		var start := g6(RACK_AT) + Vector3(_rng.randf_range(-0.4, 0.4), r, 0.45)
 		var pivot := Node3D.new()
 		add_child(pivot)
-		pivot.position = Vector3(TYRE_LANE_X, TYRE_R, TYRE_FROM_Z)
+		pivot.position = start
 		var spin := Node3D.new()
 		pivot.add_child(spin)
-		var c := CylinderMesh.new()
-		c.top_radius = TYRE_R
-		c.bottom_radius = TYRE_R
-		c.height = 0.16
-		c.radial_segments = 14
-		c.rings = 1
-		var mi := Blocks.mesh(spin, c, Vector3.ZERO, Color("#2B2622"))
-		mi.rotation.z = PI / 2.0
-		Blocks.box(spin, Vector3(0.17, 0.2, 0.06), Vector3.ZERO, STEEL)
-		_tyres.append({"node": pivot, "spin": spin})
+		put_model(spin, model, Vector3(0, -r, 0), PI / 2.0)  # lốp đứng, trục bánh theo x
+		_tyres.append({"node": pivot, "spin": spin, "speed": _rng.randf_range(1.5, 2.5), "r": r, "start": start.z, "fallen": false})
 	var p := player.global_position
 	for t in _tyres.duplicate():
 		var node: Node3D = t.node
-		node.position.z += TYRE_SPEED * delta
-		(t.spin as Node3D).rotation.x += TYRE_SPEED / TYRE_R * delta
-		if node.position.z > TYRE_TO_Z:
-			node.queue_free()
-			_tyres.erase(t)
+		if t.fallen:
 			continue
-		if _tyre_cd <= 0.0 and p.y < 0.7 and _flat(p, node.position) < TYRE_R + 0.22:
+		node.position.z += t.speed * delta
+		(t.spin as Node3D).rotation.x += t.speed / t.r * delta
+		if node.position.z - t.start > TYRE_ROLL:
+			t.fallen = true
+			var tw := create_tween()
+			tw.tween_property(node, "rotation:z", PI / 2.0, 0.4).set_ease(Tween.EASE_IN)
+			tw.parallel().tween_property(node, "position:y", 0.05, 0.4)
+			tw.tween_interval(1.5)
+			tw.tween_callback(func():
+				node.queue_free()
+				_tyres.erase(t))
+			continue
+		if _tyre_cd <= 0.0 and p.y < 0.7 and _flat(p, node.position) < t.r + 0.22:
 			_tyre_cd = 1.0
 			player.bump("cart", node.position - Vector3(0, 0, 0.3), float(DoKho.v("tyre_stun", 0.5)))
 			if not _tyre_hint:
@@ -791,14 +938,21 @@ func _update_order() -> void:
 		deliveries.side_ok[_current] = _bumps == 0
 	if order.get("delivery", "") == "lift" and _hung:
 		var ratio: float = _main.time_left / maxf(_main._time_limit(order), 0.1)
-		if _hung_calls == 0 and ratio < 0.7:
+		if _hung_calls == 0:
 			_hung_calls = 1
-			_hung.play_for("vay", 1.5)
-			_say(_hung, "\"Bơ ơi, bánh tới chưa con?\"", 2.5)
-		elif _hung_calls == 1 and ratio < 0.35:
+			_hung_call("goi_1", "vay", "\"Bơ ơi, bánh tới chưa con?\"")
+		elif _hung_calls == 1 and ratio < HUNG_CALL2:
 			_hung_calls = 2
-			_hung.play_for("sot_ruot", 2.0)
-			_say(_hung, "\"Bơ ơiii! Đói bụng quá!\"", 2.5)
+			_hung_call("goi_2", "sot_ruot", "\"Bơ ơiii! Đói bụng quá!\"")
+
+
+## Anh Hùng gọi Bơ: clip đứng mới (hung.glb sau khi luồng "Người dân vào game" thêm), chưa có thì dùng clip cũ.
+func _hung_call(clip: String, fallback: String, text: String) -> void:
+	if _hung.anim and _hung.anim.has_animation(clip):
+		_hung.play_once(clip, "sua_xe")
+	else:
+		_hung.play_for(fallback, 1.8)
+	_say(_hung, text, 2.5)
 
 
 ## Đếm va người trong đơn mua nhang (nhiệm vụ phụ "khong_dung_nguoi").

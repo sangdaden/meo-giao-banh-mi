@@ -79,6 +79,7 @@ var _end_nodes: Array[Node3D] = []
 var _near_id := ""
 var _bot_frames := 0
 var _bot_end := false
+var _hang_told := false            ## đã nhắc cách leo lên/buông mép một lần
 
 
 func _ready() -> void:
@@ -92,6 +93,7 @@ func _ready() -> void:
 	dog = main.get("dog")
 	autotest = "--autotest" in OS.get_cmdline_user_args()
 	player.climb_moves = true  # mái hiên, giàn bông giấy: bám mép, đạp tường
+	player.ledge_grabbed.connect(_on_ledge_grabbed)
 	_add_action("goi", KEY_Q, JOY_BUTTON_LEFT_SHOULDER)
 	_add_action("so_hang_xom", KEY_TAB, JOY_BUTTON_BACK)
 	_add_action("chup_anh", KEY_P, -1)
@@ -147,6 +149,13 @@ func begin() -> void:
 	var residents: Node = main.get("residents")
 	if residents and residents.has_method("say"):
 		residents.say("Thứ Bảy rồi, cô cho Bơ nghỉ! Cầm cuốn sổ đi chơi, ai cần gì thì giúp nha.", 5.0, "vay")
+
+
+## Lần đầu bám mép (chồng thùng, xe bánh mì...): nhắc cách leo lên hay buông, kẻo tưởng Bơ bị kẹt.
+func _on_ledge_grabbed() -> void:
+	if not _hang_told:
+		_hang_told = true
+		toast(player.hang_hint(), 3.0)
 
 
 func toast(text: String, seconds := 2.0) -> void:

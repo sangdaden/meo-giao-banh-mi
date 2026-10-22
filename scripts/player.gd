@@ -11,7 +11,7 @@ signal deliver_finished(kind: String)   ## xong động tác giao bánh
 signal bread_released(kind: String)     ## lúc nhả ổ bánh khỏi miệng (0,8 s khi giao cao, 0,7 s khi giao thấp)
 signal startled                         ## giật mình (bị đớp, xe tông)
 signal slipped                          ## bắt đầu trượt trên vũng dầu
-signal ledge_grabbed                    ## bám được mép (Thứ Năm)
+signal ledge_grabbed                    ## bám được mép (Thứ Năm, Thứ Bảy, chung cư)
 signal ledge_climbed                    ## leo lên xong mép
 signal wall_kicked(count: int)          ## bật tường lần thứ count trong một lần bay
 signal bumped(kind: String)              ## va "person" | "cart" | "stall" (chợ Thứ Ba); đồ dễ vỡ nghe để vỡ
@@ -57,6 +57,9 @@ signal called(pos: Vector3)                 ## ngồi kêu meo gọi khách (Q, 
 @export var ledge_min := 0.3          ## mép thấp nhất (so với chân) để bám; thấp hơn thì nhảy lên luôn
 @export var ledge_reach := 0.95       ## mép cao nhất với tới khi đang bay: nhảy 1,3 m + 0,95 = mép 2,2 m
 @export var pull_time := 0.6          ## leo từ tư thế bám lên mặt mép
+## Đang bám mà vẫn giữ phím đi về phía tường chừng này giây thì tự leo lên (INF: chỉ Space mới leo).
+## Thong thả 0,3 s (DoKho "hang_auto_pull"): người chơi không biết Space vẫn không bị treo mãi trên mép.
+@export var hang_auto_pull := INF
 @export var wall_kick_up := 8.5
 @export var wall_kick_out := 4.5
 @export var wall_kick_max := 3        ## số lần đạp tối đa trước khi chạm đất
@@ -129,12 +132,18 @@ var climb_moves := false
 ## Thứ Tư (scripts/thang_bang.gd, scripts/thu_tu.gd): nhân tốc độ khi lội nước, chặn tốc độ khi đi trên ván
 var speed_scale := 1.0
 var speed_cap := INF
+## Gợi ý lúc vừa bám mép, các ngày bật climb_moves hiện bằng toast của mình
+func hang_hint() -> String:
+	if DoKho.v("hang_auto_pull", INF) < INF:
+		return "Đang bám mép: giữ phím đi tới hoặc Space để leo lên, lùi ra để buông."
+	return "Đang bám mép: Space để leo lên, S để buông."
 ## Đang leo: "" | "hang" (bám mép) | "pull" (đang leo lên mép) | "pipe" (ôm ống nước)
 var climb := ""
 var _climb_t := 0.0
 var _wall_n := Vector3.FORWARD     ## pháp tuyến tường đang bám/ôm (chỉ ra ngoài)
 var _pull_from := Vector3.ZERO
 var _pull_to := Vector3.ZERO
+var _hang_push := 0.0               ## đã giữ phím đi về phía tường bao lâu lúc đang bám
 var _kicks := 0
 var _kick_lock := 0.0               ## vừa đạp tường: khóa điều khiển một chút cho khỏi lao lại vào tường
 var _grab_cooldown := 0.0           ## vừa buông/nhảy khỏi chỗ bám: chưa bám lại ngay
@@ -288,6 +297,7 @@ const PINK := Color("#F6B8A0")
 
 func _ready() -> void:
 	fragile_fall = DoKho.v("fragile_fall", fragile_fall)
+	hang_auto_pull = DoKho.v("hang_auto_pull", hang_auto_pull)
 	fragile_bump_speed = DoKho.v("fragile_bump_speed", fragile_bump_speed)
 	collision_layer = 2
 	collision_mask = Blocks.LAYER_WORLD | Blocks.LAYER_PROP
@@ -713,6 +723,7 @@ func _try_grab(dir: Vector3) -> bool:
 		return false  # trên mép không đủ chỗ (sát trần, sát tường khác)
 	climb = "hang"
 	_climb_t = 0.0
+	_hang_push = 0.0
 	_wall_n = n
 	_pull_to = on_top
 	velocity = Vector3.ZERO
@@ -769,16 +780,19 @@ func _try_wall_kick() -> void:
 func _climb_process(delta: float) -> void:
 	_climb_t += delta
 	var jump := can_move and Input.is_action_just_pressed("jump")
-	var drop := can_move and (_pressed("crouch") or Input.is_action_pressed("move_back"))
+	var drop := can_move and (_pressed("crouch") or (Input.is_action_pressed("move_back") and _input_dir().dot(-_wall_n) <= 0.5))
 	match climb:
 		"hang":
 			velocity = Vector3.ZERO
-			if jump:
+			# Phím đi theo hướng camera: về phía tường là leo lên, ra xa tường là buông
+			var push := _input_dir().dot(-_wall_n)
+			_hang_push = _hang_push + delta if push > 0.5 else 0.0
+			if jump or _hang_push >= hang_auto_pull:
 				climb = "pull"
 				_climb_t = 0.0
 				_pull_from = global_position
 				noise_made.emit(global_position, noise_sneak)
-			elif drop and _climb_t > 0.15:
+			elif (drop or push < -0.3) and _climb_t > 0.15:
 				_release(Vector3.ZERO)
 		"pull":
 			var u := clampf(_climb_t / pull_time, 0.0, 1.0)
@@ -813,6 +827,15 @@ func _climb_process(delta: float) -> void:
 			elif _pressed("crouch") or (v < 0.0 and y <= p.global_position.y + 0.01):
 				_release(_wall_n * 1.0)
 	_curr_pos = global_position
+
+
+## Hướng phím di chuyển trong thế giới (xoay theo camera), dài tối đa 1.
+func _input_dir() -> Vector3:
+	if not can_move:
+		return Vector3.ZERO
+	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	var yaw: float = camera_rig.yaw if camera_rig else 0.0
+	return Vector3(input.x, 0, input.y).rotated(Vector3.UP, yaw)
 
 
 func _release(vel: Vector3) -> void:

@@ -31,6 +31,10 @@ const SIDE_QUEST_NAMES := {
 	"dat_luc_chieu": "Đặt túi lúc chiếu tướng",
 	"khong_dung_nguoi": "Không đụng người đi chợ nào",
 	"khong_do_thung": "Không làm đổ thúng nào",
+	# Thứ Sáu (gói việc thiet-ke-man/goi-viec-thu-sau.md)
+	"goi_mot_tieng": "Gọi một tiếng là Chị Mây ra",
+	"truoc_goi_hai": "Giao trước khi Anh Hùng gọi lần hai",
+	"vao_tu_gian": "Vào sân giỗ từ giàn bông giấy",
 }
 
 static var orders: Array = []  # kết quả từng đơn trong ngày, mỗi phần tử là Dictionary

@@ -18,6 +18,7 @@ signal bumped(kind: String)              ## va "person" | "cart" | "stall" (ch�
 ## Đồ dễ vỡ đang ngậm (túi trứng) mất một món; remaining là số còn lại
 signal fragile_damaged(remaining: int)
 signal clip_finished(clip_name: String)    ## động tác Blender chạy một lần (play_clip) đã xong
+signal called(pos: Vector3)                 ## ngồi kêu meo gọi khách (Q, Thứ Sáu), xem sit_call()
 
 @export_group("Chạy")
 @export var walk_speed := 5.0
@@ -994,6 +995,19 @@ func play_clip(clip_name: String, speed := 1.0) -> void:
 ## Mờ dần về dáng code trong 0,15 s, giữ khung đang dừng.
 func stop_clip() -> void:
 	_clip_on = false
+
+
+## Ngồi gọi (Q, Thứ Sáu): ngồi xuống kêu "meo" (clip ngoi_goi 1,4 s), đứng yên lúc gọi, phát called(vị trí).
+## Khách trong tầm nghe thì quay lại hoặc bước ra nhận (scripts/thu_sau.gd).
+func sit_call() -> void:
+	if _stun > 0.0 or climb != "" or _act != "" or not is_on_floor():
+		return
+	velocity.x = 0.0
+	velocity.z = 0.0
+	_stun = 1.0
+	play_clip("ngoi_goi")
+	_sfx("meow")
+	called.emit(global_position)
 
 
 ## Ngậm túi 3 ổ (Thứ Sáu: giỗ 6 ổ, hai chuyến). dua_tui/nhan_tui tự đổi theo lúc nhả/ngậm.

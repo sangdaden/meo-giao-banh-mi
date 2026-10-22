@@ -195,6 +195,9 @@ jobs:
           # Vành phố P1: mép mềm chặn Bơ mà không chặn camera, đầu đường cho Bơ quay đầu, cầu kênh, phông trời
           timeout 300 ~/godot/godot --headless --path . -s tests/test_vanh_pho.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee vanh_pho.log
           grep -q "TEST VANH PHO OK" vanh_pho.log
+          # P3: trạm và xe buýt tuyến 08 (đỗ trạm, dừng còi trước Bơ, chờ Bơ xuống nóc), người qua đường thật
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_xe_buyt.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee xe_buyt.log
+          grep -q "TEST XE BUYT OK" xe_buyt.log
           # Đồ đeo lưng: phần cứng không hở khỏi lưng quá 6 mm khi thở, ngồi, liếm (Bơ đực, Bơ cái)
           timeout 900 ~/godot/godot --headless --path . -s tests/test_khe_lung.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee khe_lung.log
           grep -q "KHE LUNG TEST OK" khe_lung.log

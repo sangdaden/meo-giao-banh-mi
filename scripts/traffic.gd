@@ -3,8 +3,9 @@ extends Node3D
 ## Xe tông Bơ thì hất Bơ văng khoảng 2 m và Bơ đứng hình 1 giây.
 ## main.gd chỉ cần một dòng: add_child(preload("res://scripts/traffic.gd").new()) sau khi tạo mèo.
 ## Xe máy và xe bánh mì là model Blender đã duyệt (assets/models/pho/, luồng "Nhà và đồ phố vào game").
-## Người lái và người đi bộ còn là khối tạm, chờ người qua đường có rig từ luồng "Người dân vào game".
-## Xe, người lái và người đi bộ vẽ bằng MultiMesh nên cả phố chỉ tốn vài lệnh vẽ.
+## Người lái còn là khối tạm. Người đi bộ là người qua đường thật của gói P3 (scripts/nguoi_qua_duong.gd),
+## xe buýt tuyến 08 chạy chung đường với xe máy (scripts/xe_buyt.gd).
+## Xe và người lái vẽ bằng MultiMesh nên cả phố chỉ tốn vài lệnh vẽ.
 
 signal bike_hit_player(bike_pos: Vector3)  ## luồng âm thanh nghe để phát tiếng phanh, tiếng va
 signal honked(bike_pos: Vector3)           ## xe bóp còi khi Bơ đứng chắn đường phía trước
@@ -38,7 +39,7 @@ const FAR_X := 62.0
 const FAR_Z := 42.0
 const FAR_SPEEDUP := 3.0
 ## Xe xa camera hơn chừng này thì thôi vẽ (sương và khoảng cách làm xe chỉ còn vài điểm ảnh)
-const BIKE_DRAW_RANGE := 85.0
+const BIKE_DRAW_RANGE := 65.0
 const CORNER_RADIUS := 3.0
 ## Vạch dừng: xe đông tây dừng cách tâm 5,6 m; xe bắc nam dừng trước vạch qua đường (z = ±6,5).
 const STOP_EW := Vector2(5.6, 5.5)
@@ -101,6 +102,10 @@ class Bike:
 	var paint := Color.WHITE
 	var shirt := Color.WHITE
 	var helmet := Color.WHITE
+	var front := BIKE_LENGTH * 0.5  ## từ pos tới mũi xe và tới đuôi xe (xe buýt: pos ở mũi, dài 8,4 m về sau)
+	var back := BIKE_LENGTH * 0.5
+	var bus := false
+	var rest := 0.0               ## xe buýt nghỉ ngoài vành giữa hai chuyến
 
 
 class Walker:
@@ -120,7 +125,10 @@ var hud: Node
 var _t := 0.0
 var _routes: Array[Route] = []
 var _bikes: Array[Bike] = []
-var _walkers: Array[Walker] = []
+var bus: XeBuyt                  ## xe buýt tuyến 08 (scripts/xe_buyt.gd), null ngày chợ
+var passers: NguoiQuaDuong       ## người qua đường P3 (scripts/nguoi_qua_duong.gd)
+## Người qua đường đang ở dưới lòng đường (NguoiQuaDuong cập nhật mỗi nhịp): xe máy, xe buýt phanh nhường
+var peds: PackedVector3Array = []
 var _carts: Array = []            ## [{body, walker}]
 ## Vùng xe máy phải chạy chậm (chợ tạm Thứ Ba): [{rect: Rect2, speed: float}]
 var slow_zones: Array = []
@@ -137,8 +145,6 @@ var _mm_dark: MultiMesh
 var _mm_rider: MultiMesh
 var _mm_shirt: MultiMesh
 var _mm_helmet: MultiMesh
-var _mm_walker_shirt: MultiMesh
-var _mm_walker_rest: MultiMesh
 var _mm_lamps: MultiMesh
 var _heads: Array = []            ## [{crossing, ew, xf}] từng cột đèn
 
@@ -159,8 +165,12 @@ func _ready() -> void:
 	_build_lights()
 	slow_zones.append({"rect": VanhPho.MARKET_SLOW, "speed": 2.5})  # chợ ngoài đầu đường x = −18 phía bắc
 	_build_routes(rng)
-	_build_walkers(rng)
+	_build_bus()
 	_build_carts(rng)
+	passers = NguoiQuaDuong.new()
+	passers.traffic = self
+	passers.player = player
+	add_child(passers)
 	_honk_label = Blocks.label(self, "Bíp bíp!", Vector3.ZERO, 40, Color("#FFF2B8"))
 	_honk_label.visible = false
 	_update_lamps()
@@ -281,6 +291,34 @@ func _build_routes(rng: RandomNumberGenerator) -> void:
 		b.helmet = HELMETS[rng.randi() % HELMETS.size()]
 
 
+## Xe buýt tuyến 08 và trạm (gói P3). Ngày chợ chợ chiếm đường lớn nên xe buýt không chạy, trạm vẫn đứng đó.
+func _build_bus() -> void:
+	XeBuyt.build_stop(self)
+	if Market.is_market_day():
+		return
+	var r := Route.new()
+	r.pts = _rounded(XeBuyt.ROUTE)
+	r.lens.append(0.0)
+	for i in range(1, r.pts.size()):
+		r.lens.append(r.lens[i - 1] + r.pts[i].distance_to(r.pts[i - 1]))
+	r.length = r.lens[-1]
+	r.stops = _find_stops(r)
+	var b := Bike.new()
+	b.route = r
+	b.bus = true
+	b.cruise = XeBuyt.CRUISE
+	b.front = 0.1
+	b.back = XeBuyt.LENGTH
+	b.active = false
+	b.rest = 6.0  # chuyến đầu chạy ra từ đường vành sau vài giây
+	_bikes.append(b)
+	bus = XeBuyt.new()
+	add_child(bus)
+	bus.setup(self, b)
+	_place(b)
+	b.prev_xf = b.xf
+
+
 ## Bo tròn các góc rẽ cho xe ôm cua, trả về điểm 3D trên mặt đường.
 func _rounded(pts: Array) -> PackedVector3Array:
 	var out := PackedVector3Array()
@@ -342,6 +380,8 @@ func _place(b: Bike) -> void:
 	b.lean = lerpf(b.lean, clampf(turn * 4.0, -0.35, 0.35), 0.2)
 	var basis := Basis.looking_at(b.dir).rotated(b.dir, b.lean)
 	b.xf = Transform3D(basis, b.pos)
+	if b.bus and bus:
+		bus.after_place(b)
 
 
 func _update_bike(b: Bike, delta: float) -> void:
@@ -349,11 +389,16 @@ func _update_bike(b: Bike, delta: float) -> void:
 	b.pass_cd = maxf(b.pass_cd - delta, 0.0)
 	if not b.active:
 		# Hết đường: chờ ngoài mép bản đồ tới khi đầu đường trống thì chạy lại từ đầu
+		if b.rest > 0.0:
+			b.rest -= delta
+			return
 		var start := b.route.pts[0]
 		for o in _bikes:
-			if o != b and o.active and o.pos.distance_to(start) < BIKE_LENGTH + 4.0:
+			if o != b and o.active and o.pos.distance_to(start) < BIKE_LENGTH + 4.0 + b.back:
 				return
 		b.active = true
+		if b.bus:
+			bus.restart()
 		b.s = 0.0
 		b.seg = 0
 		b.speed = b.cruise
@@ -392,11 +437,19 @@ func _update_bike(b: Bike, delta: float) -> void:
 			continue
 		if absf(rel.dot(b.dir.cross(Vector3.UP))) > 1.0:
 			continue
-		limit = minf(limit, sqrt(2.0 * BRAKE * maxf(ahead - BIKE_LENGTH - MIN_GAP, 0.0)))
+		limit = minf(limit, sqrt(2.0 * BRAKE * maxf(ahead - o.back - b.front - MIN_GAP, 0.0)))
+	# Người qua đường đang băng qua đường phía trước: phanh nhường
+	for p in peds:
+		var rel := p - b.pos
+		var ahead := rel.dot(b.dir)
+		if ahead > 0.0 and ahead < 10.0 and absf(rel.dot(b.dir.cross(Vector3.UP))) < 1.1:
+			limit = minf(limit, sqrt(2.0 * BRAKE_MAX * maxf(ahead - b.front - 0.8, 0.0)))
 	for z in slow_zones:
 		var ahead_pt := b.pos + b.dir * 4.0  # phanh dần trước khi vào chợ
 		if z.rect.has_point(Vector2(b.pos.x, b.pos.z)) or z.rect.has_point(Vector2(ahead_pt.x, ahead_pt.z)):
 			limit = minf(limit, z.speed)
+	if b.bus:
+		limit = bus.limit(b, limit, delta)
 	var rate := ACCEL if limit > b.speed else BRAKE_MAX
 	b.speed = move_toward(b.speed, limit, rate * delta)
 
@@ -406,6 +459,8 @@ func _update_bike(b: Bike, delta: float) -> void:
 		# Không bao giờ lấn qua vạch khi đã quyết dừng
 		b.s = maxf(old_s, stop_at - 0.05)
 		b.speed = 0.0
+	if b.bus:
+		bus.clamp_stop(b)
 	for stop in b.route.stops:
 		if old_s < stop.s and b.s >= stop.s:
 			_crossed += 1
@@ -413,10 +468,13 @@ func _update_bike(b: Bike, delta: float) -> void:
 				_red_runs += 1
 	if b.s >= b.route.length:
 		b.active = false
+		if b.bus:
+			b.rest = XeBuyt.GAP
 		return
 	b.prev_xf = b.xf
 	_place(b)
-	_check_player(b)
+	if not b.bus:
+		_check_player(b)  # xe buýt không tông Bơ: dừng và bóp còi (XeBuyt.limit)
 
 
 ## Bơ đứng trên đường xe chạy: xe bóp còi, đụng thì hất Bơ văng ra.
@@ -434,11 +492,7 @@ func _check_player(b: Bike) -> void:
 	var side := rel.dot(right)
 	if absf(side) < 0.7 and along > 1.0 and along < HONK_RANGE and b.honk_cd <= 0.0:
 		b.honk_cd = 3.0
-		_honk_label.position = b.pos + Vector3.UP * 2.1
-		_honk_label.visible = true
-		_honk_time = 0.7
-		honked.emit(b.pos)
-		_sound_at("horn", b.pos)
+		honk(b.pos)
 	if _hit_cd > 0.0 or absf(side) > 0.45 or absf(along) > BIKE_LENGTH * 0.5 + 0.2:
 		return
 	_hit_cd = 1.5
@@ -451,6 +505,15 @@ func _check_player(b: Bike) -> void:
 	bike_hit_player.emit(b.pos)
 	if hud and hud.has_method("show_toast"):
 		hud.show_toast("Xe máy tông Bơ! Nhìn đèn rồi hãy qua đường.", 2.0)
+
+
+## Bóp còi: chữ "Bíp bíp!" trên đầu xe, tiếng còi, báo cho luồng âm thanh.
+func honk(pos: Vector3) -> void:
+	_honk_label.position = pos + Vector3.UP * (3.6 if bus and pos.distance_to(bus.bike.pos) < 1.0 else 2.1)
+	_honk_label.visible = true
+	_honk_time = 0.7
+	honked.emit(pos)
+	_sound_at("horn", pos)
 
 
 ## Lấy mesh từ file .glb, gộp mọi mảnh về một mesh, xoay theo `turn`.
@@ -549,55 +612,6 @@ func _multimesh(m: Mesh, count: int, instance_colors: bool, unshaded := false, s
 
 
 # ---------------------------------------------------------------- người đi bộ, xe đẩy
-
-## Các đoạn vỉa hè ven đường (cách mép khối 1,6 m, tránh hàng xe máy đậu ở 1 m).
-func _sidewalk_lines() -> Array:
-	var lines := []
-	for i in City.BLOCKS.size():
-		if i == City.PARK_INDEX:
-			continue
-		var r: Rect2 = City.BLOCKS[i]
-		var m := 1.6
-		var z_road := r.end.y - m if r.end.y < 0.0 else r.position.y + m
-		lines.append([Vector3(r.position.x + m, 0, z_road), Vector3(r.end.x - m, 0, z_road)])
-		lines.append([Vector3(r.position.x + m, 0, r.position.y + m), Vector3(r.position.x + m, 0, r.end.y - m)])
-		lines.append([Vector3(r.end.x - m, 0, r.position.y + m), Vector3(r.end.x - m, 0, r.end.y - m)])
-	return lines
-
-
-func _build_walkers(rng: RandomNumberGenerator) -> void:
-	var lines := _sidewalk_lines()
-	# Bỏ ba mặt phố đã kín đồ (lò bánh Cô Ba, sạp báo Chú Tư, bàn ghế quán cà phê Mây) để người đi bộ không đi xuyên qua
-	for busy in [9, 3, 0]:
-		lines.remove_at(busy)
-	for k in 10:
-		var w := Walker.new()
-		var line: Array = lines[(k * 7) % lines.size()]
-		w.a = line[0]
-		w.b = line[1]
-		w.t = rng.randf()
-		w.forward = rng.randf() < 0.5
-		w.speed = rng.randf_range(1.0, 1.5)
-		w.phase = rng.randf() * TAU
-		_place_walker(w, 0.0)
-		w.prev_xf = w.xf
-		_walkers.append(w)
-	var torso := BoxMesh.new()
-	torso.size = Vector3(0.4, 0.6, 0.24)
-	_mm_walker_shirt = _multimesh(_offset_mesh(torso, Vector3(0, 1.15, 0)), _walkers.size(), true)
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var skin := Color("#D9A57E")
-	_add_box(st, Vector3(0.24, 0.26, 0.24), Vector3(0, 1.62, 0), skin)           # đầu
-	_add_box(st, Vector3(0.26, 0.08, 0.26), Vector3(0, 1.78, 0), Color("#2B2622"))  # tóc
-	_add_box(st, Vector3(0.14, 0.85, 0.16), Vector3(-0.1, 0.42, 0), Color("#3B4252"))
-	_add_box(st, Vector3(0.14, 0.85, 0.16), Vector3(0.1, 0.42, 0), Color("#3B4252"))
-	_add_box(st, Vector3(0.1, 0.55, 0.12), Vector3(-0.26, 1.12, 0), skin)
-	_add_box(st, Vector3(0.1, 0.55, 0.12), Vector3(0.26, 1.12, 0), skin)
-	_mm_walker_rest = _multimesh(st.commit(), _walkers.size(), false)
-	for i in _walkers.size():
-		_mm_walker_shirt.set_instance_color(i, SHIRTS[rng.randi() % SHIRTS.size()])
-
 
 func _place_walker(w: Walker, delta: float) -> void:
 	var line_len := w.a.distance_to(w.b)
@@ -848,9 +862,8 @@ func _physics_process(delta: float) -> void:
 	_hit_cd = maxf(_hit_cd - delta, 0.0)
 	for b in _bikes:
 		_update_bike(b, delta)
-	for w in _walkers:
-		w.prev_xf = w.xf
-		_place_walker(w, delta)
+	if bus:
+		bus.sync()
 	for c in _carts:
 		var w: Walker = c.walker
 		var before := w.t
@@ -885,7 +898,7 @@ func _draw(f: float) -> void:
 	for b in _bikes:
 		var xf := b.prev_xf.interpolate_with(b.xf, f)
 		var in_ring := absf(xf.origin.x) < 108.0 and absf(xf.origin.z) < 92.0
-		if not b.active or not in_ring:
+		if b.bus or not b.active or not in_ring:
 			continue
 		if cam and cam.global_position.distance_to(xf.origin) > BIKE_DRAW_RANGE:
 			continue
@@ -901,11 +914,8 @@ func _draw(f: float) -> void:
 		n += 1
 	for mm in [_mm_paint, _mm_dark, _mm_bike_shadow, _mm_rider, _mm_shirt, _mm_helmet]:
 		mm.visible_instance_count = n
-	for i in _walkers.size():
-		var w := _walkers[i]
-		var xf := w.prev_xf.interpolate_with(w.xf, f)
-		_mm_walker_shirt.set_instance_transform(i, xf)
-		_mm_walker_rest.set_instance_transform(i, xf)
+	if bus:
+		bus.draw(f, cam)
 
 
 func _exit_tree() -> void:

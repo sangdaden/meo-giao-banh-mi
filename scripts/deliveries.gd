@@ -295,7 +295,7 @@ func _build_hung(parent: Node3D, i: int, p: Vector3, shirt: Color, title: String
 
 ## Bà Sáu: ngồi ghế mây dưới giàn bông giấy cuối hẻm 42 (ghế, giàn do CityProps dựng), quay về phía hẻm.
 func _build_sau(parent: Node3D, i: int, p: Vector3, shirt: Color, title: String) -> void:
-	var pos := Vector3(p.x, 0.06, 22.7)  # đúng ghế mây CityProps, mặt ghế cao hơn ghế nhựa 6 cm
+	var pos := CityProps.BA_SAU_CHAIR + Vector3(0, 0.06, 0)  # đúng ghế mây CityProps, mặt ghế cao hơn ghế nhựa 6 cm
 	_person(i, "basau", Vector3(pos.x, 0.08, pos.z), 0.0, "viec_rieng", true)  # mặt ghế mây CityProps cao 0,5 m
 	_hand_fallback[i] = pos + Vector3(0.2, 0.75, -0.35)
 	Blocks.label(parent, title, pos + Vector3(0, 3.0, 0), 40)

@@ -29,7 +29,7 @@ static func material() -> StandardMaterial3D:
 static func mesh(model: String) -> ArrayMesh:
 	if _meshes.has(model):
 		return _meshes[model]
-	var scene: PackedScene = load(DIR + model + ".glb")
+	var scene: PackedScene = load(model if model.begins_with("res://") else DIR + model + ".glb")
 	var root := scene.instantiate()
 	var src: Mesh = null
 	for n in root.find_children("*", "MeshInstance3D", true, false):
@@ -61,6 +61,32 @@ static func put(parent: Node, model: String, pos: Vector3, rot_y := 0.0, scale :
 	mi.scale = scale
 	parent.add_child(mi)
 	return mi
+
+
+## Bản model bỏ hết tam giác nằm xa hơn z_max trước mặt tiền (gốc model, chưa xoay): gỡ đồ đúc liền
+## phía trước nhà như hàng rào cũ khi bản đồ đổi.
+static func mesh_cut_front(model: String, z_max: float) -> ArrayMesh:
+	var key := "%s<%s" % [model, z_max]
+	if _meshes.has(key):
+		return _meshes[key]
+	var src := mesh(model)
+	var dst := ArrayMesh.new()
+	for i in src.get_surface_count():
+		var arrays := src.surface_get_arrays(i)
+		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		if idx.is_empty():
+			idx.resize(verts.size())
+			for k in verts.size():
+				idx[k] = k
+		var keep := PackedInt32Array()
+		for t in range(0, idx.size(), 3):
+			if verts[idx[t]].z <= z_max or verts[idx[t + 1]].z <= z_max or verts[idx[t + 2]].z <= z_max:
+				keep.append_array([idx[t], idx[t + 1], idx[t + 2]])
+		arrays[Mesh.ARRAY_INDEX] = keep
+		dst.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	_meshes[key] = dst
+	return dst
 
 
 ## Hộp bao của model (theo gốc model, chưa xoay).

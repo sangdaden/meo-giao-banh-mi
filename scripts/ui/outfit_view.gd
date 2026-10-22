@@ -80,12 +80,16 @@ static func _v(a: Array) -> Vector3:
 
 
 ## Gắn món `id` vào skel. Trả về các node đã thêm (để gỡ ra sau).
-static func attach(skel: Skeleton3D, id: String, breed := "bo", sex := "duc") -> Array:
+## light: dùng bản nhẹ phu_kien_nhe/ nếu có (mèo NPC trên bản web, gói G10).
+static func attach(skel: Skeleton3D, id: String, breed := "bo", sex := "duc", light := false) -> Array:
 	var out := []
 	if not has_model(id):
 		return out
 	var info: Dictionary = meta().get("phu_kien", {}).get(id, {}).get("objects", {})
-	var scene: Node3D = load(DIR + "phu_kien/%s.glb" % id).instantiate()
+	var path := DIR + "phu_kien/%s.glb" % id
+	if light and ResourceLoader.exists(DIR + "phu_kien_nhe/%s.glb" % id):
+		path = DIR + "phu_kien_nhe/%s.glb" % id
+	var scene: Node3D = load(path).instantiate()
 	var compat := RenderingServer.get_rendering_device() == null
 	for mi: MeshInstance3D in scene.find_children("*", "MeshInstance3D", true, false):
 		var oi: Dictionary = info.get(str(mi.name), info.get(str(mi.get_parent().name), {}))

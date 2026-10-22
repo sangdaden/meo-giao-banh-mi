@@ -35,7 +35,7 @@ const PEOPLE := {
 	"bena": {"pos": Vector3(24.0, 0, -15.6), "yaw": 0.0},
 	"may": {"pos": Vector3(5.2, 0, 6.8), "yaw": PI},
 	"hung": {"pos": Vector3(33.8, 0, 25.0), "yaw": 0.0, "seat": true},
-	"basau": {"pos": Vector3(-19.5, 0.08, 22.63), "yaw": PI, "chair": true},
+	"basau": {"pos": CityProps.BA_SAU_CHAIR + Vector3(0, 0.08, -0.07), "yaw": PI, "chair": true},
 	# Chị Thu (G1 Sang duyệt 22/10) đứng cạnh võng ru em bé
 	"chithu": {"pos": Vector3(31.6, 0, -15.2), "yaw": -PI / 2.0, "idle": "ru_vong"},
 }

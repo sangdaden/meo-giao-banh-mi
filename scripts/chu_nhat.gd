@@ -16,6 +16,8 @@ const DAY := "chu_nhat"
 const STAGE := Vector3(-34.0, 0, 24.6)        ## giữa sân khấu thùng gỗ (mặt sân khấu cao STAGE_H), quay về bắc
 const STAGE_H := 0.5
 const STAGE_SIZE := Vector2(3.2, 1.8)
+const CRATE_H := 0.4      ## thùng gỗ Bà Mướp ngồi (khối tạm theo ảnh G10, mẫu thật thuộc G11)
+const CRATE := Vector3(-1.0, 0, 0.45)   ## chỗ thùng so với giữa sân khấu: lệch trái để camera sau lưng Bơ không bị che
 const TRAY_DROP := Vector3(-34.0, 0, 22.4)    ## chỗ giao khay bánh sáng (trước sân khấu)
 const GATE := Vector3(-27.0, 0, 5.4)          ## cổng hội "HỘI MÈO KHU PHỐ" mé bắc công viên
 const MUC_SPOT := Vector3(-25.4, 0, 4.6)
@@ -73,9 +75,9 @@ func _ready() -> void:
 		add_child(m)
 		m.look_target = player
 		cats[id] = m
-	cats.ba_muop.global_position = STAGE + Vector3(0, STAGE_H, 0.2)
+	cats.ba_muop.global_position = STAGE + CRATE + Vector3(0, STAGE_H + CRATE_H, 0)
 	cats.ba_muop.snap_ground = false
-	cats.ba_muop.set_pose("ngoi")
+	cats.ba_muop.set_pose("ngoi_cao")
 	for id in MORNING:
 		cats[id].global_position = MORNING[id]
 		cats[id].rotation.y = randf() * TAU
@@ -103,7 +105,8 @@ func _on_tray(_i: int, _o: Dictionary) -> void:
 	hud = main.get("hud")
 	player.carry_tui3(false)
 	cats.ba_muop.say("Khay bánh thơm quá! Tối nay nhớ tới hội nha Bơ!", 3.5)
-	cats.ba_muop.play("nhan_tui")
+	cats.ba_muop.set_pose("cuoi")
+	get_tree().create_timer(3.5).timeout.connect(func(): cats.ba_muop.set_pose("ngoi_cao"))
 
 
 # ---------------------------------------------------------------- tối hội
@@ -227,7 +230,7 @@ func _on_contest_done(rank: int, note: String, k: int) -> void:
 func _ceremony() -> void:
 	phase = "trao"
 	_ceremony_t = 0.0
-	put_player(STAGE + Vector3(0.7, STAGE_H, -0.2), STAGE + Vector3(0, 0, -6))
+	put_player(STAGE + Vector3(-0.3, STAGE_H, -0.1), STAGE + Vector3(0, 0, -6))
 	player.can_move = false
 	var coba: Node3D = main.residents.get("coba") if main.get("residents") else null
 	if coba:
@@ -242,7 +245,7 @@ func _ceremony() -> void:
 		add_child(n)
 		n.global_position = a[1]
 	cats.ba_muop.say("Huy chương cho Bơ, mèo giao bánh của tuần!", 4.0)
-	cats.ba_muop.play("dua_tui")
+	cats.ba_muop.play("trao_huy_chuong")
 	player.play_clip("nhan_huy_chuong")
 	for id in WATCH:
 		cats[id].set_pose("reo")
@@ -270,8 +273,10 @@ func _finish_week() -> void:
 	_summary.week_stars_max = 5 * 5 * Scoring.STARS_PER_ORDER
 	_summary.extra_medal = "Hàng xóm thân" if full else ""
 	_summary.autotest = _autotest
+	if PlayMode.continuous:
+		_summary.new_week_text = PlayMode.next_label()  # "Sang Tuần mới"
 	_summary.new_week.connect(_on_new_week)
-	_summary.to_menu.connect(func(): PlayMode.back_to_menu(get_tree()))
+	_summary.to_menu.connect(_on_to_menu)
 	add_child(_summary)
 	hud.show_playing_ui(false)
 	print("[tong ket] huy chương ", list.map(func(m): return int(m.rank)), " sổ ", pages.size(), " sao tuần ", stars, " boa ", summary.get("tip", 0))
@@ -279,11 +284,22 @@ func _finish_week() -> void:
 		get_tree().create_timer(2.5).timeout.connect(_summary._start_credits)
 
 
-## "Tuần mới": bản này chỉ mở cờ trong GameState (đơn trộn ngẫu nhiên làm sau), về màn Chọn màn chơi lại Thứ Hai.
+## "Tuần mới": mở cờ trong GameState (đơn trộn ngẫu nhiên làm sau). Đang chơi liền các ngày thì vào thẳng
+## Thứ Hai tuần sau (Scoring.end_day đã gọi day_done: lưu ngày kế và cộng tuần); chơi từ màn Chọn ngày thì về đó.
 func _on_new_week() -> void:
 	GameState.set_global("tuan_moi", true)
 	GameState.write_save()
-	PlayMode.back_to_menu(get_tree())
+	if PlayMode.continuous:
+		PlayMode.go_next_day(get_tree())
+	else:
+		PlayMode.back_to_menu(get_tree())
+
+
+func _on_to_menu() -> void:
+	if PlayMode.continuous:
+		PlayMode.go_home(get_tree())  # Bắt đầu lần sau là Thứ Hai tuần mới
+	else:
+		PlayMode.back_to_menu(get_tree())
 
 
 # ---------------------------------------------------------------- mỗi khung
@@ -376,8 +392,8 @@ func _build_stage() -> void:
 	# Bậc lên sân khấu hai bên
 	for side in [-1.0, 1.0]:
 		Blocks.solid_box(self, Vector3(0.6, 0.25, 0.6), STAGE + Vector3(side * (STAGE_SIZE.x / 2.0 + 0.3), 0.125, -0.3), Color("#B5814E"), Blocks.LAYER_PROP)
-	# Thùng gỗ Bà Mướp ngồi
-	Blocks.box(self, Vector3(0.5, 0.02, 0.5), STAGE + Vector3(0, STAGE_H + 0.01, 0.2), Color("#C98B4A"))
+	# Thùng gỗ Bà Mướp ngồi (động tác ngoi_san_khau cần thùng cao 0,4 m)
+	Blocks.solid_box(self, Vector3(0.62, CRATE_H, 0.46), STAGE + CRATE + Vector3(0, STAGE_H + CRATE_H / 2.0, 0), Color("#A9805A"), Blocks.LAYER_PROP)
 
 
 func _build_festival() -> void:

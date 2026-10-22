@@ -196,7 +196,10 @@ func _score() -> void:
 		m.add_child(lb)
 		lb.position = Vector3(0, 0.9, 0)
 		_boards.append(lb)
-		m.play("chup_vay")
+		if JUDGES[j] == "ba_muop":
+			m.set_pose("noi")  # bà ngồi thùng gỗ đọc điểm
+		else:
+			m.play("gio_bang")
 	toast("Giám khảo chấm: %s" % " · ".join(scores.map(func(x): return str(x))), 3.0)
 
 
@@ -209,6 +212,7 @@ func _end() -> void:
 	for r in RIVALS.values():
 		if r > avg:
 			rank += 1
+	cat("ba_muop").set_pose("ngoi_cao")
 	for b in _boards:
 		b.queue_free()
 	_boards.clear()

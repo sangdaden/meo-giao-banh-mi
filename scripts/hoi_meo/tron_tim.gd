@@ -93,6 +93,7 @@ func _found(id: String) -> void:
 	_since_find = 0.0
 	var m := cat(id)
 	m.set_pose("dung")
+	m.play("lo_dau")
 	m.show_name()
 	m.say("Bị tìm ra rồi!", 2.0)
 	m.face(player.global_position)

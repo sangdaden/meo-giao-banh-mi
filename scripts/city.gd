@@ -35,6 +35,7 @@ const GRASS := Color("#7DB46C")
 static func build(parent: Node3D) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 2026  # cố định để lần nào mở game khu phố cũng giống nhau
+	NhaRap.begin()
 	_ground(parent)
 	for i in BLOCKS.size():
 		if i == PARK_INDEX:
@@ -47,10 +48,12 @@ static func build(parent: Node3D) -> void:
 	CityProps.crate(parent, CORNER_STAIR + Vector3(-0.85, 0, 0))
 	CityProps.crate(parent, CORNER_STAIR)
 	CityProps.crate(parent, CORNER_STAIR + Vector3(0, 0.8, 0))
+	NhaRap.commit(parent)  # đồ gắn tường P4 + chữ bảng hiệu của nhà ráp
 	_street_props(parent, rng)
 	CityProps.build(parent)
 	VanhPho.build(parent)  # vành phố, phông chân trời, mép mềm thay tường thấp
 	ChiTietPho.build(parent)  # chi tiết phố P4: dây điện, xe đậu, thùng rác, cống, đồ hẻm (scripts/chi_tiet_pho.gd)
+	NhaRap.mieu(parent)  # miếu thổ địa đầu hẻm 42 (nhà mốc P2), đặt sau cùng để tránh mọi đồ đã dựng
 
 
 static func _ground(parent: Node3D) -> void:
@@ -73,12 +76,15 @@ static func _ground(parent: Node3D) -> void:
 	for cx in [-18.0, 16.0]:
 		for i in 6:
 			Blocks.box(parent, Vector3(0.5, 0.02, 2.5), Vector3(cx - 3 + i * 1.2, 0.01, -6.5), LANE)
-			Blocks.box(parent, Vector3(0.5, 0.02, 2.5), Vector3(cx - 3 + i * 1.2, 0.01, 6.5), LANE)
+			# đầu hẻm 42 (phía nam x = -18) chỉ kẻ ngang lòng hẻm, chừa chỗ miếu thổ địa sát tường khối 5
+			if cx > 0 or i < 4:
+				Blocks.box(parent, Vector3(0.5, 0.02, 2.5), Vector3(cx - 3 + i * 1.2, 0.01, 6.5), LANE)
 
 
 ## Một khối nhà: vỉa hè bao quanh, hai dãy nhà ống quay lưng vào nhau, giữa có hẻm nhỏ.
 ## Chỗ nào có nhà đặc biệt (CityProps.SLOTS: lò bánh, cà phê, chung cư, tiệm xe) thì chừa ô đó cho CityProps dựng.
-## Còn lại ghép nhà lấp (PhoModels.FILLERS) theo bề ngang thật; nhà cuối dãy giãn nhẹ cho kín.
+## Còn lại ghép nhà lấp theo bề ngang của mẫu nhà lấp cũ (PhoModels.FILLERS, giữ nguyên chuỗi số ngẫu nhiên nên ô nhà
+## như cũ); mỗi ô dựng bằng bộ ráp nhà P2 (NhaRap) cùng số lầu, kiểu mái với mẫu cũ. Nhà cuối dãy giãn nhẹ cho kín.
 static func _block(parent: Node3D, r: Rect2, rng: RandomNumberGenerator, block_index: int) -> void:
 	var center := r.get_center()
 	# Vỉa hè (chỉ để nhìn, không có bậc để mèo khỏi vấp)
@@ -115,19 +121,23 @@ static func _block(parent: Node3D, r: Rect2, rng: RandomNumberGenerator, block_i
 				near.sort_custom(func(a, b): return absf(PhoModels.FILLERS[a] - room) < absf(PhoModels.FILLERS[b] - room))
 				model = near[rng.randi() % 3]
 				w = room
-			_house(parent, model, x, w, row.z0, depth, row.faces_south, rng)
+			_house(parent, model, x, w, row.z0, depth, row.faces_south, rng, block_index <= 2 and row.faces_south)
 			prev = model
 			x += w
 
 
-## Nhà ống lấp chỗ trống: model + hộp va chạm thân nhà + mái hiên 2,9 m (có va chạm, nối liền nhà bên).
-static func _house(parent: Node3D, model: String, x: float, w: float, z0: float, depth: float, faces_south: bool, rng: RandomNumberGenerator) -> void:
+## Nhà ống lấp chỗ trống: nhà ráp P2 + hộp va chạm thân nhà + mái hiên 2,9 m (có va chạm, nối liền nhà bên).
+## model: mẫu nhà lấp cũ của ô, chọn họ nhà ráp (số lầu, kiểu mái). Căn ráp dùng số ngẫu nhiên riêng theo vị trí.
+static func _house(parent: Node3D, model: String, x: float, w: float, z0: float, depth: float, faces_south: bool, rng: RandomNumberGenerator, keep_roof := true) -> void:
 	var face_z: float = z0 + (depth if faces_south else 0.0)
 	var out := 1.0 if faces_south else -1.0
-	PhoModels.put_house(parent, model, x, w, PhoModels.FILLERS[model], face_z, faces_south)
-	var h := PhoModels.aabb(model).end.y - 1.0  # thân nhà, chừa phần mái
+	var own := RandomNumberGenerator.new()
+	own.seed = hash(Vector2i(roundi(x * 10.0), roundi(face_z * 10.0)))
+	var spec := NhaRap.spec_for(model, w, own, keep_roof)
+	var key := NhaRap.put_house(parent, spec, x, w, face_z, faces_south, own)
+	var h := NhaRap.body_height(spec)  # thân nhà: mặt sân thượng hoặc giữa mái dốc
 	var body := Blocks.collider(parent, Vector3(w - 0.15, h, depth), Vector3(x + w / 2.0, h / 2.0, z0 + depth / 2.0))
-	body.set_meta("model", model)  # SanThuong (Thứ Tư) đo mái thật theo mẫu nhà
+	body.set_meta("model", key)  # SanThuong (Thứ Tư) lấy mặt mái của căn ráp (NhaRap.roof_profile)
 	CityProps.awning(parent, w, Vector3(x + w / 2.0, 2.9, face_z + 0.5 * out), CityProps.AWNINGS[rng.randi() % CityProps.AWNINGS.size()], out)
 
 

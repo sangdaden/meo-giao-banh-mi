@@ -5,10 +5,23 @@ class_name VanhPho
 ## - Phông chân trời: vòng trụ R 200 m có trong vanh_pho.glb, ảnh đổi theo buổi (sáng, chiều, mưa, tối), không dính sương.
 ## - Mép mềm thay tường thấp: lan can kênh, dãy nhà vành và món chặn ở 6 đầu đường. Bơ chạm đầu đường thì quay đầu,
 ##   kèm một câu nhắc. Tường vô hình nằm ở lớp đồ (LAYER_PROP) nên camera không bị kéo vào, xe không bị chặn.
-## Nhà vành còn là bản tạm: gói P2 thay theo nha_vanh.json (x, z giữa mặt tiền, w, d, h, hướng mặt tiền, gần/xa).
+## Nhà vành là bản xa của bộ ráp nhà P2 (nha_vanh_p2.glb, dựng bằng tools/vanh_pho/nha_vanh_p2.py, thay nhà tạm
+## VanhGan/VanhXa trong vanh_pho.glb); nha_vanh.json: x, z giữa mặt tiền, w, d, h, hướng mặt tiền, gần/xa, kiểu căn.
+## Ba nhà mốc P2 đứng ở vành: chung cư Ngọc Lan lô C (ô P1 chừa phía bắc), biệt thự góc phố và trường mẫu giáo
+## (phía nam, đối diện tiệm xe). Model đủ chi tiết, không đổ bóng, gộp LOD qua Blocks.merge_static như nhà trong phố.
 
 const GLB := "res://assets/models/vanh/vanh_pho.glb"
+const GLB_NHA := "res://assets/models/vanh/nha_vanh_p2.glb"
 const HOUSES := "res://assets/models/vanh/nha_vanh.json"
+## Nhà tạm P1 trong vanh_pho.glb, bỏ qua (thay bằng GLB_NHA)
+const OLD_PARTS := ["VanhGan", "VanhXa"]
+const MOC_DIR := "res://assets/models/nha_rap/moc/"
+## Nhà mốc ở vành: model, gốc, góc quay, hộp va chạm thân (tâm, cỡ) cho camera
+const MOC := [
+	["chung_cu_2", Vector3(20.0, 0, -31.5), 0.0, Vector3(32.0, 9.0, -36.5), Vector3(24.0, 18.0, 10.0)],
+	["biet_thu", Vector3(33.33, 0, 34.96), PI, Vector3(27.7, 4.8, 39.85), Vector3(12.4, 9.6, 10.3)],
+	["mau_giao", Vector3(46.5, 0, 36.75), PI, Vector3(40.47, 3.6, 40.8), Vector3(12.1, 7.2, 8.1)],
+]
 const SKY_DIR := "res://assets/textures/chan_troi/chan_troi_%s.png"
 ## Buổi của AnhSang -> ảnh chân trời
 const SKY_FOR := {
@@ -59,6 +72,7 @@ static func build(parent: Node3D) -> void:
 	parent.add_child(root)
 	_meshes(root)
 	_house_bodies(root)
+	_landmarks(root)
 	_edges(root)
 	var edge := MepMem.new()
 	edge.name = "MepMem"
@@ -85,8 +99,10 @@ static func road_y(x: float, z: float) -> float:
 
 
 static func _meshes(root: Node3D) -> void:
-	var scene: PackedScene = load(GLB)
-	var src := scene.instantiate()
+	var src := (load(GLB) as PackedScene).instantiate()
+	var nha := (load(GLB_NHA) as PackedScene).instantiate()
+	var parts: Array = src.find_children("*", "MeshInstance3D", true, false).filter(func(n): return not String(n.name) in OLD_PARTS)
+	parts.append_array(nha.find_children("*", "MeshInstance3D", true, false))
 	# Bản web (Compatibility) không đổi màu đỉnh linear sang sRGB như Forward+ (giống PhoModels.mesh)
 	var to_srgb := RenderingServer.get_rendering_device() == null
 	var buoi: String = SKY_FOR.get(AnhSang.preset_for_day(PlayMode.day), "sang")
@@ -95,7 +111,7 @@ static func _meshes(root: Node3D) -> void:
 	var sectors: Array = []
 	for k in SECTORS:
 		sectors.append([PackedVector3Array(), PackedVector3Array(), PackedColorArray()])
-	for n: MeshInstance3D in src.find_children("*", "MeshInstance3D", true, false):
+	for n: MeshInstance3D in parts:
 		var part := String(n.name)
 		if part in ["ChanTroi", "Nuoc"]:
 			var dst := ArrayMesh.new()
@@ -128,6 +144,7 @@ static func _meshes(root: Node3D) -> void:
 					var col: Color = c[j] if not c.is_empty() else Color.WHITE
 					s[2].append(col.linear_to_srgb() if to_srgb else col)
 	src.free()
+	nha.free()
 	var mat := _material("VanhPho", null, buoi)
 	for k in SECTORS:
 		var s: Array = sectors[k]
@@ -184,6 +201,15 @@ static func _house_bodies(root: Node3D) -> void:
 		var hh: float = h.h
 		var size := Vector3(d, hh, w) if h.huong in ["e", "w"] else Vector3(w, hh, d)
 		Blocks.collider(root, size, Vector3(h.x, hh / 2.0, h.z) - dir * d / 2.0)
+
+
+## Nhà mốc P2 ở vành: model thật (vật liệu chung PhoModels để merge_static gộp + LOD), không đổ bóng, hộp thân cho camera.
+static func _landmarks(root: Node3D) -> void:
+	for m: Array in MOC:
+		var mi := PhoModels.put(root, MOC_DIR + m[0] + ".glb", m[1], m[2])
+		mi.name = m[0]
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		Blocks.collider(root, m[4], m[3]).name = "NhaMoc"
 
 
 ## Tường vô hình bao vùng chơi, ở lớp đồ: Bơ và Chó Mực không qua được, camera và xe không bị chặn.

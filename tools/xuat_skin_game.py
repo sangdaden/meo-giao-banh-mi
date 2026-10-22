@@ -1,4 +1,4 @@
-"""Xuất 35 phụ kiện và 19 giống mèo (phong cách D) sang .glb nhẹ cho tủ đồ trong game.
+"""Xuất 42 phụ kiện (35 món gốc + 7 món bán theo gói trong acc_moi.py) và 19 giống mèo (phong cách D) sang .glb nhẹ cho tủ đồ trong game.
 
 Dùng mã dựng của luồng "Skin mèo và phụ kiện" (meo-3d/skins: catcore, acc, breeds, blend), không render.
 Chạy:  python3 tools/xuat_skin_game.py <thư_mục_skins> assets/models/skin [phu_kien|giong|giong_cai|all] [id,id..]
@@ -29,6 +29,21 @@ from parts import build_part
 SOCK = dict(khando='neck', khanran='neck', chuong='neck', nobuom='neck', vonghoa='neck', tuibanh='back', thung='back', dongganh='back', aochoang='back',
             canhthienthan='back', phaovit='back', noduoi='tail_mid', denlong='tail_tip', coduua='tail_tip', bongbay='tail_tip',
             tatsoc='feet', ungmua='feet', giaypatin='feet', deptoong='feet')
+# 7 món bán theo gói (luồng "Bán mèo và phụ kiện", Sang duyệt 21/10): acc_moi.py đặt cạnh acc.py.
+# Ngân sách tam giác từng bộ phận lấy theo bản đã duyệt (meta_<id>.json) để bản web nhẹ.
+try:
+    import acc_moi
+    acc.ACC.update(acc_moi.ACC)
+    SOCK.update(acc_moi.SOCK)
+except ImportError:
+    acc_moi = None
+PART_TRIS = {}
+_moi = os.path.join(SKINS, 'mon_moi')
+for _id in (acc_moi.ACC if acc_moi else ()):
+    _f = os.path.join(_moi, f'meta_{_id}.json')
+    if os.path.exists(_f):
+        for _p in json.load(open(_f))['parts']:
+            PART_TRIS[(_id, _p['name'])] = max(120, _p['tris'])
 EARS_DOWN = ('mucoi', 'nonla', 'muphuthuy')
 PAWS = ('FL', 'FR', 'BL', 'BR')
 
@@ -117,6 +132,13 @@ def recolor(o, colorfn, off):
     ca.data.foreach_set('color', np.concatenate([L, np.ones((n, 1))], 1).astype(np.float32).ravel())
 
 
+def build_coords(o, off):
+    """Toạ độ dựng (như hàm SDF) của các đỉnh object."""
+    me = o.data
+    co = np.zeros(len(me.vertices) * 3, np.float32); me.vertices.foreach_get('co', co); co = co.reshape(-1, 3)
+    return np.stack([co[:, 0], co[:, 2], -co[:, 1]], 1) + off
+
+
 def add_uvs(o, uv):
     """Gán UV theo đỉnh (mảng N×2 mỗi lớp) vào từng góc mặt."""
     me = o.data
@@ -175,9 +197,13 @@ def export_acc(ids):
                     bpy.ops.object.modifier_apply(modifier=md.name)
                 uv = getattr(pt, 'uv', None)
                 if uv is None:
-                    decimate(ob, min(budget(s), max(800, len(Fp) // 5)))   # bộ phận nhỏ (quai, viền) không cần đủ ngân sách
+                    target = PART_TRIS.get((aid, pt.name)) or min(budget(s), max(800, len(Fp) // 5))   # bộ phận nhỏ (quai, viền) không cần đủ ngân sách
+                    decimate(ob, target)
                     if pt.colorfn and Cp is not None:
                         recolor(ob, pt.colorfn, off)
+                    if getattr(pt, 'uvfn', None):
+                        uv = pt.uvfn(build_coords(ob, off))  # đuôi khăn bay: UV tính lại trên lưới đã giảm
+                        add_uvs(ob, uv)
                 else:
                     add_uvs(ob, uv)  # đồ vải (áo choàng): giữ nguyên lưới để shader uốn theo UV
                 bake_color(ob)

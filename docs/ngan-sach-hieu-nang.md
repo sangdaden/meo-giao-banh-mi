@@ -23,7 +23,7 @@ Lưu ý: CI vẽ bằng CPU nên FPS ở đó không có ý nghĩa; số lệnh 
 | Lệnh vẽ (tổng) | ≤ 350 | 116–273 |
 | Vật thể nhìn thấy | ≤ 450 | 116–273 |
 | Tam giác (tổng, cả bóng) | ≤ 400 000 | 39 000–54 000 |
-| index.pck | ≤ 40 MB | 5,6 MB |
+| index.pck | ≤ 60 MB (Sang nâng 21/10/2026) | 5,6 MB |
 
 Góc nhìn từ trên cao (`tham_khao_tren_cao`) chỉ in số để tham khảo, không chấm.
 
@@ -34,7 +34,7 @@ Góc nhìn từ trên cao (`tham_khao_tren_cao`) chỉ in số để tham khảo
 | Nhà thường (nha_A–E) | ≤ 3 000 | ≤ 2 | màu đỉnh (vertex colour) hoặc ≤ 512 px | gộp qua `Blocks.merge_static` |
 | Nhà đặc biệt (lò bánh, chung cư, cà phê, tiệm xe, nhà Bà Sáu, tạp hóa, sạp báo) | ≤ 8 000 | ≤ 3 | ≤ 1024 px | |
 | Đồ phố (cột điện, thùng, ghế, chậu cây...) | ≤ 600 | 1 | màu đỉnh | đồ nhỏ hơn 1,5 m: tầm nhìn ≤ 45 m |
-| Người dân (19 xương) | ≤ 4 000 | ≤ 2 | ≤ 512 px | tầm nhìn ≤ 40 m, không qua merge_static |
+| Người dân (19 xương) | ≤ 4 000 | ≤ 2 | ≤ 512 px | tầm nhìn ≤ 40 m, không qua merge_static; nhập không tangent, không LOD, không shadow mesh (bớt dung lượng web) |
 | Xe máy, người đi bộ | ≤ 1 500 | 1 | màu đỉnh | tầm nhìn ≤ 45 m |
 | Bơ (22 xương) | ≤ 8 000 | ≤ 3 | ≤ 1024 px | luôn trong khung hình |
 | Chó Mực | ≤ 6 000 | ≤ 2 | ≤ 1024 px | |
@@ -52,4 +52,9 @@ Quy tắc chung:
 
 ## Ánh sáng
 
-`scripts/anh_sang.gd` dựng trời, nắng, ánh trời và sương cho từng màn theo phong cách D (preset `pho_sang` cho Thứ Hai, `bep_sang` cho bếp). Bản web và bản PC dùng cùng màu, khác cường độ vì Compatibility tính sáng trong không gian sRGB. Bóng đổ: PC 2 tầng tới 42 m; web 1 tầng tới 26 m.
+`scripts/anh_sang.gd` dựng trời, nắng, ánh trời và sương cho từng màn theo phong cách D. Mỗi ngày chơi một buổi (`AnhSang.DAY_PRESET`): `pho_sang` Thứ Hai, `pho_cho` Thứ Ba, `pho_mua` Thứ Tư, `pho_trua` Thứ Năm, `pho_chieu` Thứ Sáu, `pho_hoang_hon` Thứ Bảy, `pho_toi` Chủ Nhật; `bep_sang` cho bếp. Thử một buổi: `-- --buoi=pho_mua`, thêm `--ngap` để thấy nước ngập.
+
+Thêm theo buổi (đo ở 8 góc phố, bản web):
+- Mưa (`scripts/thoi_tiet.gd`): hạt mưa và vòng bắn là hai GPUParticles3D đi theo camera (2 lệnh vẽ), vũng nước gộp một mesh, mặt ướt đổi vật liệu dùng chung một lần. Trời đục nên tắt bóng nắng: tổng lệnh vẽ còn khoảng một nửa buổi nắng.
+- Chiều tà, hoàng hôn (`scripts/den_toi.gd`): đèn lồng cả phố là một MultiMesh, chỉ 4 đèn thật (web) không bóng dời theo mèo. Nắng thấp làm bóng rất dài nên web rút tầm bóng còn 14–18 m.
+- Tối Chủ Nhật: không bóng nắng, đèn như trên. Bản web và bản PC dùng cùng màu, khác cường độ vì Compatibility tính sáng trong không gian sRGB. Bóng đổ: PC 2 tầng tới 42 m; web 1 tầng tới 26 m.

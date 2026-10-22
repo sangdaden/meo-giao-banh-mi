@@ -17,6 +17,16 @@ const GOALS := {
 	"vobanh": ["kip_ca_5", 1, "Giao kịp cả 5 đơn trong một ngày"],
 	"thantai": ["don_kip", 50, "Giao kịp đủ 50 đơn"],
 }
+## Đồ trang trí tiệm Cô Ba (tab "Tiệm"): bán lẻ theo giá phụ kiện hiếm (40.000đ boa/món, Sang duyệt 21/10).
+## Gói 4 món bằng tiền thật để sau bản điện thoại.
+const TIEM_RARITY := "hiem"
+## Món có độ hiếm "goi": chỉ có trong gói tiền thật (Sang duyệt 21/10), không bán bằng tiền boa.
+## Mặc thử miễn phí; tủ đồ ghi "Có trong gói ...". Cửa hàng tiền thật (Steam DLC / IAP) làm sau.
+const PACK := "goi"
+const PACKS := {
+	"giomay": "Giao Bánh Phố Cũ", "camen": "Giao Bánh Phố Cũ", "giodan": "Giao Bánh Phố Cũ",
+	"baolixi": "Tết", "canhmai": "Tết", "khanlen": "Tết", "huyhieu": "Ủng Hộ Lò Bánh",
+}
 ## Đồ sự kiện chỉ mở theo dịp (Tết, Trung thu, Halloween, sinh nhật), bản này chưa bán.
 const EVENT := "sukien"
 
@@ -39,6 +49,8 @@ static func bought() -> Array:
 
 ## Đã có món này chưa: đồ mặc định, đồ đã mua, hoặc đồ thành tích đã đạt.
 static func owned(id: String) -> bool:
+	if id in Tiem.IDS:
+		return Tiem.owned(id)
 	var r := rarity(id)
 	if r == "mac" or id in bought():
 		return true
@@ -53,6 +65,8 @@ static func is_breed(id: String) -> bool:
 
 
 static func rarity(id: String) -> String:
+	if id in Tiem.IDS:
+		return TIEM_RARITY
 	for b in Outfit.BREEDS:
 		if b[0] == id:
 			return b[3]
@@ -63,7 +77,7 @@ static func rarity(id: String) -> String:
 ## Giá của món, -1 nếu không bán (sự kiện, thành tích).
 static func price(id: String) -> int:
 	var r := rarity(id)
-	if r == EVENT or GOALS.has(id):
+	if r == EVENT or r == PACK or GOALS.has(id):
 		return -1
 	var table := PRICE_BREED if is_breed(id) else PRICE_ACC
 	return int(table.get(r, -1))
@@ -76,6 +90,8 @@ static func check(id: String) -> Dictionary:
 	if GOALS.has(id):
 		var g: Array = GOALS[id]
 		return {"ok": false, "text": "%s (%d/%d)" % [g[2], mini(stat(g[0]), g[1]), g[1]]}
+	if pack(id) != "":
+		return {"ok": false, "text": "Có trong gói " + pack(id)}
 	var p := price(id)
 	if p < 0:
 		return {"ok": false, "text": "Mở theo dịp lễ, chưa bán"}
@@ -90,10 +106,13 @@ static func check(id: String) -> Dictionary:
 static func buy(id: String) -> bool:
 	if not check(id).ok:
 		return false
-	var list := bought().duplicate()
-	list.append(id)
-	GameState.set_global("da_mua", list)
 	GameState.set_global("vi_tien_boa", wallet() - price(id))
+	if id in Tiem.IDS:
+		Tiem.grant(id)  # ghi tiem_da_mua và bày luôn
+	else:
+		var list := bought().duplicate()
+		list.append(id)
+		GameState.set_global("da_mua", list)
 	GameState.set_global("de_danh", wishlist().filter(func(x): return x != id))
 	GameState.write_save()
 	return true
@@ -106,6 +125,13 @@ static func wishlist() -> Array:
 
 static func wished(id: String) -> bool:
 	return id in wishlist()
+
+
+## Tên gói tiền thật chứa món này ("" nếu không phải đồ gói).
+static func pack(id: String) -> String:
+	if rarity(id) != PACK and not PACKS.has(id):
+		return ""
+	return PACKS.get(id, "trả phí")
 
 
 ## Thêm hoặc bỏ một món khỏi danh sách để dành, lưu ngay.
@@ -155,12 +181,19 @@ static func self_test() -> bool:
 	ok = ok and owned("kinhram") and wallet() == 5000 and not buy("kinhram")
 	ok = ok and not check("mubaohiem").ok and price("muphuthuy") == -1 and owned("khando")
 	ok = ok and money(110000) == "110.000đ"
+	# Đồ trang trí tiệm: giá hiếm, mua xong vào tiem_da_mua và tự bày; đồ gói không bán bằng tiền boa
+	GameState.set_global("vi_tien_boa", 50000)
+	ok = ok and price("chau_mai") == 40000 and buy("chau_mai") and Tiem.owned("chau_mai") and Tiem.shown("chau_mai")
+	ok = ok and wallet() == 10000 and not ("chau_mai" in bought()) and not check("chau_mai").ok
+	ok = ok and pack("camen") == "Giao Bánh Phố Cũ" and not check("camen").ok and price("camen") == -1
 	toggle_wish("munlen")
 	ok = ok and wished("munlen") and wish_ready() == 0
 	toggle_wish("munlen")
 	ok = ok and not wished("munlen")
 	GameState.set_global("da_mua", bought().filter(func(x): return x != "kinhram"))
 	GameState.set_global("vi_tien_boa", before)
+	GameState.set_global("tiem_da_mua", GameState.get_global("tiem_da_mua", []).filter(func(x): return x != "chau_mai"))
+	GameState.set_global("tiem_dang_bay", GameState.get_global("tiem_dang_bay", []).filter(func(x): return x != "chau_mai"))
 	if not ok:
 		push_error("Shop: tự kiểm tra mua đồ sai")
 	return ok

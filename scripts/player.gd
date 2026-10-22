@@ -543,7 +543,9 @@ func apply_outfit(worn := {}) -> void:
 			n.queue_free()
 	_acc_nodes.clear()
 	var is_bo := breed == "bo" and not _cai_model  # Bơ chuẩn có sẵn khăn và túi dựng trong code
-	_wear_bag = is_bo and worn.get("back", "") == "tuibanh"
+	# Túi bánh làm kỹ (22/10) có model phụ kiện: Bơ đực đeo bản đó như mọi giống, túi khối hộp trong code chỉ còn
+	# hiện khi mang bánh mà không đeo túi, giỏ nào
+	_wear_bag = is_bo and worn.get("back", "") == "tuibanh" and not OutfitView.has_model("tuibanh")
 	if _scarf_mesh:
 		if _hidden_mat == null:
 			_hidden_mat = StandardMaterial3D.new()
@@ -556,7 +558,7 @@ func apply_outfit(worn := {}) -> void:
 	_acc_lift = 0.0
 	for slot in worn:
 		var id: String = worn[slot]
-		if id == "" or (is_bo and (id == "tuibanh" or (id == "khando" and not OutfitView.has_model("khando")))):
+		if id == "" or (is_bo and id in ["tuibanh", "khando"] and not OutfitView.has_model(id)):
 			continue
 		_acc_nodes.append_array(OutfitView.attach(_skel, id, breed, sex if _cai_model else "duc"))
 		_ears_down = _ears_down or OutfitView.ears_down(id)

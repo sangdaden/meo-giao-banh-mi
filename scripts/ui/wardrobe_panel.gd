@@ -1,7 +1,7 @@
 class_name WardrobePanel
 extends Control
 ## Tủ đồ của Bơ (artboard 3). Bên trái: Bơ 3D trên bục, kéo chuột hoặc vuốt để xoay 360°,
-## lăn chuột để phóng to; sáu ô gắn phụ kiện. Bên phải: ba tab Giống mèo, Phụ kiện, Bộ đồ.
+## lăn chuột để phóng to; sáu ô gắn phụ kiện. Bên phải: bốn tab Giống mèo, Phụ kiện, Bộ đồ, Tiệm (đồ trang trí tiệm Cô Ba, Tiem).
 ## Danh mục và đồ đang mặc nằm ở Outfit. Món khoá mà đã có model (assets/models/skin, xem OutfitView)
 ## thì bấm để mặc thử trên bục: chỉ xem trước, "Xong" trả Bơ về đồ đã có. Món chưa xuất model hiện "Đang dựng".
 ## Đang thử món còn khoá thì chân trang có "Để dành" (lưu lại mua sau) và "Mua · giá" (tiền boa trong ví, Shop).
@@ -16,13 +16,21 @@ const TAGS := {
 	"hiem": ["#2E7C80", "#FFF8EA"],
 	"dacbiet": ["#D98E2B", "#2A1A05"],
 	"sukien": ["#C8412F", "#FFF8EA"],
+	"goi": ["#3F8A5C", "#FFF8EA"],
 }
-const TAB_NAMES := ["Giống mèo · 19", "Phụ kiện · 35", "Bộ đồ · 8"]
+const TAB_NAMES := ["Giống mèo · 19", "Phụ kiện · 35", "Bộ đồ · 8", "Tiệm · 4"]
 const NOTES := [
 	"Bấm giống mèo khoá để xem thử trên bục, đủ tiền boa thì bấm Mua. Giống đã có bấm để chọn.",
 	"Bấm món đã có để đeo hoặc tháo. Món khoá bấm để mặc thử, đủ tiền boa thì bấm Mua.",
 	"Bộ còn khoá thì mặc thử cả bộ trên bục. Bấm Xong để trả về đồ đã có.",
+	"Đồ trang trí tiệm Cô Ba, chỉ để ngắm. Món khoá bấm để xem, đủ tiền boa thì bấm Mua. Món đã có bấm để bày hoặc cất.",
 ]
+const TIEM_DESC := {
+	"meo_vay_tay": "Đặt trên quầy Cô Ba, vẫy tay đón khách.",
+	"chau_mai": "Đặt cạnh xe bánh mì trong bếp.",
+	"den_long_tiem": "Hai chiếc treo trong bếp và dưới mái hiên Lò bánh, chiều tối thì sáng.",
+	"bang_hieu_go": "Treo ở tường bếp và cạnh cửa Lò bánh.",
+}
 
 var tab := 0
 var slot_filter := ""
@@ -46,6 +54,12 @@ var _buy_id := ""
 ## Đồ mặc thử trên bục theo ô (chưa sở hữu, không mang vào màn chơi) và giống đang xem thử ("" = Bơ).
 var _try := {}
 var _try_breed := ""
+## Tab Tiệm: món đang xem trên bục (bục đổi thành khung ảnh món) và món đang xem thử (chưa mua)
+var _tiem_pick := ""
+var _try_tiem := ""
+var _tiem_view: PanelContainer
+var _tiem_img: TextureRect
+var _tiem_cap: Label
 
 
 func _ready() -> void:
@@ -66,6 +80,24 @@ func _ready() -> void:
 	preview.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	preview.offset_bottom = -210
 	left.add_child(preview)
+	# Tab Tiệm: thay bục mèo bằng khung ảnh món trang trí
+	_tiem_view = PanelContainer.new()
+	_tiem_view.add_theme_stylebox_override("panel", T.box(T.PAPER, 22, 18, T.INK, 3, 6))
+	T.place(_tiem_view, 0.0, 0.0, Rect2(40, 150, 420, 300))
+	_tiem_view.visible = false
+	var tv := VBoxContainer.new()
+	tv.add_theme_constant_override("separation", 6)
+	_tiem_view.add_child(tv)
+	_tiem_img = TextureRect.new()
+	_tiem_img.custom_minimum_size = Vector2(0, 220)
+	_tiem_img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_tiem_img.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tv.add_child(_tiem_img)
+	_tiem_cap = T.label("", 14, T.MUTED, "bold")
+	_tiem_cap.autowrap_mode = TextServer.AUTOWRAP_WORD
+	_tiem_cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tv.add_child(_tiem_cap)
+	left.add_child(_tiem_view)
 	var edge := ColorRect.new()
 	edge.color = T.INK
 	edge.anchor_bottom = 1.0
@@ -215,12 +247,13 @@ func _shown() -> Dictionary:
 
 
 func _trying() -> bool:
-	return not _try.is_empty() or _try_breed != ""
+	return not _try.is_empty() or _try_breed != "" or _try_tiem != ""
 
 
 func _clear_try() -> void:
 	_try.clear()
 	_try_breed = ""
+	_try_tiem = ""
 	_buy_id = ""
 
 
@@ -232,6 +265,9 @@ func _buy_tried() -> void:
 	if Shop.is_breed(id):
 		_try_breed = ""
 		_note.text = "Đã mua %s! Bấm vào ô giống mèo để chọn khi muốn đổi." % _breed(id)[1]
+	elif id in Tiem.IDS:
+		_try_tiem = ""
+		_note.text = "Đã mua %s! Đã bày trong tiệm Cô Ba, bấm vào ô để cất khi muốn." % Tiem.NAMES[id].to_lower()
 	else:
 		var a := Outfit.acc(id)
 		_try.erase(a[3])
@@ -245,7 +281,7 @@ func _wish_tried() -> void:
 	if _buy_id == "":
 		return
 	Shop.toggle_wish(_buy_id)
-	var name: String = _breed(_buy_id)[1] if Shop.is_breed(_buy_id) else Outfit.acc(_buy_id)[1].to_lower()
+	var name: String = _breed(_buy_id)[1] if Shop.is_breed(_buy_id) else (Tiem.NAMES[_buy_id].to_lower() if _buy_id in Tiem.IDS else Outfit.acc(_buy_id)[1].to_lower())
 	_note.text = ("Đã để dành %s. Khi đủ tiền boa, ô này hiện \"Đủ tiền\"." % name) if Shop.wished(_buy_id) else ("Đã bỏ %s khỏi danh sách để dành." % name)
 	_refresh()
 
@@ -254,6 +290,8 @@ func _wish_tried() -> void:
 func _lock_text(id: String, model: bool) -> String:
 	if not model:
 		return "Khoá · đang dựng"
+	if Shop.pack(id) != "":
+		return "Có trong gói " + Shop.pack(id)
 	var p := Shop.price(id)
 	if Shop.wished(id):
 		return ("Đủ tiền · " if Shop.check(id).ok else "Để dành · ") + Shop.money(p)
@@ -305,13 +343,13 @@ func _refresh() -> void:
 	if wl > 0:
 		var ready := Shop.wish_ready()
 		_wallet.text += " · để dành %d món%s" % [wl, (", %d món đủ tiền" % ready) if ready > 0 else ""]
-	var still_tried := _buy_id != "" and (_try_breed == _buy_id or _try.values().has(_buy_id))
+	var still_tried := _buy_id != "" and (_try_breed == _buy_id or _try.values().has(_buy_id) or _try_tiem == _buy_id)
 	_buy.visible = still_tried and not Shop.owned(_buy_id)
 	_wish.visible = _buy.visible and Shop.price(_buy_id) > 0
 	if _buy.visible:
 		var c := Shop.check(_buy_id)
 		# Điều kiện dài (thành tích, dịp lễ) ghi ở dòng ghi chú, nút chỉ ghi ngắn để giữ chiều cao bình thường
-		_buy.text = c.text if c.ok or c.text.length() <= 16 else "Chưa mở được"
+		_buy.text = c.text if c.ok or c.text.length() <= 16 else ("Có trong gói" if Shop.pack(_buy_id) != "" else "Chưa mở được")
 		_buy.tooltip_text = c.text
 		_buy.disabled = not c.ok
 		_wish.text = "Bỏ để dành" if Shop.wished(_buy_id) else "Để dành"
@@ -355,6 +393,17 @@ func _refresh() -> void:
 			grid.columns = 2
 			for s in Outfit.SETS:
 				grid.add_child(_set_card(s))
+		3:
+			grid.columns = 4
+			for id in Tiem.IDS:
+				grid.add_child(_tiem_tile(id))
+	_tiem_view.visible = tab == 3
+	preview.visible = tab != 3
+	if tab == 3:
+		var pick := _try_tiem if _try_tiem != "" else (_tiem_pick if _tiem_pick != "" else Tiem.IDS[0])
+		_tiem_img.texture = load(TIEM_ICON % pick)
+		var st := "Đang xem thử · " if pick == _try_tiem else ("Đang bày · " if Tiem.shown(pick) else ("Đã có, đang cất · " if Tiem.owned(pick) else ""))
+		_tiem_cap.text = "%s\n%s%s" % [Tiem.NAMES[pick], st, TIEM_DESC[pick]]
 	_list = grid
 	_scroll.add_child(grid)
 	_scroll.set_deferred("scroll_vertical", keep_scroll)
@@ -580,6 +629,53 @@ func _acc_tile(a: Array) -> Button:
 			_note.text = ("Đã bỏ thử %s." % a[1].to_lower()) if tried else ("Đang mặc thử %s · %s." % [a[1].to_lower(), Shop.check(a[0]).text])
 		else:
 			_note.text = "%s (ô %s) đang được dựng trong Blender, sắp có." % [a[1], Outfit.slot_name(a[3])])
+	return b
+
+
+const TIEM_ICON := "res://assets/textures/tiem/%s.png"
+
+
+## Ô món trang trí tiệm: ảnh món, tên, độ hiếm. Đã có thì bấm để bày/cất; chưa có thì bấm để xem thử.
+func _tiem_tile(id: String) -> Button:
+	var own := Tiem.owned(id)
+	var on := Tiem.shown(id)
+	var tried := _try_tiem == id
+	var b := _tile_button(Vector2(150, 190), on)
+	b.tooltip_text = "%s · %s" % [Tiem.NAMES[id], TIEM_DESC[id]]
+	var v := _tile_body(b)
+	var img := TextureRect.new()
+	img.texture = load(TIEM_ICON % id)
+	img.custom_minimum_size = Vector2(0, 104)
+	img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	img.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	img.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.add_child(img)
+	v.add_child(_name_label(Tiem.NAMES[id]))
+	v.add_child(_tag(Shop.rarity(id)))
+	if own:
+		var p := PanelContainer.new()
+		p.add_theme_stylebox_override("panel", T.box(T.AMBER if on else T.SAND, 8, 4, Color(0, 0, 0, 0), 0))
+		p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		p.anchor_right = 1.0
+		p.offset_left = 8
+		p.offset_right = -8
+		p.offset_top = 8
+		var badge := T.label("Đang bày" if on else "Đang cất · bấm để bày", 10, T.ON_CRUST if on else T.INK, "bold")
+		badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		p.add_child(badge)
+		b.add_child(p)
+	else:
+		_lock_cover(b, v, _lock_text(id, true), tried)
+	b.pressed.connect(func():
+		_tiem_pick = id
+		if own:
+			Tiem.set_shown(id, not on)
+			_note.text = "%s %s." % ["Đã bày" if not on else "Đã cất", Tiem.NAMES[id].to_lower()]
+		else:
+			_try_tiem = "" if tried else id
+			_buy_id = "" if tried else id
+			_note.text = ("Đã bỏ xem thử %s." % Tiem.NAMES[id].to_lower()) if tried else ("Đang xem thử %s · %s." % [Tiem.NAMES[id].to_lower(), Shop.check(id).text])
+		_refresh())
 	return b
 
 

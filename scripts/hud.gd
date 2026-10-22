@@ -757,8 +757,8 @@ const HELP_NOTE_PHO := "Tay cầm: cần trái chạy, A nhảy, Start mở menu
 
 
 ## Menu Esc dùng chung cho phố, bếp và leo chung cư: thẻ giấy giữa màn hình với Tiếp tục, Chơi lại,
-## Cài đặt, Chọn màn chơi, Về trang chủ; bên phải là thẻ "Cách chơi" của màn đó.
-## Chơi lại phát restart_pressed (màn nào không nối thì tải lại cảnh); Chọn màn chơi phát menu_pressed.
+## Cài đặt, Chọn ngày, Về trang chủ; bên phải là thẻ "Cách chơi" của màn đó.
+## Chơi lại phát restart_pressed (màn nào không nối thì tải lại cảnh); Chọn ngày phát menu_pressed.
 func _build_pause(help := HELP_PHO, note := HELP_NOTE_PHO) -> Control:
 	if settings == null:
 		settings = SettingsPanel.new()
@@ -802,7 +802,7 @@ func _build_pause(help := HELP_PHO, note := HELP_NOTE_PHO) -> Control:
 	var st := T.button("  Cài đặt", "secondary", 56, 19)
 	st.pressed.connect(func(): settings.open())
 	col.add_child(st)
-	var pick := T.button("  Chọn màn chơi", "secondary", 56, 19)
+	var pick := T.button("  Chọn ngày", "secondary", 56, 19)
 	pick.pressed.connect(_on_menu_select)
 	col.add_child(pick)
 	var home := T.button("  Về trang chủ", "secondary", 56, 19)
@@ -1046,15 +1046,29 @@ func _build_results(rows: Array, summary := {}) -> Control:
 	var foot := HBoxContainer.new()
 	foot.add_theme_constant_override("separation", 14)
 	v.add_child(foot)
-	var again := T.button("  Chơi lại ca", "primary", 58, 20)
+	# Chơi liền các ngày: Enter sang ngày kế, Chơi lại ca thành nút phụ, Về menu về thẳng trang chủ.
+	var first: Button
+	if PlayMode.continuous:
+		var next := T.button("  " + PlayMode.next_label(), "primary", 58, 20)
+		next.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		next.pressed.connect(func(): PlayMode.go_next_day(get_tree()))
+		_add_key_hint(next, "Enter", T.ON_CRUST)
+		foot.add_child(next)
+		first = next
+	var again := T.button("  Chơi lại ca", "secondary" if PlayMode.continuous else "primary", 58, 20)
 	again.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	again.pressed.connect(func(): restart_pressed.emit())
-	_add_key_hint(again, "Enter", T.ON_CRUST)
+	if not PlayMode.continuous:
+		_add_key_hint(again, "Enter", T.ON_CRUST)
+		first = again
 	foot.add_child(again)
 	var home := T.button("Về menu", "secondary", 58, 20)
-	home.pressed.connect(func(): menu_pressed.emit())
+	if PlayMode.continuous:
+		home.pressed.connect(func(): PlayMode.go_home(get_tree()))
+	else:
+		home.pressed.connect(func(): menu_pressed.emit())
 	foot.add_child(home)
-	again.grab_focus.call_deferred()
+	first.grab_focus.call_deferred()
 	return scr
 
 

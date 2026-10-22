@@ -4,7 +4,7 @@ extends CanvasLayer
 ## Sổ hàng xóm mở bằng Tab (mỗi người một trang: ảnh dán, việc nhờ, quà), bảng chọn (nhân bánh Cô Ba)
 ## và bảng cuối ngày. Trang sổ thật (giấy, ảnh dán, tim) chờ phác thảo G8; đây là bản giao diện tạm cùng màu UiTheme.
 
-signal end_closed(action: String)   ## "menu" | "again" | "roam"
+signal end_closed(action: String)   ## "menu" | "home" | "next" | "again" | "roam"
 
 const T = preload("res://scripts/ui/ui_theme.gd")
 
@@ -282,9 +282,15 @@ func show_end(lines: Array) -> void:
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 12)
 	v.add_child(h)
-	var menu := T.button("Về chọn màn", "primary", 60)
+	# Chơi liền các ngày: nút chính sang ngày kế; chơi thử từ màn Chọn ngày thì nút chính về đó.
+	var menu: Button
+	if PlayMode.continuous:
+		menu = T.button(PlayMode.next_label(), "primary", 60)
+		menu.pressed.connect(func(): end_closed.emit("next"))
+	else:
+		menu = T.button("Về chọn ngày", "primary", 60)
+		menu.pressed.connect(func(): end_closed.emit("menu"))
 	menu.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	menu.pressed.connect(func(): end_closed.emit("menu"))
 	h.add_child(menu)
 	var roam := T.button("Dạo tiếp", "secondary", 60)
 	roam.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -292,6 +298,10 @@ func show_end(lines: Array) -> void:
 		_end.visible = false
 		end_closed.emit("roam"))
 	h.add_child(roam)
+	if PlayMode.continuous:
+		var home := T.button("Về menu", "secondary", 60)
+		home.pressed.connect(func(): end_closed.emit("home"))
+		h.add_child(home)
 	_end.visible = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	T.wire_clicks(_end)

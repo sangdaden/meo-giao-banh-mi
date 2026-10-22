@@ -375,6 +375,7 @@ func _end_day() -> void:
 	player.play_clip("chup_nam")
 	GameState.set_day("thu_moi", true, DAY)
 	GameState.set_day("so_lan_choi", int(GameState.get_day("so_lan_choi", 0, DAY)) + 1, DAY)
+	PlayMode.day_done(DAY)  # chơi liền các ngày: lần sau Bắt đầu là Chủ Nhật (hay Tuần mới)
 	GameState.write_save()
 	toast("Mèo lạ trên mái: \"Tối mai Hội mèo ở công viên nha, đây là thư mời của Bơ!\"", 3.5)
 	var n := SoHangXom.hearts()
@@ -399,6 +400,12 @@ func _end_day() -> void:
 func _on_end_closed(action: String) -> void:
 	if action == "menu":
 		PlayMode.back_to_menu(get_tree())
+		return
+	if action == "home":
+		PlayMode.go_home(get_tree())
+		return
+	if action == "next":
+		PlayMode.go_next_day(get_tree())
 		return
 	# Dạo tiếp: trời giữ hoàng hôn, muốn kết lại thì rời bồn nước rồi quay lại
 	_ended = false

@@ -1,0 +1,388 @@
+<title>Mèo Hội mèo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Be+Vietnam+Pro:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Bố cục: tờ dáng hoạt hình (model sheet) của gói G10 — khung xem 3D ghim trên, rồi Bà Mướp, 7 mèo, so cỡ, rig, động tác, duyệt, bàn giao */
+:root {
+  --bg: #EFF3F1; --paper: #FFFFFF; --ink: #1F2B29; --muted: #5C6E6A; --line: #CBDCD7;
+  --lantern: #B8402C; --plum: #7E3550; --gold: #A9811C; --teal: #2E7C80; --tealsoft: #DCEDEA; --stage: #9CCBC1;
+  --f-display: "Baloo 2", "Trebuchet MS", system-ui, sans-serif;
+  --f-body: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #131A1C; --paper: #1B2427; --ink: #E5EDEB; --muted: #97ABA6; --line: #2F3F40;
+  --lantern: #EE7A5E; --plum: #D58AA8; --gold: #E2BC55; --teal: #6FC0C3; --tealsoft: #1F3533; --stage: #26403C; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #131A1C; --paper: #1B2427; --ink: #E5EDEB; --muted: #97ABA6; --line: #2F3F40;
+  --lantern: #EE7A5E; --plum: #D58AA8; --gold: #E2BC55; --teal: #6FC0C3; --tealsoft: #1F3533; --stage: #26403C; color-scheme: dark }
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.6; margin: 0 }
+.wrap { max-width: 1180px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 64px; display: grid; gap: 40px }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; line-height: 1.15 }
+h1 { font-size: clamp(30px, 5vw, 46px); font-weight: 800 }
+h2 { font-size: 30px; font-weight: 800; color: var(--lantern) }
+h3 { font-size: 22px; font-weight: 700 }
+p { margin: 0; max-width: 70ch }
+code { font-family: var(--f-mono); font-size: 12.5px }
+.eyebrow { font-family: var(--f-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted) }
+.status { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: 13px; color: var(--lantern); border: 1.5px solid var(--lantern); border-radius: 999px; padding: 2px 12px }
+.status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--lantern) }
+header.top { display: grid; gap: 14px }
+.lede { font-size: 17px }
+.facts { display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: 13.5px; color: var(--muted) }
+.facts b { color: var(--ink); font-variant-numeric: tabular-nums }
+.sec { display: grid; gap: 18px; scroll-margin-top: 16px }
+.sh { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; border-bottom: 3px solid var(--lantern); padding-bottom: 6px }
+.sh p { color: var(--muted); font-size: 14px }
+.sm { font-size: 13px; color: var(--muted) }
+.toc { display: flex; flex-wrap: wrap; gap: 6px 18px; list-style: none; margin: 0; padding: 0; font-size: 14px }
+.toc a { color: var(--teal) }
+
+.viewer { display: grid; grid-template-columns: minmax(0, 1fr) 320px; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; overflow: hidden }
+.stage { position: relative; background: var(--stage); aspect-ratio: 4 / 3; max-width: 100% }
+.stage canvas { display: block; width: 100%; height: 100% }
+.stage .hint { position: absolute; left: 12px; bottom: 10px; font-size: 12px; color: #1F2B29; background: rgba(255,255,255,.75); padding: 2px 8px; border-radius: 6px }
+.stage .load { position: absolute; inset: 0; display: grid; place-items: center; color: #1F2B29; font-weight: 600; text-align: center; padding: 16px }
+.panel { padding: 16px; display: grid; gap: 14px; align-content: start; border-left: 1px solid var(--line); min-width: 0 }
+.tabs { display: flex; gap: 6px }
+.tabs button, .ab, .play, .ctl button { font: inherit; font-size: 13px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); border-radius: 8px; padding: 5px 10px; cursor: pointer }
+.tabs button[aria-pressed="true"], .ctl button[aria-pressed="true"] { background: var(--teal); border-color: var(--teal); color: var(--paper) }
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px }
+.ab:hover, .play:hover { border-color: var(--teal) }
+.ab[aria-current="true"] { background: var(--lantern); border-color: var(--lantern); color: #fff }
+.gb { display: flex; flex-wrap: wrap; gap: 5px }
+.now { display: grid; gap: 2px }
+.now .nt { font-family: var(--f-display); font-size: 21px; font-weight: 700 }
+.now .nd { font-family: var(--f-mono); font-size: 12px; color: var(--muted) }
+.ctl { display: flex; gap: 8px; flex-wrap: wrap; align-items: center }
+
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 22px }
+.block { display: grid; gap: 16px; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 20px }
+.gal { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px }
+.gal4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px }
+figure { margin: 0; display: grid; gap: 2px; min-width: 0 }
+figure img { width: 100%; height: auto; display: block; border-radius: 8px; background: var(--stage); cursor: zoom-in }
+figcaption { font-size: 12px; color: var(--muted) }
+.ms { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 14px; margin: 0 }
+.ms div { display: grid; border-top: 1px solid var(--line); padding-top: 4px }
+.ms dt { font-size: 11.5px; color: var(--muted) }
+.ms dd { margin: 0; font-family: var(--f-mono); font-size: 14px; font-variant-numeric: tabular-nums }
+.tw { overflow-x: auto }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px }
+th, td { text-align: left; padding: 6px 10px 6px 0; border-bottom: 1px solid var(--line); vertical-align: top }
+th { font-family: var(--f-mono); font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted) }
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--f-mono); font-size: 12.5px }
+.pal { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 6px 16px; font-size: 13.5px }
+.sw { display: inline-block; width: 16px; height: 16px; border-radius: 4px; background: var(--c); border: 1px solid var(--line); vertical-align: -3px; margin-right: 8px }
+
+.cats { display: grid; gap: 18px }
+.cat { display: grid; gap: 12px; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 18px; scroll-margin-top: 16px }
+.ch { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap }
+.tag { font-size: 13px; color: var(--muted) }
+.cinfo { display: grid; gap: 8px; font-size: 14.5px }
+
+.anim { display: grid; gap: 12px; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 18px; scroll-margin-top: 16px }
+.ah { display: flex; justify-content: space-between; align-items: baseline; gap: 10px 20px; flex-wrap: wrap }
+.ah-t { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap }
+.id { color: var(--muted) }
+.timing { display: flex; gap: 6px 14px; font-family: var(--f-mono); font-size: 12.5px; color: var(--muted); flex-wrap: wrap }
+.timing .dur { color: var(--lantern); font-weight: 600 }
+.play { margin-left: auto; font-weight: 600; color: var(--teal); border-color: var(--teal) }
+.strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--stage) }
+.key { position: relative; border-right: 1px solid var(--line) }
+.key:last-child { border-right: 0 }
+.key img { border-radius: 0 }
+.key figcaption { position: absolute; left: 6px; top: 6px; display: flex; gap: 6px; font-family: var(--f-mono); font-size: 11.5px }
+.key .t { background: var(--lantern); color: #fff; border-radius: 4px; padding: 0 6px }
+.key .f { background: rgba(255,255,255,.85); color: #1F2B29; border-radius: 4px; padding: 0 6px }
+.cols { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 18px; align-items: start }
+.txt { display: grid; gap: 10px; font-size: 14.5px; min-width: 0 }
+.gm { color: var(--muted) }
+.views { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px }
+.wide img { width: 100%; border-radius: 10px; display: block; cursor: zoom-in }
+.bones svg { width: 100%; max-width: 640px; height: auto }
+.bones .bl { fill: none; stroke: var(--line); stroke-width: 1.5 }
+.bones .bd { fill: var(--lantern) }
+.bones .bt { font-family: var(--f-mono); font-size: 12.5px; fill: var(--ink) }
+.bones .br { font-family: var(--f-body); font-size: 12px; fill: var(--muted) }
+ol.q { display: grid; gap: 10px; margin: 0; padding-left: 22px; max-width: 75ch }
+ul.ck { margin: 0; padding-left: 20px; display: grid; gap: 4px }
+dialog { border: 0; padding: 0; background: transparent; max-width: 96vw }
+dialog img { max-width: 96vw; max-height: 90vh; border-radius: 10px; display: block }
+dialog::backdrop { background: rgba(0,0,0,.7) }
+@media (max-width: 900px) {
+  .viewer { grid-template-columns: 1fr } .panel { border-left: 0; border-top: 1px solid var(--line) }
+  .two, .cols { grid-template-columns: 1fr }
+}
+@media (max-width: 560px) {
+  .gal, .gal4, .strip, .views { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  .ms { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  .play { margin-left: 0 }
+}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <span class="eyebrow">Mèo Giao Bánh Mì · Gói phác thảo G10 · Chủ Nhật</span>
+    <h1>Mèo Hội mèo</h1>
+    <div><span class="status">Chờ Sang duyệt</span></div>
+    <p class="lede">Tám mèo của Hội mèo khu phố tối Chủ Nhật: Bà Mướp là mèo mới (chủ hội), bảy con còn lại lấy từ 19 giống đã có trong tủ đồ, mỗi con đeo một món khác nhau. Model dựng thật trong Blender theo phong cách D, qua đủ quy trình duyệt mèo (tỉ lệ, đuôi 4 xương, 6 dáng chạy), có bản game rig 22 xương, bản nhẹ cho web và 13 động tác mới.</p>
+    <div class="facts">
+      <span>Bà Mướp phác thảo <b>%%BM_SK%%</b> tam giác</span>
+      <span>bản game <b>%%BM_GAME%%</b> · bản nhẹ web <b>%%BM_NHE%%</b> (kể cả đồ)</span>
+      <span>Lưới: ô <b>10 cm</b>, vạch đậm <b>50 cm</b></span>
+      <span>Bơ cao <b>0,60 m</b> tới chóp tai</span>
+    </div>
+    <ul class="toc">
+      <li><a href="#ba-muop">Bà Mướp</a></li><li><a href="#bay-meo">7 mèo trong hội</a></li><li><a href="#so-co">So cỡ</a></li>
+      <li><a href="#rig">Rig</a></li><li><a href="#dong-tac">Động tác</a></li><li><a href="#duyet">Duyệt theo quy trình</a></li>
+      <li><a href="#game">Bản game và web</a></li><li><a href="#canh">Cảnh dùng</a></li><li><a href="#hoi">Cần Sang chốt</a></li>
+    </ul>
+  </header>
+
+  <section class="viewer" aria-label="Khung xem 3D">
+    <div class="stage" id="stage"><div class="load" id="load">Đang tải model 3D…</div><span class="hint">Kéo để xoay · cuộn để phóng</span></div>
+    <div class="panel">
+      <div class="tabs" role="group" aria-label="Chế độ xem">
+        <button type="button" id="tcat" aria-pressed="true">Mèo (phác thảo)</button>
+        <button type="button" id="tani" aria-pressed="false">Động tác</button>
+      </div>
+      <div class="now"><span class="nt" id="nt">Bà Mướp</span><span class="nd" id="nd"></span></div>
+      <div id="pcat" class="gb">%%CATBTN%%</div>
+      <div id="pani" class="gb" hidden>%%ANBTN%%</div>
+      <div class="ctl" id="actl" hidden><button type="button" id="bplay" aria-pressed="true">Dừng</button><span class="sm">Động tác chạy trên Bà Mướp bản nhẹ web (không gắn đồ), cùng rig với mọi mèo.</span></div>
+      <p class="sm" id="pnote">Model phác thảo đầy đủ chi tiết, đã giảm tam giác cho trang. Mèo nhìn về phía trước (trục Z).</p>
+    </div>
+  </section>
+
+  <section class="sec" id="ba-muop">
+    <div class="sh"><h2>Bà Mướp · chủ hội</h2><p>Mèo mới · mèo ta mướp xám già · cái · chậm rãi, hay cười</p></div>
+    <div class="gal">%%BM_GAL%%</div>
+    <div class="two">
+      <div class="block">
+        <h3>Hình dáng</h3>
+        <p>Dáng mèo ta trưởng thành của Bơ, nhưng già và đầy đặn: thân rộng thêm 15%, bụng xệ nhẹ, chân thấp hơn 5%, đầu cúi 2°. Lông xám vằn đã bạc màu, mõm, cằm và lông mày lấm tấm bạc. Mắt nhỏ hơn Bơ 8%, mí trên che 16% (Bơ 8%) nhưng mí dưới đẩy lên nên mắt cười hiền, đuôi mắt vẫn hếch theo hướng dẫn D, không xệ. Kính lão nửa vầng trăng đeo trễ xuống sống mũi để bà nhìn qua mép kính, dây kính hạt cườm, khăn choàng len màu mận làm màu nhấn.</p>
+        %%BM_MEAS%%
+        <p class="sm">Số đo cùng cách đo với 19 giống đã duyệt (Bơ: 0,60 m cao, đuôi 0,31 m, tỉ lệ 0,60). Mèo cái nhỏ hơn bản đực 7%.</p>
+      </div>
+      <div class="block">
+        <h3>Bảng màu</h3>
+        <ul class="pal">%%PAL%%</ul>
+        <p class="sm">Chất liệu: lông Roughness 0,78, Sheen 0,45; khăn len Roughness 0,9, Sheen 1; kính kim loại Roughness 0,32; tròng mắt Coat 1.</p>
+      </div>
+    </div>
+    <div class="block">
+      <h3>Tách bộ phận</h3>
+      <div class="tw"><table><thead><tr><th>Bộ phận</th><th>Hình khối</th><th>Kích thước</th><th class="n">Tam giác (phác thảo)</th><th>Màu, vật liệu</th><th>Gắn xương</th></tr></thead><tbody>%%BM_ROWS%%</tbody></table></div>
+      <p class="sm">Trạng thái: kính và khăn không đổi trạng thái; mắt chớp và híp cười bằng co giãn xương eye_L/eye_R (không có xương hàm, miệng không mở).</p>
+    </div>
+  </section>
+
+  <section class="sec" id="bay-meo">
+    <div class="sh"><h2>Bảy mèo trong hội</h2><p>Lấy nguyên giống đã duyệt trong tủ đồ, chỉ thêm tên, tính cách và một món đồ riêng</p></div>
+    <div class="cats">%%CARDS%%</div>
+  </section>
+
+  <section class="sec" id="so-co">
+    <div class="sh"><h2>So cỡ cả hội</h2><p>Từ trái: Bơ, Bà Mướp, Mít, Bột, Mun, Tuyết, Lạc, Gừng, Sữa (bản game)</p></div>
+    <figure class="wide">%%HANG1%%<figcaption>Nhìn thẳng, chiếu song song, lưới 10 cm</figcaption></figure>
+    <figure class="wide">%%HANG2%%<figcaption>Góc 3/4</figcaption></figure>
+    <div class="block"><div class="tw"><table><thead><tr><th>Mèo</th><th>Giống</th><th>Giới</th><th class="n">Cao (m)</th><th class="n">Đầu + thân (m)</th><th class="n">Đuôi (m)</th><th class="n">Đuôi : thân</th><th class="n">Tam giác game</th><th class="n">Bản nhẹ web</th></tr></thead><tbody>%%MT%%</tbody></table></div>
+    <p class="sm">Đuôi đo dọc đường cong. Xiêm dài hơn 15% (giới hạn của hướng dẫn D), Ba Tư và Ragdoll đuôi xù dày chứ không dài hơn. Tam giác tính cả phụ kiện.</p></div>
+  </section>
+
+  <section class="sec" id="rig">
+    <div class="sh"><h2>Rig</h2><p>Bộ xương chính thức 22 xương của Bơ + 2 xương mắt + xương khăn, đặt theo số đo của từng giống</p></div>
+    <div class="two">
+      <div class="block bones">%%SVG%%</div>
+      <div class="block">
+        <h3>Ghi chú rig</h3>
+        <ul class="ck">
+          <li>Tên xương trùng Bơ nên mọi động tác của Bơ (G2) và 13 động tác mới chạy được trên cả 8 mèo; game cộng phần chênh so với dáng nghỉ của từng giống như player.gd đang làm.</li>
+          <li>Đuôi 4 xương, mỗi đỉnh chia cho 2 đốt gần nhất, gần mông chuyển dần sang hông (công cụ tools/xuat_skin_game.py, như 19 giống).</li>
+          <li>Chân: 3 xương mỗi chân, IK 2 đoạn khi dựng động tác, đã nướng thành góc xương trong file động tác.</li>
+          <li>Đồ gắn: kính, vương miện, mũ, băng đô gắn xương head; khăn, chuông, nơ, dây kính gắn chest ở điểm neck; bảng chấm điểm (G11) gắn paw_FR; huy chương lúc trao gắn hai bàn chân trước.</li>
+          <li>Xương scarf để trống ở mèo hội (chỉ Bơ có khăn bay).</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="dong-tac">
+    <div class="sh"><h2>Động tác</h2><p>13 động tác mới cho mèo hội và Bà Mướp, cùng 6 động tác dùng lại của Bơ</p></div>
+    %%ANIMS%%
+    <div class="block">
+      <h3>Dùng lại từ G2 (đã duyệt, cùng rig)</h3>
+      <p>Chuyền túi tiếp sức, nhận huy chương và 3 dáng chụp ảnh của Bơ chạy y nguyên trên mèo hội, không cần làm lại.</p>
+      <div class="gal">%%REUSE%%</div>
+    </div>
+  </section>
+
+  <section class="sec" id="duyet">
+    <div class="sh"><h2>Duyệt theo quy trình mèo</h2><p>Chụp trong Godot bằng tools/chup_dang_meo.gd trên Bà Mướp bản game có đủ 3 món đồ</p></div>
+    <figure class="wide">%%DPC%%<figcaption>6 dáng chạy, bản PC (Forward+). Hàng trên: góc ngang. Hàng dưới: góc trên.</figcaption></figure>
+    <figure class="wide">%%DWEB%%<figcaption>6 dáng chạy, bản web (Compatibility)</figcaption></figure>
+    <div class="block">
+      <ul class="ck">
+        <li>Tỉ lệ: đuôi 0,29 m dọc đường cong, tỉ lệ 0,61 như Bơ cái đã duyệt; gốc 5,6 cm, chóp 4,1 cm; dáng nghỉ rủ xuống rồi cong lên.</li>
+        <li>Đuôi đổi dáng theo từng động tác, không rách lông, không xuyên thân; chân vung đúng chiều.</li>
+        <li>Màu: một lớp màu đỉnh COLOR_0; bản web đổi linear sang sRGB như các giống khác.</li>
+        <li>Mắt bản nhẹ giữ dày quanh mắt (nhóm đỉnh giữ mắt) nên vẫn thấy đồng tử.</li>
+        <li><code>godot --headless --path . -- --autotest</code> ra <b>AUTOTEST OK</b>.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="sec" id="game">
+    <div class="sh"><h2>Bản game và web</h2><p>Đã xuất sẵn trên nhánh, chưa có code nào dùng tới</p></div>
+    <div class="two">
+      <div class="block">
+        <h3>File</h3>
+        <ul class="ck">
+          <li><code>assets/models/skin/giong/bamuop_cai.glb</code>: Bà Mướp bản đủ, rig 25 xương.</li>
+          <li><code>assets/models/skin/phu_kien/kinhlao.glb, daykinh.glb, khanchoang.glb</code>: 3 món mới; skin.json có điểm gắn.</li>
+          <li><code>assets/models/skin/giong_nhe/</code>: 8 mèo hội bản nhẹ, thân ~5.900 tam giác, giữ nguyên xương và trọng số.</li>
+          <li><code>assets/models/skin/phu_kien_nhe/</code>: 10 món đồ của mèo hội, tối đa 700 tam giác mỗi bộ phận.</li>
+          <li><code>assets/models/meo_hoi_dong_tac.json</code>: 13 động tác mới, cùng định dạng bo_dong_tac.json.</li>
+          <li>Script dựng: <code>thiet-ke-man/goi-phac-thao/g10-hoi-meo/scripts/</code> (hoi.py, xuat_hoi.py, anims_hoi.py, export_hoi.py).</li>
+        </ul>
+      </div>
+      <div class="block">
+        <h3>Ráp vào Godot (luồng Chủ Nhật trong game)</h3>
+        <ul class="ck">
+          <li><code>meo_npc.gd</code> nạp <code>giong_nhe/&lt;giống&gt;_&lt;giới&gt;.glb</code>, quay 180° như player.gd, gắn đồ từ <code>phu_kien_nhe</code> theo điểm gắn trong skin.json.</li>
+          <li>Động tác đọc từ meo_hoi_dong_tac.json (và bo_dong_tac.json cho chuyền túi, huy chương, tạo dáng) bằng cùng cách cộng chênh dáng nghỉ của player.gd.</li>
+          <li>Gốc tọa độ ở giữa bụng trên mặt đất; collider capsule bán kính 0,15 m, cao 0,5 m, chỉ khựng ngắn khi Bơ chạm.</li>
+          <li>Ngân sách: 8 mèo bản nhẹ cộng đồ ~62k tam giác, trong mức 400k của bản web; dung lượng thêm ~2,3 MB.</li>
+          <li>Bà Mướp không có bản đực nên không hiện trong tủ đồ (tủ đồ chỉ liệt kê giống có bản đực).</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="canh">
+    <div class="sh"><h2>Cảnh dùng</h2><p>Tối Chủ Nhật: Bà Mướp ngồi thùng gỗ, khán giả quay về sân khấu, Bơ ngồi xem ở trước</p></div>
+    <figure class="wide">%%CANH%%<figcaption>Thùng gỗ và đèn lồng là khối tạm; mẫu thật thuộc gói G11 (sân hội và trò thi).</figcaption></figure>
+  </section>
+
+  <section class="sec" id="hoi">
+    <div class="sh"><h2>Cần Sang chốt</h2></div>
+    <div class="block">
+      <ol class="q">
+        <li><b>Bà Mướp:</b> dáng già hiền như vầy đã được chưa (mắt nhỏ, mí hiền, bụng xệ, lông bạc mõm, kính lão trễ mũi, khăn choàng mận)?</li>
+        <li><b>Đồ của 7 mèo:</b> Mít kính phi công, Bột khăn rằn, Mun vòng cổ chuông (để nghe tiếng khi trốn tìm), Tuyết vương miện, Lạc mũ sinh nhật, Gừng băng đô, Sữa hoa dâm bụt. Đổi món nào không?</li>
+        <li><b>Giới tính:</b> mình đặt Mít, Tuyết, Sữa và Bà Mướp là mèo cái, còn lại đực.</li>
+      </ol>
+      <p class="sm">Sau khi Sang duyệt, mình viết BAN-GIAO.md và chuyển cho luồng "Chủ Nhật trong game".</p>
+    </div>
+  </section>
+</div>
+<dialog id="zoom"><img id="zimg" alt=""></dialog>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+const DATA = %%DATA%%;
+const fmt = (x, d = 2) => x.toFixed(d).replace('.', ',');
+const dlg = document.getElementById('zoom'), zimg = document.getElementById('zimg');
+document.addEventListener('click', e => {
+  const im = e.target.closest('figure img');
+  if (im && dlg.showModal) { zimg.src = im.src; zimg.alt = im.alt; dlg.showModal(); }
+  else if (e.target === dlg || e.target === zimg) dlg.close();
+});
+const stage = document.getElementById('stage'), load = document.getElementById('load');
+let renderer, scene, camera, controls, mixer = null, clips = {}, action = null, playing = true, holder, loader, cache = {}, mode = 'cat', curA = null;
+const SEX = {duc: 'đực', cai: 'cái'};
+try {
+  renderer = new THREE.WebGLRenderer({antialias: true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  stage.prepend(renderer.domElement);
+  scene = new THREE.Scene(); scene.background = new THREE.Color(0x9CCBC1);
+  camera = new THREE.PerspectiveCamera(32, 4 / 3, 0.02, 40); camera.position.set(1.1, 0.6, 1.25);
+  controls = new THREE.OrbitControls(camera, renderer.domElement); controls.target.set(0, 0.28, 0); controls.enableDamping = true;
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x6f8f88, 0.75));
+  const sun = new THREE.DirectionalLight(0xfff4e6, 0.9); sun.position.set(1.2, 2.2, 1.2); sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02;
+  Object.assign(sun.shadow.camera, {left: -1, right: 1, top: 1, bottom: -1, near: 0.1, far: 6}); scene.add(sun);
+  const fill = new THREE.DirectionalLight(0xe6f0ff, 0.35); fill.position.set(-1.5, 1, -1); scene.add(fill);
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(6, 6), new THREE.ShadowMaterial({opacity: 0.18}));
+  ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+  const g1 = new THREE.GridHelper(3, 30, 0x5E9187, 0x7FB0A6); g1.material.transparent = true; g1.material.opacity = 0.55; scene.add(g1);
+  scene.add(new THREE.GridHelper(3, 6, 0x3F7268, 0x3F7268));
+  holder = new THREE.Group(); scene.add(holder);
+  loader = new THREE.GLTFLoader();
+} catch (e) { load.textContent = 'Trình duyệt này không mở được WebGL. Ảnh bên dưới vẫn đủ để duyệt.'; }
+
+function prep(root) {
+  root.traverse(o => {
+    if (o.isMesh) {
+      o.castShadow = true; o.receiveShadow = true;
+      (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { if (o.geometry.attributes.color) m.vertexColors = true; });
+    }
+  });
+}
+function get(file, cb) {
+  if (cache[file]) return cb(cache[file]);
+  load.hidden = false; load.textContent = 'Đang tải model 3D…';
+  loader.load(file, g => { prep(g.scene); cache[file] = g; load.hidden = true; cb(g); },
+    undefined, () => { load.hidden = false; load.textContent = 'Không tải được model 3D. Ảnh bên dưới vẫn đủ để duyệt.'; });
+}
+function show(root) { while (holder.children.length) holder.remove(holder.children[0]); holder.add(root); }
+function pickCat(id) {
+  if (!loader) return;
+  const c = DATA.cats.find(x => x.id === id); if (!c) return;
+  document.querySelectorAll('[data-cat]').forEach(b => b.setAttribute('aria-current', b.dataset.cat === id));
+  document.getElementById('nt').textContent = c.name;
+  document.getElementById('nd').textContent = `${c.breed} · ${SEX[c.sex]} · cao ${fmt(c.h)} m · đuôi ${fmt(c.tail)} m · ${c.accs.join(', ')}`;
+  get(`m/${id}.json`, g => { if (mode === 'cat') show(g.scene); });
+}
+function pickAnim(name) {
+  if (!loader) return;
+  const a = DATA.anims.find(x => x.name === name); if (!a) return;
+  curA = a;
+  document.querySelectorAll('[data-anim].ab').forEach(b => b.setAttribute('aria-current', b.dataset.anim === name));
+  document.getElementById('nt').textContent = a.title;
+  document.getElementById('nd').textContent = `${fmt(a.dur)} s · ${a.loop ? 'lặp' : 'một lần (phát lại liên tục)'}`;
+  get('m/hoi_bamuop.json', g => {
+    if (mode !== 'anim') return;
+    show(g.scene);
+    if (!mixer) { mixer = new THREE.AnimationMixer(g.scene); for (const c of g.animations) clips[c.name] = c; }
+    if (action) action.stop();
+    action = mixer.clipAction(clips[name]); action.setLoop(THREE.LoopRepeat); action.reset().play(); action.paused = !playing;
+  });
+}
+function setMode(m) {
+  mode = m;
+  document.getElementById('tcat').setAttribute('aria-pressed', m === 'cat');
+  document.getElementById('tani').setAttribute('aria-pressed', m === 'anim');
+  document.getElementById('pcat').hidden = m !== 'cat';
+  document.getElementById('pani').hidden = m !== 'anim';
+  document.getElementById('actl').hidden = m !== 'anim';
+  document.getElementById('pnote').hidden = m !== 'cat';
+  if (m === 'cat') pickCat((document.querySelector('[data-cat][aria-current="true"]') || {dataset: {cat: 'ba_muop'}}).dataset.cat);
+  else pickAnim(curA ? curA.name : 'ngoi_san_khau');
+}
+document.getElementById('tcat').addEventListener('click', () => setMode('cat'));
+document.getElementById('tani').addEventListener('click', () => setMode('anim'));
+document.addEventListener('click', e => {
+  const c = e.target.closest('[data-cat]'); if (c) { pickCat(c.dataset.cat); return; }
+  const a = e.target.closest('[data-anim]');
+  if (a) {
+    curA = DATA.anims.find(x => x.name === a.dataset.anim); setMode('anim');
+    if (a.classList.contains('play')) document.querySelector('.viewer').scrollIntoView({behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
+  }
+});
+const bplay = document.getElementById('bplay');
+bplay.addEventListener('click', () => { playing = !playing; bplay.textContent = playing ? 'Dừng' : 'Chạy'; bplay.setAttribute('aria-pressed', playing); if (action) action.paused = !playing; });
+function resize() { if (!renderer) return; const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+addEventListener('resize', resize);
+const clock = renderer ? new THREE.Clock() : null;
+function tick() { requestAnimationFrame(tick); const dt = clock.getDelta(); if (mixer && playing && mode === 'anim') mixer.update(dt); controls.update(); renderer.render(scene, camera); }
+if (renderer) { resize(); tick(); const h = (location.hash || '').slice(1); if (DATA.anims.some(a => a.name === h)) { curA = DATA.anims.find(a => a.name === h); setMode('anim'); } else pickCat('ba_muop'); }
+</script>

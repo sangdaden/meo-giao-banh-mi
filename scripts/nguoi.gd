@@ -21,6 +21,12 @@ extends Node3D
 ## Chú Tám (cho8, bán ngồi ghế đẩu) mac_ca. Người chợ nào cũng có va, di_bo và bản nhẹ (ban = "nhe" / "dong").
 ## Người ngồi (Chú Tư, Anh Hùng, Bà Sáu, hai ông, Chú Năm) làm mọi động tác ở tư thế ngồi;
 ## gốc model là mặt đất, ghế đặt sao cho mặt ghế đúng chiều cao trong SEAT.
+## Thứ Bảy (trang G9): ai cũng có chup_chung (đứng chụp ảnh chung với Bơ, lặp). Cô Ba nem_banh, khen_ngon;
+## Chú Tư (đứng cả ngày) voi_bao, chi_len, nhan_bao, dung_cho; Bé Na nup, lo_dau, bi_tim_thay, chay_tron;
+## Chị Mây chi_bang, vo_tay, lac_dau_cuoi; Anh Hùng cui_tim, nhan_oc; Bà Sáu (chup_chung ngồi) chi_gian, nhan_bong;
+## hai ông chi_quan_co; Cô Hai chong_nanh, vo_tay; Chú Năm (chup_chung trên yên xe) gai_dau, chi_mai;
+## Chị Thảo không mũ "khachxeom_tb" tim_mu, nhan_mu. Chú Tư, Anh Hùng, Bà Sáu, Chú Năm có di_bo.
+## Đồ cầm tay G9 (assets/models/nguoi, gốc ở chỗ tay cầm): ly_ca_phe, banh_mieng, nua_o, con_oc, bong_giay, mu_hong.
 
 signal finished(anim_name: String)
 
@@ -28,7 +34,7 @@ const IDS := ["coba", "chutu", "bena", "may", "hung", "basau", "ongbay", "ongtam
 	"xemco", "bancho", "hangrong", "ganhhang", "dicho1", "dicho2", "dicho3", "khachxeom",
 	"cho4", "cho5", "cho6", "cho7", "cho8",
 	"may_mua", "cohai_mua", "bena_mua", "chunam_mua", "chutu_mua", "chithu",
-	"thanh", "loan", "muoi", "hanh", "bin", "mit"]
+	"thanh", "loan", "muoi", "hanh", "bin", "mit", "khachxeom_tb"]
 const NAMES := {
 	"coba": "Cô Ba", "chutu": "Chú Tư", "bena": "Bé Na", "may": "Chị Mây", "hung": "Anh Hùng",
 	"basau": "Bà Sáu", "ongbay": "Ông Bảy", "ongtam": "Ông Tám", "cohai": "Cô Hai", "chunam": "Chú Năm",
@@ -38,11 +44,13 @@ const NAMES := {
 	"may_mua": "Chị Mây", "cohai_mua": "Cô Hai", "bena_mua": "Bé Na", "chunam_mua": "Chú Năm", "chutu_mua": "Chú Tư",
 	"chithu": "Chị Thu",
 	"thanh": "Chú Thành", "loan": "Cô Loan", "muoi": "Ông Mười", "hanh": "Chị Hạnh", "bin": "Bé Bin", "mit": "Bé Mít",
+	"khachxeom_tb": "Chị Thảo",
 }
 ## Chiều cao mặt ghế (m) của người ngồi, khớp với ROLES trong tools/nguoi_game.py
 const SEAT := {"chutu": 0.45, "hung": 0.28, "basau": 0.42, "ongbay": 0.30, "ongtam": 0.30, "chunam": 0.45, "bancho": 0.18, "cho8": 0.32, "chunam_mua": 0.45, "muoi": 0.26}
 const ONE_SHOT := ["nhan_banh", "goi_muc", "suyt", "mang", "reo", "dua_tui", "nhan_xe", "va", "xuong_xe", "goi_1", "goi_2", "nhan_banh_cau",
-	"cam_on", "mo_cua", "thuc_day", "ngoi_day", "dat_mam", "vap_nhe"]
+	"cam_on", "mo_cua", "thuc_day", "ngoi_day", "dat_mam", "vap_nhe",
+	"nem_banh", "khen_ngon", "nhan_bao", "bi_tim_thay", "vo_tay", "lac_dau_cuoi", "nhan_oc", "nhan_bong", "nhan_mu"]
 
 ## Mọi người dân Nguoi.make ra đều vào nhóm này: một người chỉ có một bản trong cảnh.
 ## Cảnh phụ (người xem cờ...) hỏi in_scene() rồi mới dựng, nhường người đã có chỗ trong ngày (khách, chợ).

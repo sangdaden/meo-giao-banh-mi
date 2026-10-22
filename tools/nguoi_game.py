@@ -30,6 +30,7 @@ import nguoi4 as N4  # 5 người mặc áo mưa Thứ Tư (*_mua, trang G5 Sang
 import nguoi5  # noqa: F401  Chị Thu + dáng Bé Na mở cửa (trang G1 Sang duyệt 22/10), đăng ký vào N.CHARS và N3.DANG
 import nguoi6  # noqa: F401  dáng Thứ Năm ngoài phố: Chú Tư ngủ gật, Anh Hùng nằm võng, Chị Mây thả giỏ (G1 bản 2)
 import nguoi7  # noqa: F401  đám giỗ Bà Sáu: 6 người mới + 3 dáng Bà Sáu (trang G7 Sang duyệt 22/10)
+import nguoi9  # noqa: F401  Thứ Bảy: dáng chụp ảnh chung + việc nhờ, Chị Thảo không mũ (trang G9 Sang duyệt 22/10)
 from sdflib import v, hexc
 import bpy
 from mathutils import Vector, Matrix, Quaternion
@@ -70,6 +71,7 @@ ROLES = {
     'cho8': dict(base='ngoi', seat=.32, tempo=.9, energy=.9),    # Chú Tám ngồi ghế đẩu (hông 0,4 như DANG)
     # Chị Thảo khách xe ôm: ngồi yên sau xe Chú Năm (hông 0,95), xuống xe thì đứng
     'khachxeom': dict(base='dung', tempo=1.0, energy=1.0),
+    'khachxeom_tb': dict(base='dung', tempo=1.0, energy=1.0),  # Thứ Bảy, không mũ (nguoi9.py)
     # Chị Thu, mẹ em bé căn 3B-4 (nguoi5.py, G1)
     'chithu': dict(base='dung', tempo=.95, energy=.9),
     # Đám giỗ nhà Bà Sáu (nguoi7.py, G7): Ông Mười ngồi ghế đẩu 0,26 m ăn cỗ
@@ -1619,6 +1621,85 @@ def gio_clips(R, role, cid):
     return out
 
 
+# ---------------------------------------------------------------- Thứ Bảy (trang G9 "Người dân Thứ Bảy", Sang duyệt 22/10)
+# Dáng khoá lấy từ nguoi9.py qua N3.DANG; cử chỉ bằng cả cánh tay (rig không có ngón).
+# Ai cũng có 'chup_chung' (lặp) để đứng chụp ảnh chung với Bơ. Người thường ngồi (Chú Tư, Anh Hùng, Bà Sáu,
+# Chú Năm) làm việc nhờ thì đứng: các clip đó dùng dáng nền đứng.
+G9_CHUP = {'bena': 1.6, 'basau': 2.4}
+
+
+def g9_clips(R, role, cid):
+    """[(tên, giây, hàm, lặp)] cho Thứ Bảy. Ly cà phê, bánh, con ốc, bông giấy, mũ là đồ rời (do_cam_g9.py)."""
+    stand = dict(role, base='dung')
+    keys = {k.split(':')[1] for k in nguoi9.ALL if k.startswith(cid + ':')}
+    if not keys:
+        return []
+
+    def hold(key, r=stand, extra=None, legs=None):
+        g = dp(R, cid, key)
+        return lambda t: add(base(t, R, r), legs or {}, g, extra(t) if extra else {})
+
+    def once(name, key, sec, r=stand, extra=None, t_in=.3, t_out=.35):
+        return (name, sec, anim_dang_once(R, r, cid, key, sec, t_in, t_out, extra), False)
+
+    def breathe(period):  # đứng tạo dáng chụp: thở, nghiêng đầu nhẹ, cười
+        return lambda t: {'chest': {'fw': osc(t, period) * 1.5}, 'head': {'out': osc(t, period, .25) * 4, 'fw': osc(t, period / 2) * 1.5}}
+
+    def clap(t, k=1.0):  # vỗ tay: hai cẳng tay khép mở 4 lần mỗi giây
+        a = abs(osc(t, .25)) * k
+        return {'forearm.L': {'out': -a * 14}, 'forearm.R': {'out': -a * 14}, 'head': {'fw': a * 3}}
+
+    def point(side, period=2.0):  # chỉ tay: nhấn ngón trỏ (cả cánh tay) hai nhịp mỗi chu kỳ
+        nm = 'L' if side > 0 else 'R'
+        return lambda t: {'forearm.' + nm: {'fw': max(0.0, osc(t, period / 2)) * 10}, 'head': {'tw': osc(t, period) * 4}}
+
+    sec = G9_CHUP.get(cid, 2.0)
+    seat = role if role['base'] == 'ngoi' and cid not in ('chutu', 'hung') else stand  # Chú Tư, Anh Hùng đứng chụp
+    legs = bike_legs(R, 'chunam:chup') if cid == 'chunam' else None
+    out = [('chup_chung', sec, hold('chup', seat, breathe(sec), legs), True)]
+    if cid == 'coba':
+        out += [once('nem_banh', 'nem', 2.4, extra=lambda t, k: {'head': {'fw': max(0.0, osc(t, .6)) * 5 * k}}),  # nhai
+                once('khen_ngon', 'khen', 1.6, extra=lambda t, k: clap(t, k))]
+    if cid == 'chutu':
+        walk = anim_walk(R, dict(stand, tempo=stand['tempo'] * 1.4))
+        duoi = dp(R, cid, 'duoi')
+        out += [('voi_bao', 1.2, lambda t: add(walk(t), duoi, {'upperarm.R': {'up': osc(t, .6) * 12}}), True),
+                ('chi_len', 2.0, hold('chi', extra=point(1)), True),
+                once('nhan_bao', 'camon', 2.0, extra=lambda t, k: {'chest': {'fw': abs(osc(t, .9)) * 8 * k}, 'head': {'fw': abs(osc(t, .9)) * 8 * k}}),
+                ('dung_cho', 4.0, lambda t: base(t, R, stand), True)]
+    if cid == 'bena':
+        squat = bike_legs(R, 'bena:tron')
+        tron = dict(role, base='ngoi', seat=.3)
+        out += [('nup', 1.6, hold('tron', tron, lambda t: {'chest': {'fw': osc(t, 1.6) * 2}, 'head': {'tw': osc(t, 3.2) * 5}}, squat), True),
+                ('lo_dau', 1.0, hold('lo', extra=lambda t: {'spine': {'out': -osc(t, 1.0) * 4}, 'head': {'out': -osc(t, 1.0) * 6}}), True),
+                once('bi_tim_thay', 'cuoi', 1.4, t_in=.15, extra=lambda t, k: {'chest': {'fw': -abs(osc(t, .35)) * 5 * k}, 'head': {'fw': -abs(osc(t, .35)) * 6 * k}}),
+                ('chay_tron', 1.05 / (role['tempo'] * 1.4), anim_walk(R, dict(role, tempo=role['tempo'] * 1.4)), True)]
+    if cid == 'may':
+        chib = dp(R, cid, 'chibang')
+        out += [('chi_bang', 2.0, hold('chibang', extra=point(-1)), True),
+                once('vo_tay', 'votay', 1.2, t_in=.15, t_out=.25, extra=lambda t, k: clap(t, k)),
+                ('lac_dau_cuoi', 1.0, lambda t: add(base(t, R, stand), chib, {'head': {'tw': osc(t, .5) * 14 * smooth(t / .15) * (1 - smooth((t - .75) / .25))}}), False)]
+    if cid == 'hung':
+        out += [('cui_tim', 2.4, hold('cui', extra=lambda t: {'head': {'tw': osc(t, 2.4) * 18}, 'chest': {'tw': osc(t, 2.4, .1) * 6}}), True),
+                once('nhan_oc', 'nhan', 1.6, extra=lambda t, k: {'forearm.R': {'up': osc(t, .8) * 10 * k}, 'head': {'out': osc(t, .8) * 4 * k}})]
+    if cid == 'basau':
+        out += [('chi_gian', 2.0, hold('chi', extra=point(-1)), True),
+                once('nhan_bong', 'nhan', 2.0, extra=lambda t, k: {'head': {'fw': abs(osc(t, 1.0)) * 8 * k}, 'chest': {'fw': abs(osc(t, 1.0)) * 4 * k}})]
+    if cid in ('ongbay', 'ongtam'):
+        side = -1 if cid == 'ongbay' else 1
+        out += [('chi_quan_co', 2.0, hold('chi', role, point(side)), True)]
+    if cid == 'cohai':
+        out += [('chong_nanh', 2.4, hold('chongnanh', extra=lambda t: {'head': {'out': osc(t, 1.2) * 6}, 'spine': {'tw': osc(t, 2.4) * 3}}), True),
+                once('vo_tay', 'votay', 1.2, t_in=.15, t_out=.25, extra=lambda t, k: clap(t, k))]
+    if cid == 'chunam':
+        out += [('gai_dau', 2.0, hold('gaidau', extra=lambda t: {'forearm.R': {'out': osc(t, .4) * 12}, 'hand.R': {'fw': osc(t, .4) * 10}}), True),
+                ('chi_mai', 2.0, hold('chimai', extra=point(1)), True)]
+    if cid == 'khachxeom':
+        out += [('tim_mu', 2.4, hold('tim', extra=lambda t: {'head': {'tw': osc(t, 2.4) * 22}, 'chest': {'tw': osc(t, 2.4, .1) * 8}}), True),
+                once('nhan_mu', 'nhanmu', 2.0, extra=lambda t, k: {'chest': {'fw': abs(osc(t, 1.0)) * 6 * k}, 'head': {'fw': abs(osc(t, 1.0)) * 8 * k}})]
+    return out
+
+
 def mua_clips(R, role, cid):
     """Dáng riêng của người mặc áo mưa (trang G5 Thứ Tư): 'dang_mua' giữ dáng đã duyệt (lặp, có thở),
     Chú Tư thêm 'cuon_bat' cuộn bạt sạp báo. Dù, giỏ, cuộn bạt là đồ rời gắn vào tay trong Godot."""
@@ -1648,7 +1729,8 @@ def build_anims(info, cid):
     R.c = info['c']
     role = ROLES[cid]
     mua = cid if cid in N4.POSES else None
-    cid = N.CHARS[cid].get('base', cid) if mua else cid  # người áo mưa cử động như người gốc
+    goc = cid
+    cid = N.CHARS[cid].get('base', cid)  # người áo mưa, Chị Thảo không mũ cử động như người gốc
     tp = role['tempo']
     L = lambda sec: int(round(sec * FPS))  # noqa: E731
     R.keyframe('dung_yen', L(12.0 / tp), anim_idle(R, role))  # chu kỳ dài để không thấy lặp
@@ -1659,8 +1741,8 @@ def build_anims(info, cid):
     R.keyframe('cho_banh', L(2.2 / tp), anim_reach(R, role, cid))
     if cid != 'khachxeom':  # Chị Thảo nhận bánh trên yên sau (thu_ba_clips)
         R.keyframe('nhan_banh', L(2.6 / tp), anim_receive(R, role, cid), loop=False)
-    if role['base'] == 'dung' or cid in CHO or cid == 'basau':  # người bán ngồi cũng phải đứng dậy đi khi dọn sạp; Bà Sáu ra cổng ngày giỗ
-        R.keyframe('di_bo', L(1.05 / tp), anim_walk(R, role))
+    if role['base'] == 'dung' or cid in CHO or cid in ('basau', 'chutu', 'hung', 'chunam'):  # người bán ngồi cũng phải đứng dậy đi khi dọn sạp; Bà Sáu ra cổng ngày giỗ; Thứ Bảy đi làm việc nhờ
+        R.keyframe('di_bo', L(1.05 / tp), anim_walk(R, dict(role, base='dung')))
     if cid in ('ongbay', 'ongtam'):
         fn, sec = anim_chess(R, role, cid), 3.0  # đánh cờ theo dáng "đi cờ" đã duyệt
     else:
@@ -1669,6 +1751,8 @@ def build_anims(info, cid):
     clips = thu_ba_clips(R, role, cid)
     if not mua:
         clips += thu_nam_clips(R, role, cid) + gio_clips(R, role, cid)
+        if goc != 'khachxeom':  # Chị Thảo có mũ chỉ đi xe Thứ Ba; dáng Thứ Bảy ở bản không mũ khachxeom_tb
+            clips += g9_clips(R, role, cid)
     if cid in CHO and 'va' not in [n for n, *_ in clips]:  # người chợ nào cũng giật mình khi bị Bơ va
         clips.append(('va', .6, anim_startle(R, role, cid), False))
     for name, sec, fn, loop in clips:

@@ -3,7 +3,7 @@
 Chạy:  python3 tools/trailer/dung_trailer.py <thư_mục_cảnh> <nhạc.wav> <ra.mp4> [rộng cao]
 Mốc thời gian khớp nhịp nhạc 100 BPM (1 ô nhịp = 2,4 giây), xem tools/trailer/README.md.
 Mỗi dòng CUTS: (tên file cảnh, giây bắt đầu trong file, độ dài, chữ trên hình hoặc None).
-Tiếng game trong file cảnh (đã tắt nhạc game lúc quay) được trộn nhỏ dưới nhạc trailer.
+Mặc định chỉ có nhạc trailer (Sang muốn không có giọng nói); thêm --tieng-game để trộn tiếng game dưới nhạc.
 """
 import os
 import subprocess
@@ -17,14 +17,15 @@ WARM = 0.5  # nửa giây đầu mỗi file cảnh là lúc cảnh ổn định,
 # (file, bắt đầu, dài, thẻ ngày)  — tổng các đoạn khớp mốc nhạc: mo 0, bep 4.8, pho 14.4, muc 26.4, tuan 32.4, tu_do 54, ket 61.2
 CUTS = [
     ("mo_dau", 0.0, 4.8, None),
-    ("bep", 6.0, 2.4, None),
-    ("bep", 15.0, 2.4, None),
-    ("bep", 42.0, 2.4, None),
-    ("bep", 66.0, 2.4, None),
+    # bếp: chỉ lấy những đoạn bot làm liền tay (đo YDIF không có quá 1 khung đứng yên liền nhau), tránh chỗ bot dừng chờ
+    ("bep", 12.5, 2.4, None),
+    ("bep", 14.9, 2.4, None),
+    ("bep", 59.9, 2.4, None),
+    ("bep", 62.5, 2.4, None),
     ("chay_ra_pho", 0.0, 3.0, None),
     ("nga_tu", 0.0, 2.4, None),
-    ("giao_chu_tu", 0.8, 2.2, None),
-    ("giao_anh_hung", 1.4, 2.2, None),
+    ("giao_chu_tu", 0.45, 2.2, None),
+    ("giao_anh_hung", 0.6, 2.2, None),
     ("tren_cao", 0.0, 2.2, None),
     ("muc", 0.0, 6.0, None),
     ("giao_chi_may", 0.6, 3.0, "THỨ HAI · Mẻ bánh đầu tiên"),
@@ -58,7 +59,7 @@ def fade_alpha(a, b, f=0.35):
     return f"if(lt(t,{a}),0,if(lt(t,{a + f}),(t-{a})/{f},if(lt(t,{b - f}),1,if(lt(t,{b}),({b}-t)/{f},0))))"
 
 
-def build(src, music, out, w=1920, h=1080):
+def build(src, music, out, w=1920, h=1080, game_gain=0.0):
     inputs, parts, auds = [], [], []
     t = 0.0
     day_cards = []
@@ -97,7 +98,7 @@ def build(src, music, out, w=1920, h=1080):
                  f"alpha='{fade_alpha(LINK_AT + 0.4, END + 5, 0.5)}'")
     hold = max(0.0, END - t)  # giữ khung cuối của cảnh kết dưới tên game tới hết nhạc
     vf = f"[cat]tpad=stop_mode=clone:stop_duration={hold:.2f},{','.join(draws)},fade=t=in:st=0:d=0.8,fade=t=out:st={END - 1.5}:d=1.5[vout]"
-    achain = "".join(f"[a{k}]" for k in range(n)) + f"concat=n={n}:v=0:a=1,volume=0.55[game]"
+    achain = "".join(f"[a{k}]" for k in range(n)) + f"concat=n={n}:v=0:a=1,volume={game_gain}[game]"
     mix = f"[game][{n}:a]amix=inputs=2:duration=longest:normalize=0,alimiter=limit=0.9,atrim=duration={END},afade=t=out:st={END - 2}:d=2[aout]"
     fc = ";".join(parts + auds + [chain, vf, achain, mix])
     cmd = ["ffmpeg", "-y", "-loglevel", "error"] + inputs + [
@@ -110,5 +111,8 @@ def build(src, music, out, w=1920, h=1080):
 
 if __name__ == "__main__":
     a = sys.argv
+    # Sang (22/10/2026): trailer chỉ để nhạc, không giọng nói. --tieng-game trộn lại tiếng game (có lời thoại) dưới nhạc.
+    game = 0.55 if "--tieng-game" in a else 0.0
+    a = [x for x in a if not x.startswith("--")]
     size = (int(a[4]), int(a[5])) if len(a) > 5 else (1920, 1080)
-    build(a[1], a[2], a[3], *size)
+    build(a[1], a[2], a[3], *size, game_gain=game)

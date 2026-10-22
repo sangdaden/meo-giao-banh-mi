@@ -22,10 +22,12 @@ python3 tools/trailer/dung_trailer.py /tmp/trailer /tmp/trailer/nhac.wav trailer
 ```
 
 Movie Maker ghi đúng 30 hình mỗi giây dù máy render chậm, nên quay được trên máy đám mây không có GPU
-(xvfb + Mesa). Lúc quay, nhạc nền game bị tắt, tiếng động game giữ lại và được trộn nhỏ dưới nhạc trailer.
+(xvfb + Mesa). Trailer mặc định chỉ có nhạc (Sang 22/10/2026); `--tieng-game` trộn tiếng game dưới nhạc.
 
 Soát đường chạy nhanh không cần render: `godot --headless --path . --fixed-fps 30 -s tools/trailer/quay_canh.gd -- <cảnh> --debug`
-in vị trí Bơ mỗi nửa giây và vật Bơ đang chạm.
+in vị trí Bơ mỗi nửa giây, vật Bơ đang chạm, và cuối cảnh in `[giat]`: những khung hình Bơ trên màn hình
+đổi tốc đột ngột (bị xe tông, va người, chó đớp...). Cảnh tốt có `dinh` gần 0 ngoài lúc mới chạy.
+Mỗi đoạn trong `CUTS` phải nằm gọn trong `seconds` của cảnh (cộng 0,5 giây đầu bỏ đi), không thì cuối đoạn bị đứng hình.
 
 ## Khi bản đồ khu phố mới xong
 

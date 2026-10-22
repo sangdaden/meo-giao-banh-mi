@@ -124,6 +124,7 @@ func _ready() -> void:
 	add_child(preload("res://scripts/market.gd").new())  # chợ sáng Thứ Ba (ngày khác tự gỡ)
 	add_child(preload("res://scripts/thu_sau.gd").new())  # tiệm xe chiều tà, đám giỗ Thứ Sáu (ngày khác tự gỡ)
 	add_child(preload("res://scripts/thu_tu.gd").new())  # mưa, sân thượng, bồ câu Thứ Tư (ngày khác tự gỡ)
+	add_child(preload("res://scripts/thu_nam.gd").new())  # tủ báo, cửa cuốn, gác lửng, đơn chung cư Thứ Năm (ngày khác tự gỡ)
 
 	stamps = StampsScript.new()
 	stamps.name = "TemCoBa"
@@ -188,6 +189,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func start_game() -> void:
 	state = State.PLAY
+	if ThuNam.pending():  # Thứ Năm: vừa giao Bé Na trong cảnh chung cư về
+		ThuNam.resume(self)
+		return
 	if GameState.from_quick_assemble and not _resume.is_empty():
 		_resume_after_kitchen()
 		return

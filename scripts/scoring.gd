@@ -41,6 +41,11 @@ const SIDE_QUEST_NAMES := {
 	"bo_cau_yen": "Không làm bồ câu bay",
 	"khong_bi_tat": "Không bị xe tạt nước",
 	"khong_truot": "Không trượt vũng nào",
+	# Thứ Năm (gói việc thiet-ke-man/goi-viec-thu-nam.md)
+	"tu_ngu_yen": "Không đánh thức Chú Tư",
+	"dap_lien": "Đạp tường lên mái tôn một mạch",
+	"da_con_nua": "Về lò khi đá còn hơn nửa bịch",
+	"len_gac": "Giao lên tận gác, không gọi",
 }
 
 static var orders: Array = []  # kết quả từng đơn trong ngày, mỗi phần tử là Dictionary

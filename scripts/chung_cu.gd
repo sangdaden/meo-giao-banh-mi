@@ -156,24 +156,28 @@ func _ready() -> void:
 	GameSettings.apply_camera(get_tree())
 	GameSettings.watch_camera(get_tree())
 	_start()
-	if _autotest:
+	if _autotest and ThuNam.in_day():
+		_autotest_day()
+	elif _autotest:
 		_autotest_run()
 
 
 func _start() -> void:
 	if _autotest:
 		GameState.use_test_save("user://luu_game_autotest.cfg")
-	Scoring.begin_day("thu_nam")
+	if not ThuNam.in_day():  # đơn 5 cả ngày Thứ Năm: giữ sao, boa, tem các đơn phố trước
+		Scoring.begin_day("thu_nam")
 	playing = true
 	time_limit = DoKho.v("apartment_time", TIME_LIMIT)
 	time_left = time_limit
+	late = ThuNam.in_day() and ThuNam.scene_late()  # ngoài phố đã trễ giờ thì vẫn tính trễ
 	player.carrying = true
 	player.can_move = true
 	if not _autotest:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	hud.start_screen.visible = false
 	hud.show_playing_ui(true)
-	hud.set_order(0, 1, "%s · %s" % [ORDER.who, ORDER.place], ORDER.item, ORDER.color)
+	hud.set_order(ThuNam.scene_order(), 5 if ThuNam.in_day() else 1, "%s · %s" % [ORDER.who, ORDER.place], ORDER.item, ORDER.color)
 	hud.progress_row.visible = false  # cảnh một đơn: không cần dãy 5 ổ bánh của Thứ Hai
 	hud.set_bread(true, ORDER.item, 1.0)
 	hud.set_goal(DOOR + Vector3(0, 0.6, 0))
@@ -309,13 +313,20 @@ func _on_delivered(_kind: String) -> void:
 	player.can_move = false
 	hud.set_timer(time_left, time_limit, false)
 	var ratio := clampf(time_left / time_limit, 0.0, 1.0)
-	var r := Scoring.order_done(0, {"time_ratio": ratio, "late": late, "intact": intact, "kitchen_star": -1,
+	var r := Scoring.order_done(ThuNam.scene_order(), {"time_ratio": ratio, "late": late, "intact": intact, "kitchen_star": -1,
 		"side_quest": ORDER.side_quest, "side_quest_ok": not baby_woke, "time": _clock})
 	r.erase("kitchen_stars")  # cảnh riêng, không có ổ bánh từ bếp
 	var note := "trễ" if late else "dư %d giây" % int(time_left)
 	var row := {"who": ORDER.who, "place": ORDER.place, "item": ORDER.item, "color": ORDER.color,
 		"stars": r.stars, "note": note}
 	row.merge(r)
+	if ThuNam.in_day():
+		# Cả ngày Thứ Năm: quay về phố, main.gd chấm đơn này rồi tổng kết ngày
+		hud.show_toast("Bé Na: \"Cảm ơn Bơ nha!\"", 2.0)
+		await get_tree().create_timer(0.4 if _autotest else 1.4).timeout
+		print("[chung cu] sao ", r.stars, " · ", "%.1f" % _clock, " s · em bé ngủ yên ", not baby_woke, " · về phố")
+		ThuNam.finish_scene(get_tree(), r, note)
+		return
 	var summary := Scoring.end_practice()
 	summary.day = "Thứ Năm · leo chung cư"
 	summary.rows_title = "Leo chung cư · Bé Na"
@@ -940,6 +951,23 @@ func _autotest_run() -> void:
 		print(n)
 	print("AUTOTEST ", "OK" if ok else "FAIL")
 	get_tree().quit(0 if ok else 1)
+
+
+## Đơn 5 trong cả ngày Thứ Năm (main.gd --autotest --ngay=thu_nam chuyển sang đây): tới cửa 5B-1 gõ cửa,
+## Bé Na nhận bánh rồi quay về phố. Phần thử động tác leo nằm ở _autotest_run (cảnh chạy riêng).
+func _autotest_day() -> void:
+	print("[autotest chung cu] đơn %d của ngày Thứ Năm" % (ThuNam.scene_order() + 1))
+	await _frames(20)
+	await _put(DOOR + Vector3(0, 0.05, 0), 0.0)
+	await _frames(30)
+	await _hold("deliver", 3)
+	for k in 240:
+		if delivered:
+			return  # _on_delivered tự quay về phố
+		await get_tree().physics_frame
+	if not delivered:
+		print("AUTOTEST FAIL: Bé Na chưa nhận bánh")
+		get_tree().quit(1)
 
 
 func _expect(ok: bool, notes: Array, cond: bool, what: String) -> bool:

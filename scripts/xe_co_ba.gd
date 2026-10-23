@@ -11,6 +11,23 @@ const TRAY := Vector3(-0.21, TOP, 0.05)
 const BODY := Vector3(1.5, 1.38, 0.68)  ## thân xe + tủ kính, để làm hộp va chạm
 
 
+## Trời mưa (Thứ Tư, hoặc -- --buoi=pho_mua): xe và Cô Ba lùi vào dưới mái hiên lò (mái sâu 1 m từ mặt tiền).
+static func sheltered() -> bool:
+	return AnhSang.PRESETS[AnhSang.preset_for_day(PlayMode.day)].get("weather", "") == "mua"
+
+
+## Chỗ đặt xe trước lò: ngày nắng ra sát mép vỉa hè; ngày mưa sát mặt tiền, cả tay đẩy nằm dưới mái hiên.
+static func cart_pos() -> Vector3:
+	var p := City.BAKERY_POINT
+	return Vector3(p.x + 1.0, 0, p.z - 0.75) if sheltered() else Vector3(p.x + 2.4, 0, p.z + 0.2)
+
+
+## Chỗ Cô Ba đứng: ngày nắng sau xe; ngày mưa cạnh xe, dưới mái hiên (sau xe lúc đó là tường lò).
+static func coba_pos() -> Vector3:
+	var p := City.BAKERY_POINT
+	return Vector3(p.x - 0.2, 0, p.z - 0.65) if sheltered() else Vector3(p.x + 2.4, 0, p.z - 0.6)
+
+
 ## Đặt xe vào parent tại pos (giữa đáy thân xe), quay rot_y. collide = có hộp va chạm (màn phố).
 static func put(parent: Node, pos: Vector3, rot_y := 0.0, collide := true) -> Node3D:
 	var root := Node3D.new()

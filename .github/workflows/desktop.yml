@@ -239,6 +239,9 @@ jobs:
           # Bồ câu và chim (K1 rắc vụn bánh, K2 bồ câu non lạc đàn về chuồng mái khối 2)
           timeout 300 ~/godot/godot --headless --path . -s tests/test_bo_cau.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee bo_cau.log
           grep -q "BO CAU TEST OK" bo_cau.log
+          # Con vật mới V1–V6 (gà sổ bu, cá, vịt lúc ngập, bướm, thạch sùng chung cư, chuột Tí trong bếp)
+          timeout 900 ~/godot/godot --headless --path . -s tests/test_con_vat_moi.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee con_vat_moi.log
+          grep -q "CON VAT MOI TEST OK" con_vat_moi.log
           mkdir -p export
           ~/godot/godot --headless --path . --export-release "macOS" "export/$ZIP_NAME"
           unzip -l "export/$ZIP_NAME" | grep -q "_CodeSignature/CodeResources"

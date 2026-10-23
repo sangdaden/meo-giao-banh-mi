@@ -126,6 +126,7 @@ Từ PR #133 (H1, 23/10) mỗi ngày có file riêng, HUD tách thành mảnh, b
 | CI | `.github/workflows/` (`gop-main.yml` xem `docs/gop-main.md`, `itch.yml` xem `docs/itch.md`) | "Xuất bản Windows tự động"; H2 tự gộp main; J1 itch.io |
 | Ngôn ngữ, bản tiếng Anh | `scripts/ngon_ngu.gd` (autoload `NgonNgu`), `scripts/dich/` | F3 "Bản tiếng Anh" |
 | Con vật chung: phím Q, "Bạn bốn chân" | `scripts/con_vat.gd` (`ConVat`: con vật vào nhóm `"con_vat"` + `on_called(pos)`, `ConVat.meet(id)`), `scripts/ui/ban_bon_chan.gd` | "Cơ chế chung con vật" |
+| Con vật mới V1–V6 (gà, cá, vịt, bướm, thạch sùng, chuột Tí) | `scripts/con_vat_moi/` (`ConVatMoi.LICH` theo ngày, `MoHinhConVat.put` nạp model), `assets/models/con_vat/` | "Con vật mới vào game" |
 
 ## Tránh đụng nhau giữa các PR
 

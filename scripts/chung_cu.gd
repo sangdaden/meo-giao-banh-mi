@@ -174,6 +174,7 @@ func _ready() -> void:
 	GameSettings.apply_graphics(get_tree())
 	GameSettings.apply_camera(get_tree())
 	GameSettings.watch_camera(get_tree())
+	ThachSung.attach(self)  # thạch sùng chỉ chỗ bám ở tường hông tây (con vật mới V2)
 	_start()
 	if _autotest and ThuNam.in_day():
 		_autotest_day()

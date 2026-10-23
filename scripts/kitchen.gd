@@ -232,6 +232,7 @@ func _ready() -> void:
 	_build_paws()
 	oven_label.visible = not easy   # Thong thả: lò báo bằng viên trạng thái, bong bóng và lời Cô Ba
 	_build_co_ba()
+	ChuotTi.attach(self)  # chuột Tí ở góc bếp (con vật mới V6, scripts/con_vat_moi/chuot_ti.gd)
 	_build_guides()
 
 	input = KI.new()

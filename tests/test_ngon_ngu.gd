@@ -80,8 +80,41 @@ func _check_menu() -> void:
 		print("  menu chưa dịch: ", s.c_escape())
 	_check(con.is_empty(), "menu, Cài đặt, Chọn màn, Tủ đồ dịch hết (%d chữ còn tiếng Việt)" % con.size())
 	_check(menu.atr("Cài đặt") == "Settings", "Label tự dịch qua atr")
+	# Chọn màn: chữ dài (nhất là tiếng Anh) không được đẩy giờ, sao, nhãn ra ngoài nút (Sang báo 23/10).
+	for lang in ["vi", "en"]:
+		ng.dat(lang, false)
+		for d in Days.ORDER:
+			menu.level_select._select(d, false)
+			await process_frame
+			await process_frame
+			for b in _nut(menu.level_select, []):
+				_check(_trong_nut(b, b), "Chọn màn %s %s: nút \"%s\" có chữ tràn ra ngoài" % [lang, d, b.tooltip_text.get_slice("\n", 0)])
+	ng.dat("en", false)
 	menu.queue_free()
 	await process_frame
+
+
+func _nut(n: Node, out: Array) -> Array:
+	if n is CanvasItem and not (n as CanvasItem).visible:
+		return out
+	if n is Button:
+		out.append(n)
+	for c in n.get_children():
+		_nut(c, out)
+	return out
+
+
+## Mọi Control con đang hiện nằm gọn trong bề ngang của nút (cho lệch 1 px).
+func _trong_nut(b: Control, n: Node) -> bool:
+	for c in n.get_children():
+		if c is Control and (c as Control).visible:
+			var r := (c as Control).get_global_rect()
+			var br := b.get_global_rect()
+			if r.position.x < br.position.x - 1.0 or r.end.x > br.end.x + 1.0:
+				return false
+			if not _trong_nut(b, c):
+				return false
+	return true
 
 
 func _gom_label(n: Node, out: Array) -> void:

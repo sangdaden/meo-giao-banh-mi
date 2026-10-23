@@ -71,7 +71,7 @@ func _greet(main: Node, mhx: MeoHangXom) -> void:
 	p.global_position = m.global_position + Vector3(0.8, 0.05, 0)
 	mhx._on_q(m, p.global_position)
 	_check(mhx.greeted.get(id, 0) == 1, "%s: đứng sát bấm Q thì chạm mũi" % id)
-	await _frames(170)
+	await _frames(240)   # có clip luồng 7: mèo bước lại chỗ chào rồi mới diễn (liếm đầu 2 s)
 	mhx._on_q(m, p.global_position)
 	_check(mhx.greeted.get(id, 0) == 2, "%s: lần sau cụng đầu" % id)
 	await _frames(170)

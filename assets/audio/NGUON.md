@@ -84,6 +84,8 @@ Khi thêm tiếng lấy từ nơi khác, ghi thêm một dòng vào bảng cuố
 | cart_bump.wav | Thứ Ba: đụng xe đẩy | tự tổng hợp, CC0 |
 | basket_topple.wav | Thứ Ba: thúng tre đổ, rau củ lăn | tự tổng hợp, CC0 |
 | oops_1..2.ogg | Thứ Ba: người đi chợ bị đụng "Ối!", "Ui cha!" | tự tổng hợp, CC0 |
+| chao_mao_hot.wav | Chim chào mào hót "líu lo" (góc cờ Ông Bảy, lồng ban công) | tự tổng hợp, CC0 |
+| chao_mao_chiep.wav | Chào mào kêu khẽ khi nhảy trong lồng | tự tổng hợp, CC0 |
 
 ## Tiếng lấy từ nguồn ngoài
 

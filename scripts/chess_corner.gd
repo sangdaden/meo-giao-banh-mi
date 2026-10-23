@@ -174,6 +174,7 @@ func _ready() -> void:
 	# Hai ông: Ông Bảy phía tây nhìn sang đông, Ông Tám phía đông nhìn sang tây (model Nguoi nhìn về +Z)
 	_men.append(_man("ongbay", c + Vector3(-0.62, STOOL_TOP - float(Nguoi.SEAT.get("ongbay", 0.28)), 0), PI / 2))
 	_men.append(_man("ongtam", c + Vector3(0.62, STOOL_TOP - float(Nguoi.SEAT.get("ongtam", 0.28)), 0), -PI / 2))
+	ChaoMao.for_chess(self, func(): _set_state(0, "reo", 2.0); _say(0, "Con mèo này hót đối với chim tui được nè!", 3.0))  # K3: lồng chào mào của Ông Bảy dưới tán cây (scripts/chao_mao.gd)
 	# Người xem chen một phía (phía nam, quay mặt về bàn)
 	# Dựng sau cùng khung hình đầu: lúc đó khách, chợ, hàng xóm đã vào cảnh nên biết ai còn rảnh
 	_cast_crowd.call_deferred()

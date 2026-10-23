@@ -1,0 +1,73 @@
+# Tự gộp main vào các PR đang mở (docs/gop-main.md):
+# - Mỗi lần main đổi: thử gộp main vào từng PR. Gộp sạch thì đẩy commit gộp lên nhánh PR
+#   rồi gọi lại CI của PR; đụng nhau thì gắn nhãn "dung-main", ghi bình luận liệt kê file đụng
+#   và đặt trạng thái đỏ "Gộp với main" trên PR.
+# - Mỗi lần PR được mở hoặc đẩy thêm: kiểm riêng PR đó (không đẩy gì), đỏ nếu còn đụng main.
+# - Chạy tay (Run workflow) được, có ô "chỉ kiểm" để không đẩy.
+# PR có nhãn "khong-tu-gop" chỉ được kiểm và báo, không bị đẩy commit gộp.
+name: Tự gộp main vào PR
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      chi_kiem:
+        description: "Chỉ kiểm và báo, không đẩy commit gộp"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  statuses: write
+  actions: write
+
+concurrency:
+  group: gop-main-${{ github.event_name == 'pull_request' && github.event.number || 'main' }}
+  cancel-in-progress: true
+
+env:
+  LANG: C.UTF-8
+  LC_ALL: C.UTF-8
+
+jobs:
+  gop:
+    name: Gộp main vào PR đang mở
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # Có secret GOP_MAIN_TOKEN (token cá nhân, quyền repo + workflow) thì đẩy bằng nó:
+          # CI của PR tự chạy lại và đẩy được cả khi main đổi file workflow. Không có thì dùng GITHUB_TOKEN.
+          token: ${{ secrets.GOP_MAIN_TOKEN || github.token }}
+
+      - name: Thử gộp main vào từng PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CO_PAT: ${{ secrets.GOP_MAIN_TOKEN != '' && '1' || '' }}
+          TU_GOP: ${{ inputs.chi_kiem && '0' || '1' }}
+        run: bash tools/gop_main.sh
+
+  kiem:
+    name: Gộp được với main
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # Lấy đúng đầu nhánh PR: khi đụng main, GitHub không tạo được ref gộp sẵn.
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Kiểm PR này có đụng main không
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TU_GOP: "0"
+          KHO: "1"
+        run: bash tools/gop_main.sh ${{ github.event.number }}

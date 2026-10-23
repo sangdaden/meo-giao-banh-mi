@@ -17,12 +17,16 @@ extends Node3D
 ## - M5 ngủ trưa: Mực đang nằm yên, Bơ không mang bánh đứng yên cạnh NAP_AFTER giây thì cuộn tròn ngủ cạnh,
 ##   camera lùi ra, nhạc nhẹ; phím bất kỳ là dậy. Ảnh tự vào Sổ hàng xóm (SoHangXom.keep_photo(NAP_PHOTO)).
 ## Clip mới của Mực (giũ nước, uống nước, đánh hơi) chờ luồng "Phác thảo động tác và phụ kiện thưởng": chưa có
-## thì dùng clip gần nhất (FALLBACK). Miếng chả cá và chén nước là khối tạm, chờ phác thảo.
+## thì dùng clip gần nhất (FALLBACK). Miếng chả cá và tô nước: model phác thảo đã duyệt (assets/models/cho_muc/cha_ca*.glb, chen_nuoc*.glb).
 
 const DAYS := ["thu_hai", "thu_ba", "thu_tu", "thu_nam", "thu_sau", "thu_bay"]
 const CHA_CA_DAYS := ["thu_hai", "thu_sau"]
 const TIP := 2000
 const CHA_CA_SPOT := Vector3(-18.6, 0, 10.25)  ## đầu hẻm 42, ngay sau cổng (z 9), giữa thùng gỗ và xe ba gác
+const CHA_CA := preload("res://assets/models/cho_muc/cha_ca.glb")
+const CHA_CA_AN_DO := preload("res://assets/models/cho_muc/cha_ca__an_do.glb")
+const BOWL := preload("res://assets/models/cho_muc/chen_nuoc.glb")
+const BOWL_CAN := preload("res://assets/models/cho_muc/chen_nuoc__can.glb")
 ## Lối dọc bờ rào hẻm 42, né xe ba gác đậu sát tường (CityProps: x -17,72, z 11,45..13,55)
 const HEM_LANE := [Vector3(-18.95, 0, 14.0), Vector3(-18.95, 0, 11.4)]
 const CHA_CA_REACH := 1.6
@@ -199,16 +203,7 @@ func _start_moment(m: Dictionary) -> void:
 	_clip(_moment.idle)
 	_face(_moment.get("face", _moment.spot + Vector3.FORWARD))
 	if _moment.has("bowl"):
-		_bowl = ViecNho.trinket(Vector3(0.24, 0.07, 0.24), Color("#C9C3B3"), "cyl")  # khối tạm chờ phác thảo
-		var water := MeshInstance3D.new()
-		var disc := CylinderMesh.new()
-		disc.top_radius = 0.1
-		disc.bottom_radius = 0.1
-		disc.height = 0.01
-		water.mesh = disc
-		water.position.y = 0.07
-		water.material_override = Blocks.mat(Color("#7FB7D6"))
-		_bowl.add_child(water)
+		_bowl = _model(BOWL)
 		add_child(_bowl)
 		_bowl.top_level = true
 		_bowl.global_position = _moment.spot + (_moment.bowl as Vector3)
@@ -295,6 +290,8 @@ func push_bowl() -> void:
 
 
 func _moment_finish() -> void:
+	if _bowl and not _bowl.has_meta("an_do"):
+		_swap(_bowl, BOWL_CAN)  # Mực uống cạn
 	_ctl = "moment_idle"
 	_moment_done = true
 	_clip(_moment.idle)
@@ -373,7 +370,7 @@ func drop_cha_ca() -> void:
 	_piece_ready = false
 	if player.has_method("play_clip"):
 		player.play_clip("dap_tay")
-	_piece = ViecNho.trinket(Vector3(0.16, 0.035, 0.11), Color("#E8C9A0"))  # khối tạm chờ phác thảo
+	_piece = _model(CHA_CA)
 	add_child(_piece)
 	_piece.top_level = true
 	_piece.global_position = CHA_CA_SPOT
@@ -406,6 +403,8 @@ func _snack_step(delta: float) -> void:
 		"snack_eat":
 			_face(CHA_CA_SPOT, delta)
 			_clip("an_banh")
+			if _piece and _t >= SNACK_EAT * 0.5 and not _piece.has_meta("an_do"):
+				_swap(_piece, CHA_CA_AN_DO)
 			if _t >= SNACK_EAT:
 				if _piece:
 					_piece.queue_free()
@@ -832,3 +831,18 @@ func _sfx_at(sound_name: String, pos: Vector3) -> void:
 	var snd := get_node_or_null("/root/Sound")
 	if snd:
 		snd.play_at(sound_name, pos)
+
+
+## Model chả cá / tô nước (phác thảo duyệt 23/10): mỗi lúc chỉ một cái, gốc giữa đáy.
+func _model(scene: PackedScene) -> Node3D:
+	var n := Node3D.new()
+	n.add_child(scene.instantiate())
+	return n
+
+
+## Đổi sang trạng thái sau (chả cắn dở, tô cạn), giữ vị trí.
+func _swap(holder: Node3D, scene: PackedScene) -> void:
+	for c in holder.get_children():
+		c.queue_free()
+	holder.add_child(scene.instantiate())
+	holder.set_meta("an_do", true)

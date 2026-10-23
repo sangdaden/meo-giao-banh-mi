@@ -60,6 +60,7 @@ static func mark(id: String) -> Dictionary:
 	var out := {"gift": "", "money": 0}
 	if id == MUC:
 		GameState.set_day("muc_ban", true, DAY)
+		ConVat.meet(MUC)  # trang "Bạn bốn chân"
 	else:
 		var p := page(id)
 		out = grant_gift(str(p.get("gift", "")))

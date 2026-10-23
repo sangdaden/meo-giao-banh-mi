@@ -233,6 +233,9 @@ jobs:
           # Cơ chế chung con vật (T1, T2): phím Q mọi ngày, mèo gần đáp, ConVat.meet lưu hồ sơ, trang Bạn bốn chân
           timeout 300 ~/godot/godot --headless --path . -s tests/test_con_vat.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee con_vat.log
           grep -q "CON VAT TEST OK" con_vat.log
+          # Mèo hàng xóm trong tuần (N1–N4): mèo mỗi ngày, chào Q, Bột đua mái Thứ Tư, mèo chỉ đường khi lạc
+          timeout 900 ~/godot/godot --headless --path . -s tests/test_meo_hang_xom.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee meo_hang_xom.log
+          grep -q "MEO HANG XOM TEST OK" meo_hang_xom.log
           mkdir -p export
           ~/godot/godot --headless --path . --export-release "macOS" "export/$ZIP_NAME"
           unzip -l "export/$ZIP_NAME" | grep -q "_CodeSignature/CodeResources"

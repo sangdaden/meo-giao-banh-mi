@@ -1,7 +1,9 @@
 class_name Days
-## Dữ liệu từng ngày trong tuần: đơn giao, hệ số thời gian, lời Cô Ba đầu ngày, đồ riêng của ngày.
+## Danh sách ngày trong tuần và hàm đọc dữ liệu ngày. Dữ liệu mỗi ngày nằm ở file riêng scripts/ngay/<mã ngày>.gd
+## (const DATA), nên thêm hay sửa một ngày KHÔNG sửa file này: tạo hoặc sửa scripts/ngay/<mã>.gd là xong.
 ## main.gd đọc ngày đang chơi qua Days.get_day(PlayMode.day); màn Chọn màn đọc để hiện danh sách đơn.
 ## Mã ngày trùng tên mục trong file lưu (GameState.DAY_NAMES): "thu_hai", "thu_ba", ...
+## Ngày ngoài tuần (vd. màn dạy chơi) chỉ cần file scripts/ngay/<mã>.gd rồi PlayMode.day = "<mã>".
 ## Theo trang thiết kế màn chơi (Sang duyệt 21/10/2026) và gói việc Thứ Ba (thiet-ke-man/goi-viec-thu-ba.md).
 ##
 ## Khóa của một đơn:
@@ -13,10 +15,17 @@ class_name Days
 ##   kind: "deliver" (mặc định: nhận ở lò, giao cho khách) | "errand" (đơn ngược: tới chỗ khách lấy đồ, mang về lò)
 ##   note: ghi chú món trên phiếu: "" | "khong_ot" | "them_pate" | "nhieu_do_chua"
 ##   errand_item: món phải mang về khi kind = "errand" ("trung6" = túi 6 trứng)
+##   quick_assemble: true thì giao xong đơn này (còn đơn sau) sang bếp ráp nhanh rồi quay lại (túi trứng Thứ Ba)
 ##   basket_period: giây một lượt giỏ Bé Na đưa qua lại (deliveries.gd, mặc định của Thứ Hai)
 ##   gio, gio_group, dog_start: đơn giỗ Thứ Sáu (scripts/thu_sau.gd)
 ##   delivery shelf | shutter | loft | scene, errand_item "da": Thứ Năm (scripts/thu_nam.gd)
-## Khóa của một ngày: orders_hard (nếu có) thay cho orders ở Chế độ thử thách.
+## Khóa của một ngày:
+##   title, blurb, intro, time_mult, extras, orders; orders_hard (nếu có) thay cho orders ở Chế độ thử thách
+##   mode: "free" (ngày tự do không đơn, Thứ Bảy) | "festival"; favours: việc nhờ của ngày tự do
+##   nodes: script node riêng của ngày, main.gd thêm vào cảnh phố (node tự gỡ nếu không phải ngày của nó).
+##          Node có thể có: begin() (ngày tự do bắt đầu), resume_day() -> bool (quay về giữa ngày từ cảnh khác).
+##   hud: script mảnh giao diện riêng của ngày (Control có biến hud), main.gd gắn vào HUD qua hud.add_piece()
+##   help, help_note: bảng "Cách chơi" trong menu Esc của ngày (thiếu thì dùng bảng chung HudTamDung.HELP_PHO)
 
 ## Thứ tự các ngày trong tuần
 const ORDER := ["thu_hai", "thu_ba", "thu_tu", "thu_nam", "thu_sau", "thu_bay", "chu_nhat"]
@@ -26,146 +35,52 @@ const PLAYTEST_UNLOCK_ALL := true
 ## Tên hiển thị của ghi chú món
 const NOTE_NAMES := {"khong_ot": "không ớt", "them_pate": "thêm pate", "nhieu_do_chua": "nhiều đồ chua"}
 
-const DATA := {
-	"thu_hai": {
-		"title": "Mẻ bánh đầu tiên",
-		"blurb": "Làm bánh trong bếp Cô Ba rồi giao 5 đơn. Đơn cuối phải lách qua Chó Mực ở hẻm 42.",
-		"intro": "Cô Ba: \"Sáng nay 5 đơn nha Bơ. Đơn chót qua hẻm 42, nhớ rón rén kẻo thằng Mực nó thức!\"",
-		"time_mult": 1.0,
-		"extras": {},
-		"orders": [
-			{"who": "Chú Tư", "place": "Sạp báo", "item": "1 ổ pate", "pos": Vector3(-1, 0, -6), "time": 18.0, "color": Color("#3D5A80"), "delivery": "hand", "side_quest": "bao_co_ba"},
-			{"who": "Bé Na", "place": "Chung cư", "item": "2 ổ trứng", "pos": Vector3(24.0, 0, -15.6), "time": 24.0, "color": Color("#D7A9C4"), "delivery": "basket", "side_quest": "gio_nhip_dau"},
-			{"who": "Chị Mây", "place": "Cà phê Mây", "item": "2 ổ thịt nguội", "pos": Vector3(5.4, 0, 5.4), "time": 20.0, "color": Color("#7FB7A4"), "delivery": "counter", "side_quest": "khong_do_ly"},
-			{"who": "Anh Hùng", "place": "Sửa xe", "item": "3 ổ xíu mại", "pos": Vector3(30.6, 0, 25.3), "time": 30.0, "color": Color("#5E6F6C"), "delivery": "under_car", "side_quest": "khong_dau"},
-			{"who": "Bà Sáu", "place": "Nhà bông giấy", "item": "1 ổ chả cá", "pos": CityProps.BA_SAU_CHAIR, "time": 24.0, "color": Color("#C8412F"), "delivery": "chair", "side_quest": "muc_ngu_yen", "boss": true},
-		],
-	},
-	# Số giây trong bảng gói việc đã là Thứ Hai × 0,92, nên time_mult giữ 1.0 để khỏi nhân hai lần.
-	# Chỗ đứng của Chú Năm, Cô Hai, góc cờ là tạm; các gói T3-2/3/4/6 dời theo bố cục chợ, tạp hóa, góc cờ.
-	"thu_ba": {
-		"title": "Chợ đông",
-		"blurb": "Chợ tạm chiếm đường lớn, hàng rong chặn hẻm. Có đơn mua trứng về lò và đơn cho hai ông đánh cờ.",
-		"intro": "Cô Ba: \"Bữa nay chợ đông lắm Bơ ơi. Lò hết trứng rồi, ghé Cô Hai mua giùm cô một túi nha!\"",
-		"time_mult": 1.0,
-		"extras": {"market": true, "chess_corner": true, "shop_tap_hoa": true, "dog_sleeps_at_alley_mouth": true},
-		"orders": [
-			{"who": "Chú Năm", "place": "Xe ôm đầu hẻm 42", "item": "1 ổ thịt nguội", "note": "khong_ot", "pos": Vector3(-17.5, 0, 10.0), "time": 17.0, "color": Color("#4F7FA8"), "delivery": "on_seat", "side_quest": "kip_xe_om"},
-			{"who": "Cô Hai", "place": "Tạp hóa", "item": "1 túi 6 trứng", "kind": "errand", "errand_item": "trung6", "pos": Vector3(7.8, 0, -18.9), "time": 25.0, "color": Color("#E39C7A"), "delivery": "errand", "side_quest": "du_6_trung"},
-			{"who": "Ông Bảy, Ông Tám", "place": "Góc cờ công viên", "item": "1 ổ pate, 1 ổ trứng", "pos": ChessCorner.DROP, "time": 22.0, "color": Color("#7A8B5A"), "delivery": "beside_tea", "side_quest": "dat_luc_chieu"},
-			{"who": "Bé Na", "place": "Chung cư", "item": "2 ổ trứng", "note": "them_pate", "pos": Vector3(24.0, 0, -15.6), "time": 22.0, "color": Color("#D7A9C4"), "delivery": "basket", "basket_period": 2.0, "side_quest": "khong_dung_nguoi"},
-			{"who": "Anh Hùng", "place": "Sửa xe", "item": "3 ổ xíu mại", "pos": Vector3(30.6, 0, 25.3), "time": 28.0, "color": Color("#5E6F6C"), "delivery": "under_car", "side_quest": "khong_do_thung"},
-		],
-	},
-	# Gói việc thiet-ke-man/goi-viec-thu-tu.md. Khóa riêng Thứ Tư (scripts/thu_tu.gd đọc):
-	#   flood: Vector2(mức nước m, giây) dâng/rút lúc nhận đơn · pigeons: "roof" | "street" · clear: tạnh mưa
-	#   rooftop_hint: nhắc đường sân thượng. Cô Hai nhận ở cửa sau tạp hóa (cuối cầu thang sắt), cách giao
-	#   "counter_shop" chưa có cảnh riêng nên deliveries.gd dựng Cô Hai đứng chờ.
-	"thu_tu": {
-		"title": "Mưa chiều",
-		"blurb": "Mưa lớn, đường ngập dần. Đi đường sân thượng, giữ thăng bằng trên ván, tránh xe tạt nước và đàn bồ câu.",
-		"intro": "Cô Ba: \"Mưa lớn rồi Bơ ơi, bánh cô bọc ni-lông kỹ rồi. Đường lớn sắp ngập, lên sân thượng mà đi cho khô nha!\"",
-		"time_mult": 1.0,
-		"extras": {"rain": true, "rooftop": true, "pigeons": true},
-		"orders": [
-			{"who": "Chị Mây", "place": "Cà phê Mây", "item": "2 ổ thịt nguội", "pos": Vector3(5.4, 0, 5.4), "time": 20.0, "color": Color("#7FB7A4"), "delivery": "counter", "side_quest": "duoi_mai_hien"},
-			{"who": "Cô Hai", "place": "Tạp hóa", "item": "1 ổ pate", "note": "nhieu_do_chua", "pos": Vector3(7.8, 0, -16.0), "time": 22.0, "color": Color("#E39C7A"), "delivery": "counter_shop", "side_quest": "van_vung", "flood": Vector2(0.12, 20.0), "rooftop_hint": true},
-			{"who": "Bé Na", "place": "Chung cư", "item": "2 ổ trứng", "pos": Vector3(24.0, 0, -15.6), "time": 24.0, "color": Color("#D7A9C4"), "delivery": "basket", "side_quest": "bo_cau_yen", "pigeons": "roof"},
-			{"who": "Chú Năm", "place": "Xe ôm đầu hẻm 42", "item": "1 ổ thịt nguội", "note": "khong_ot", "pos": Vector3(-17.5, 0, 10.0), "time": 24.0, "color": Color("#4F7FA8"), "delivery": "on_seat", "side_quest": "khong_bi_tat", "flood": Vector2(0.25, 15.0)},
-			{"who": "Chú Tư", "place": "Sạp báo", "item": "2 ổ chả cá", "pos": Vector3(-1, 0, -6), "time": 18.0, "color": Color("#3D5A80"), "delivery": "hand", "side_quest": "khong_truot", "flood": Vector2(0.0, 20.0), "pigeons": "street", "clear": true},
-		],
-	},
-	# Thứ Năm trưa oi (gói việc thiet-ke-man/goi-viec-thu-nam.md): giờ là số Thử thách, Thong thả ×2 qua DoKho.
-	# Cả ngày bám mép, đạp tường. Bốn cách giao mới shelf, shutter, loft, scene ở scripts/thu_nam.gd.
-	# Đơn 5 "scene": tới cổng LÔ B thì sang cảnh chung_cu.tscn (đồng hồ apartment_time), giao xong quay về phố.
-	"thu_nam": {
-		"title": "Lên tầng năm",
-		"blurb": "Trưa oi, cả ngày leo trèo: bám mép lên nóc tủ báo, đạp tường qua khe hông tiệm xe, rồi leo chung cư lên tầng 5 cho Bé Na.",
-		"intro": "Cô Ba: \"Trưa nay nóng quá Bơ ơi. Đơn chót lên tận tầng năm cho Bé Na, leo nổi không con?\"",
-		"time_mult": 1.0,
-		"extras": {"climb_all_day": true, "noon": true},
-		"orders": [
-			{"who": "Chú Tư", "place": "Sạp báo", "item": "1 ổ pate", "pos": Vector3(-2.3, 0, -6.0), "time": 18.0, "color": Color("#3D5A80"), "delivery": "shelf", "side_quest": "tu_ngu_yen"},
-			{"who": "Anh Hùng", "place": "Sửa xe", "item": "3 ổ xíu mại", "pos": Vector3(31.8, 0, 23.0), "time": 24.0, "color": Color("#5E6F6C"), "delivery": "shutter", "side_quest": "dap_lien"},
-			{"who": "Cô Hai", "place": "Tạp hóa", "item": "1 bịch đá cục", "kind": "errand", "errand_item": "da", "pos": Vector3(7.8, 0, -18.9), "time": 22.0, "color": Color("#E39C7A"), "delivery": "errand_da", "side_quest": "da_con_nua"},
-			{"who": "Chị Mây", "place": "Cà phê Mây", "item": "2 ổ thịt nguội + 1 ly đá", "pos": Vector3(7.5, 0, 5.4), "time": 22.0, "color": Color("#7FB7A4"), "delivery": "loft", "side_quest": "len_gac"},
-			{"who": "Bé Na", "place": "Chung cư, căn 5B-1", "item": "2 ổ trứng", "kind": "deliver", "pos": ThuNam.GATE, "time": 30.0, "color": Color("#D7A9C4"), "delivery": "scene", "side_quest": "em_be_ngu_yen"},
-		],
-	},
-	# Thứ Sáu chiều tà (gói việc thiet-ke-man/goi-viec-thu-sau.md): giờ là số Thử thách, Thong thả ×2 qua DoKho.
-	# Ba cách giao mới call, lift, gio_table ở scripts/thu_sau.gd. Đơn "gio": ngậm túi 3 ổ tới nhà Bà Sáu.
-	# Thong thả 6 ổ / 2 chuyến, mỗi chuyến giờ riêng. Thử thách (orders_hard) 10 ổ / 4 chuyến, đơn "gio_group"
-	# dùng chung đồng hồ gio_shared_time giây. Cảnh tiệm xe, sân giỗ là khối tạm chờ model G6, G7.
-	"thu_sau": {
-		"title": "Đám giỗ Bà Sáu",
-		"blurb": "Chiều tan tầm: gọi khách bằng tiếng meo, cầu nâng tiệm xe, rồi chạy nhiều chuyến bánh cho đám giỗ nhà Bà Sáu.",
-		"intro": "Cô Ba: \"Chiều nay giỗ ông nhà Bà Sáu, cô làm thêm cả mâm bánh. Bơ chạy mấy chuyến giùm cô nha, thằng Mực bữa nay thức hoài đó!\"",
-		"time_mult": 1.0,
-		"extras": {"evening": true, "gio": true, "dog_alert": true},
-		"orders": [
-			{"who": "Chị Mây", "place": "Cà phê Mây", "item": "2 ổ thịt nguội", "pos": Vector3(5.4, 0, 4.6), "time": 20.0, "color": Color("#7FB7A4"), "delivery": "call", "side_quest": "goi_mot_tieng"},
-			{"who": "Anh Hùng", "place": "Sửa xe", "item": "3 ổ xíu mại", "pos": ThuSau.LIFT_SPOT, "time": 26.0, "color": Color("#5E6F6C"), "delivery": "lift", "side_quest": "truoc_goi_hai"},
-			{"who": "Cô Hai", "place": "Tạp hóa", "item": "1 bó nhang + hộp đèn cầy", "kind": "errand", "errand_item": "nhang", "pos": Vector3(7.8, 0, -18.9), "time": 22.0, "color": Color("#E39C7A"), "delivery": "errand_nhe", "side_quest": "khong_dung_nguoi"},
-			{"who": "Bà Sáu", "place": "Nhà bông giấy", "item": "3 ổ chả cá (chuyến 1)", "pos": ThuSau.GIO_GATE, "time": 24.0, "color": Color("#C8412F"), "delivery": "call", "side_quest": "muc_ngu_yen", "boss": true, "gio": true},
-			{"who": "Bà Sáu", "place": "Nhà bông giấy", "item": "3 ổ chả cá + mâm nhang (chuyến 2)", "pos": ThuSau.GIO_TABLE, "time": 24.0, "color": Color("#C8412F"), "delivery": "gio_table", "side_quest": "vao_tu_gian", "boss": true, "gio": true, "dog_start": "peek"},
-		],
-		"orders_hard": [
-			{"who": "Chị Mây", "place": "Cà phê Mây", "item": "2 ổ thịt nguội", "pos": Vector3(5.4, 0, 4.6), "time": 20.0, "color": Color("#7FB7A4"), "delivery": "call", "side_quest": "goi_mot_tieng"},
-			{"who": "Anh Hùng", "place": "Sửa xe", "item": "3 ổ xíu mại", "pos": ThuSau.LIFT_SPOT, "time": 26.0, "color": Color("#5E6F6C"), "delivery": "lift", "side_quest": "truoc_goi_hai"},
-			{"who": "Cô Hai", "place": "Tạp hóa", "item": "1 bó nhang + hộp đèn cầy", "kind": "errand", "errand_item": "nhang", "pos": Vector3(7.8, 0, -18.9), "time": 22.0, "color": Color("#E39C7A"), "delivery": "errand_nhe", "side_quest": "khong_dung_nguoi"},
-			{"who": "Bà Sáu", "place": "Nhà bông giấy", "item": "3 ổ chả cá (chuyến 1)", "pos": ThuSau.GIO_GATE, "time": 120.0, "color": Color("#C8412F"), "delivery": "call", "side_quest": "muc_ngu_yen", "boss": true, "gio": true, "gio_group": true},
-			{"who": "Bà Sáu", "place": "Nhà bông giấy", "item": "3 ổ chả cá + mâm nhang (chuyến 2)", "pos": ThuSau.GIO_TABLE, "time": 120.0, "color": Color("#C8412F"), "delivery": "gio_table", "side_quest": "vao_tu_gian", "boss": true, "gio": true, "gio_group": true, "dog_start": "peek"},
-			{"who": "Bà Sáu", "place": "Nhà bông giấy", "item": "2 ổ chả cá (chuyến 3)", "pos": ThuSau.GIO_GATE, "time": 120.0, "color": Color("#C8412F"), "delivery": "call", "boss": true, "gio": true, "gio_group": true},
-			{"who": "Bà Sáu", "place": "Nhà bông giấy", "item": "2 ổ chả cá (chuyến 4)", "pos": ThuSau.GIO_TABLE, "time": 120.0, "color": Color("#C8412F"), "delivery": "gio_table", "boss": true, "gio": true, "gio_group": true},
-		],
-	},
-	# Thứ Bảy dạo phố (gói việc thiet-ke-man/goi-viec-thu-bay.md): "mode": "free" = không có đơn giao, không đồng hồ,
-	# không sao. scripts/thu_bay.gd lo phần chơi: Sổ hàng xóm (scripts/so_hang_xom.gd), mỗi việc nhờ một file trong
-	# scripts/viec_nho/, chương Chó Mực (scripts/muc_ban.gd), chụp ảnh P (scripts/chup_anh.gd).
-	# Khóa của một việc nhờ: id (trùng file viec_nho/<id>.gd và id người dân), page (trang sổ), who, place,
-	# task (dòng việc trên sổ), skill, gift (id phụ kiện, "cong_thuc" = công thức mới), gift_name, pose (dáng Bơ trong ảnh chung).
-	"thu_bay": {
-		"title": "Dạo phố",
-		"blurb": "Không có đồng hồ: đi giúp hàng xóm, chụp ảnh, và làm bạn với Chó Mực.",
-		"intro": "Cô Ba: \"Thứ Bảy rồi, cô cho Bơ nghỉ! Cầm cuốn sổ này đi chơi một vòng, ai cần gì thì giúp người ta nha.\"",
-		"mode": "free",
-		"time_mult": 1.0,
-		"extras": {"no_timer": true, "muc_friend": true},
-		"orders": [],
-		"favours": [
-			{"id": "coba", "page": 1, "who": "Cô Ba", "place": "Lò bánh", "task": "Chọn 3 nhân cho ổ \"bánh mì Bơ\"", "skill": "bếp", "gift": "cong_thuc", "gift_name": "Công thức mới", "pose": "chup_dung"},
-			{"id": "chutu", "page": 2, "who": "Chú Tư", "place": "Sạp báo", "task": "Đuổi theo tờ báo bị gió thổi lên mái hiên", "skill": "nhảy, mái hiên, bám mép", "gift": "kinhcan", "gift_name": "Kính cận", "pose": "chup_vay"},
-			{"id": "bena", "page": 3, "who": "Bé Na", "place": "Chung cư", "task": "Trốn tìm: tìm Bé Na 3 lần", "skill": "leo, bám mép", "gift": "nobuom", "gift_name": "Nơ bướm", "pose": "chup_vay"},
-			{"id": "may", "page": 4, "who": "Chị Mây", "place": "Cà phê Mây", "task": "Làm mèo mẫu: tạo 3 dáng theo bảng", "skill": "chụp ảnh", "gift": "lycaphe", "gift_name": "Ly cà phê đội đầu", "pose": "chup_dung"},
-			{"id": "hung", "page": 5, "who": "Anh Hùng", "place": "Tiệm sửa xe", "task": "Tìm 4 con ốc lăn dưới gầm xe", "skill": "chui", "gift": "kinhbaoho", "gift_name": "Kính bảo hộ", "pose": "chup_nam"},
-			{"id": "basau", "page": 6, "who": "Bà Sáu", "place": "Nhà bông giấy", "task": "Hái 5 chùm bông giấy trên giàn", "skill": "leo, thăng bằng", "gift": "hoadambut", "gift_name": "Hoa dâm bụt", "pose": "chup_dung"},
-			{"id": "ongbay", "page": 7, "who": "Ông Bảy, Ông Tám", "place": "Góc cờ", "task": "Tìm 3 quân cờ lăn mất, đừng làm đổ ấm trà", "skill": "rón rén", "gift": "nonphot", "gift_name": "Nón phớt", "pose": "chup_nam"},
-			{"id": "cohai", "page": 8, "who": "Cô Hai", "place": "Tạp hóa", "task": "Xếp lại tháp 6 lon trước tiệm", "skill": "nhảy, đẩy", "gift": "khanran", "gift_name": "Khăn rằn", "pose": "chup_vay"},
-			{"id": "chunam", "page": 9, "who": "Chú Năm", "place": "Xe ôm đầu hẻm", "task": "Lấy mũ bảo hiểm khách bỏ quên trên mái hiên", "skill": "mái hiên", "gift": "mubaohiem", "gift_name": "Mũ bảo hiểm", "pose": "chup_dung"},
-			{"id": "chithu", "page": 10, "who": "Chị Thu", "place": "Chung cư tầng 3", "task": "Ru em bé: nằm cạnh võng kêu rừ rừ", "skill": "rón rén", "gift": "chuong", "gift_name": "Vòng chuông", "pose": "chup_nam"},
-		],
-	},
-	# Chủ Nhật Hội mèo (gói việc thiet-ke-man/goi-viec-chu-nhat.md): sáng một đơn khay bánh không tính giờ
-	# ("time": 0), tối Hội mèo do scripts/chu_nhat.gd lo (main.hand_off), 5 trò ở scripts/hoi_meo/.
-	"chu_nhat": {
-		"title": "Hội mèo",
-		"mode": "festival",
-		"blurb": "Sáng mang khay bánh mì mini tới công viên. Tối Hội mèo: đua mái nhà, nhảy thùng, trốn tìm, giao tiếp sức, thi trang phục. Không ai thua!",
-		"intro": "Cô Ba: \"Tối nay hội mèo đó Bơ! Mình làm khay bánh mì mini mang tới góp vui nha.\"",
-		"time_mult": 1.0,
-		"extras": {"festival": true},
-		"orders": [
-			{"who": "Bà Mướp", "place": "Công viên khối 4", "item": "1 khay bánh mì mini", "pos": Vector3(-33.0, 0, 21.0), "time": 0.0, "color": Color("#8E8A80"), "delivery": "tray"},
-		],
-	},
-}
+## Dữ liệu các ngày trong tuần đã có file, theo thứ tự ORDER (chi_tiet_pho.gd, nguoi_qua_duong.gd duyệt qua).
+## Ngày ngoài tuần được nạp thêm vào đây lần đầu get_day() gọi tới.
+static var DATA: Dictionary = _load_week()
 
 
-## Dữ liệu một ngày: {id, name, title, blurb, intro, time_mult, extras, orders}. Ngày chưa làm có orders rỗng.
+static func file_of(id: String) -> String:
+	return "res://scripts/ngay/%s.gd" % id
+
+
+static func _load_week() -> Dictionary:
+	var all := {}
+	for id: String in ORDER:
+		var d := _read(id)
+		if not d.is_empty():
+			all[id] = d
+	return all
+
+
+static func _read(id: String) -> Dictionary:
+	var path := file_of(id)
+	if id == "" or not ResourceLoader.exists(path):
+		return {}
+	var s: Script = load(path)
+	return s.get_script_constant_map().get("DATA", {}) if s else {}
+
+
+## Dữ liệu gốc của một ngày (rỗng nếu không có file).
+static func data(id: String) -> Dictionary:
+	if not DATA.has(id):
+		var d := _read(id)
+		if d.is_empty():
+			return {}
+		DATA[id] = d
+	return DATA[id]
+
+
+
+## Dữ liệu một ngày: {id, name, title, blurb, intro, time_mult, extras, orders, nodes, hud, help, help_note}.
+## Ngày chưa làm có orders rỗng; mã không có file thì trả Thứ Hai.
 static func get_day(id: String) -> Dictionary:
-	var d: Dictionary = DATA.get(id, DATA.thu_hai)
+	var d := data(id)
+	var known := not d.is_empty()
+	if not known:
+		d = data("thu_hai")
 	return {
-		"id": id if DATA.has(id) else "thu_hai",
+		"id": id if known else "thu_hai",
 		"name": GameState.DAY_NAMES.get(id, id),
 		"title": d.get("title", ""),
 		"blurb": d.get("blurb", ""),
@@ -173,7 +88,23 @@ static func get_day(id: String) -> Dictionary:
 		"time_mult": float(d.get("time_mult", 1.0)),
 		"extras": d.get("extras", {}),
 		"orders": d.get("orders_hard", d.get("orders", [])) if DoKho.hard() else d.get("orders", []),
+		"nodes": d.get("nodes", []),
+		"hud": d.get("hud", []),
+		"help": d.get("help", []),
+		"help_note": d.get("help_note", ""),
 	}
+
+
+## Script node riêng của mọi ngày trong tuần cộng ngày đang chơi, theo thứ tự ORDER, không trùng.
+## main.gd thêm hết vào cảnh phố như trước khi tách file; node nào không phải ngày của nó thì tự gỡ
+## (giữ được các cờ thử như -- --cho bật chợ ở ngày khác).
+static func all_nodes(current: String) -> Array:
+	var out := []
+	for id: String in ORDER + [current]:
+		for path: String in data(id).get("nodes", []):
+			if not path in out:
+				out.append(path)
+	return out
 
 
 static func orders(id: String) -> Array:
@@ -182,17 +113,17 @@ static func orders(id: String) -> Array:
 
 ## Ngày đã làm xong phần chơi (có đơn, hoặc ngày tự do không đơn như Thứ Bảy).
 static func playable(id: String) -> bool:
-	return not (DATA.get(id, {}) as Dictionary).get("orders", []).is_empty() or is_free(id)
+	return not data(id).get("orders", []).is_empty() or is_free(id)
 
 
 ## Ngày tự do: không đơn giao, không đồng hồ (Thứ Bảy dạo phố, scripts/thu_bay.gd).
 static func is_free(id: String) -> bool:
-	return (DATA.get(id, {}) as Dictionary).get("mode", "") == "free"
+	return data(id).get("mode", "") == "free"
 
 
 ## Việc nhờ của ngày tự do (Sổ hàng xóm), rỗng nếu ngày đó không có.
 static func favours(id: String) -> Array:
-	return (DATA.get(id, {}) as Dictionary).get("favours", [])
+	return data(id).get("favours", [])
 
 
 ## Ngày chơi được và đã mở: bản chơi thử mở hết; không thì phải chơi hết ngày trước ít nhất một lần.

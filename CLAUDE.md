@@ -75,6 +75,8 @@ Model: Blender chạy headless qua `pip install bpy` (đang dùng bpy 5.2). Mỗ
 | `desktop.yml` | mỗi PR và mỗi lần `main` đổi | Xuất Windows (chạy thử `.exe` bằng wine) và macOS; job macOS chạy autotest mọi ngày và gần hết `tests/`. `main` thì thay zip ở bản phát hành `ban-moi-nhat`. |
 | `hieu-nang.yml` | mỗi PR | Đo tam giác / lệnh vẽ / dung lượng `index.pck`, đỏ khi vượt ngân sách. Ảnh các góc ở mục Artifacts. |
 | `pages.yml` | `main` đổi | Xuất bản web lên https://sangdaden.github.io/meo-giao-banh-mi/ |
+| `gop-main.yml` | `main` đổi, PR mở hoặc đẩy thêm | Tự gộp `main` vào các PR đang mở, báo PR đụng (`docs/gop-main.md`). |
+| `itch.yml` | chỉ khi bấm Run workflow (hoặc tag `v*` khi biến `ITCH_TU_DONG` = `co`), xem `docs/itch.md` | Đẩy bản web/Windows/Mac lên itch.io; chỉ chạy khi Sang đồng ý. |
 
 - Thêm test mới thì thêm một dòng chạy nó vào job macOS trong `desktop.yml`, kèm `grep -q "<CHU OK>"`.
 - Không bỏ qua, tắt hay cách ly test để CI xanh. Không push commit rỗng để chạy lại CI.
@@ -82,13 +84,15 @@ Model: Blender chạy headless qua `pip install bpy` (đang dùng bpy 5.2). Mỗ
 
 ## Bản đồ file
 
-Ghi chú: luồng **H1 "Tách file chống đụng PR"** (23/10) đang tách `main.gd`, `hud.gd`, `days.gd` thành mảnh theo ngày. Khi PR H1 gộp, cập nhật bảng này cho khớp.
+Từ PR #133 (H1, 23/10) mỗi ngày có file riêng, HUD tách thành mảnh, bot tự chơi tách khỏi `main.gd`.
 
 | Phần | File | Luồng phụ trách gần nhất |
 |---|---|---|
-| Vòng chơi chung, input, autotest | `scripts/main.gd`, `scripts/play_mode.gd` | H1 đang tách; sau đó ai cần thì rẽ nhánh từ main mới |
-| Dữ liệu từng ngày (đơn, lời Cô Ba) | `scripts/days.gd` | H1 (mỗi ngày tự đăng ký qua file riêng) |
-| HUD màn giao bánh | `scripts/hud.gd` | H1, rồi "Chữ hướng dẫn và thẻ nhiệm vụ" (đợt 2) |
+| Vòng chơi chung, input | `scripts/main.gd`, `scripts/play_mode.gd` | chỉ sửa khi đổi vòng chơi chung; việc riêng của ngày không đặt ở đây |
+| Dữ liệu từng ngày (đơn, lời Cô Ba, Cách chơi) | `scripts/ngay/<mã ngày>.gd` (`const DATA`) | luồng của ngày đó. **Không sửa `scripts/days.gd`** (chỉ còn thứ tự ngày và hàm đọc) |
+| Ngày ngoài tuần (màn dạy chơi B1...) | file mới `scripts/ngay/<mã>.gd`, rồi `PlayMode.day = "<mã>"` | luồng làm ngày đó |
+| Bot tự chơi và chấm kết quả | `scripts/tu_choi_pho.gd` | I1 mở rộng ở đây, không ở `main.gd` |
+| HUD màn giao bánh | `scripts/hud.gd` (khung chung + `add_piece()`), mảnh: `ui/hud_ket_qua.gd` (kết quả), `ui/hud_tam_dung.gd` (menu Esc, `HELP_PHO`), `ui/hud_ban_do.gd` (bản đồ nhỏ), `ui/hud_trung.gd` (trứng), `ui/hud_hinh.gd` (icon) | "Chữ hướng dẫn và thẻ nhiệm vụ" (đợt 2) |
 | Menu, Cài đặt, Chọn màn, tủ đồ, bản đồ nhỏ | `scripts/ui/` | "Giao diện menu và HUD", "Chọn màn chơi", "Bản đồ nhỏ góc màn hình" |
 | Độ khó | `scripts/do_kho.gd` | "Thiết kế màn chơi" |
 | Bơ: điều khiển, động tác, rig | `scripts/player.gd`, `scripts/bo_paw.gd`, `tools/bo_game.py`, `tools/dong_tac_bo/` | "Bơ 22 xương"; nút cứu kẹt A2 |
@@ -109,18 +113,23 @@ Ghi chú: luồng **H1 "Tách file chống đụng PR"** (23/10) đang tách `ma
 | Chủ Nhật (Hội mèo) | `scripts/chu_nhat.gd`, `scripts/hoi_meo/`, `scripts/meo_npc.gd` | "Hội mèo" |
 | Tiệm, mua đồ bằng tiền boa | `scripts/shop.gd`, `scripts/tiem.gd`, `scripts/ui/wardrobe_panel.gd`, `tools/xuat_skin_game.py` | "Skin mèo và phụ kiện", "Giao diện menu và HUD" |
 | Test, đo, chụp | `tests/`, `tools/do_hieu_nang.gd`, `tools/chup_*.gd` | luồng nào thêm tính năng thì thêm test của mình; I1 bot tự chơi cả tuần |
-| CI | `.github/workflows/` | "Xuất bản Windows tự động"; H2 tự gộp main |
+| CI | `.github/workflows/` (`gop-main.yml` xem `docs/gop-main.md`, `itch.yml` xem `docs/itch.md`) | "Xuất bản Windows tự động"; H2 tự gộp main; J1 itch.io |
 
 ## Tránh đụng nhau giữa các PR
 
-`main.gd`, `hud.gd`, `days.gd`, `ui/level_select.gd` và `desktop.yml` là nơi hay đụng nhất.
+`main.gd`, `hud.gd`, `ui/level_select.gd` và `desktop.yml` là nơi hay đụng nhất.
 
 1. **Việc mới đặt vào file mới của riêng mình**, chỉ nối vào file chung bằng vài dòng (gọi hàm, thêm node, thêm khóa). Một hàm `setup()` trong file mới tốt hơn 200 dòng chen vào `main.gd`.
-2. Đang có luồng sửa lớn một file chung (như H1 với `main.gd`/`hud.gd`/`days.gd`) thì **chờ PR đó gộp** rồi rẽ nhánh từ `main` mới; trong lúc chờ, viết phần độc lập trong file mới.
+2. Việc riêng của một ngày đi vào file ngày `scripts/ngay/<mã>.gd` qua các khóa ngày (khai báo trong đầu `scripts/days.gd`):
+   - `nodes`: script node riêng của ngày, `main.gd` tự thêm vào cảnh phố (có thể có `begin()`, `resume_day() -> bool`);
+   - `hud`: mảnh giao diện riêng (Control có biến `hud`), gắn qua `hud.add_piece()`, không sửa `hud.gd`;
+   - `help`, `help_note`: bảng "Cách chơi" trong menu Esc của ngày;
+   - khóa đơn `quick_assemble`: giao xong đơn thì sang bếp ráp nhanh rồi quay lại.
+   Đang có luồng sửa lớn một file chung thì **chờ PR đó gộp** rồi rẽ nhánh từ `main` mới.
 3. Trước khi mở PR và mỗi khi `main` đổi: `git fetch origin main && git merge origin/main`, chạy lại test liên quan, rồi đẩy. Gộp (merge), không rebase lại lịch sử đã đẩy.
 4. Thêm vào file chung thì thêm **ở cuối nhóm** (cuối danh sách, cuối dict, cuối bước CI) và giữ một mục mỗi dòng, để hai PR cùng thêm ít đụng dòng.
 5. PR nhỏ, một việc. Mô tả PR ghi: file chung nào bị sửa, ảnh trước/sau nếu đổi hình, số tam giác nếu thêm model.
-6. Khi Sang báo đụng (conflict) hoặc CI đỏ: luồng sở hữu PR tự gộp `main` mới và sửa. Thứ tự gộp nên theo: PR sửa nền (tách file, CI) trước, PR tính năng sau, PR chỉ thêm file mới gộp lúc nào cũng được.
+6. Workflow `gop-main.yml` (H2) tự gộp `main` vào các PR đang mở; đụng thì gắn nhãn `dung-main` và bình luận cách sửa. Vì bot có thể đẩy commit gộp lên nhánh của mình: **`git pull --no-rebase` trước khi sửa tiếp**, không `push --force`. Luồng sở hữu PR tự sửa khi đụng hoặc CI đỏ. Thứ tự gộp PR cho Sang: `docs/gop-main.md`.
 
 ## Nơi để đồ ngoài repo
 

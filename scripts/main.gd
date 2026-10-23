@@ -113,6 +113,7 @@ func _ready() -> void:
 	rig.yaw = 0.0  # camera phía nam nhìn lên, thấy mặt tiền lò bánh
 	add_child(rig)
 	player.camera_rig = rig
+	AnhTuan.setup(self)  # ảnh mỗi ngày cho bảng "Tuần của Bơ" (cảnh kết tuần)
 	residents.setup(player)
 
 	dog = DogScript.new()

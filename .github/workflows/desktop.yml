@@ -230,6 +230,9 @@ jobs:
           # Thứ Hai chơi bằng tiếng Anh, in các câu còn tiếng Việt (THIEU DICH)
           timeout 600 ~/godot/godot --headless --path . -- --autotest --lang=en --dich-thieu 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee thu_hai_en.log
           grep -q "AUTOTEST OK" thu_hai_en.log
+          # Bồ câu và chim (K1 rắc vụn bánh, K2 bồ câu non lạc đàn về chuồng mái khối 2)
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_bo_cau.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee bo_cau.log
+          grep -q "BO CAU TEST OK" bo_cau.log
           mkdir -p export
           ~/godot/godot --headless --path . --export-release "macOS" "export/$ZIP_NAME"
           unzip -l "export/$ZIP_NAME" | grep -q "_CodeSignature/CodeResources"

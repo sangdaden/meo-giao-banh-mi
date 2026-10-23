@@ -120,6 +120,10 @@ const EASY := {
 	"rise_grab": true,           # đang bay lên mà mép cao quá đỉnh nhảy thì bám luôn (Thử thách: chỉ gần đỉnh)
 	# Bản đồ nhỏ (scripts/ui/ban_do_nho.gd)
 	"map_path": true,            # đường chấm đỏ chỉ đường tới đích (Thử thách: chỉ có ghim, tự tìm đường)
+	# Bồ câu và chim (scripts/bo_cau.gd, scripts/viec_nho/bo_cau_non.gd): chỉ là thưởng, không mất sao
+	"rac_vun_r": 7.0,            # ngồi gọi Q cách đàn 7 m vẫn rắc vụn bánh được (Thử thách 4 m)
+	"rac_vun_giay": 10.0,        # đàn mổ vụn quanh Bơ 10 s (Thử thách 6)
+	"rac_vun_em": 10.0,          # ăn xong thì quen hơi Bơ: 10 s đi sát không bay (Thử thách 4)
 }
 
 

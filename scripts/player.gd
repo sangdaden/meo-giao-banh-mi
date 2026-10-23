@@ -885,7 +885,9 @@ func _climb_process(delta: float) -> void:
 				ledge_climbed.emit()
 		"pipe":
 			var p := _pipe
-			var target := p.global_position + _wall_n * 0.24
+			# Gốc mèo cách trục ống 0,27 m: động tác leo_ong vẽ với 0,24 m trên ống Ø10 cm; ống trong game Ø11 cm,
+			# lùi thêm 3 cm để ngực, mặt, mông không lún vào ống (đo đỉnh lưới qua cả nhịp leo: thân ≥ 6,8 cm tới trục)
+			var target := p.global_position + _wall_n * 0.27
 			var v := 0.0
 			if can_move and Input.is_action_pressed("move_forward"):
 				v = pipe_speed
@@ -960,6 +962,8 @@ func exit_pipe(p: Node3D) -> void:
 ## Góc nhìn thứ nhất: camera không vẽ thân Bơ, nhưng bóng đổ của Bơ vẫn đủ cả đầu lẫn đuôi.
 func set_first_person(v: bool, cam: Camera3D = null) -> void:
 	first_person = v
+	for pv in _fp_paws:
+		pv.visible = v  # máy quay riêng (ảnh chung, trailer, chụp soát) không lọc lớp: góc thứ ba giấu hẳn, kẻo lòi ra lưng khi leo ống
 	if cam:
 		cam.cull_mask = (0xFFFFF & ~LAYER_BO_BODY) if v else (0xFFFFF & ~LAYER_FP_PAWS)
 
@@ -980,6 +984,7 @@ func _build_fp_paws() -> void:
 		for mi: MeshInstance3D in paw.find_children("*", "MeshInstance3D", true, false):
 			mi.layers = LAYER_FP_PAWS
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		pivot.visible = first_person
 		_fp_paws.append(pivot)
 
 

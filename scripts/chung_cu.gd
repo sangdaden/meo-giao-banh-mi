@@ -704,7 +704,7 @@ func _build_west_wall() -> void:
 	var pipe_len := PIPE_TOP - PIPE.y
 	var seg := pipe_len / 3.0
 	for i in 3:
-		var o := _model(M_ONG, self, PIPE + Vector3(0.05, seg * (i + 1) if i == 0 else seg * i, 0), 0.0,
+		var o := _model(M_ONG, self, PIPE + Vector3(0.05, seg * (i + 1) if i == 0 else seg * i, -0.017), 0.0,  # z: trục ống (lệch 1,7 cm trong model) trùng PIPE
 			["ong", "kep", "vach_bam", "dau_gay"] if i == 0 else ["ong", "kep", "vach_bam"])
 		o.scale = Vector3(1, seg / 2.8, 1)
 		if i == 0:

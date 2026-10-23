@@ -81,17 +81,17 @@ A('keo_len', day='T5', title='Kéo người lên', dur=.6, loop=False, ctx='ledg
   game='Code đang tự dời gốc mèo (lên trước, rồi vào trong); khi ráp, trừ quãng dời đó khỏi root của clip.')
 
 PIPE = dict(root=(0, .45, .32, 80), head=(-60, 0, 0), chest=(-6,),
-            FL=(-.04, .71, .065, -80), FR=(.04, .66, .065, -80), BL=(-.045, .21, .33, -60), BR=(.045, .21, .33, -60),
+            FL=(.01, .71, .09, 0), FR=(-.01, .66, .09, 0), BL=(.014, .26, .36, 100), BR=(-.014, .26, .36, 100),
             tail=(-50, 0, -10, 0, 0, 0, 0, 0))
 A('leo_ong', day='T5', title='Leo ống nước', dur=.8, loop=True, ctx='pipe', bag=True,
   keys=cyc(8, .8, lambda u: merge(PIPE, dict(
       root=(0, .45 + .03 * S(u * TAU), .32, 80 - 3 * S(u * TAU)),
-      FL=(-.04, .71 + .05 * S(u * TAU), .065, -80), FR=(.04, .68 - .05 * S(u * TAU), .065, -80),
-      BL=(-.045, .23 + .05 * S(u * TAU + 2), .33, -60), BR=(.045, .23 - .05 * S(u * TAU + 2), .33, -60),
+      FL=(.01, .71 + .05 * S(u * TAU), .09, 0), FR=(-.01, .68 - .05 * S(u * TAU), .09, 0),
+      BL=(.014, .26 + .04 * S(u * TAU + 2), .36, 100), BR=(-.014, .26 + .04 * S(u * TAU + 2), .36, 100),
       tail=(-50, 12 * S(u * TAU), -10, 15 * S(u * TAU - 1), 0, 15 * S(u * TAU - 2), 0, 10 * S(u * TAU - 3))))),
   shots=[0, .2, .4, .6], main=.2,
   notes='Ôm ống (đường kính 10 cm) bằng cả bốn chân, bụng sát ống, đầu ngẩng nhìn lên. Chân trước với lên so le, '
-        'chân sau đẩy theo sau nửa nhịp. 0,8 s mỗi nhịp ứng với pipe_speed 1,4 m/s; leo xuống phát ngược nhanh 1,6 lần.',
+        'bốn chân tụm lại ôm ống như mèo thật leo cột (Sang 23/10): bàn chân trước hai bên ống, chân sau co dưới bụng, hai bàn chân sau cùng đạp trên mặt ống, mũi chân hướng lên; chân sau đẩy cùng lúc, lệch chân trước nửa nhịp. 0,8 s mỗi nhịp ứng với pipe_speed 1,4 m/s; leo xuống phát ngược nhanh 1,6 lần.',
   game='climb == "pipe": gốc mèo cách tâm ống 0,24 m như code; tốc độ phát clip theo vận tốc leo.')
 
 KICK0 = dict(root=(0, .25, 0, 40), chest=(-20,), head=(-20, 0, 0), tail=(-25, 40, 0, 30, 0, 20, 10, 10),

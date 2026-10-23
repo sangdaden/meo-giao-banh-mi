@@ -51,4 +51,20 @@ func _run() -> void:
 	tb._show_end_spot()
 	c = tb._end_pos()
 	await _shot("6_bon_nuoc_ket_ngay", c + Vector3(1.8, 1.8, 2.8), c + Vector3(-0.9, 0.8, -0.15))
+	await _shot("7_khach_ca_phe", Vector3(-1.0, 1.7, 1.0), Vector3(-3.0, 0.5, 6.0))
+	# Giao thông đứng hình: xe gần ngã tư nhất, chụp ngang và chéo; người bán xe đẩy
+	var traffic: Node3D
+	for n in main.get_children():
+		if n.has_method("_build_carts"):
+			traffic = n
+	traffic.set_physics_process(false)
+	var bikes: Array = traffic.get("_bikes").filter(func(b): return b.active and not b.bus)
+	bikes.sort_custom(func(a, b): return a.xf.origin.distance_to(Vector3(-24, 0, 2)) < b.xf.origin.distance_to(Vector3(-24, 0, 2)))
+	for k in 2:
+		var b = bikes.filter(func(x): return x.pillion == (k == 1))[0]
+		var o: Vector3 = b.xf.origin
+		await _shot("8_nguoi_lai_%d" % k, o + b.xf.basis.x * 2.6 + b.xf.basis.z * -1.2 + Vector3(0, 1.3, 0), o + Vector3(0, 0.9, 0))
+	var cart: Node3D = traffic.get("_carts")[0].body
+	await _shot("9_nguoi_ban_xe_day", cart.global_position + cart.global_basis.z * 3.0 + cart.global_basis.x * 1.8 + Vector3(0, 1.4, 0),
+		cart.global_position + Vector3(0, 0.9, 0))
 	quit()

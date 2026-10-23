@@ -15,7 +15,6 @@ const TABLE := Color("#5FA35A")
 const STOOL := Color("#D94F3D")
 const POT := Color("#B5653E")
 const LEAF := Color("#4E8F4A")
-const CLOTH := [Color("#F2E3B8"), Color("#E39C7A"), Color("#A9C7E8"), Color("#D7A9C4"), Color("#FFF8EA")]
 const BOUGAIN := Color("#C8407E")
 const CAP := Color("#9C978C")
 
@@ -456,19 +455,20 @@ static func cafe(parent: Node3D) -> void:
 	DoThem.solid(parent, "quay_cafe", Vector3(1.4, 0.9, 0.6), CAFE_COUNTER - Vector3(0, 0.45, 0), PI)  # G1: mặt quầy 0,9 m, tủ kính nửa trái
 
 
-## Khách ngồi ghế: thân trên + đùi duỗi về phía bàn. Có va chạm (chân khách chắn đường).
-## (Người thật có rig sẽ do thread "Người dân vào game" thay.)
+## Khách ngồi ghế nhựa: người qua đường có xương (P3) ngồi ăn/ngồi ghế, quay mặt vào bàn (gói G1).
+## Có va chạm hộp thân như khối cũ (khách chắn đường).
+const KHACH_CA_PHE := [["qd_congnhan", "ngoi_an"], ["qd_ongtd", "ngoi_ghe"], ["qd_vanphong", "ngoi_ghe"],
+	["qd_sinhvien", "ngoi_ghe"], ["qd_veso", "ngoi_ghe"], ["qd_mehoa", "ngoi_ghe"]]
+
+
 static func _seated_customer(parent: Node3D, seat: Vector3, side: float) -> void:
-	var shirt: Color = CLOTH[int(absf(seat.x * 3.0)) % CLOTH.size()].darkened(0.15)
-	var body := Blocks.solid_box(parent, Vector3(0.42, 0.6, 0.28), seat + Vector3(0, 0.3, side * 0.05), shirt, Blocks.LAYER_PROP)
+	var body := Blocks.collider(parent, Vector3(0.42, 0.6, 0.28), seat + Vector3(0, 0.3, side * 0.05), Blocks.LAYER_PROP)
 	body.add_to_group("khach_ca_phe")
-	Blocks.box(body, Vector3(0.36, 0.14, 0.4), Vector3(0, -0.22, -side * 0.3), Color("#3D4A4A"))  # đùi
-	var head := SphereMesh.new()
-	head.radius = 0.13
-	head.height = 0.26
-	head.radial_segments = 10
-	head.rings = 5
-	Blocks.mesh(body, head, Vector3(0, 0.45, 0), Color("#E7B98F"))
+	var who: Array = KHACH_CA_PHE[int(absf(seat.x + 6.0) + (side + 1.0) * 1.5) % KHACH_CA_PHE.size()]
+	var n := Nguoi.make(who[0], who[1])
+	n.position = Vector3(seat.x, 0.0, seat.z)
+	n.rotation.y = 0.0 if side < 0.0 else PI
+	parent.add_child(n)
 
 
 # ------------------------------------------------------------------ nhà đặc biệt

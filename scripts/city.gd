@@ -179,7 +179,7 @@ static func _park(parent: Node3D, r: Rect2, rng: RandomNumberGenerator) -> void:
 		trunk.add_child(shape)
 	# Ghế đá để nhảy lên
 	for b in [Vector3(-38, 0, 10), Vector3(-28, 0, 22), Vector3(-40, 0, 20)]:
-		Blocks.solid_box(parent, Vector3(1.8, 0.45, 0.6), b + Vector3(0, 0.225, 0), Color("#B8B2A2"), Blocks.LAYER_PROP)
+		DoThem.solid(parent, "ghe_da_cong_vien", Vector3(1.8, 0.45, 0.6), b + Vector3(0, 0.225, 0))
 	# Bờ rào dọc hẻm 42 nay do CityProps.hem_42 dựng
 
 

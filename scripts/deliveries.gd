@@ -276,11 +276,9 @@ func _build_may(parent: Node3D, _i: int, _p: Vector3, shirt: Color, title: Strin
 func _build_hung(parent: Node3D, i: int, p: Vector3, shirt: Color, title: String) -> void:
 	var moto := p + Vector3(-0.1, 0, -0.8)  # trên vỉa hè trước nửa tây tiệm, chừa lối đi giữa x 31,4..33,2
 	# Thân xe đặt trên chân chống, gầm cao 0,32 m
-	var body := Blocks.solid_box(parent, Vector3(1.6, 0.6, 0.42), moto + Vector3(0, 0.64, 0), Color("#C8412F"), Blocks.LAYER_PROP)
+	var body := Blocks.collider(parent, Vector3(1.6, 0.6, 0.42), moto + Vector3(0, 0.64, 0), Blocks.LAYER_PROP)
 	body.name = "XeAnhHung"
-	for wx in [-0.62, 0.62]:
-		Blocks.box(parent, Vector3(0.42, 0.42, 0.1), moto + Vector3(wx, 0.21, 0), Color("#2B2622"))
-	Blocks.box(parent, Vector3(0.06, 0.5, 0.06), moto + Vector3(0.75, 1.15, 0), Color("#5E6F6C"))
+	PhoModels.put(body, "xe_may_do", Vector3(0, -0.64, 0))  # xe số đầu xe +X như khối cũ (tay lái ở x 0,75)
 	# Anh Hùng ngồi ghế đẩu thấp ở đầu tây xe (phác thảo đã duyệt), mặt nhìn dọc thân xe, hơi xoay ra đường
 	var seat := moto + Vector3(-1.15, 0, 0.12)
 	var yaw := deg_to_rad(-110.0)  # hướng nhìn -Z cục bộ xoay về phía đông (đầu xe), hơi chếch ra đường
@@ -326,14 +324,8 @@ func _build_xe_om() -> void:
 	_xe_om.sync_to_physics = false
 	_xe_om.position = _xe_om_home
 	add_child(_xe_om)
-	var red := Color("#2F5E9E")
 	var y := XE_OM_SEAT
-	Blocks.box(_xe_om, Vector3(0.36, y - 0.36, 1.2), Vector3(0, (y + 0.36) / 2.0, 0.05), red)       # thân xe
-	Blocks.box(_xe_om, Vector3(0.34, 0.08, 0.95), Vector3(0, y - 0.04, 0.2), Color("#2B2622"))     # yên dài
-	Blocks.box(_xe_om, Vector3(0.3, 0.5, 0.2), Vector3(0, y + 0.05, -0.62), red)                    # đầu xe
-	Blocks.box(_xe_om, Vector3(0.7, 0.04, 0.04), Vector3(0, y + 0.32, -0.66), Color("#5E6F6C"))    # tay lái
-	for wz in [-0.6, 0.62]:
-		Blocks.box(_xe_om, Vector3(0.1, 0.46, 0.46), Vector3(0, 0.23, wz), Color("#2B2622"))        # bánh xe
+	PhoModels.put(_xe_om, "xe_may_xanh", Vector3(0, 0, 0.05), PI / 2.0)  # model đầu xe +X: xoay cho đầu xe về -Z
 	# Chú Năm (model người dân) tựa yên trước, quay mặt ra lề (+X), yên sau và baga ở bên phải chú
 	_chu_nam = Nguoi.make("chunam", "cho_khach")
 	_chu_nam.position = Vector3(0, 0, -0.18)
@@ -370,15 +362,13 @@ func _chair(parent: Node3D, pos: Vector3, yaw: float, color: Color) -> void:
 	root.position = pos
 	root.rotation.y = yaw
 	parent.add_child(root)
-	Blocks.box(root, Vector3(0.48, 0.4, 0.44), Vector3(0, 0.2, 0.02), color.darkened(0.15))
-	Blocks.box(root, Vector3(0.5, 0.05, 0.48), Vector3(0, 0.42, 0.02), color)
-	Blocks.box(root, Vector3(0.5, 0.55, 0.05), Vector3(0, 0.72, 0.26), color)
+	# Ghế dựa nhựa (G1): lưng model ở -Z, ghế này lưng ở +Z cục bộ nên xoay nửa vòng
+	DoThem.put(root, "ghe_dua_nhua" if color.b >= color.r else "ghe_dua_nhua__do", Vector3(0, 0, 0.03), PI)
 
 
 ## Ghế đẩu nhựa thấp (mặt ghế cao h).
 func _stool(parent: Node3D, pos: Vector3, yaw: float, h: float) -> void:
-	var st := Blocks.solid_box(parent, Vector3(0.3, h, 0.3), pos + Vector3(0, h / 2.0, 0), Color("#C8412F"), Blocks.LAYER_PROP)
-	st.rotation.y = yaw
+	DoThem.stool(parent, pos, h, yaw)
 
 
 ## Vũng loang hình mây (như ảnh renders/vung_top): tam giác quạt, bán kính lượn theo vài sóng sin.

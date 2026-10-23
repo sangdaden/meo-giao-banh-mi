@@ -2,7 +2,7 @@ extends Node3D
 ## Người dân ngoài 5 khách Thứ Hai: Cô Ba ở quầy lò bánh và mấy hàng xóm cho phố đông vui.
 ## Cô Ba: chào đầu ca, đưa phiếu khi Bơ nhận bánh, khen khi Bơ quay về, tổng kết cuối ngày.
 ## Thêm vào main SAU Blocks.merge_static (người có xương không gộp được).
-## Ghế/bàn của hàng xóm là khối tạm, chờ đồ phố thật từ luồng "Nhà và đồ phố vào game".
+## Ghế đẩu nhựa P4 và bàn đá góc cờ (DoThem, gói G1).
 
 ## Hàng xóm đứng/ngồi quanh phố (Thứ Hai chỉ để nhìn, chưa có đơn).
 ## seat: dựng ghế nhựa thấp dưới người ngồi; table: bàn cờ giữa hai ông.
@@ -17,8 +17,6 @@ const AMBIENT := [
 const WHO_ID := {"Chú Tư": "chutu", "Bé Na": "bena", "Chị Mây": "may", "Anh Hùng": "hung", "Bà Sáu": "basau",
 	"Chú Năm": "chunam", "Cô Hai": "cohai", "Ông Bảy, Ông Tám": "ongbay,ongtam"}
 
-const STOOL := Color("#D94F3D")
-const STONE := Color("#B8B2A2")
 
 var coba: Nguoi
 var people: Array[Nguoi] = []
@@ -56,14 +54,14 @@ func _ready() -> void:
 			var h: float = Nguoi.SEAT[a.id]
 			# Ghế đặt lùi sau gốc người một chút (mông ngồi sau trục chân)
 			var back := Vector3(0, 0, -0.08).rotated(Vector3.UP, a.yaw)
-			Blocks.solid_box(self, Vector3(0.32, h, 0.32), a.pos + back + Vector3(0, h / 2.0, 0), STOOL, Blocks.LAYER_PROP)
+			DoThem.stool(self, a.pos + back, h, a.yaw)
 			n.add_collision(Vector3(0.5, 1.1, 0.6), Vector3(0, 0.55, 0.1))
 		else:
 			n.add_collision(Vector3(0.5, 1.6, 0.35), Vector3(0, 0.8, 0))
 		if a.has("table"):
 			var t: Vector3 = a.table
-			Blocks.solid_box(self, Vector3(0.5, 0.42, 0.5), t + Vector3(0, 0.21, 0), STONE, Blocks.LAYER_PROP)
-			Blocks.box(self, Vector3(0.36, 0.01, 0.36), t + Vector3(0, 0.425, 0), Color("#E7D3A0"))  # bàn cờ
+			DoThem.solid(self, "../goc_co/ban_da", Vector3(0.5, 0.42, 0.5), t + Vector3(0, 0.21, 0), 0.0, Vector3(0.7, 0.875, 0.7))
+			PhoModels.put(self, "../goc_co/ban_co_go", t + Vector3(0, 0.42, 0), PI / 2.0, Vector3(0.6, 1, 0.6))  # bàn cờ gỗ
 	_bubble = Label3D.new()
 	_bubble.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_bubble.font_size = 40

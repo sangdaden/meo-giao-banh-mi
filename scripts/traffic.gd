@@ -3,7 +3,7 @@ extends Node3D
 ## Xe tông Bơ thì hất Bơ văng khoảng 2 m và Bơ đứng hình 1 giây.
 ## main.gd chỉ cần một dòng: add_child(preload("res://scripts/traffic.gd").new()) sau khi tạo mèo.
 ## Xe máy và xe bánh mì là model Blender đã duyệt (assets/models/pho/, luồng "Nhà và đồ phố vào game").
-## Người lái còn là khối tạm. Người đi bộ là người qua đường thật của gói P3 (scripts/nguoi_qua_duong.gd),
+## Người lái và người bán xe đẩy là người qua đường P3 (gói G1). Người đi bộ là người qua đường thật của gói P3 (scripts/nguoi_qua_duong.gd),
 ## xe buýt tuyến 08 chạy chung đường với xe máy (scripts/xe_buyt.gd).
 ## Xe và người lái vẽ bằng MultiMesh nên cả phố chỉ tốn vài lệnh vẽ.
 
@@ -63,8 +63,10 @@ const CART_VIEW_RANGE := 40.0
 const CART_WHEEL_R := 0.33
 const CART_PAINTS := [Color("#C8412F"), Color("#2F8F86")]  ## xe thứ hai sơn xanh ngọc
 const PAINTS := [Color("#C8412F"), Color("#3D5A80"), Color("#E8C98A"), Color("#2E2E2E"), Color("#F2F0EA"), Color("#7FB7A4")]
-const SHIRTS := [Color("#E39C7A"), Color("#5E8FB8"), Color("#F2E3B8"), Color("#8DB36F"), Color("#D7A9C4"), Color("#C9C3B3")]
-const HELMETS := [Color("#F2C230"), Color("#C8412F"), Color("#FFFFFF"), Color("#2F6FA8"), Color("#3E8E5A")]
+## Người lái (gói G1, model P3 bản đám đông ~570 tam giác, đúc sẵn một khung clip): [model, clip]
+const RIDERS := [["qd_sinhvien_xe_dong", "lai_xe"], ["qd_giaohang_dong", "lai_xe"], ["qd_mehoa_dong", "lai_xe"]]
+const PILLION := ["qd_hocsinh_xe_dong", "ngoi_sau"]  ## học sinh ngồi sau, khoảng 1/4 số xe
+const PILLION_AT := Vector3(0, 0.02, 0.4)            ## sau lưng người lái (đầu xe về -Z)
 const LAMP_COLORS := [Color("#35D46A"), Color("#FFC22E"), Color("#FF3B2F")]
 
 ## Xe hàng rong chặn hẻm theo lịch (Thứ Ba, chợ bật bằng enable_alley_blocks): đẩy từ vỉa hè vào miệng hẻm,
@@ -100,8 +102,8 @@ class Bike:
 	var prev_xf := Transform3D()
 	var xf := Transform3D()
 	var paint := Color.WHITE
-	var shirt := Color.WHITE
-	var helmet := Color.WHITE
+	var rider := 0                ## chỉ số RIDERS
+	var pillion := false
 	var front := BIKE_LENGTH * 0.5  ## từ pos tới mũi xe và tới đuôi xe (xe buýt: pos ở mũi, dài 8,4 m về sau)
 	var back := BIKE_LENGTH * 0.5
 	var bus := false
@@ -142,9 +144,8 @@ var _honk_time := 0.0
 var _mm_paint: MultiMesh
 var _mm_bike_shadow: MultiMesh
 var _mm_dark: MultiMesh
-var _mm_rider: MultiMesh
-var _mm_shirt: MultiMesh
-var _mm_helmet: MultiMesh
+var _mm_riders: Array[MultiMesh] = []
+var _mm_pillion: MultiMesh
 var _mm_lamps: MultiMesh
 var _heads: Array = []            ## [{crossing, ew, xf}] từng cột đèn
 
@@ -275,20 +276,15 @@ func _build_routes(rng: RandomNumberGenerator) -> void:
 	proxy.size = Vector3(0.3, 0.75, 1.6)
 	_mm_bike_shadow = _multimesh(_offset_mesh(proxy, Vector3(0, 0.45, 0)), _bikes.size(), false, false,
 		GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY)
-	_mm_rider = _multimesh(_rider_mesh(), _bikes.size(), false)
-	var torso := BoxMesh.new()
-	torso.size = Vector3(0.4, 0.5, 0.26)
-	_mm_shirt = _multimesh(_offset_mesh(torso, Vector3(0, 1.3, 0.24)), _bikes.size(), true)
-	var helmet := SphereMesh.new()
-	helmet.radius = 0.16
-	helmet.height = 0.3
-	helmet.radial_segments = 10
-	helmet.rings = 5
-	_mm_helmet = _multimesh(_offset_mesh(helmet, Vector3(0, 1.74, 0.2)), _bikes.size(), true)
+	# Người lái: model quay mặt +Z, xoay 180° theo đầu xe
+	var face := Transform3D(Basis(Vector3.UP, PI), Vector3.ZERO)
+	for r in RIDERS:
+		_mm_riders.append(_multimesh(_xf_mesh(Nguoi.bake_pose(r[0], r[1]), face), _bikes.size(), false))
+	_mm_pillion = _multimesh(_xf_mesh(Nguoi.bake_pose(PILLION[0], PILLION[1]), face.translated(PILLION_AT)), _bikes.size(), false)
 	for b in _bikes:
 		b.paint = PAINTS[rng.randi() % PAINTS.size()]
-		b.shirt = SHIRTS[rng.randi() % SHIRTS.size()]
-		b.helmet = HELMETS[rng.randi() % HELMETS.size()]
+		b.rider = rng.randi() % RIDERS.size()
+		b.pillion = rng.randf() < 0.25 and b.rider != 1  # anh giao hàng chở thùng, không chở ai
 
 
 ## Xe buýt tuyến 08 và trạm (gói P3). Ngày chợ chợ chiếm đường lớn nên xe buýt không chạy, trạm vẫn đứng đó.
@@ -557,32 +553,12 @@ func _srgb(m: ArrayMesh) -> ArrayMesh:
 	return out
 
 
-## Người lái khối tạm ngồi trên yên model xe (yên cao 0,93 m, ghi đông ở z = -0,3, cao 1,08 m).
-func _rider_mesh() -> Mesh:
+## Mesh đã đặt sẵn theo xf (người lái đúc từ Nguoi.bake_pose, quay theo đầu xe).
+func _xf_mesh(m: ArrayMesh, xf: Transform3D) -> Mesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var pants := Color("#3B4252")
-	var skin := Color("#D9A57E")
-	for x in [-0.13, 0.13]:
-		_add_box(st, Vector3(0.13, 0.13, 0.42), Vector3(x, 1.0, 0.1), pants)    # đùi
-		_add_box(st, Vector3(0.12, 0.5, 0.12), Vector3(x * 1.2, 0.72, -0.08), pants)  # ống chân xuống gác chân
-		_add_box(st, Vector3(0.09, 0.09, 0.5), Vector3(x * 1.9, 1.24, -0.06), skin)  # tay cầm ghi đông
-	_add_box(st, Vector3(0.2, 0.08, 0.18), Vector3(0, 1.64, 0.16), skin)  # mặt dưới mũ
+	st.append_from(m, 0, xf)
 	return st.commit()
-
-
-func _add_box(st: SurfaceTool, size: Vector3, pos: Vector3, col: Color) -> void:
-	var m := BoxMesh.new()
-	m.size = size
-	var arrays := m.get_mesh_arrays()
-	var n: int = arrays[Mesh.ARRAY_VERTEX].size()
-	var cols := PackedColorArray()
-	cols.resize(n)
-	cols.fill(col)
-	arrays[Mesh.ARRAY_COLOR] = cols
-	var tmp := ArrayMesh.new()
-	tmp.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	st.append_from(tmp, 0, Transform3D(Basis(), pos))
 
 
 func _offset_mesh(m: PrimitiveMesh, pos: Vector3) -> Mesh:
@@ -640,13 +616,6 @@ func _build_carts(rng: RandomNumberGenerator) -> void:
 	# Vỉa hè khối lò bánh và khối 5 đã kín đồ (tủ bánh Cô Ba, bàn ghế cà phê) nên xe không đi ở đó.
 	# Hai làn này nằm trong CityProps.KEEP_CLEAR để xe máy đậu không chắn đường xe đẩy.
 	var picks := [CityProps.CART_LANES[0], CityProps.CART_LANES[1]]
-	var vendor := SurfaceTool.new()
-	vendor.begin(Mesh.PRIMITIVE_TRIANGLES)
-	_add_box(vendor, Vector3(0.4, 0.6, 0.24), Vector3(0, 1.15, 1.32), Color("#C9C3B3"))
-	_add_box(vendor, Vector3(0.24, 0.26, 0.24), Vector3(0, 1.62, 1.32), Color("#D9A57E"))
-	_add_box(vendor, Vector3(0.5, 0.06, 0.5), Vector3(0, 1.8, 1.32), Color("#E8D9A8"))  # nón lá
-	_add_box(vendor, Vector3(0.3, 0.85, 0.16), Vector3(0, 0.42, 1.32), Color("#3B4252"))
-	var vendor_mesh := vendor.commit()
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
 	mat.roughness = 0.7
@@ -689,9 +658,10 @@ func _build_carts(rng: RandomNumberGenerator) -> void:
 			mi.material_override = mat
 			if n.begins_with("banh_xe"):
 				wheels.append(mi)
-		var seller := MeshInstance3D.new()
-		seller.mesh = vendor_mesh
-		seller.material_override = mat
+		# Người bán: người qua đường P3 có xương, clip dắt xe (hai tay trước, bước đi) sau tay đẩy (G1)
+		var seller := Nguoi.make(["qd_mehoa", "qd_giaohang"][k % 2], "dat_xe")
+		seller.position = Vector3(0, 0, 1.32)
+		seller.rotation.y = PI
 		body.add_child(seller)
 		var shape := CollisionShape3D.new()
 		var bs := BoxShape3D.new()
@@ -701,7 +671,7 @@ func _build_carts(rng: RandomNumberGenerator) -> void:
 		body.add_child(shape)
 		_place_walker(w, 0.0)
 		body.global_transform = w.xf
-		_carts.append({"body": body, "walker": w, "wheels": wheels, "flame": flame})
+		_carts.append({"body": body, "walker": w, "wheels": wheels, "flame": flame, "seller": seller, "walking": true})
 
 
 ## Đổi màu sơn đã nướng vào màu đỉnh (xe thứ hai sơn khác màu).
@@ -875,6 +845,10 @@ func _physics_process(delta: float) -> void:
 			wh.rotate_object_local(Vector3.BACK, spin)
 		if c.flame:
 			c.flame.scale.y = 0.8 + 0.4 * absf(sin(_t * 9.0 + c.body.position.x))
+		var walking := w.pause <= 0.0
+		if walking != c.walking and c.seller.anim:
+			c.walking = walking
+			c.seller.play("dat_xe" if walking else "dung_yen")
 	for c in _alley_carts:
 		c.t += delta
 		_place_alley_cart(c)
@@ -895,6 +869,8 @@ func _draw(f: float) -> void:
 	# visible_instance_count, xe ở xa tít đầu kia vành không tốn tam giác (cả lượt bóng đổ).
 	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
 	var n := 0
+	var rn := [0, 0, 0]
+	var pn := 0
 	for b in _bikes:
 		var xf := b.prev_xf.interpolate_with(b.xf, f)
 		var in_ring := absf(xf.origin.x) < 108.0 and absf(xf.origin.z) < 92.0
@@ -905,15 +881,18 @@ func _draw(f: float) -> void:
 		_mm_paint.set_instance_transform(n, xf)
 		_mm_dark.set_instance_transform(n, xf)
 		_mm_bike_shadow.set_instance_transform(n, xf)
-		_mm_rider.set_instance_transform(n, xf)
-		_mm_shirt.set_instance_transform(n, xf)
-		_mm_helmet.set_instance_transform(n, xf)
 		_mm_paint.set_instance_color(n, b.paint)
-		_mm_shirt.set_instance_color(n, b.shirt)
-		_mm_helmet.set_instance_color(n, b.helmet)
+		_mm_riders[b.rider].set_instance_transform(rn[b.rider], xf)
+		rn[b.rider] += 1
+		if b.pillion:
+			_mm_pillion.set_instance_transform(pn, xf)
+			pn += 1
 		n += 1
-	for mm in [_mm_paint, _mm_dark, _mm_bike_shadow, _mm_rider, _mm_shirt, _mm_helmet]:
+	for mm in [_mm_paint, _mm_dark, _mm_bike_shadow]:
 		mm.visible_instance_count = n
+	for k in _mm_riders.size():
+		_mm_riders[k].visible_instance_count = rn[k]
+	_mm_pillion.visible_instance_count = pn
 	if bus:
 		bus.draw(f, cam)
 

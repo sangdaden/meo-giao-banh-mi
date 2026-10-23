@@ -386,3 +386,91 @@ static func _srgb_copy(src: ArrayMesh) -> ArrayMesh:
 		im.add_surface(src.surface_get_primitive_type(i), arrays, [], {}, src.surface_get_material(i), "", src.surface_get_format(i) & Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS)
 	im.generate_lods(25.0, 60.0, [])
 	return im.get_mesh()
+
+
+## Đúc một khung hình của clip thành mesh tĩnh (không xương) để vẽ hàng loạt bằng MultiMesh
+## (người lái xe máy trong traffic.gd). model: tên file trong nguoi/ (vd. "qd_mehoa_dong"), clip lấy từ
+## anim_source. Gộp mọi mặt thành một mặt màu đỉnh, gốc ở chân, mặt trước +Z. Bản web đã đổi màu sang sRGB.
+static func bake_pose(model: String, clip: String, t := 0.0) -> ArrayMesh:
+	var root: Node3D = (load("res://assets/models/nguoi/%s.glb" % model) as PackedScene).instantiate()
+	var skel: Skeleton3D = root.find_children("*", "Skeleton3D", true, false)[0]
+	var src := anim_source(model)
+	if not _libs.has(src):
+		var s: Node = (load("res://assets/models/nguoi/%s.glb" % src) as PackedScene).instantiate()
+		var players := s.find_children("*", "AnimationPlayer", true, false)
+		_libs[src] = (players[0] as AnimationPlayer).get_animation_library("") if players.size() > 0 else null
+		s.free()
+	var lib: AnimationLibrary = _libs[src]
+	if lib and lib.has_animation(clip):
+		var a := lib.get_animation(clip)
+		for tr in a.get_track_count():
+			var b := skel.find_bone(a.track_get_path(tr).get_concatenated_subnames())
+			if b < 0:
+				continue
+			match a.track_get_type(tr):
+				Animation.TYPE_POSITION_3D:
+					skel.set_bone_pose_position(b, a.position_track_interpolate(tr, t))
+				Animation.TYPE_ROTATION_3D:
+					skel.set_bone_pose_rotation(b, a.rotation_track_interpolate(tr, t))
+				Animation.TYPE_SCALE_3D:
+					skel.set_bone_pose_scale(b, a.scale_track_interpolate(tr, t))
+	var to_srgb := RenderingServer.get_rendering_device() == null
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
+		var to_root := _to_root(skel, root)
+		var binds: Array[Transform3D] = []
+		for i in mi.skin.get_bind_count():
+			var bn := mi.skin.get_bind_name(i)
+			var b := skel.find_bone(bn) if bn != "" else mi.skin.get_bind_bone(i)
+			binds.append(to_root * skel.get_bone_global_pose(b) * mi.skin.get_bind_pose(i))
+		for si in mi.mesh.get_surface_count():
+			var arr := mi.mesh.surface_get_arrays(si)
+			var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+			var norms: PackedVector3Array = arr[Mesh.ARRAY_NORMAL]
+			var cols: PackedColorArray = arr[Mesh.ARRAY_COLOR] if arr[Mesh.ARRAY_COLOR] != null else PackedColorArray()
+			var bones: PackedInt32Array = arr[Mesh.ARRAY_BONES]
+			var weights: PackedFloat32Array = arr[Mesh.ARRAY_WEIGHTS]
+			var per := bones.size() / verts.size()
+			var flat := Color.WHITE
+			var mat := mi.mesh.surface_get_material(si)
+			if mat is BaseMaterial3D:
+				flat = (mat as BaseMaterial3D).albedo_color
+			var out_v := PackedVector3Array()
+			var out_n := PackedVector3Array()
+			var out_c := PackedColorArray()
+			out_v.resize(verts.size())
+			out_n.resize(verts.size())
+			out_c.resize(verts.size())
+			for v in verts.size():
+				var p := Vector3.ZERO
+				var nn := Vector3.ZERO
+				for k in per:
+					var w := weights[v * per + k]
+					if w > 0.0:
+						var xf := binds[bones[v * per + k]]
+						p += xf * verts[v] * w
+						nn += xf.basis * norms[v] * w
+				out_v[v] = p
+				out_n[v] = nn.normalized()
+				var c := cols[v] if cols.size() > 0 else flat
+				out_c[v] = c.linear_to_srgb() if to_srgb else c
+			var a2 := []
+			a2.resize(Mesh.ARRAY_MAX)
+			a2[Mesh.ARRAY_VERTEX] = out_v
+			a2[Mesh.ARRAY_NORMAL] = out_n
+			a2[Mesh.ARRAY_COLOR] = out_c
+			a2[Mesh.ARRAY_INDEX] = arr[Mesh.ARRAY_INDEX]
+			var tmp := ArrayMesh.new()
+			tmp.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a2)
+			st.append_from(tmp, 0, Transform3D.IDENTITY)
+	root.free()
+	return st.commit()
+
+
+static func _to_root(n: Node3D, root: Node3D) -> Transform3D:
+	var xf := Transform3D.IDENTITY
+	while n and n != root:
+		xf = n.transform * xf
+		n = n.get_parent() as Node3D
+	return xf

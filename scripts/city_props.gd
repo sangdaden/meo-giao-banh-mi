@@ -9,15 +9,12 @@ class_name CityProps
 const BRICK := Color("#B9826A")
 const WALL := Color("#D8CDB5")
 const IRON := Color("#3D4A4A")
-const WOOD := Color("#9B6A3A")
 const FOAM := Color("#F4F1EA")
 const BAGAC := Color("#4F7FA8")
 const TABLE := Color("#5FA35A")
 const STOOL := Color("#D94F3D")
 const POT := Color("#B5653E")
 const LEAF := Color("#4E8F4A")
-const BARREL := Color("#3D7FB8")
-const CLOTH := [Color("#F2E3B8"), Color("#E39C7A"), Color("#A9C7E8"), Color("#D7A9C4"), Color("#FFF8EA")]
 const BOUGAIN := Color("#C8407E")
 const CAP := Color("#9C978C")
 
@@ -260,9 +257,8 @@ static func _ba_sau_yard(parent: Node3D, gate_z: float) -> void:
 	PhoModels.put(lu, GIO % "gao_dua", Vector3(0.05, 0.495, 0.02), 0.6)
 	for pos in BA_SAU_POTS:
 		_pot(parent, pos)
-	# Ghế mây Bà Sáu
-	Blocks.solid_box(parent, Vector3(0.6, 0.5, 0.6), BA_SAU_CHAIR + Vector3(0, 0.25, 0), Color("#C9A06A"), Blocks.LAYER_PROP)
-	Blocks.box(parent, Vector3(0.6, 0.6, 0.1), BA_SAU_CHAIR + Vector3(0, 0.8, 0.28), Color("#C9A06A"))  # lưng ghế
+	# Ghế mây Bà Sáu (G1 ghe_may, lưng phía nhà); va chạm chỉ phần mặt ghế như cũ
+	DoThem.solid(parent, "ghe_may", Vector3(0.6, 0.5, 0.6), BA_SAU_CHAIR + Vector3(0, 0.25, 0), PI)
 
 
 ## Một đoạn rào sân: tường gạch hồng 0,8 m, gờ trắng, lan can sắt 0,8 m (va chạm cao 1,7 m).
@@ -394,13 +390,7 @@ static func _barrel(parent: Node3D, pos: Vector3) -> void:
 	body.collision_layer = Blocks.LAYER_PROP
 	body.position = pos
 	parent.add_child(body)
-	var cyl := CylinderMesh.new()
-	cyl.top_radius = 0.32
-	cyl.bottom_radius = 0.3
-	cyl.height = 0.9
-	cyl.radial_segments = 12
-	cyl.rings = 1
-	Blocks.mesh(body, cyl, Vector3(0, 0.45, 0), BARREL)
+	PhoModels.put(body, GIO % "lu_nuoc", Vector3.ZERO, pos.x, Vector3(1, 0.9 / 0.85, 1))  # G1: lu nước sành thay thùng xanh
 	var shape := CollisionShape3D.new()
 	var cs := CylinderShape3D.new()
 	cs.radius = 0.32
@@ -462,23 +452,23 @@ static func cafe(parent: Node3D) -> void:
 		x += 1.0
 		i += 1
 	# Quầy Chị Mây: cao 0,9 m, đặt bánh lên đây
-	Blocks.solid_box(parent, Vector3(1.4, 0.9, 0.6), CAFE_COUNTER - Vector3(0, 0.45, 0), Color("#B07C46"), Blocks.LAYER_PROP)
-	Blocks.box(parent, Vector3(1.44, 0.04, 0.64), CAFE_COUNTER + Vector3(0, 0.02, 0), Color("#8A5A30"))
+	DoThem.solid(parent, "quay_cafe", Vector3(1.4, 0.9, 0.6), CAFE_COUNTER - Vector3(0, 0.45, 0), PI)  # G1: mặt quầy 0,9 m, tủ kính nửa trái
 
 
-## Khách ngồi ghế: thân trên + đùi duỗi về phía bàn. Có va chạm (chân khách chắn đường).
-## (Người thật có rig sẽ do thread "Người dân vào game" thay.)
+## Khách ngồi ghế nhựa: người qua đường có xương (P3) ngồi ăn/ngồi ghế, quay mặt vào bàn (gói G1).
+## Có va chạm hộp thân như khối cũ (khách chắn đường).
+const KHACH_CA_PHE := [["qd_congnhan", "ngoi_an"], ["qd_ongtd", "ngoi_ghe"], ["qd_vanphong", "ngoi_ghe"],
+	["qd_sinhvien", "ngoi_ghe"], ["qd_veso", "ngoi_ghe"], ["qd_mehoa", "ngoi_ghe"]]
+
+
 static func _seated_customer(parent: Node3D, seat: Vector3, side: float) -> void:
-	var shirt: Color = CLOTH[int(absf(seat.x * 3.0)) % CLOTH.size()].darkened(0.15)
-	var body := Blocks.solid_box(parent, Vector3(0.42, 0.6, 0.28), seat + Vector3(0, 0.3, side * 0.05), shirt, Blocks.LAYER_PROP)
+	var body := Blocks.collider(parent, Vector3(0.42, 0.6, 0.28), seat + Vector3(0, 0.3, side * 0.05), Blocks.LAYER_PROP)
 	body.add_to_group("khach_ca_phe")
-	Blocks.box(body, Vector3(0.36, 0.14, 0.4), Vector3(0, -0.22, -side * 0.3), Color("#3D4A4A"))  # đùi
-	var head := SphereMesh.new()
-	head.radius = 0.13
-	head.height = 0.26
-	head.radial_segments = 10
-	head.rings = 5
-	Blocks.mesh(body, head, Vector3(0, 0.45, 0), Color("#E7B98F"))
+	var who: Array = KHACH_CA_PHE[int(absf(seat.x + 6.0) + (side + 1.0) * 1.5) % KHACH_CA_PHE.size()]
+	var n := Nguoi.make(who[0], who[1])
+	n.position = Vector3(seat.x, 0.0, seat.z)
+	n.rotation.y = 0.0 if side < 0.0 else PI
+	parent.add_child(n)
 
 
 # ------------------------------------------------------------------ nhà đặc biệt
@@ -567,7 +557,8 @@ static func _tiem_xe(parent: Node3D, x0: float, x1: float, z0: float, depth: flo
 		# Thứ Sáu: lòng tiệm, kệ, cầu nâng, máy nén, lốp là model G6 do ThuSau dựng; kệ chỉ giữ va chạm
 		Blocks.collider(parent, Vector3(0.4, 2.0, 1.8), Vector3(x0 + 0.4, 1.0, z0 + 1.6), Blocks.LAYER_PROP)
 		return
-	Blocks.solid_box(parent, Vector3(0.4, 2.0, 1.8), Vector3(x0 + 0.4, 1.0, z0 + 1.6), WOOD, Blocks.LAYER_PROP)  # kệ đồ nghề
+	Blocks.collider(parent, Vector3(0.4, 2.0, 1.8), Vector3(x0 + 0.4, 1.0, z0 + 1.6), Blocks.LAYER_PROP)  # kệ đồ nghề
+	ThuSau.put_model(parent, "gia_lop", Vector3(x0 + 0.4, 0, z0 + 1.6), PI / 2.0, Vector3(1.5, 1.7, 0.53))  # G1: giá lốp G6 kéo cho vừa kệ
 	var lift := Blocks.collider(parent, Vector3(0.9, 0.6, 2.2), Vector3(34.0, 0.3, zc + 1.0), Blocks.LAYER_PROP)  # bàn nâng
 	PhoModels.put(lift, "ban_nang", Vector3(0, -0.3, 0), PI / 2.0)
 	Blocks.collider(parent, Vector3(0.5, 0.9, 1.6), Vector3(34.0, 1.05, zc + 1.0), Blocks.LAYER_PROP)          # xe trên bàn nâng

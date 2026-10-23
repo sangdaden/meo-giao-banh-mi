@@ -91,43 +91,52 @@ const PRESETS := {
 		"exposure": [0.94, 0.92],
 	},
 	# Thứ Sáu 17 giờ 30: chiều tà, nắng cam thấp từ phía tây, đèn lồng các tiệm đã thắp.
+	# D1 (23/10): nắng ngả vàng cam thay vì cam đỏ, sương nhạt và mỏng hơn, ánh môi trường trung tính
+	# để lông cam của Bơ không chìm vào phố; viền sáng nhẹ (VienSang) tách Bơ khỏi nền.
 	"pho_chieu": {
 		"sun_rot": Vector3(-11, -80, 0),
-		"sun_color": Color("#FF9C5C"),
-		"sun_energy": [1.2, 0.7],
+		"sun_color": Color("#FFA968"),
+		"sun_energy": [1.2, 0.72],
 		"fill_rot": Vector3(-35, 100, 0),
 		"fill_color": Color("#8FA9D0"),
-		"fill_energy": [0.3, 0.2],
-		"ambient": Color("#C2B2B8"),
-		"ambient_energy": [0.5, 0.42],
+		"fill_energy": [0.32, 0.22],
+		"ambient": Color("#C4B8B4"),
+		"ambient_energy": [0.52, 0.44],
 		"sky_top": Color("#6E8FB5"),
-		"sky_horizon": Color("#E3A985"),
+		"sky_horizon": Color("#E8B38E"),
 		"ground_horizon": Color("#C89A7C"),
 		"ground_bottom": Color("#6E6660"),
-		"fog": Color("#E8B48F"),
-		"fog_density": [0.004, 0.008],
+		"fog": Color("#E6C3A2"),
+		"fog_density": [0.0035, 0.0065],
 		"shadow_distance": [42.0, 14.0],  # nắng thấp, bóng rất dài: web rút tầm bóng để giữ tam giác trong ngân sách
 		"exposure": [1.0, 1.0],
+		"saturation": 1.0,
+		"rim": [0.5, 0.45],
 		"lights": 0.7,
 	},
-	# Thứ Bảy 18 giờ 15: hoàng hôn tím hồng, nắng sát chân trời, đèn sáng hơn.
+	# Thứ Bảy 18 giờ 15: hoàng hôn, nắng sát chân trời, đèn sáng hơn.
+	# D1 (23/10): bản cũ sương hồng tím, nắng đỏ, ánh môi trường hồng nên cả phố một màu hồng đỏ và Bơ
+	# chìm. Giờ: chân trời cam vàng, đỉnh trời xanh tím, sương tím xám nhạt, ánh môi trường gần
+	# trung tính, ánh trời phụ xanh hơn và mạnh hơn: mặt nắng ấm, mặt bóng mát, Bơ nổi trên nền.
 	"pho_hoang_hon": {
 		"sun_rot": Vector3(-3, -85, 0),
-		"sun_color": Color("#FF7448"),
-		"sun_energy": [0.75, 0.45],
+		"sun_color": Color("#FF9258"),
+		"sun_energy": [1.0, 0.66],
 		"fill_rot": Vector3(-35, 100, 0),
-		"fill_color": Color("#7D86C0"),
-		"fill_energy": [0.3, 0.2],
-		"ambient": Color("#A08AA6"),
-		"ambient_energy": [0.5, 0.42],
-		"sky_top": Color("#4E5C8E"),
-		"sky_horizon": Color("#B58BA8"),
-		"ground_horizon": Color("#8E7590"),
+		"fill_color": Color("#8C9CD2"),
+		"fill_energy": [0.38, 0.28],
+		"ambient": Color("#AFA2B4"),
+		"ambient_energy": [0.55, 0.48],
+		"sky_top": Color("#45568C"),
+		"sky_horizon": Color("#DDA083"),
+		"ground_horizon": Color("#9A8592"),
 		"ground_bottom": Color("#4A4550"),
-		"fog": Color("#B58BA8"),
-		"fog_density": [0.005, 0.009],
+		"fog": Color("#BCA9B4"),
+		"fog_density": [0.0035, 0.006],
 		"shadow_distance": [42.0, 18.0],  # nắng thấp, bóng rất dài: web rút tầm bóng để giữ tam giác trong ngân sách
 		"exposure": [1.0, 1.0],
+		"saturation": 1.0,
+		"rim": [0.6, 0.55],
 		"lights": 1.0,
 	},
 	# Chủ Nhật 19 giờ 30: tối Hội mèo. Trăng xanh nhạt không đổ bóng; ánh sáng chính là đèn lồng.
@@ -151,6 +160,7 @@ const PRESETS := {
 		"shadow_distance": [30.0, 20.0],
 		"exposure": [1.0, 1.0],
 		"reflect_sky": true,
+		"rim": [0.45, 0.4],
 		"lights": 1.6,
 	},
 	# Bếp Cô Ba buổi sáng: nắng xiên qua cửa sổ sau, đèn bàn vàng, lò lửa cam.
@@ -263,6 +273,7 @@ static func build(parent: Node, preset: String) -> DirectionalLight3D:
 	sun.shadow_bias = 0.04 if q == 0 else 0.1
 	sun.shadow_normal_bias = 1.2 if q == 0 else 2.5
 	sun.directional_shadow_max_distance = p.shadow_distance[q]
+	sun_disc(sun, p.get("sky_horizon", Color.BLACK))
 	sun.directional_shadow_fade_start = 0.85
 	if q == 0 and p.shadow_distance[q] > 20.0:
 		sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
@@ -279,8 +290,16 @@ static func build(parent: Node, preset: String) -> DirectionalLight3D:
 	fill.light_energy = p.fill_energy[q]
 	fill.light_specular = 0.0
 	fill.shadow_enabled = false
+	# Trời thủ tục vẽ mọi đèn định hướng thành một đĩa mặt trời màu = màu đèn × độ sáng. Ánh trời phụ
+	# yếu và xanh nên đĩa của nó tối hơn trời: đó là "vệt đen mờ trên trời" Sang thấy (video 22/10).
+	fill.sky_mode = DirectionalLight3D.SKY_MODE_LIGHT_ONLY
 	fill.add_to_group("den_phu")  # cài đặt "Bóng đổ" không bật bóng cho đèn này
 	parent.add_child(fill)
+
+	var rim := VienSang.new()
+	rim.name = "VienSang"
+	rim.strength = p.rim[q] if p.has("rim") else 0.0
+	parent.add_child(rim)
 
 	if p.get("weather", "") == "mua":
 		var rain := ThoiTiet.new()
@@ -300,6 +319,16 @@ static func build(parent: Node, preset: String) -> DirectionalLight3D:
 		guard.setup(sun)
 		parent.add_child(guard)
 	return sun
+
+
+## Chỉ vẽ đĩa mặt trời trên trời khi nó không quá tối so với chân trời (đĩa quầng có pha màu trời nên
+## tới khoảng nửa độ sáng chân trời vẫn thành quầng cam đẹp); yếu hơn nữa thì thành chấm đen mờ.
+## Thứ Bảy gọi lại mỗi khi nội suy nắng.
+static func sun_disc(sun: DirectionalLight3D, horizon: Color) -> void:
+	var c := sun.light_color.srgb_to_linear() * sun.light_energy
+	var h := horizon.srgb_to_linear()
+	sun.sky_mode = DirectionalLight3D.SKY_MODE_LIGHT_AND_SKY if c.get_luminance() > h.get_luminance() * 0.55 \
+		else DirectionalLight3D.SKY_MODE_LIGHT_ONLY
 
 
 ## Bếp: khi camera lướt vào cận cảnh một trạm, khung hình chỉ còn mặt bàn trong vài chục cm nên

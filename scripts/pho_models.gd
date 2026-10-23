@@ -12,6 +12,9 @@ const FILLERS := {
 	"nha_F": 5.5, "nha_G": 4.4, "nha_H": 5.8, "nha_I": 3.6, "nha_K": 4.8,
 }
 
+## Model từ chừng này tam giác trở lên thì đổ bóng bằng bản thô (shadow_mesh)
+const SHADOW_MIN_TRIS := 1500
+
 static var _meshes := {}
 static var _mat: StandardMaterial3D
 
@@ -56,11 +59,27 @@ static func put(parent: Node, model: String, pos: Vector3, rot_y := 0.0, scale :
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh(model)
 	mi.material_override = material()
+	var rough := shadow_mesh(model)
+	if rough:
+		mi.set_meta("bong_tho", rough)  # Blocks.merge_static: lượt bóng vẽ bản bỏ chi tiết vụn
 	mi.position = pos
 	mi.rotation.y = rot_y
 	mi.scale = scale
 	parent.add_child(mi)
 	return mi
+
+
+## Bản chỉ để đổ bóng (Blocks.shadow_mesh) của model nặng (nhà đặc biệt, sạp, chung cư); model nhẹ trả về null.
+static func shadow_mesh(model: String) -> Mesh:
+	var key := model + "|bong"
+	if not _meshes.has(key):
+		var src := mesh(model)
+		var n := 0
+		for i in src.get_surface_count():
+			n += src.surface_get_array_index_len(i) / 3
+		var rough: ArrayMesh = Blocks.shadow_mesh(src) if n >= SHADOW_MIN_TRIS else null
+		_meshes[key] = rough if rough and rough.get_surface_count() > 0 and rough.surface_get_array_index_len(0) < n * 3 * 0.9 else null
+	return _meshes[key]
 
 
 ## Bản model bỏ hết tam giác nằm xa hơn z_max trước mặt tiền (gốc model, chưa xoay): gỡ đồ đúc liền

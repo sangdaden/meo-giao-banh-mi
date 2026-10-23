@@ -170,6 +170,24 @@ func _on_ledge_grabbed() -> void:
 func toast(text: String, seconds := 2.0) -> void:
 	if hud:
 		hud.show_toast(text, seconds)
+	_voice_quote(text)
+
+
+## Thông báo có lời người nói ("Chị Mây: \"...\"", "Cô Ba nếm thử: \"...\"") thì người đó nói ú ớ câu trong ngoặc.
+func _voice_quote(text: String) -> void:
+	var q := text.find("\"")
+	if q < 0:
+		return
+	var words := text.substr(0, q).replace(".", " ").replace(":", " ").split(" ", false)
+	# Tên người: hai chữ ngay trước lời ("... Chị Thu: \"") hoặc hai chữ đầu ("Cô Ba nếm thử: \"")
+	var who := ""
+	for start in [words.size() - 2, 0]:
+		if start >= 0 and words.size() >= 2 and GiongUO.BY_TITLE.has(words[start]):
+			who = words[start] + " " + words[start + 1]
+			break
+	if who == "":
+		return
+	GiongUO.noi(who, text.substr(q + 1).trim_suffix("\"").get_slice("\"", 0))
 
 
 func task_line(text: String) -> void:
@@ -626,6 +644,10 @@ func _apply_sky(t: float) -> void:
 	sun.rotation_degrees = (a.sun_rot as Vector3).lerp(b.sun_rot, k)
 	sun.light_color = (a.sun_color as Color).lerp(b.sun_color, k)
 	sun.light_energy = lerpf(a.sun_energy[q], b.sun_energy[q], k)
+	AnhSang.sun_disc(sun, (a.sky_horizon as Color).lerp(b.sky_horizon, k))
+	var rim: VienSang = main.get_node_or_null("VienSang")
+	if rim:
+		rim.strength = lerpf(a.rim[q] if a.has("rim") else 0.0, b.rim[q] if b.has("rim") else 0.0, k)
 	if fill:
 		fill.rotation_degrees = (a.fill_rot as Vector3).lerp(b.fill_rot, k)
 		fill.light_color = (a.fill_color as Color).lerp(b.fill_color, k)

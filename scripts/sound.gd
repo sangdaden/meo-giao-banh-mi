@@ -34,16 +34,15 @@ const LEVEL := {
 	"step_metal": -14.0, "step_wood": -16.0, "step_grass": -19.0,
 	"splash": -5.0, "stamp": -4.0, "coin": -7.0, "record": -5.0, "bike_hit": -3.0,
 	"meow_startle": -5.0, "squish": -5.0, "paper_slip": -8.0,
-	"coba_hello": -5.0, "coba_order": -6.0, "coba_good": -5.0, "coba_ok": -5.0, "thanks": -7.0,
 	# Thứ Ba: chợ, góc cờ, tạp hóa
-	"scale_clank": -8.0, "chess_slap": -3.0, "chess_rattle": -3.0, "shush": -6.0, "scold": -5.0,
+	"scale_clank": -8.0, "chess_slap": -3.0, "chess_rattle": -3.0, "shush": -6.0,
 	"check_cheer": -4.0, "egg_crack": -2.0, "nylon": -14.0, "cart_rattle": -8.0, "cart_bump": -4.0,
 	"basket_topple": -3.0, "oops": -8.0,
 }
 ## Tiếng có nhiều bản: play("step") chọn ngẫu nhiên step_1..step_4, đổi cao độ nhẹ cho đỡ lặp.
 const VARIANTS := {"step": 4, "knead": 3, "chop": 3, "sneak": 3, "moto_pass": 2,
-	"step_metal": 3, "step_wood": 3, "step_grass": 3, "coba_order": 3,
-	"chess_slap": 3, "nylon": 3, "scold": 4, "oops": 2}
+	"step_metal": 3, "step_wood": 3, "step_grass": 3,
+	"chess_slap": 3, "nylon": 3, "oops": 2}
 ## Cùng một tiếng gọi hai lần sát nhau (hai script cùng bắt một sự kiện) thì chỉ phát một lần.
 const REPEAT_GAP_MS := 60
 const SFX_VOICES := 16

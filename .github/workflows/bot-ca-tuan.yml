@@ -1,0 +1,66 @@
+# Bot tự chơi cả tuần (mã I1): 7 ngày, mỗi ngày hai lượt.
+# - autotest: autotest sẵn có của ngày (Bơ dịch chuyển), đỏ khi AUTOTEST ... FAIL, SCRIPT ERROR, Bơ rơi khỏi map.
+# - chạy bộ: Bơ chạy bộ thật tới lò và khách theo lưới đường đi; đỏ khi không giao đủ đơn hoặc rơi khỏi map.
+# Bảng kết quả (giờ còn dư mỗi đơn, chỗ bot phải dịch chuyển) hiện ở trang Summary của lượt chạy;
+# ảnh mỗi đơn + log nằm trong artifact "bot-ca-tuan". Chạy tay: tools/bot_ca_tuan.py (xem đầu file).
+name: Bot tự chơi cả tuần
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: bot-ca-tuan-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: "4.3"
+  LANG: C.UTF-8
+  LC_ALL: C.UTF-8
+
+jobs:
+  bot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: ~/godot-bot
+          key: godot-${{ env.GODOT_VERSION }}-linux-bot
+
+      - name: Tải Godot
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot-bot
+          curl -sSL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip -d ~/godot-bot
+          mv ~/godot-bot/Godot_v${GODOT_VERSION}-stable_linux.x86_64 ~/godot-bot/godot
+          rm godot.zip
+
+      - name: Cài màn hình ảo (để chụp ảnh mỗi đơn)
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends xvfb libgl1-mesa-dri >/dev/null
+
+      - name: Nhập project
+        run: ~/godot-bot/godot --headless --path . --import >/dev/null 2>&1 || true
+
+      - name: Bot chơi 7 ngày
+        run: xvfb-run -a -s "-screen 0 1280x720x24" python3 tools/bot_ca_tuan.py --godot ~/godot-bot/godot --anh -j 2 --out bot_ca_tuan
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bot-ca-tuan
+          path: |
+            bot_ca_tuan/bao_cao.md
+            bot_ca_tuan/bao_cao.json
+            bot_ca_tuan/anh/
+            bot_ca_tuan/log/
+          retention-days: 14

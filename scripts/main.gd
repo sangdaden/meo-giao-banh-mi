@@ -61,6 +61,8 @@ var deliveries: Node3D
 var stamps: Node3D
 var ghost: Node3D
 var residents: Node3D  ## Cô Ba ở quầy và hàng xóm (scripts/residents.gd)
+## Node riêng của các ngày (khóa "nodes" trong scripts/ngay/<ngày>.gd); node đã tự gỡ lọc bằng _live_day_nodes()
+var day_nodes: Array[Node] = []
 
 ## Tiến độ ngày cất lại khi sang bếp ráp nhanh ổ trứng giữa ca (Thứ Hai đơn 2 xong), main.tscn nạp lại thì lấy ra.
 ## Biến static nên còn nguyên khi đổi scene. Hợp đồng: thiet-ke-man/hop-dong-bep-thu-ba.md.
@@ -121,12 +123,12 @@ func _ready() -> void:
 	dog.bit_player.connect(_on_dog_bite)
 	dog.state_changed.connect(_on_dog_state)
 	add_child(preload("res://scripts/traffic.gd").new())  # xe máy, đèn giao thông, người đi bộ
-	add_child(preload("res://scripts/market.gd").new())  # chợ sáng Thứ Ba (ngày khác tự gỡ)
-	add_child(preload("res://scripts/thu_sau.gd").new())  # tiệm xe chiều tà, đám giỗ Thứ Sáu (ngày khác tự gỡ)
-	add_child(preload("res://scripts/thu_tu.gd").new())  # mưa, sân thượng, bồ câu Thứ Tư (ngày khác tự gỡ)
-	add_child(preload("res://scripts/thu_bay.gd").new())  # dạo phố, Sổ hàng xóm, chương Mực Thứ Bảy (ngày khác tự gỡ)
-	add_child(preload("res://scripts/thu_nam.gd").new())  # tủ báo, cửa cuốn, gác lửng, đơn chung cư Thứ Năm (ngày khác tự gỡ)
-	add_child(preload("res://scripts/chu_nhat.gd").new())  # Hội mèo Chủ Nhật (ngày khác tự gỡ)
+	# Node riêng từng ngày (chợ Thứ Ba, mưa Thứ Tư, Hội mèo...) khai trong scripts/ngay/<ngày>.gd, khóa "nodes".
+	# Thêm node của mọi ngày như trước, node nào không phải ngày của nó thì tự gỡ.
+	for path: String in Days.all_nodes(day.id):
+		var n: Node = load(path).new()
+		add_child(n)
+		day_nodes.append(n)
 
 	stamps = StampsScript.new()
 	stamps.name = "TemCoBa"
@@ -141,7 +143,11 @@ func _ready() -> void:
 	_build_arrow()
 
 	hud = HudScript.new()
+	hud.help = day.help  # bảng "Cách chơi" riêng của ngày (rỗng thì dùng bảng chung)
+	hud.help_note = day.help_note
 	add_child(hud)
+	for path: String in day.hud:  # mảnh giao diện riêng của ngày (khóa "hud" trong scripts/ngay/<ngày>.gd)
+		hud.add_piece(load(path).new())
 	hud.start_pressed.connect(start_game)
 	hud.restart_pressed.connect(restart)
 	add_child(preload("res://scripts/sound_director.gd").new())  # nhạc và tiếng động
@@ -196,9 +202,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func start_game() -> void:
 	state = State.PLAY
-	if ThuNam.pending():  # Thứ Năm: vừa giao Bé Na trong cảnh chung cư về
-		ThuNam.resume(self)
-		return
+	for n in _live_day_nodes():  # quay về giữa ngày từ cảnh khác (Thứ Năm: vừa giao Bé Na trong chung cư)
+		if n.has_method("resume_day") and n.resume_day():
+			return
 	if orders.is_empty():  # ngày không có đơn (Thứ Bảy dạo phố): scripts/thu_bay.gd lo phần chơi
 		_start_free()
 		return
@@ -244,9 +250,15 @@ func _start_free() -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	hud.start_screen.visible = false
 	hud.show_playing_ui(false)
-	var free_day := get_node_or_null("ThuBay")
-	if free_day and free_day.has_method("begin"):
-		free_day.begin()
+	for n in _live_day_nodes():
+		if n.has_method("begin"):
+			n.begin()
+			return
+
+
+## Node ngày còn sống (node của ngày khác đã tự gỡ trong _ready).
+func _live_day_nodes() -> Array:
+	return day_nodes.filter(func(n: Node) -> bool: return is_instance_valid(n) and not n.is_queued_for_deletion())
 
 
 ## Ráp nhanh xong quay về: lấy lại tiến độ ngày (Scoring giữ đơn đã chấm trong biến static) và chơi tiếp.
@@ -523,7 +535,7 @@ func _next_order() -> void:
 	order_index += 1
 	_show_progress()
 	var prev: Dictionary = orders[order_index - 1]
-	if order_index <= PlayMode.last_order(orders.size()) and prev.get("errand_item", "") == "trung6" and ResourceLoader.exists(PlayMode.KITCHEN_SCENE):
+	if order_index <= PlayMode.last_order(orders.size()) and prev.get("quick_assemble", false) and ResourceLoader.exists(PlayMode.KITCHEN_SCENE):
 		_go_quick_assemble()
 		return
 	if order_index > PlayMode.last_order(orders.size()):
@@ -602,41 +614,8 @@ func _end_game() -> void:
 	else:
 		hud.show_results(rows)
 	print("[ket qua] ", results, " tong ", summary.stars, " boa ", summary.tip, " hang ", summary.rank, " tem ", summary.stamps)
-	if _autotest and PlayMode.single_order():
-		# Một đơn lẻ (-- --autotest --don=N): giao được, lưu sao đơn, không đụng kỷ lục cả ngày
-		var ok1: bool = results.size() == 1 and results[0] > 0 and Scoring.best_stars(PlayMode.order) == results[0]
-		ok1 = ok1 and GameState.get_day("so_lan_choi", 0) == 0 and int(GameState.get_day("sao_cao_nhat", -1)) == -1
-		if day.id == "thu_hai" and PlayMode.order == 0:
-			ok1 = ok1 and score_rows[0].side_ok  # tờ báo Chú Tư phải về tới lò dù chơi lẻ
-		print("AUTOTEST DON ", PlayMode.order + 1, " ", "OK" if ok1 else "FAIL")
-		get_tree().quit(0 if ok1 else 1)
-	elif _autotest and day.id != "thu_hai":
-		# Ngày khác (-- --autotest --ngay=thu_ba): đủ 5 đơn, có boa, lưu đúng mục của ngày
-		var ok2: bool = results.size() == orders.size() and results.all(func(s): return s > 0) and summary.tip > 0
-		ok2 = ok2 and GameState.get_day("so_lan_choi", 0) == 1 and GameState.get_day("so_lan_choi", 0, "thu_hai") == 0
-		print("AUTOTEST ", day.id.to_upper(), " ", "OK" if ok2 else "FAIL")
-		get_tree().quit(0 if ok2 else 1)
-	elif _autotest:
-		# Chó Mực phải đi đúng: nghe tiếng thì nghi ngờ, còn tiếng thì đuổi, rồi đớp
-		# (phần mệt về ổ thử riêng trong tools/dog_test.gd)
-		var dog_ok := _dog_states.slice(0, 3) == [dog.State.SUSPICIOUS, dog.State.CHASE, dog.State.BITE]
-		print("[autotest] Chó Mực: ", _dog_states.map(func(s): return dog.STATE_NAMES[s]))
-		var ok := results.size() == 5 and results.all(func(s): return s > 0) and _bitten and dog_ok
-		ok = ok and summary.tip > 0 and summary.stamps >= 1 and Scoring.self_test()
-		ok = ok and Shop.total_stars() == summary.stars and Shop.self_test() and hud.self_test_menu()
-		# Mèo cái chưa xuất model thì dùng bản đực, không được rơi về Bơ
-		ok = ok and (OutfitView.has_sex_model("muop", "cai") or OutfitView.breed_scene("muop", "cai") == OutfitView.breed_scene("muop", "duc"))
-		ok = ok and GameState.get_day("so_lan_choi", 0) == 1 and Scoring.best_time(0) > 0.0
-		# Autotest bị Chó Mực đớp ở đơn 5 nên nhiệm vụ phụ đơn đó trượt; 4 đơn đầu phải đạt cả
-		ok = ok and deliveries.side_ok.slice(0, 4).all(func(v): return v) and score_rows[0].side_ok
-		if not ok:
-			print("AUTOTEST FAIL")
-			get_tree().quit(1)
-			return
-		# Màn giao đạt: chạy tiếp cảnh leo chung cư (Thứ Năm), cảnh đó in "AUTOTEST OK" khi xong
-		print("AUTOTEST GIAO OK")
-		get_tree().change_scene_to_file.call_deferred(PlayMode.CHUNG_CU_SCENE)
-
+	if _autotest:
+		TuChoiPho.verdict(self, summary)
 
 func _on_dog_bite() -> void:
 	_bitten = true
@@ -825,22 +804,6 @@ static func _action(action: String, keys: Array, buttons: Array, axes: Array) ->
 
 # ---------------------------------------------------------------- tự kiểm tra
 
-## Chạy: godot --headless -- --autotest
-## Mèo tự "dịch chuyển" tới lò rồi tới khách, ghé qua Chó Mực ở đơn 5 để thử bị đớp.
+## Chạy: godot --headless -- --autotest (bot tự chơi và chấm: scripts/tu_choi_pho.gd)
 func _autotest_step() -> void:
-	_autotest_frames += 1
-	if _autotest_frames % 20 != 0:
-		return
-	rig.first_person = not rig.first_person  # thử đổi góc nhìn liên tục
-	var goal := _current_goal()
-	if player.carrying and not _finishing and not _is_errand(orders[order_index]):
-		goal = deliveries.stand_point(order_index)
-	if _finishing:
-		pass
-	elif player.carrying and orders[order_index].get("boss", false) and not _bitten:
-		goal = dog.global_position + Vector3(0.3, 0, 0.3)
-		dog.hear(goal, 10.0)  # giả tiếng chạy nhanh sát ổ: Mực nghi ngờ rồi đuổi
-	elif not player.carrying and order_index == 1 and Scoring.stamps_today.is_empty() and not stamps.remaining().is_empty():
-		goal = stamps.remaining()[0] - Vector3(0, 0.2, 0)  # trên đường về lò ghé nhặt một con tem
-	player.global_position = goal + Vector3(0, 0.2, 0)
-	player.velocity = Vector3.ZERO
+	TuChoiPho.step(self)

@@ -130,6 +130,7 @@ func _ready() -> void:
 		var n: Node = load(path).new()
 		add_child(n)
 		day_nodes.append(n)
+	ConVat.setup(player, self)  # phím Q ở mọi ngày: Bơ kêu meo, con vật gần đó đáp lại (scripts/con_vat.gd)
 
 	stamps = StampsScript.new()
 	stamps.name = "TemCoBa"

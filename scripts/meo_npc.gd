@@ -90,6 +90,10 @@ var _bubble_t := 0.0
 var _name_tag: Label3D
 var _held: Node3D
 ## Đồ ngậm đang cầm (model G11, gốc = điểm ngậm), null nếu không
+## Đáp phím Q (ConVat): false thì kịch bản tắt; on_q khác rỗng thì gọi on_q.call(pos) thay cách đáp mặc định.
+var dap_q := true
+var on_q := Callable()
+
 var held: Node3D:
 	get:
 		return _held if is_instance_valid(_held) else null
@@ -140,6 +144,7 @@ func _ready() -> void:
 		for a in acc:
 			OutfitView.attach(_skel, a, breed, worn_sex, OS.has_feature("web"))
 	_t = randf() * 10.0
+	add_to_group("con_vat")
 	# Ra khỏi màn hình thì ngừng tính xương cho nhẹ
 	var vis := VisibleOnScreenNotifier3D.new()
 	vis.aabb = AABB(Vector3(-0.4, 0, -0.5), Vector3(0.8, 0.7, 1.0))
@@ -434,3 +439,17 @@ func _label(height: float, font: int) -> Label3D:
 	l.position = Vector3(0, height * size, 0)
 	add_child(l)
 	return l
+
+
+## Bơ kêu meo gần đó (ConVat): mèo rảnh thì kêu đáp, đang đứng thì quay về phía Bơ. Lần đầu ghi vào "Bạn bốn chân".
+func on_called(pos: Vector3) -> void:
+	if not dap_q or moving or _clip_once:
+		return
+	if on_q.is_valid():
+		on_q.call(pos)
+	else:
+		if pose == "dung":
+			face(pos)
+		say(["Meo!", "Meo?", "Mrrr~"][randi() % 3], 1.8)
+	if cast_id != "":
+		ConVat.meet(cast_id)

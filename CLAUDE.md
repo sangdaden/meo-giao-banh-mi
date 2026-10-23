@@ -30,6 +30,15 @@ Sang (21/10): game phải **dễ và thân thiện**. Mặc định là chế đ
 - Hành vi khác hẳn giữa hai chế độ thì hỏi `DoKho.hard()`. Test ép chế độ bằng `DoKho.force`.
 - Mỗi đơn chỉ có **một** việc bắt buộc là giao bánh. Việc phụ chỉ là thưởng, không bao giờ làm mất sao. Không có kiểu thua chặn người chơi.
 
+## Chữ cho người chơi: thêm bản tiếng Anh
+
+Game có hai ngôn ngữ (F3): tiếng Việt mặc định, English chọn ở Cài đặt > Ngôn ngữ hoặc nút góc trang chủ. Code vẫn viết chữ tiếng Việt như cũ; Label, Button, Label3D, tooltip tự dịch qua bảng `scripts/dich/en_*.gd` (khóa là câu Việt đúng như trong code, câu có `%s`/`%d` là mẫu).
+
+- Thêm câu mới hiện cho người chơi thì thêm một dòng `"câu Việt": "English",` vào cuối nhóm file của mình trong bảng (`en_giao_dien`, `en_choi`, `en_bep`, `en_ngay`, `en_hoi_meo`). Câu ghép bằng `+` thì thêm mẫu cho cả câu đã ghép.
+- Tên người, tên món kiểu Việt giữ nguyên (Cô Ba, Chú Tư, bánh mì, xe ôm); "Chó Mực" là "Mực the dog".
+- Vẽ chữ bằng `draw_string` thì tự gọi `tr()`.
+- `tests/test_ngon_ngu.gd` in các câu có dấu chưa có trong bảng; `-- --autotest --lang=en --dich-thieu` in câu còn tiếng Việt lúc chơi.
+
 ## Ngân sách (bản web là chuẩn)
 
 Chi tiết và cách đo: `docs/ngan-sach-hieu-nang.md`. Workflow `hieu-nang.yml` chấm mỗi PR, vượt là đỏ.
@@ -64,7 +73,7 @@ xvfb-run -a godot --path . --rendering-method gl_compatibility --rendering-drive
   -s tools/do_hieu_nang.gd -- --chup=anh
 ```
 
-Cờ hay dùng khi thử: `--buoi=pho_mua` (đổi buổi trong ngày), `--ngap` (nước ngập), `--thu-thach` (chế độ khó), `--giu-fps`, `--canh=pho|bep|menu` (đo một màn). Chụp ảnh soát: các script `tools/chup_*.gd` (chạy với `xvfb-run ... --rendering-driver opengl3 -s tools/chup_<ten>.gd -- <thu_muc_anh>`).
+Cờ hay dùng khi thử: `--buoi=pho_mua` (đổi buổi trong ngày), `--ngap` (nước ngập), `--thu-thach` (chế độ khó), `--lang=en` (tiếng Anh), `--giu-fps`, `--canh=pho|bep|menu` (đo một màn). Chụp ảnh soát: các script `tools/chup_*.gd` (chạy với `xvfb-run ... --rendering-driver opengl3 -s tools/chup_<ten>.gd -- <thu_muc_anh>`).
 
 Model: Blender chạy headless qua `pip install bpy` (đang dùng bpy 5.2). Mỗi script xuất .glb trong `tools/` ghi cách chạy ở đầu file (`tools/bo_game.py`, `tools/nguoi_game.py`, `tools/xuat_skin_game.py`, `tools/nha_rap/`, `tools/khu_pho/`...).
 
@@ -115,6 +124,7 @@ Từ PR #133 (H1, 23/10) mỗi ngày có file riêng, HUD tách thành mảnh, b
 | Tiệm, mua đồ bằng tiền boa | `scripts/shop.gd`, `scripts/tiem.gd`, `scripts/ui/wardrobe_panel.gd`, `tools/xuat_skin_game.py` | "Skin mèo và phụ kiện", "Giao diện menu và HUD" |
 | Test, đo, chụp | `tests/`, `tools/do_hieu_nang.gd`, `tools/chup_*.gd` | luồng nào thêm tính năng thì thêm test của mình; I1 bot tự chơi cả tuần |
 | CI | `.github/workflows/` (`gop-main.yml` xem `docs/gop-main.md`, `itch.yml` xem `docs/itch.md`) | "Xuất bản Windows tự động"; H2 tự gộp main; J1 itch.io |
+| Ngôn ngữ, bản tiếng Anh | `scripts/ngon_ngu.gd` (autoload `NgonNgu`), `scripts/dich/` | F3 "Bản tiếng Anh" |
 
 ## Tránh đụng nhau giữa các PR
 

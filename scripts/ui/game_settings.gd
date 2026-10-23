@@ -19,6 +19,7 @@ const DEFAULTS := {
 	"tips_seen": "",         # các mẹo đã hiện, cách nhau bằng dấu phẩy
 	"thu_thach": false,
 	"bong_ky_luc": false,     # bóng mờ chạy lại lần giao nhanh nhất của đơn (scripts/ghost.gd)      # Chế độ thử thách: dùng các con số khó cũ (scripts/do_kho.gd)
+	"ngon_ngu": "vi",        # "vi" hoặc "en" (autoload NgonNgu, scripts/ngon_ngu.gd)
 }
 
 static var _data := {}
@@ -37,7 +38,9 @@ static func set_value(key: String, value: Variant) -> void:
 
 
 static func reset() -> void:
+	var lang = get_value("ngon_ngu")
 	_data = DEFAULTS.duplicate()
+	_data["ngon_ngu"] = lang  # khôi phục mặc định không đổi ngôn ngữ
 	save()
 
 

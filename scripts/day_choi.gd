@@ -7,9 +7,9 @@ extends Node3D
 ## Tập lại: mục "Tập chơi" ở màn Chọn màn. Bỏ qua: menu Esc > "Bỏ qua tập".
 ##
 ## Toạ độ cảnh: x = x sơ đồ (đông), z = y sơ đồ (nam), sân 14 × 10 m, tường sau lò ở z = 0, cổng sau ở x = 0.
-## Đồ mới của sân (mặt sau lò, kho củi, cổng, tường rào, cây khế, bồn kiểng) còn là khối tạm đúng kích thước
-## trang phác thảo, chờ Sang duyệt model. Đồ đã duyệt dùng model thật: thùng gỗ, ba gác, bao gạo, lu nước,
-## rổ tre, Cô Ba, Chú Tư, Bột (giống khoai môn của Hội mèo).
+## Đồ mới của sân (mặt sau lò, kho củi, cổng, tường rào, cây khế, bồn kiểng): model Sang duyệt 23/10/2026
+## (https://claude.ai/artifact/TX3MsCCPYfw4SdBqzAsixc, tools/day_choi/), va chạm vẫn là hộp vô hình đúng số đo.
+## Đồ cũ dùng lại: thùng gỗ, ba gác, bao gạo, lu nước, rổ tre, Cô Ba, Chú Tư, Bột (giống khoai môn của Hội mèo).
 ##
 ## Chạy thử: godot --headless --path . -- --autotest-tap   (in "DAY CHOI TEST OK")
 
@@ -20,6 +20,12 @@ const Main := preload("res://scripts/main.gd")
 const T = preload("res://scripts/ui/ui_theme.gd")
 const M_LU := preload("res://assets/models/gio/lu_nuoc.glb")
 const M_RO := preload("res://assets/models/bep/ro_tre.glb")
+const M_MAT_SAU := preload("res://assets/models/day_choi/mat_sau_lo.glb")
+const M_KHO_CUI := preload("res://assets/models/day_choi/kho_cui.glb")
+const M_CONG := preload("res://assets/models/day_choi/cong_sau_mo.glb")
+const M_RAO := preload("res://assets/models/day_choi/tuong_rao.glb")      ## đoạn 2 m, mặt trước nhìn +z
+const M_KHE := preload("res://assets/models/day_choi/cay_khe.glb")
+const M_BON := preload("res://assets/models/day_choi/bon_kieng.glb")      ## đoạn 2 m × 0,6 m
 
 const SAVE_KEY := "da_tap"                 ## mục [chung] trong hồ sơ: đã tập (hoặc bỏ qua) rồi
 const IDLE_NAG := 15.0                     ## đứng yên chừng này thì Cô Ba nhắc
@@ -45,15 +51,6 @@ const BOT_WAKE := 3.0                      ## Bột thức bao lâu rồi ngủ 
 const SKY_TOP := Color("#7E9FC8")          ## 5 giờ 40: trời xanh nhạt, chân trời vàng cam
 const SKY_HORIZON := Color("#F2C99A")
 const TILE := Color("#C46A48")
-const PLASTER := Color("#D2B08F")
-const PLASTER2 := Color("#C49E7C")
-const PLINTH := Color("#8E7A66")
-const DOOR_TEAL := Color("#2E7C80")
-const WOOD := Color("#8A5A30")
-const TON := Color("#9C6A48")
-const BRICK := Color("#B4553A")
-const LEAF := Color("#4E8A4A")
-const BED_C := Color("#9A4430")
 const PAW := Color("#F6C945")
 
 ## Lời từng trạm (trang thiết kế, mục "Năm trạm và lời Cô Ba"). nag = nhắc khi đứng yên.
@@ -607,7 +604,7 @@ func _ground_y(p: Vector3) -> float:
 	return 0.0
 
 
-# ---------------------------------------------------------------- dựng cảnh (khối tạm cho đồ mới)
+# ---------------------------------------------------------------- dựng cảnh
 
 func _setup_environment() -> void:
 	var env := Environment.new()
@@ -641,53 +638,69 @@ func _build_yard() -> void:
 	# Nền gạch tàu và hẻm ngoài cổng
 	Blocks.solid_box(self, Vector3(14, 1, 10), Vector3(7, -0.5, 5), TILE)
 	Blocks.solid_box(self, Vector3(4, 1, 14), Vector3(-2, -0.52, 5), Color("#9C978C"))
-	# Mặt sau lò bánh (tường 3,6 m, x 2,6 → 10,6): chừa ô cửa sổ bếp x 3,4 → 4,6, cao 1,1 → 2,1
-	_wall(Vector3(2.6, 0, -0.25), Vector3(3.4, 3.6, 0), PLASTER)
-	_wall(Vector3(4.6, 0, -0.25), Vector3(10.6, 3.6, 0), PLASTER)
-	_wall(Vector3(3.4, 0, -0.25), Vector3(4.6, 1.1, 0), PLASTER)
-	_wall(Vector3(3.4, 2.1, -0.25), Vector3(4.6, 3.6, 0), PLASTER)
-	Blocks.solid_box(self, Vector3(1.3, 0.08, 0.3), Vector3(4.0, 1.06, 0.07), Color("#B9B3A6"))   # bậu đưa bánh
-	Blocks.box(self, Vector3(1.2, 1.0, 0.05), Vector3(4.0, 1.6, -0.6), Color("#3A2A20"))           # trong bếp tối
-	Blocks.box(self, Vector3(0.8, 0.45, 0.04), Vector3(4.0, 1.35, -0.57), Color("#E8743A"))        # ánh lửa lò
-	for i in 5:
-		Blocks.box(self, Vector3(0.025, 1.0, 0.025), Vector3(3.5 + i * 0.25, 1.6, -0.02), Color("#2F3A3A"))
-	Blocks.box(self, Vector3(1.2, 2.1, 0.05), Vector3(7.1, 1.05, 0.03), DOOR_TEAL)                # cửa sau
-	Blocks.solid_box(self, Vector3(1.7, 0.15, 0.35), Vector3(7.1, 0.075, 0.18), Color("#B9B3A6"))  # bậc
-	Blocks.box(self, Vector3(1.9, 0.05, 0.75), Vector3(7.1, 2.42, 0.35), TON)                     # mái che cửa
-	Blocks.box(self, Vector3(0.6, 2.2, 0.6), Vector3(9.6, 4.1, -0.05), BRICK)                     # ống khói
-	Blocks.box(self, Vector3(8.0, 0.4, 0.02), Vector3(6.6, 0.2, 0.01), PLINTH)
-	# Tường rào 2 m quanh sân (x 0 → 2,6 và 10,6 → 14 phía bắc; nam; đông; tây chừa cổng)
-	_wall(Vector3(0, 0, -0.2), Vector3(2.6, 2.0, 0), PLASTER2)
-	_wall(Vector3(10.6, 0, -0.2), Vector3(14, 2.0, 0), PLASTER2)
-	_wall(Vector3(0, 0, 10), Vector3(14, 2.0, 10.2), PLASTER2)
-	_wall(Vector3(14, 0, 0), Vector3(14.2, 2.0, 10), PLASTER2)
-	_wall(Vector3(-0.2, 0, 0), Vector3(0, 2.0, GATE_Z.x - 0.35), PLASTER2)
-	_wall(Vector3(-0.2, 0, GATE_Z.y + 0.35), Vector3(0, 2.0, 10), PLASTER2)
+	# Mặt sau lò bánh (tường 3,6 m, x 2,6 → 10,6, cửa sổ bếp x 3,4 → 4,6 cao 1,1 → 2,1, cửa sau x 7,1, ống khói x 9,6)
+	_model(M_MAT_SAU, Vector3(6.6, 0, 0))
+	_wall(Vector3(2.6, 0, -0.25), Vector3(3.4, 3.6, 0))
+	_wall(Vector3(4.6, 0, -0.25), Vector3(10.6, 3.6, 0))
+	_wall(Vector3(3.4, 0, -0.25), Vector3(4.6, 1.1, 0))
+	_wall(Vector3(3.4, 2.1, -0.25), Vector3(4.6, 3.6, 0))
+	Blocks.collider(self, Vector3(1.3, 0.08, 0.3), Vector3(4.0, 1.06, 0.07))      # bậu đưa bánh
+	Blocks.collider(self, Vector3(1.7, 0.15, 0.35), Vector3(7.1, 0.075, 0.18))    # bậc cửa sau
+	# Tường rào 2 m quanh sân (bắc hai bên lò, nam, đông, tây chừa cổng)
+	_fence(Vector3(0, 0, 0), Vector3(2.6, 0, 0), 0.0)
+	_fence(Vector3(10.6, 0, 0), Vector3(14, 0, 0), 0.0)
+	_fence(Vector3(0, 0, 10), Vector3(14, 0, 10), PI)
+	_fence(Vector3(14, 0, 0), Vector3(14, 0, 10), -PI / 2.0)
+	_fence(Vector3(0, 0, 0), Vector3(0, 0, GATE_Z.x - 0.35), PI / 2.0)
+	_fence(Vector3(0, 0, GATE_Z.y + 0.35), Vector3(0, 0, 10), PI / 2.0)
+	_model(M_CONG, Vector3(0, 0, (GATE_Z.x + GATE_Z.y) / 2.0), PI / 2.0)          # cánh mở vào sân
 	for z in [GATE_Z.x - 0.175, GATE_Z.y + 0.175]:   # trụ cổng
-		Blocks.solid_box(self, Vector3(0.35, 2.1, 0.35), Vector3(-0.1, 1.05, z), PLASTER)
-	Blocks.box(self, Vector3(0.05, 1.7, 1.4), Vector3(0.6, 0.85, GATE_Z.x + 0.0), Color("#2C4A4A"))  # cánh cổng mở vào sân
+		Blocks.collider(self, Vector3(0.35, 2.1, 0.35), Vector3(0, 1.05, z))
 	Blocks.invisible_wall(self, Vector3(0.3, 4, 1.6), Vector3(-0.35, 2, (GATE_Z.x + GATE_Z.y) / 2.0))  # không ra hẻm
-	Blocks.invisible_wall(self, Vector3(16, 6, 0.4), Vector3(7, 3, -0.6))   # không trèo qua tường ra ngoài
-	Blocks.invisible_wall(self, Vector3(16, 6, 0.4), Vector3(7, 3, 10.5))
-	Blocks.invisible_wall(self, Vector3(0.4, 6, 12), Vector3(14.5, 3, 5))
+	# Không trèo qua tường ra ngoài. Dày 4 m để camera (A1) lùi ra sau tường thì gặp khối đặc mà rút vào trong sân
+	Blocks.invisible_wall(self, Vector3(16, 6, 4), Vector3(7, 3, -2.4))
+	Blocks.invisible_wall(self, Vector3(16, 6, 4), Vector3(7, 3, 12.3))
+	Blocks.invisible_wall(self, Vector3(4, 6, 12), Vector3(16.3, 3, 5))
 	Blocks.invisible_wall(self, Vector3(0.4, 6, 12), Vector3(-0.6, 5, 5))
 	# Kho củi: nóc 1,8 m (mặt Bơ đứng), mái tôn sét, củi bên trong
-	Blocks.solid_box(self, Vector3(SHED.size.x, SHED_TOP, SHED.size.y), Vector3(SHED.position.x + SHED.size.x / 2.0, SHED_TOP / 2.0, SHED.size.y / 2.0), Color("#9C7048"))
-	Blocks.box(self, Vector3(SHED.size.x + 0.3, 0.06, SHED.size.y + 0.3), Vector3(SHED.position.x + SHED.size.x / 2.0, SHED_TOP + 0.03, SHED.size.y / 2.0), TON)
-	Blocks.box(self, Vector3(SHED.size.x - 0.3, 1.2, 0.02), Vector3(SHED.position.x + SHED.size.x / 2.0, 0.6, SHED.size.y + 0.005), Color("#C9A06E"))
+	_model(M_KHO_CUI, Vector3(SHED.position.x + SHED.size.x / 2.0, 0, SHED.size.y / 2.0))
+	Blocks.collider(self, Vector3(SHED.size.x, SHED_TOP, SHED.size.y), Vector3(SHED.position.x + SHED.size.x / 2.0, SHED_TOP / 2.0, SHED.size.y / 2.0))
 	# Cây khế: va chạm ở thân và bồn gốc, tán không chặn
-	Blocks.solid_box(self, Vector3(0.9, 0.25, 0.9), TREE + Vector3(0, 0.125, 0), BRICK)
-	Blocks.solid_box(self, Vector3(0.26, 1.4, 0.26), TREE + Vector3(0, 0.95, 0), Color("#6E5A48"))
-	# Bồn kiểng 0,5 m: x 3 → 10,6 (chặn lối vòng qua ba gác)
-	Blocks.solid_box(self, Vector3(BED.size.x, 0.5, BED.size.y), Vector3(BED.position.x + BED.size.x / 2.0, 0.25, BED.position.y + BED.size.y / 2.0), BED_C)
-	Blocks.box(self, Vector3(BED.size.x - 0.2, 0.2, BED.size.y - 0.2), Vector3(BED.position.x + BED.size.x / 2.0, 0.55, BED.position.y + BED.size.y / 2.0), LEAF)
+	_model(M_KHE, TREE)
+	Blocks.collider(self, Vector3(0.9, 0.25, 0.9), TREE + Vector3(0, 0.125, 0))
+	Blocks.collider(self, Vector3(0.26, 1.4, 0.26), TREE + Vector3(0, 0.95, 0))
+	# Bồn kiểng 0,5 m: x 3 → 10,6 (chặn lối vòng qua ba gác), 4 đoạn 2 m co lại cho vừa
+	for i in 4:
+		var bon := _model(M_BON, Vector3(BED.position.x + BED.size.x * (i + 0.5) / 4.0, 0, BED.position.y + BED.size.y / 2.0))
+		bon.scale = Vector3(BED.size.x / 8.0, 1, 1)
+	Blocks.collider(self, Vector3(BED.size.x, 0.5, BED.size.y), Vector3(BED.position.x + BED.size.x / 2.0, 0.25, BED.position.y + BED.size.y / 2.0))
 	Blocks.invisible_wall(self, Vector3(0.4, 3, 1.6), Vector3(13.9, 1.5, BA_GAC.z))   # khe 0,26 m sau đầu xe
 	# Bao gạo dưới chỗ Bột nằm
 	Blocks.collider(self, Vector3(1.6, 0.44, 0.7), SACKS + Vector3(0, 0.22, 0), Blocks.LAYER_PROP)
 
 
-func _wall(a: Vector3, b: Vector3, c: Color) -> void:
-	Blocks.solid_box(self, (b - a).abs(), (a + b) / 2.0, c)
+func _model(scene: PackedScene, pos: Vector3, rot_y := 0.0) -> Node3D:
+	var n := scene.instantiate() as Node3D
+	n.position = pos
+	n.rotation.y = rot_y
+	add_child(n)
+	return n
+
+
+## Tường rào từ a tới b bằng các đoạn 2 m (co giãn cho vừa); rot_y 0 = mặt trước nhìn +z, lưng lùi 0,2 m.
+func _fence(a: Vector3, b: Vector3, rot_y: float) -> void:
+	var n := maxi(1, int(round(a.distance_to(b) / 2.0)))
+	for i in n:
+		var seg := _model(M_RAO, a.lerp(b, (i + 0.5) / n), rot_y)
+		seg.scale = Vector3(a.distance_to(b) / n / 2.0, 1, 1)
+	var thick := Vector3(0, 0, -0.1).rotated(Vector3.UP, rot_y)
+	var d := (b - a).abs()
+	var size := Vector3(maxf(d.x, 0.2), 2.0, maxf(d.z, 0.2))
+	Blocks.collider(self, size, (a + b) / 2.0 + thick + Vector3(0, 1.0, 0))
+
+
+func _wall(a: Vector3, b: Vector3) -> void:
+	Blocks.collider(self, (b - a).abs(), (a + b) / 2.0)
 
 
 func _build_models() -> void:
@@ -707,10 +720,6 @@ func _build_models() -> void:
 	_basket.position = BASKET
 	_basket.scale = Vector3.ONE * 1.6
 	add_child(_basket)
-	# Tán cây khế (khối tạm: vài quả cầu xanh)
-	for i in 7:
-		var a := i * TAU / 7.0
-		Blocks.mesh(self, _sphere(0.55 + 0.1 * (i % 3)), TREE + Vector3(cos(a) * 0.9, 2.6 + 0.3 * (i % 2), sin(a) * 0.9), LEAF.darkened(0.1 * (i % 2)))
 	co_ba = Nguoi.make("coba", "dung_yen")
 	add_child(co_ba)
 	co_ba.position = CO_BA_SPOT[0]
@@ -725,15 +734,6 @@ func _build_models() -> void:
 	bot.position = BOT_AT
 	bot.rotation.y = -PI / 2.0
 	bot.set_pose("ngu")
-
-
-func _sphere(r: float) -> SphereMesh:
-	var s := SphereMesh.new()
-	s.radius = r
-	s.height = r * 1.5
-	s.radial_segments = 10
-	s.rings = 5
-	return s
 
 
 # ---------------------------------------------------------------- tự chơi thử

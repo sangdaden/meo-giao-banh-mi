@@ -64,7 +64,8 @@ func _greet(main: Node, mhx: MeoHangXom) -> void:
 	var id: String = mhx.cats.keys()[0]
 	var m: MeoNpc = mhx.cats[id]
 	var p: CharacterBody3D = main.player
-	mhx._on_q(m, m.global_position + Vector3(5, 0, 0))
+	var said := ConVat.call_near(self, m.global_position + Vector3(5, 0, 0))
+	_check(said >= 1 and ConVat.met(id), "%s: Q qua ConVat tới được mèo, đã gặp" % id)
 	_check(not mhx.greeted.has(id), "%s: gọi từ xa chỉ đáp, chưa chào" % id)
 	await _frames(70)
 	p.global_position = m.global_position + Vector3(0.8, 0.05, 0)

@@ -125,6 +125,7 @@ Từ PR #133 (H1, 23/10) mỗi ngày có file riêng, HUD tách thành mảnh, b
 | Test, đo, chụp | `tests/`, `tools/do_hieu_nang.gd`, `tools/chup_*.gd` | luồng nào thêm tính năng thì thêm test của mình; I1 bot tự chơi cả tuần |
 | CI | `.github/workflows/` (`gop-main.yml` xem `docs/gop-main.md`, `itch.yml` xem `docs/itch.md`) | "Xuất bản Windows tự động"; H2 tự gộp main; J1 itch.io |
 | Ngôn ngữ, bản tiếng Anh | `scripts/ngon_ngu.gd` (autoload `NgonNgu`), `scripts/dich/` | F3 "Bản tiếng Anh" |
+| Con vật chung: phím Q, "Bạn bốn chân" | `scripts/con_vat.gd` (`ConVat`: con vật vào nhóm `"con_vat"` + `on_called(pos)`, `ConVat.meet(id)`), `scripts/ui/ban_bon_chan.gd` | "Cơ chế chung con vật" |
 
 ## Tránh đụng nhau giữa các PR
 

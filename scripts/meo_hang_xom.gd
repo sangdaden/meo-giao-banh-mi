@@ -11,8 +11,6 @@ extends Node3D
 ## Động tác chào mới (chạm mũi, cụng đầu, 4 kiểu đáp) do luồng "Phác thảo động tác và phụ kiện thưởng" vẽ; chưa có
 ## clip tên đó thì dùng động tác tạm có sẵn (BO_CLIP, DAP_TAM).
 
-const CON_VAT := "res://scripts/con_vat.gd"
-const CALL_R := 8.0           ## Q nghe xa chừng này (khớp ConVat "goi_con_vat_r")
 const GREET_R := 2.0          ## đứng gần chừng này thì chào kiểu mèo
 const VIEW_END := 14.0        ## mèo đứng yên ngoài 14 m thì không vẽ (ngã tư sát trần 400k tam giác)
 
@@ -98,7 +96,6 @@ var _gi := 0
 var _gwait := false
 var _gaway := 0.0
 var _gbye := -1.0
-var _fallback_q := false      ## chưa có ConVat: tự nghe phím Q và player.called
 var _autotest := false
 
 
@@ -132,17 +129,6 @@ func _ready() -> void:
 		guide.look_target = player
 		_light(guide)
 		_hide_guide()
-	_fallback_q = not ResourceLoader.exists(CON_VAT)
-	if _fallback_q and player and player.has_signal("called"):
-		player.called.connect(_on_player_called)
-		if not InputMap.has_action("goi"):
-			InputMap.add_action("goi", 0.2)
-			var k := InputEventKey.new()
-			k.physical_keycode = KEY_Q
-			InputMap.action_add_event("goi", k)
-			var b := InputEventJoypadButton.new()
-			b.button_index = JOY_BUTTON_LEFT_SHOULDER
-			InputMap.action_add_event("goi", b)
 	if day_id == "thu_tu":
 		_setup_race.call_deferred()  # đường sân thượng do ThuTu dựng trong cùng lượt, chờ một nhịp
 
@@ -156,22 +142,13 @@ func _light(m: MeoNpc) -> void:
 		mi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 
 
-## Q gọi: theo hợp đồng ConVat (luồng 1), MeoNpc có biến on_q thì gọi on_q thay đáp mặc định.
+## Q gọi: ConVat (scripts/con_vat.gd) gắn phím Q mọi ngày, Bơ ngồi kêu meo, mèo trong tầm gọi on_called → on_q.
 func _hook_q(m: MeoNpc) -> void:
-	if "on_q" in m:
-		m.set("on_q", func(pos: Vector3): _on_q(m, pos))
-
-
-func _on_player_called(pos: Vector3) -> void:
-	for id in cats:
-		var m: MeoNpc = cats[id]
-		if m.global_position.distance_to(pos) <= CALL_R:
-			_on_q(m, pos)
+	m.on_q = func(pos: Vector3): _on_q(m, pos)
 
 
 func _meet(id: String) -> void:
-	if ResourceLoader.exists(CON_VAT):
-		load(CON_VAT).meet(id)
+	ConVat.meet(id)
 
 
 func _toast(text: String, seconds := 2.4) -> void:
@@ -258,8 +235,6 @@ func _physics_process(delta: float) -> void:
 		return
 	for id in _busy:
 		_busy[id] = maxf(0.0, _busy[id] - delta)
-	if _fallback_q and _playing() and Input.is_action_just_pressed("goi") and _near_cat() and player.has_method("sit_call"):
-		player.sit_call()
 	if day_id == "thu_tu":
 		_update_race(delta)
 	if guide:
@@ -269,13 +244,6 @@ func _physics_process(delta: float) -> void:
 
 func _playing() -> bool:
 	return main.get("state") == main.State.PLAY
-
-
-func _near_cat() -> bool:
-	for id in cats:
-		if cats[id].global_position.distance_to(player.global_position) <= CALL_R:
-			return true
-	return false
 
 
 # ---------------------------------------------------------------- N3: Bột rủ đua mái

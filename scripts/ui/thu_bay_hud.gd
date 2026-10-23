@@ -19,6 +19,7 @@ var _book: Control
 var _grid: GridContainer
 var _cover: TextureRect
 var _book_title: Label
+var _ban: BanBonChan
 var _choice: Control
 var _choice_cb: Callable
 var _choice_picked: Array = []
@@ -150,7 +151,13 @@ func _build_book() -> Control:
 	_grid.add_theme_constant_override("h_separation", 10)
 	_grid.add_theme_constant_override("v_separation", 10)
 	_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(_grid)
+	var pages := VBoxContainer.new()  # trang người dân, rồi trang "Bạn bốn chân"
+	pages.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pages.add_theme_constant_override("separation", 18)
+	scroll.add_child(pages)
+	pages.add_child(_grid)
+	_ban = BanBonChan.new()
+	pages.add_child(_ban)
 	return dim
 
 
@@ -174,6 +181,7 @@ func _fill_book() -> void:
 	_grid.add_child(_page_card(SoHangXom.MUC, "11. Chó Mực", "Cuối hẻm 42",
 		"Tìm thẻ tên đồng bị rơi" if muc_open else "Trang đặc biệt · giúp %d người rồi hỏi Bà Sáu" % int(DoKho.v("muc_chapter_after", 3)),
 		"Mực đi theo Bơ"))
+	_ban.refresh()
 
 
 func _page_card(id: String, who: String, place: String, task: String, gift: String) -> Control:

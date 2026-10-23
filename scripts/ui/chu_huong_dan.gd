@@ -17,6 +17,8 @@ const PHIM_CHUNG := [
 	["Chuột", "xoay camera · V đổi góc nhìn"],
 	["B", "bản đồ lớn"],
 ]
+## Phím Q gọi con vật (scripts/con_vat.gd), có ở mọi ngày; ngày tự khai dòng Q thì dùng dòng của ngày.
+const PHIM_GOI := [["Q", "kêu meo · con vật gần đó đáp lại"]]
 ## Nút cứu kẹt (scripts/cuu_ket.gd), luôn ở cuối bảng.
 const PHIM_CUU_KET := [["Giữ R", "về chỗ an toàn khi bị kẹt"]]
 ## Dòng riêng mặc định khi ngày không khai "help": ngày giao bánh thường.
@@ -46,7 +48,8 @@ static func bang(day: Dictionary) -> Array:
 	var rieng: Array = day.get("help", [])
 	if rieng.is_empty():
 		rieng = PHIM_GIAO
-	return PHIM_CHUNG + rieng + PHIM_CUU_KET
+	var goi: Array = [] if rieng.any(func(r): return r[0] == "Q") else PHIM_GOI
+	return PHIM_CHUNG + rieng + goi + PHIM_CUU_KET
 
 
 ## Ghi chú dưới bảng "Cách chơi" của một ngày, kèm dòng tay cầm.

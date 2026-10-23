@@ -123,6 +123,9 @@ const EASY := {
 	# Chó Mực xuyên tuần (scripts/muc_tuan.gd)
 	"cha_ca_ngu": 20.0,          # ăn miếng chả cá xong Mực ngủ say 20 s (Thử thách 10)
 	"muc_duoi_t6": 4.0,          # Thứ Sáu Mực đuổi tối đa 4 s rồi đứng sủa vẫy đuôi, bớt dần theo khoảnh khắc đã gặp (Thử thách 8)
+	# Mèo hàng xóm trong tuần (scripts/meo_hang_xom.gd)
+	"lost_guide_after": 20.0,    # lòng vòng 20 s không gần đích hơn thì mèo ra dẫn đường (Thử thách 40 s)
+	"bot_race_mult": 0.8,        # Bột đua mái Thứ Tư chậm 20% (Thử thách: đúng tốc độ)
 }
 
 

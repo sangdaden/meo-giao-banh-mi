@@ -5,6 +5,9 @@ extends VBoxContainer
 
 const T = preload("res://scripts/ui/ui_theme.gd")
 
+## Ảnh dán kèm ô (khóa ảnh SoHangXom.photo): ngủ trưa với Mực (luồng "Mực xuyên tuần").
+const PHOTOS := {"muc": "ngu_trua_muc"}
+
 var _title: Label
 var _grid: GridContainer
 
@@ -44,6 +47,14 @@ func _card(id: String) -> Control:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 0)
 	card.add_child(v)
+	var img := SoHangXom.photo(PHOTOS.get(id, "")) if seen and PHOTOS.has(id) else null
+	if img:
+		var ph := TextureRect.new()
+		ph.custom_minimum_size = Vector2(148, 70)
+		ph.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		ph.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		ph.texture = ImageTexture.create_from_image(img)
+		v.add_child(ph)
 	v.add_child(T.label(("♥ " + str(info[0])) if seen else "???", 16, T.INK if seen else T.MUTED, "display"))
 	var hint := T.label(str(info[1]), 12, T.MUTED, "bold")
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

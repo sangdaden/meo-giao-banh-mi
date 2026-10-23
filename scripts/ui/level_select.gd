@@ -143,8 +143,8 @@ func _day_button(day: String, theme_name: String) -> Button:
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	h.add_child(v)
 	var playable := Days.unlocked(day)
-	v.add_child(T.label(GameState.DAY_NAMES[day], 22, T.INK if playable else T.MUTED, "display"))
-	v.add_child(T.label(theme_name, 14, T.MUTED, "bold"))
+	v.add_child(_co_chu(T.label(GameState.DAY_NAMES[day], 22, T.INK if playable else T.MUTED, "display"), 16))
+	v.add_child(_co_chu(T.label(theme_name, 14, T.MUTED, "bold"), 11))
 	if playable:
 		var best := int(GameState.get_day("sao_cao_nhat", -1, day))
 		if best >= 0:
@@ -212,7 +212,7 @@ func _build_day(id: String) -> void:
 	var h := T.label("Giao một đơn · vào thẳng đơn đó, không tính kỷ lục ca", 20, T.INK, "display")
 	_detail.add_child(h)
 	var list := VBoxContainer.new()
-	list.add_theme_constant_override("separation", 6)
+	list.add_theme_constant_override("separation", 5)
 	_detail.add_child(list)
 	var orders := Days.orders(id)
 	for i in orders.size():
@@ -269,10 +269,9 @@ func _mode_button(id: String, title: String, sub: String, style: String, mode: P
 	v.offset_bottom = -4
 	b.add_child(v)
 	var fg := T.ON_CRUST if style == "primary" else T.INK
-	v.add_child(T.label(title, 22, fg, "display"))
-	var sl := T.label(sub, 13, fg if style == "primary" else T.MUTED, "bold")
-	sl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	v.add_child(sl)
+	v.add_child(_co_chu(T.label(title, 22, fg, "display"), 15))
+	v.add_child(_co_chu(T.label(sub, 13, fg if style == "primary" else T.MUTED, "bold"), 11))
+	b.tooltip_text = "%s · %s" % [title, sub]
 	if on_press.is_valid():
 		b.pressed.connect(on_press)
 	else:
@@ -281,7 +280,7 @@ func _mode_button(id: String, title: String, sub: String, style: String, mode: P
 
 
 func _order_button(id: String, i: int, o: Dictionary) -> Button:
-	var b := T.button("", "secondary", 48)
+	var b := T.button("", "secondary", 52)
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 12)
 	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -302,13 +301,15 @@ func _order_button(id: String, i: int, o: Dictionary) -> Button:
 	num.add_child(nl)
 	h.add_child(num)
 
-	var who := T.label("%s · %s" % [o.who, o.place], 18, T.INK, "bold")
-	who.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	h.add_child(who)
-	var item := T.label(Main._item_text(o), 14, T.MUTED, "body")
-	item.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	item.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	h.add_child(item)
+	# Tên khách và món xếp hai dòng, tự co chữ: nhãn, giờ và sao bên phải luôn nằm trong khung.
+	var words := VBoxContainer.new()
+	words.add_theme_constant_override("separation", -3)
+	words.alignment = BoxContainer.ALIGNMENT_CENTER
+	words.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	words.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.add_child(words)
+	words.add_child(_co_chu(T.label("%s · %s" % [o.who, o.place], 17, T.INK, "bold"), 13))
+	words.add_child(_co_chu(T.label(Main._item_text(o), 13, T.MUTED, "body"), 11))
 	if o.get("boss", false):
 		h.add_child(_pill("Chó Mực", T.RED, T.PAPER))
 	elif Main._is_errand(o):
@@ -327,7 +328,7 @@ func _order_button(id: String, i: int, o: Dictionary) -> Button:
 	stars.custom_minimum_size = Vector2(3 * 24 + 8, 24)
 	stars.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	h.add_child(stars)
-	b.tooltip_text = "Vào thẳng đơn %d của %s" % [i + 1, GameState.DAY_NAMES.get(id, id)]
+	b.tooltip_text = "Vào thẳng đơn %d của %s" % [i + 1, GameState.DAY_NAMES.get(id, id)] + "\n" + Main._item_text(o)
 	b.pressed.connect(func(): PlayMode.start(get_tree(), PlayMode.Mode.ORDER, i, id))
 	return b
 
@@ -379,3 +380,28 @@ func _build_soon(day: String) -> void:
 	go.pressed.connect(_select.bind("thu_hai"))
 	_detail.add_child(go)
 	_first_focus = go
+
+
+## Chữ dài hơn chỗ (nhất là bản tiếng Anh) thì tự thu cỡ, nhỏ nhất `nho`; vẫn dài thì cắt "…".
+## Nhãn phải nằm trong ô được kéo giãn (EXPAND_FILL hoặc phủ kín nút) vì clip_text cho bề rộng tối thiểu bằng 0.
+func _co_chu(l: Label, nho: int) -> Label:
+	l.clip_text = true
+	l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var lon := l.get_theme_font_size("font_size")
+	var vua := func() -> void:
+		var f := l.get_theme_font("font")
+		if f == null or l.size.x <= 0.0:
+			return
+		var s := lon
+		var chu := l.atr(l.text)
+		while s > nho and f.get_string_size(chu, HORIZONTAL_ALIGNMENT_LEFT, -1, s).x > l.size.x:
+			s -= 1
+		l.add_theme_font_size_override("font_size", s)
+	l.resized.connect(vua)
+	var ng := get_node_or_null("/root/NgonNgu")
+	if ng:
+		var doi := func(_ma: String) -> void: vua.call()
+		l.tree_entered.connect(func(): ng.doi_ngon_ngu.connect(doi))
+		l.tree_exiting.connect(func(): ng.doi_ngon_ngu.disconnect(doi))
+	return l

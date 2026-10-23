@@ -192,6 +192,9 @@ jobs:
           # Thứ Bảy: nhảy vào chồng thùng cạnh lò bánh không bị treo mãi trên mép (giữ phím đi tới tự leo lên, lùi ra buông)
           timeout 300 ~/godot/godot --headless --path . -s tests/test_bam_mep_thu_bay.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee bam_mep.log
           grep -q "BAM MEP TEST OK" bam_mep.log
+          # Camera không chui tường (A1): vật che giữa camera và Bơ mờ đi, tường dày mới kéo camera lại, trên mái bớt chúc xuống
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_camera_che.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee camera_che.log
+          grep -q "CAMERA CHE TEST OK" camera_che.log
           # Vành phố P1: mép mềm chặn Bơ mà không chặn camera, đầu đường cho Bơ quay đầu, cầu kênh, phông trời
           timeout 300 ~/godot/godot --headless --path . -s tests/test_vanh_pho.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee vanh_pho.log
           grep -q "TEST VANH PHO OK" vanh_pho.log

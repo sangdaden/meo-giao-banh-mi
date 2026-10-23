@@ -70,6 +70,10 @@ Các bản đã đánh số nằm ở trang [Releases](https://github.com/sangda
 
 Trong `export_presets.cfg` còn có sẵn preset **Android** (arm64, chưa ký) cho tuần làm bản điện thoại. Muốn xuất Android cần cài Android SDK. Project đã bật sẵn `rendering/textures/vram_compression/import_etc2_astc` (bản Mac chip Apple và Android đều cần).
 
+## Trang itch.io
+
+Workflow **Đẩy lên itch.io** (`.github/workflows/itch.yml`) đẩy bản web, Windows và macOS lên trang itch.io bằng butler. Chỉ chạy khi bấm **Run workflow** trong tab Actions, cần secret `BUTLER_API_KEY` và biến `ITCH_GAME`. Cách cài đặt từng bước ở [docs/itch.md](docs/itch.md).
+
 ## Mở và chơi trong Godot 4
 
 1. Tải **Godot 4.3** trở lên (bản Standard, không cần bản .NET) ở [godotengine.org/download](https://godotengine.org/download). Giải nén là chạy được, không cần cài.

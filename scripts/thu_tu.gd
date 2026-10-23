@@ -85,6 +85,7 @@ func _ready() -> void:
 	pigeons.visible = false
 	pigeons.scattered.connect(func(_p): scatters += 1)
 	pigeons.blinded.connect(_on_blinded)
+	pigeons.toast = _toast  # K1: Q gần đàn thì rắc vụn bánh
 	_build_props()
 	_dress_people()
 	_build_side_floods()

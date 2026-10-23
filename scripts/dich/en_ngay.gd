@@ -351,6 +351,15 @@ const EN := {
 	"Cô Ba: \"Mưa lớn rồi Bơ ơi, bánh cô bọc ni-lông kỹ rồi. Đường lớn sắp ngập, lên sân thượng mà đi cho khô nha!\"": "Cô Ba: \"It's pouring, Bơ, I've wrapped the bread well in plastic. The main road is about to flood, go along the rooftops to stay dry!\"",
 	"2 ổ chả cá": "2 fish-cake loaves",
 	"Mưa lớn, đường ngập dần: leo lên sân thượng mà đi. Trên ván hẹp Bơ tự đi chậm, đừng giữ Shift kẻo chao. Tránh xe tạt nước và đàn bồ câu.": "Heavy rain, the streets slowly flood: climb up to the rooftops. On narrow planks Bơ slows down automatically; don't hold Shift or you'll wobble. Avoid splashing motorbikes and the pigeons.",
+	# scripts/bo_cau.gd, scripts/viec_nho/bo_cau_non.gd (rắc vụn bánh, bồ câu non lạc đàn)
+	"Bơ rắc vụn bánh, cả đàn bồ câu sà xuống ăn quanh chân!": "Bơ scatters bread crumbs and the whole flock swoops down to peck all around!",
+	"Bấm Q ngồi gọi: Bơ rắc vụn bánh cho bồ câu.": "Press Q to sit and call: Bơ scatters bread crumbs for the pigeons.",
+	"chíp chíp": "cheep cheep",
+	"Nghe tiếng chíp chíp đâu đây... hình như có con chim nhỏ lạc mẹ.": "Cheep cheep somewhere nearby... sounds like a little bird has lost its mum.",
+	"Bồ câu non lạc đàn! Dẫn nó qua đường, tới dưới chỗ bồ câu mẹ gù gù trên mái khối 2.": "A baby pigeon lost its flock! Lead it across the road to below where its mum is cooing on the block 2 roof.",
+	"gù gù": "coo coo",
+	"Bồ câu non vỗ cánh bay lên chuồng. Bồ câu mẹ ra đón kìa!": "The baby pigeon flaps up to the loft. Its mum comes out to greet it!",
+	"Bồ câu non về với mẹ rồi! Tiền boa +%s": "The baby pigeon is back with its mum! Tip +%s",
 	# Mẫu cho chữ ghép trong code (nối chuỗi, danh sách)
 	"Chui qua!": "Crawl through!",
 	"Chị Mây nghỉ trên gác lửng. Leo thùng → cục nóng → bám mép gác, hoặc đứng trước quầy bấm Q gọi chị.": "Chị Mây is resting in the loft. Climb the crates → AC unit → grab the loft ledge, or stand at the counter and press Q to call her.",

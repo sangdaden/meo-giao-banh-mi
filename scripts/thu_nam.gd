@@ -118,6 +118,14 @@ static func pending() -> bool:
 	return not _stash.is_empty() and not _result.is_empty()
 
 
+## main.gd hỏi lúc bắt đầu cảnh phố (Days: resume_day): vừa giao Bé Na trong cảnh chung cư về thì chơi tiếp ngày.
+func resume_day() -> bool:
+	if not pending():
+		return false
+	resume(main)
+	return true
+
+
 ## Lấy lại tiến độ ngày, ghi đơn chung cư rồi đi tiếp (thường là tổng kết ngày).
 static func resume(m: Node) -> void:
 	var s := _stash

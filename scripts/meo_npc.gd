@@ -220,6 +220,7 @@ func say(text: String, seconds := 2.5) -> void:
 	_bubble.text = text
 	_bubble.visible = true
 	_bubble_t = seconds
+	GiongUO.noi("meo:" + ten, text, self)
 
 
 ## Hiện tên nhỏ trên đầu (Hội mèo: người chơi biết ai là ai).

@@ -93,6 +93,7 @@ func say(text: String, seconds := 3.0, anim_name := "noi") -> void:
 	_bubble.text = text
 	_bubble.visible = true
 	_bubble_until = Time.get_ticks_msec() / 1000.0 + seconds
+	GiongUO.noi("Cô Ba", text, coba)
 	if anim_name == "nhan_banh":
 		coba.play_once(anim_name)
 	else:
@@ -118,6 +119,7 @@ func hand_ticket(order: Dictionary, index: int) -> void:
 	_bubble.text = line
 	_bubble.visible = true
 	_bubble_until = Time.get_ticks_msec() / 1000.0 + 3.0
+	GiongUO.noi("Cô Ba", line, coba)
 	coba.play_for("cho_banh", 1.0)
 	get_tree().create_timer(1.0).timeout.connect(func():
 		if is_instance_valid(coba):

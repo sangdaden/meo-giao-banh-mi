@@ -46,10 +46,18 @@ const WALL_VIEW := 22.0
 const TEXT_CELL := 24.0
 const TEXT_VIEW := 45.0
 const GROUP := "nha_rap"
+## Cụm rời nhỏ hơn chừng này (m) không vẽ ở lượt bóng (shadow_mesh)
+const SHADOW_BIT := Blocks.SHADOW_BIT
+## Bản xa (far_mesh): số cột và chiều cao mỗi dải màu mặt tiền
+const FAR_COLS := 1
+const FAR_ROW := 0.5
 
 static var _meta := {}
 static var _parts := {}     ## tên mảnh -> [[arrays, là mặt sơn]]
 static var _houses := {}    ## khóa căn -> ArrayMesh
+static var _shadows := {}   ## khóa căn -> ArrayMesh chỉ để đổ bóng (shadow_mesh)
+static var _far := {}       ## khóa căn -> ArrayMesh bản xa (far_mesh)
+static var _shadow_parts := {}  ## tên mảnh -> [vị trí, pháp tuyến, chỉ số] đã bỏ cụm vụn
 static var _profiles := {}  ## khóa căn (meta "model" của hộp thân) -> mặt mái kiểu SanThuong.ROOF_PROFILE
 static var _walls := {}     ## khóa ô -> SurfaceTool đồ gắn tường
 static var _texts := {}     ## khóa ô -> SurfaceTool chữ
@@ -134,6 +142,8 @@ static func put_house(parent: Node3D, s: Dictionary, x0: float, w: float, face_z
 	mi.mesh = house_mesh(s)
 	mi.material_override = PhoModels.material()
 	mi.transform = xf
+	mi.set_meta("bong_tho", shadow_mesh(s))  # Blocks.merge_static: lượt bóng vẽ bản bỏ chi tiết vụn
+	mi.set_meta("ban_xa", far_mesh(s))  # Blocks.merge_static: ô nhà ở xa vẽ bản xa
 	parent.add_child(mi)
 	var key := key_of(s)
 	if not _profiles.has(key):
@@ -235,6 +245,153 @@ static func house_mesh(s: Dictionary) -> ArrayMesh:
 	out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	_houses[key] = out
 	return out
+
+
+## Bản chỉ để đổ bóng của một căn (Blocks.merge_static vẽ nó ở lượt bóng thay cho house_mesh): các mảnh bỏ những cụm
+## rời nhỏ hơn SHADOW_BIT (khung cửa, chậu, máy lạnh, gờ, chữ nổi). Tường, sàn, mái, ban công giữ nguyên chỗ nên gầm tiệm
+## vẫn kín bóng, không lọt nắng. Ở góc ngã tư lượt bóng của nhà ráp nhẹ đi chừng một nửa.
+static func shadow_mesh(s: Dictionary) -> ArrayMesh:
+	var key := key_of(s)
+	if _shadows.has(key):
+		return _shadows[key]
+	var w10 := roundi(s.w * 10)
+	var parts := [["tret_%s_%d" % [s.tret, w10], 0.0]]
+	for i in (s.lau as Array).size():
+		parts.append(["lau_%s_%d" % [s.lau[i], w10], G0 + F * i])
+	parts.append(["mai_%s_%d" % [s.mai, w10], top_of(s)])
+	var v := PackedVector3Array()
+	var nm := PackedVector3Array()
+	var idx := PackedInt32Array()
+	for p: Array in parts:
+		var up := Vector3(0, p[1], 0)
+		var sp: Array = _shadow_piece(p[0])
+		var base := v.size()
+		for q: Vector3 in sp[0]:
+			v.append(q + up)
+		nm.append_array(sp[1])
+		for i: int in sp[2]:
+			idx.append(base + i)
+	var out := ArrayMesh.new()
+	if not idx.is_empty():
+		var arrays := []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = v
+		arrays[Mesh.ARRAY_NORMAL] = nm
+		arrays[Mesh.ARRAY_INDEX] = idx
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	_shadows[key] = out
+	return out
+
+
+## Bản xa của một căn (~250–400 tam giác thay ~2 300): hộp thân nhà, mặt tiền là các dải màu (FAR_COLS cột, mỗi FAR_ROW m
+## một dải) lấy màu trung bình theo diện tích của các mặt nhìn ra phố trong dải đó (cửa tiệm tối, ban công, gờ sàn, bảng
+## hiệu), hông và lưng một màu, mái là mảnh mái thật bỏ cụm vụn (nhìn từ mái nhà Thứ Tư vẫn đúng dáng).
+## Lưới 3 cột nhìn từ trên cao thành ô cờ loang lổ, dải ngang một cột trông tự nhiên hơn. Blocks.merge_static vẽ bản này khi ô nhà
+## xa hơn Blocks.FAR_SWITCH (meta "ban_xa"); ở khoảng đó chi tiết nhỏ hơn vài điểm ảnh.
+static func far_mesh(s: Dictionary) -> ArrayMesh:
+	var key := key_of(s)
+	if _far.has(key):
+		return _far[key]
+	var w10 := roundi(s.w * 10)
+	var parts := [["tret_%s_%d" % [s.tret, w10], 0.0]]
+	for i in (s.lau as Array).size():
+		parts.append(["lau_%s_%d" % [s.lau[i], w10], G0 + F * i])
+	var paint := _vcolor(Color(SON[s.son]))
+	var w := float(s.w)
+	var d := 7.3  # thân nhà sâu 7,3 m sau mặt tiền (mọi mảnh P2)
+	var top := top_of(s)
+	var front := {}   # Vector2i(cột, hàng) -> [tổng màu, diện tích]
+	var sides := {"l": [Color(0, 0, 0, 0), 0.0], "r": [Color(0, 0, 0, 0), 0.0], "b": [Color(0, 0, 0, 0), 0.0]}
+	for p: Array in parts:
+		var up := Vector3(0, p[1], 0)
+		for surf: Array in _piece(p[0]):
+			var a: Array = surf[0]
+			var pv: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+			var pc = a[Mesh.ARRAY_COLOR]
+			var pi: PackedInt32Array = a[Mesh.ARRAY_INDEX]
+			for t in range(0, pi.size(), 3):
+				var p0 := pv[pi[t]] + up
+				var p1 := pv[pi[t + 1]] + up
+				var p2 := pv[pi[t + 2]] + up
+				var cr := (p1 - p0).cross(p2 - p0)
+				var area := cr.length() * 0.5
+				if area < 1e-5:
+					continue
+				var fn := cr / (area * 2.0)
+				var col: Color = paint if surf[1] or pc == null else (pc[pi[t]] + pc[pi[t + 1]] + pc[pi[t + 2]]) / 3.0
+				var mid := (p0 + p1 + p2) / 3.0
+				var cell: Vector2i
+				var acc: Array
+				if fn.y > 0.6:
+					continue
+				elif fn.z > 0.6 and mid.z > -1.5:
+					cell = Vector2i(clampi(floori(mid.x / w * FAR_COLS), 0, FAR_COLS - 1), maxi(floori(mid.y / FAR_ROW), 0))
+					acc = front.get(cell, [Color(0, 0, 0, 0), 0.0])
+					front[cell] = acc
+				elif absf(fn.x) > 0.6:
+					acc = sides.l if fn.x < 0.0 else sides.r
+				elif fn.z < -0.6:
+					acc = sides.b
+				else:
+					continue
+				acc[0] += col * area
+				acc[1] += area
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var avg := func(acc: Array) -> Color:
+		var c: Color = acc[0] / maxf(acc[1], 1e-5)
+		c.a = 1.0
+		return c
+	# mặt tiền: các dải màu trên mặt z = 0
+	for cell: Vector2i in front:
+		var x0 := w * cell.x / FAR_COLS
+		var x1 := w * (cell.x + 1) / FAR_COLS
+		var y0 := cell.y * FAR_ROW
+		var y1 := minf((cell.y + 1) * FAR_ROW, top)
+		_far_quad(st, Vector3(x0, y0, 0), Vector3(x1, y0, 0), Vector3(x1, y1, 0), Vector3(x0, y1, 0), Vector3.BACK, avg.call(front[cell]))
+	# hông, lưng: một tấm mỗi mặt tới sàn mái; nắp sàn mái
+	_far_quad(st, Vector3(0, 0, -d), Vector3(0, 0, 0), Vector3(0, top, 0), Vector3(0, top, -d), Vector3.LEFT, avg.call(sides.l))
+	_far_quad(st, Vector3(w, 0, 0), Vector3(w, 0, -d), Vector3(w, top, -d), Vector3(w, top, 0), Vector3.RIGHT, avg.call(sides.r))
+	_far_quad(st, Vector3(w, 0, -d), Vector3(0, 0, -d), Vector3(0, top, -d), Vector3(w, top, -d), Vector3.FORWARD, avg.call(sides.b))
+	_far_quad(st, Vector3(0, top, 0), Vector3(w, top, 0), Vector3(w, top, -d), Vector3(0, top, -d), Vector3.UP, avg.call(sides.b))
+	# mái: mảnh mái thật bỏ cụm vụn (dáng mái ngói, tôn, tum nhìn từ trên cao vẫn đúng), sơn như bản đủ
+	var up := Vector3(0, top, 0)
+	for surf: Array in _piece("mai_%s_%d" % [s.mai, w10]):
+		var r: Array = Blocks.shadow_arrays(surf[0], SHADOW_BIT)
+		var pv: PackedVector3Array = r[Mesh.ARRAY_VERTEX]
+		var pn: PackedVector3Array = r[Mesh.ARRAY_NORMAL]
+		var pc = surf[0][Mesh.ARRAY_COLOR]
+		for k: int in r[Mesh.ARRAY_INDEX]:
+			st.set_normal(pn[k])
+			st.set_color(paint if surf[1] or pc == null else pc[k])
+			st.add_vertex(pv[k] + up)
+	_far[key] = st.commit()
+	return _far[key]
+
+
+static func _far_quad(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3, n: Vector3, col: Color) -> void:
+	for q in [a, b, c, a, c, d]:
+		st.set_normal(n)
+		st.set_color(col)
+		st.add_vertex(q)
+
+
+## Một mảnh bỏ các cụm rời nhỏ (Blocks.shadow_arrays), nối các mặt của mảnh lại: [vị trí, pháp tuyến, chỉ số]
+static func _shadow_piece(name: String) -> Array:
+	if _shadow_parts.has(name):
+		return _shadow_parts[name]
+	var v := PackedVector3Array()
+	var nm := PackedVector3Array()
+	var idx := PackedInt32Array()
+	for surf: Array in _piece(name):
+		var a: Array = Blocks.shadow_arrays(surf[0], SHADOW_BIT)
+		var base := v.size()
+		v.append_array(a[Mesh.ARRAY_VERTEX])
+		nm.append_array(a[Mesh.ARRAY_NORMAL])
+		for i: int in a[Mesh.ARRAY_INDEX]:
+			idx.append(base + i)
+	_shadow_parts[name] = [v, nm, idx]
+	return _shadow_parts[name]
 
 
 ## Các mặt của một mảnh: [[arrays (màu đỉnh đã đổi cho bản web), là mặt sơn]]

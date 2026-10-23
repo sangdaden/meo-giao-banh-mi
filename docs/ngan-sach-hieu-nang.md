@@ -27,6 +27,8 @@ Lưu ý: CI vẽ bằng CPU nên FPS ở đó không có ý nghĩa; số lệnh 
 
 Góc nhìn từ trên cao (`tham_khao_tren_cao`) chỉ in số để tham khảo, không chấm.
 
+Ngày 23/10 (D2 "Giảm tam giác phố"): trước khi giảm, góc nặng nhất (ngã tư) là 390 000 tam giác, trong đó lượt bóng 151 000. Sau khi giảm: mọi góc 160 000–253 000, ngã tư ≈ 251 000 (lượt bóng ≈ 64 000), nên còn chỗ khoảng 150 000 tam giác cho người, xe, khối tạm thay thật (G1). Ở đâu mất bao nhiêu thì đo bằng `tools/dem_tam_giac.gd` (xem dưới).
+
 ## Ngân sách từng model (cho các luồng làm model)
 
 | Loại | Tam giác | Vật liệu | Texture | Ghi chú |
@@ -43,8 +45,22 @@ Quy tắc chung:
 - Đồ đứng yên: để `Blocks.merge_static` gộp theo vật liệu, nên dùng chung vật liệu càng nhiều càng tốt (màu đỉnh thay vì mỗi màu một vật liệu).
 - Đồ chuyển động, có xương: đặt `visibility_range_end` (và `visibility_range_end_margin` khoảng 5 m để mờ dần) cho từng MeshInstance3D.
 - Mảng phẳng sát đất (vạch đường, vũng nước, decal): tắt đổ bóng (`cast_shadow = OFF`).
+- Đồ thấp hơn 1 m (thùng, ghế, bàn nhựa, chậu) không đổ bóng: `Blocks.merge_static` tự tắt (`Blocks.SMALL_SHADOW`). Đồ nhỏ đặt riêng không qua gộp (ly, chén, tờ báo trong `deliveries.gd`) tắt bóng và tắt khi xa hơn 18 m: 36 ly cà phê quán Mây từng ngốn ~54 000 tam giác ở góc ngã tư.
+- Lượt bóng không cần chi tiết vụn: model gắn meta `bong_tho` (một Mesh) thì `merge_static` vẽ mesh đó ở lượt bóng, bản đủ chỉ vẽ ở lượt chính. `Blocks.shadow_mesh` làm bản này bằng cách bỏ các cụm tam giác rời nhỏ hơn 0,6 m (khung cửa, chậu, máy lạnh, gờ, chữ nổi); tường, sàn, mái giữ nguyên chỗ nên bóng không lệch, gầm tiệm không lọt nắng. Nhà ráp (`NhaRap.shadow_mesh`) và model `PhoModels` từ 1 500 tam giác trở lên tự có.
+- Nhà ở xa: model gắn meta `ban_xa` (một Mesh) được gộp theo ô 12 m và đổi sang bản xa khi tâm ô cách camera hơn 40 m (`Blocks.FAR_SWITCH`). Nhà ráp có `NhaRap.far_mesh`: hộp thân nhà, mặt tiền là các dải màu trung bình 0,5 m, mái là mảnh mái thật, chừng 300 tam giác thay 2 300.
+- LOD tự sinh (`ImporterMesh.generate_lods`) gần như không giúp nhà và đồ phố: model là nhiều khối cạnh vuông, mỗi mặt tách pháp tuyến nên mọi cạnh là "biên" và không rút được gì; cho gộp pháp tuyến 180° thì rút được nhưng thủng tường. Muốn bớt tam giác thì làm bản xa / bản bóng như trên.
+- Tầm nhìn (`visibility_range_*`) tính từ camera tới **tâm** hộp bao của mesh, không phải mép gần nhất: mesh gộp ô càng lớn thì càng phải để ý.
 - Không thêm OmniLight/SpotLight ngoài phố: mỗi đèn trên WebGL vẽ lại các vật trong tầm của nó. Trong bếp có 3 đèn nhỏ là đủ.
 - File .glb trong `assets/` nên nén (Draco không dùng được trong Godot; giảm tam giác và texture là cách chính).
+
+## Đo xem cái gì ngốn tam giác
+
+```
+xvfb-run -a godot --path . --rendering-method gl_compatibility --rendering-driver opengl3 \
+  -s tools/dem_tam_giac.gd -- --goc=pho_nga_tu [--tat]
+```
+
+`tools/dem_tam_giac.gd` đặt camera ở một góc của `do_hieu_nang.gd`, in số đo thật, rồi dựng lại khu phố chưa gộp và liệt kê từng model/nhóm: số tam giác trong khung nhìn và số tam giác đổ bóng trong tầm bóng web (ước theo LOD0). `--tat` tắt lần lượt từng nhóm lớn (ly cà phê, người, xe, vành phố, ô gộp có/không bóng...) và đo lại xem bớt được bao nhiêu.
 
 ## Tự hạ chất lượng trên web
 

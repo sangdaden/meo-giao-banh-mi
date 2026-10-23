@@ -1261,24 +1261,8 @@ def basket_topple():
 def build_voice_jobs():
     """Mọi câu nói trong game. Muốn đổi lời: sửa chữ ở đây rồi chạy lại file đó."""
     lines = {
-        # Cô Ba ở quầy lò
-        "coba_hello": ("Bơ ơi, đi giao bánh nè!", "coba", "vui"),
-        "coba_order_1": ("Đơn nè, đi lẹ nha con!", "coba", "vui"),
-        "coba_order_2": ("Giao cho kịp nha!", "coba", ""),
-        "coba_order_3": ("Nè, cầm lấy!", "coba", "vui"),
-        "coba_good": ("Giỏi quá, Bơ ơi!", "coba", "vui"),
-        "coba_ok": ("Được rồi, mai cố nha!", "coba", ""),
-        # khách nhận bánh
-        "thanks_chu_tu": ("Cảm ơn con nha!", "chu_tu", ""),
-        "thanks_be_na": ("Cảm ơn Bơ!", "be_na", "vui"),
-        "thanks_chi_may": ("Cảm ơn em nha!", "chi_may", "vui"),
-        "thanks_anh_hung": ("Ngon lành, cảm ơn nha!", "anh_hung", ""),
-        "thanks_ba_sau": ("Ngoan quá, cảm ơn con.", "ba_sau", ""),
-        # Thứ Ba: hai ông đánh cờ, người đi chợ bị đụng
-        "scold_1": ("Ê! Đi chỗ khác chơi!", "ong_bay", "gat"),
-        "scold_2": ("Trời đất, rớt quân rồi!", "ong_bay", "gat"),
-        "scold_3": ("Con mèo này, phá quá!", "ong_tam", "gat"),
-        "scold_4": ("Đừng có chạy ở đây!", "ong_tam", "gat"),
+        # Cô Ba, khách cảm ơn, hai ông đánh cờ mắng: nay nói bằng giọng ú ớ trong game (scripts/giong_uo.gd)
+        # Thứ Ba: người đi chợ bị đụng
         "oops_1": ("Ối!", "khach_nu", "gat"),
         "oops_2": ("Ui cha!", "khach_nam", "gat"),
     }

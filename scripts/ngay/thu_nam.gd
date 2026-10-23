@@ -18,4 +18,7 @@ const DATA := {
 		{"who": "Chị Mây", "place": "Cà phê Mây", "item": "2 ổ thịt nguội + 1 ly đá", "pos": Vector3(7.5, 0, 5.4), "time": 22.0, "color": Color("#7FB7A4"), "delivery": "loft", "side_quest": "len_gac"},
 		{"who": "Bé Na", "place": "Chung cư, căn 5B-1", "item": "2 ổ trứng", "kind": "deliver", "pos": ThuNam.GATE, "time": 30.0, "color": Color("#D7A9C4"), "delivery": "scene", "side_quest": "em_be_ngu_yen"},
 	],
+	# Bảng "Cách chơi" trong menu Esc: phím chung + các dòng này (scripts/ui/chu_huong_dan.gd)
+	"help": [["E", "giao bánh"], ["Space", "bám mép, leo lên · lùi ra để buông"], ["Space", "đạp tường trong khe hẹp"], ["Q", "kêu meo gọi khách"]],
+	"help_note": "Nhảy về phía mép tường là Bơ tự bám. Đơn 5 lên tầng 5 chung cư: đi cầu thang, đợi thang máy hay leo ngoài tường đều được.",
 }

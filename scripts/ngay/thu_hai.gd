@@ -14,4 +14,7 @@ const DATA := {
 		{"who": "Anh Hùng", "place": "Sửa xe", "item": "3 ổ xíu mại", "pos": Vector3(30.6, 0, 25.3), "time": 30.0, "color": Color("#5E6F6C"), "delivery": "under_car", "side_quest": "khong_dau"},
 		{"who": "Bà Sáu", "place": "Nhà bông giấy", "item": "1 ổ chả cá", "pos": CityProps.BA_SAU_CHAIR, "time": 24.0, "color": Color("#C8412F"), "delivery": "chair", "side_quest": "muc_ngu_yen", "boss": true},
 	],
+	# Bảng "Cách chơi" trong menu Esc: phím chung + các dòng này (scripts/ui/chu_huong_dan.gd)
+	"help": [["E", "giao bánh"]],
+	"help_note": "Đơn 5 qua hẻm 42 có Chó Mực canh: giữ Z rón rén cho nó ngủ yên. Bị đuổi thì nhảy lên thùng, bờ rào hay chui gầm ba gác.",
 }

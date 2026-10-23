@@ -10,7 +10,7 @@ extends Node3D
 ## - Giúp đủ DoKho "muc_chapter_after" người thì mở chương Chó Mực (scripts/viec_nho/muc.gd); xong thì Mực đi theo
 ##   Bơ (MucBan) và có thể kết ngày: lên "bồn nước" trên mái hiên cạnh lò bánh ngắm hoàng hôn, nhận thư mời Hội mèo.
 ## - Chụp ảnh tự do P (ChupAnh) bật cả ngày.
-## Người, đồ, bồn nước, mèo lạ là khối tạm hoặc model có sẵn, chờ phác thảo G8, G9 và mèo G10.
+## Người dân G9, đồ việc nhờ G8, mèo lạ G10 là model thật; bồn nước kết ngày và vài đồ nhỏ còn khối tạm.
 ## Tự kiểm tra: godot --headless -- --autotest --ngay=thu_bay (bot giúp đủ 10 người, làm chương Mực rồi kết ngày).
 
 const DAY := "thu_bay"
@@ -179,6 +179,12 @@ func task_line(text: String) -> void:
 
 func active_id() -> String:
 	return _active_id
+
+
+## Dòng tóm tắt dưới chữ "Tạm dừng" (main.gd hỏi khi bấm Esc): tim thân thiết và việc đang làm, không có "Đơn 1/5".
+func pause_info() -> String:
+	var line := ui.line_text() if ui else ""
+	return "Dạo phố · ♥ %d/%d%s" % [SoHangXom.hearts(), SoHangXom.PEOPLE_PAGES, (" · " + line) if line != "" else ""]
 
 
 func muc_chapter_open() -> bool:

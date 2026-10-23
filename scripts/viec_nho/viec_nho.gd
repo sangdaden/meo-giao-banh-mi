@@ -4,7 +4,7 @@ extends Node3D
 ## Phần lớn việc là "tìm đồ": danh sách điểm (targets) Bơ phải chạm tới, theo thứ tự hoặc không, có khi phải
 ## mang từng món về một chỗ (carry_each) hay mang cả về người nhờ (return_to). Mỗi việc là một file nhỏ kế thừa,
 ## chỉ đặt điểm và lời nhắc trong begin(); việc khác kiểu (chọn nhân, tạo dáng, ru em bé) tự viết tick().
-## Đồ là khối tạm, chờ model G8 (phác thảo việc nhờ Thứ Bảy).
+## Đồ dùng model G8 (hàm prop bên dưới); món chưa có model thì dựng khối tạm lấp lánh (trinket).
 
 signal finished
 

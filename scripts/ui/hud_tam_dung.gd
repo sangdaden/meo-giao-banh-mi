@@ -1,7 +1,8 @@
 class_name HudTamDung
 extends RefCounted
 ## Menu Esc dùng chung (phố, bếp, chung cư) và bảng "Cách chơi" mặc định. Tách từ hud.gd; hud._build_pause gọi vào đây.
-## Bảng "Cách chơi" riêng của một ngày đặt ở scripts/ngay/<ngày>.gd (khóa help, help_note), không sửa file này.
+## Bảng "Cách chơi" riêng của một ngày đặt ở scripts/ngay/<ngày>.gd (khóa help, help_note), ghép bằng
+## scripts/ui/chu_huong_dan.gd; không sửa file này.
 
 const T = preload("res://scripts/ui/ui_theme.gd")
 const PAPER := Color("#FFF8EA")
@@ -9,9 +10,9 @@ const INK := Color("#1F3A3D")
 const CRUST := Color("#D98E2B")
 const RED := Color("#C8412F")
 
-const HELP_PHO := [["W A S D", "chạy"], ["Shift", "chạy nhanh"], ["Space", "nhảy, nhảy qua Chó Mực"],
-	["C", "chui"], ["Z", "rón rén"], ["E", "giao bánh"], ["Chuột", "xoay camera"], ["V", "góc nhìn thứ ba / thứ nhất"]]
-const HELP_NOTE_PHO := "Tay cầm: cần trái chạy, A nhảy, Start mở menu. Mũi tên đỏ trên đầu Bơ luôn chỉ về phía khách."
+## Bảng chung khi màn không khai bảng riêng (ngày giao bánh thường).
+const HELP_PHO := ChuHuongDan.BANG_GIAO
+const HELP_NOTE_PHO := ChuHuongDan.GHI_CHU_GIAO
 
 
 ## Menu Esc dùng chung cho phố, bếp và leo chung cư: thẻ giấy giữa màn hình với Tiếp tục, Chơi lại,
@@ -70,10 +71,10 @@ static func build(hud: Node, help := HELP_PHO, note := HELP_NOTE_PHO) -> Control
 
 	var helpc := PanelContainer.new()
 	helpc.add_theme_stylebox_override("panel", T.box(PAPER, 22, 24, INK, 3, 6))
-	T.place(helpc, 0.5, 0.5, Rect2(0, -230, 400, 0))
+	T.place(helpc, 0.5, 0.5, Rect2(0, -270 if help.size() > 10 else -230, 400, 0))
 	scr.add_child(helpc)
 	var hv := VBoxContainer.new()
-	hv.add_theme_constant_override("separation", 9)
+	hv.add_theme_constant_override("separation", 6 if help.size() > 10 else 9)  # bảng dài (ngày leo trèo) xếp sát hơn cho vừa màn
 	helpc.add_child(hv)
 	hv.add_child(T.label("Cách chơi", 26, INK, "display"))
 	for line in help:

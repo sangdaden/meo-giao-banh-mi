@@ -29,7 +29,7 @@ extends Node3D
 ##   Mỗi nhịp vật lý lúc đang mang bánh: step(order_index, in_zone) trả true là đã giao xong.
 ##   Bố cục lấy theo CityProps (xe máy, ban công Bé Na, quầy và bàn cà phê, ghế mây Bà Sáu).
 ## Đồ giao bánh là model Sang duyệt 21/10 (assets/models/giao/*.glb, trang https://claude.ai/artifact/8TqKjyoKebvAqXgEUEU25X):
-## ổ bánh gói giấy Bơ ngậm, giỏ, tờ báo, ly cà phê (và bản đổ), chén sữa. Người dân vẫn là khối tạm chờ duyệt tư thế.
+## ổ bánh gói giấy Bơ ngậm, giỏ, tờ báo, ly cà phê (và bản đổ), chén sữa. Khách là người dân có xương (scripts/nguoi.gd).
 
 ## Tên nhiệm vụ phụ theo khóa "side_quest" của đơn (scripts/days.gd)
 const QUESTS := {

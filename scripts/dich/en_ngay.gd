@@ -424,4 +424,6 @@ const EN := {
 	"thử": "test",
 	"Nhảy thùng": "Crate jump",
 	"Cười lên nào cả hội!": "Everybody smile!",
+	# scripts/ngay/thu_hai.gd, thu_sau.gd (Cách chơi: chả cá cho Mực, scripts/muc_tuan.gd)
+	"thả chả cá ở đầu hẻm 42 cho Mực ngủ say": "drop fish cake at the mouth of Hẻm 42 so Mực sleeps soundly",
 }

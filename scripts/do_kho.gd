@@ -120,6 +120,9 @@ const EASY := {
 	"rise_grab": true,           # đang bay lên mà mép cao quá đỉnh nhảy thì bám luôn (Thử thách: chỉ gần đỉnh)
 	# Bản đồ nhỏ (scripts/ui/ban_do_nho.gd)
 	"map_path": true,            # đường chấm đỏ chỉ đường tới đích (Thử thách: chỉ có ghim, tự tìm đường)
+	# Mèo hàng xóm trong tuần (scripts/meo_hang_xom.gd)
+	"lost_guide_after": 20.0,    # lòng vòng 20 s không gần đích hơn thì mèo ra dẫn đường (Thử thách 40 s)
+	"bot_race_mult": 0.8,        # Bột đua mái Thứ Tư chậm 20% (Thử thách: đúng tốc độ)
 }
 
 

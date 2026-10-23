@@ -21,6 +21,7 @@ const DEFAULTS := {
 	"bong_ky_luc": false,     # bóng mờ chạy lại lần giao nhanh nhất của đơn (scripts/ghost.gd)      # Chế độ thử thách: dùng các con số khó cũ (scripts/do_kho.gd)
 	"khoanh_khac": 0,        # khoảnh khắc giao bánh (scripts/khoanh_khac_giao.gd): 0 đầy đủ, 1 ngắn, 2 tắt
 	"ngon_ngu": "vi",        # "vi" hoặc "en" (autoload NgonNgu, scripts/ngon_ngu.gd)
+	"meo_chi_duong": true,   # lạc lâu thì mèo hàng xóm ra dẫn đường (scripts/meo_hang_xom.gd)
 }
 
 static var _data := {}

@@ -116,6 +116,7 @@ var _hspeed_prev := 0.0
 # Đơn 1: tờ báo
 var _tu_paper: Node3D            # tờ báo trong tay Chú Tư (hạ xuống khi Bơ tới)
 var _tu_paper_pos := Vector3.ZERO
+var bao_ha := false               # khoảnh khắc giao bánh (khoanh_khac_giao.gd) đang quay Chú Tư: giữ tờ báo hạ
 var _mouth_paper: Node3D         # tờ báo Bơ ngậm
 var _paper_state := ""           # "" | "handing" | "carry" | "wet" | "done"
 var _in_puddle := false
@@ -994,7 +995,7 @@ func _update_people(delta: float) -> void:
 	# Chú Tư hạ tờ báo xuống khi Bơ tới
 	if _tu_paper and _tu_paper.visible:
 		var i0 := _kind.find("hand")
-		var near0: bool = current == i0 and player.carrying and player.global_position.distance_to(_tu_paper.global_position) < 4.0
+		var near0: bool = bao_ha or (current == i0 and player.carrying and player.global_position.distance_to(_tu_paper.global_position) < 4.0)
 		_tu_paper.position.y = lerpf(_tu_paper.position.y, _tu_paper_pos.y - (0.4 if near0 else 0.0), 1.0 - exp(-6.0 * delta))
 
 

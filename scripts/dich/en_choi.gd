@@ -238,4 +238,16 @@ const EN := {
 	"còn %d/%d quả": "%d/%d left",
 	"%d. %s": "%d. %s",
 	"%s (%s)": "%s (%s)",
+	# scripts/khoanh_khac_giao.gd (A3 khoảnh khắc giao bánh)
+	"Ngoan quá, Bơ của cô!": "Such a good cat, my Bơ!",
+	"Ừm. Đúng giờ. Được lắm.": "Hm. Right on time. Well done.",
+	"Bánh còn nóng nè! Cảm ơn Bơ!": "It's still warm! Thanks, Bơ!",
+	"Cụng ly nè, nhân viên giỏi nhất phố!": "Cheers to the best courier on the street!",
+	"Đập tay cái coi! Ngon lành!": "Fist bump! Nice one!",
+	"Con mèo ngoan của bà.": "Grandma's good little cat.",
+	"Báo cáo: nhận đủ bánh!": "Report: bread received in full!",
+	"Boa thêm nè, đừng nói Cô Ba nha!": "A little extra tip, don't tell Cô Ba!",
+	"Ổ bánh này… nước đi hay.": "This loaf… a fine move.",
+	"Quạt cho mát nè con.": "Here, let me fan you, little one.",
+	"Hơi trễ chút, không sao, bánh vẫn ngon!": "A bit late, no worries, the bread's still good!",
 }

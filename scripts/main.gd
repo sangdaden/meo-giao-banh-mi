@@ -706,9 +706,8 @@ func _setup_environment() -> void:
 
 func _build_bakery() -> void:
 	var p := City.BAKERY_POINT
-	# Xe tủ kính bánh mì trước lò (model xe_banh_mi, kính cao 1,3 m nên hộp va chạm cao bằng)
-	var cart := Blocks.collider(self, Vector3(1.6, 1.3, 0.7), Vector3(p.x + 2.4, 0.65, p.z + 0.2), Blocks.LAYER_PROP)
-	PhoModels.put(cart, "xe_banh_mi", Vector3(0, -0.65, 0))
+	# Xe bánh mì Cô Ba trước lò (xe đẩy đã duyệt 21/10, có hộp va chạm cao bằng nóc tủ kính): scripts/xe_co_ba.gd
+	XeCoBa.put(self, Vector3(p.x + 2.4, 0, p.z + 0.2))
 	# Cô Ba (người có xương) do scripts/residents.gd dựng sau khi gộp khối tĩnh
 	bakery_zone = _zone(p, 1.8)
 	# Vòng tròn đánh dấu chỗ nhận bánh

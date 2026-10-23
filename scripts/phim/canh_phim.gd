@@ -30,7 +30,7 @@ static func pho(parent: Node3D, buoi: String) -> Dictionary:
 	PhoModels.put(set, "mai_hien_do", Vector3(2.6, 3.0, 0.0), 0.0, Vector3(5.2, 1, 1))
 	PhoModels.put(set, "nha_B", B(5.7, 0))
 	PhoModels.put(set, "nha_C", B(9.8, 0))
-	PhoModels.put(set, "xe_banh_mi", B(4.4, -1.25))
+	XeCoBa.put(set, B(4.4, -1.25), 0.0, false)  # xe bánh mì Cô Ba (xe đẩy đã duyệt 21/10)
 	PhoModels.put(set, "den_duong", B(-1.6, -2.9))
 	PhoModels.put(set, "den_duong", B(6.2, -2.9))
 	PhoModels.put(set, "cay_xanh", B(7.8, -3.2))

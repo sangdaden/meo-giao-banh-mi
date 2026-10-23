@@ -1,8 +1,8 @@
 class_name ThuBayHud
 extends CanvasLayer
-## Giao diện Thứ Bảy dạo phố (không đồng hồ, không thẻ đơn): một dòng việc đang làm ở góc trên, tim thân thiết,
-## Sổ hàng xóm mở bằng Tab (mỗi người một trang: ảnh dán, việc nhờ, quà), bảng chọn (nhân bánh Cô Ba)
-## và bảng cuối ngày. Trang sổ thật (giấy, ảnh dán, tim) chờ phác thảo G8; đây là bản giao diện tạm cùng màu UiTheme.
+## Giao diện Thứ Bảy dạo phố (không đồng hồ, không thẻ đơn): thẻ một dòng ở góc trên (tim thân thiết, việc đang làm,
+## phím Tab/P), Sổ hàng xóm mở bằng Tab (mỗi người một trang: ảnh dán, việc nhờ, quà; đầu sổ ghi đủ việc đang làm),
+## bảng chọn (nhân bánh Cô Ba) và bảng cuối ngày. Giao diện vẽ bằng UiTheme; sổ thật trong cảnh là model G8 so_hang_xom.glb.
 
 signal end_closed(action: String)   ## "menu" | "home" | "next" | "again" | "roam"
 
@@ -10,9 +10,11 @@ const T = preload("res://scripts/ui/ui_theme.gd")
 
 var day: Node                       ## ThuBay
 var book_open := false
+var _card: PanelContainer
 var _line: Label
 var _hearts: Label
-var _keys: Label
+var _now: Label                     ## dòng "Đang làm" ở đầu sổ: chữ đầy đủ của thẻ một dòng
+var _open_t := 0.0                  ## thẻ đang mở đủ (xuống dòng) thêm chừng này giây
 var _book: Control
 var _grid: GridContainer
 var _cover: TextureRect
@@ -34,25 +36,28 @@ func _ready() -> void:
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root)
 
-	var card := PanelContainer.new()
-	card.add_theme_stylebox_override("panel", T.box(T.PAPER, 16, 14))
-	T.place(card, 0.0, 0.0, Rect2(24, 24, 560, 0))
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 2)
-	card.add_child(v)
-	var top := HBoxContainer.new()
-	v.add_child(top)
-	var title := T.label("Thứ Bảy · Dạo phố", 15, T.MUTED, "bold")
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	top.add_child(title)
+	# Thẻ một dòng (Sang 22/10: thẻ 3 dòng che phố lúc leo). Việc mới thì mở đủ vài giây rồi gọn lại; Tab mở sổ xem đủ.
+	_card = PanelContainer.new()
+	_card.add_theme_stylebox_override("panel", T.box(T.PAPER, 16, 10))
+	T.place(_card, 0.0, 0.0, Rect2(24, 24, 600, 0))
+	_card.custom_minimum_size.x = 600  # chữ một dòng tự co về 0 nên giữ bề ngang thẻ
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	_card.add_child(row)
 	_hearts = T.label("", 17, T.RED, "bold")
-	top.add_child(_hearts)
-	_line = T.label("", 19, T.INK, "bold")
-	_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	v.add_child(_line)
-	_keys = T.label("Tab mở sổ · P chụp ảnh · E giúp người có dấu !", 13, T.MUTED, "bold")
-	v.add_child(_keys)
-	root.add_child(card)
+	row.add_child(_hearts)
+	_line = T.label("", 17, T.INK, "bold")
+	_line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_line.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_line.clip_text = true
+	_line.custom_minimum_size.x = 380  # lúc mở đủ chữ xuống dòng cần bề ngang sẵn
+	row.add_child(_line)
+	for k in [["Tab", "sổ"], ["P", "ảnh"]]:
+		row.add_child(T.keycap(k[0], 12))
+		var kl := T.label(k[1], 13, T.MUTED, "bold")
+		kl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(kl)
+	root.add_child(_card)
 
 	_book = _build_book()
 	_book.visible = false
@@ -69,7 +74,34 @@ func _ready() -> void:
 
 
 func set_line(text: String) -> void:
+	if text != _line.text:
+		_open_t = ChuHuongDan.THE_MO_GIAY
 	_line.text = text
+	_now.text = "Đang làm: " + text
+	_fit_line()
+
+
+## Chữ đầy đủ của dòng việc đang làm (menu Esc ghi lại dưới chữ "Tạm dừng").
+func line_text() -> String:
+	return _line.text
+
+
+func _process(delta: float) -> void:
+	# Menu Esc, bản đồ lớn dừng cây cảnh: giấu thẻ cho khỏi đè lên menu
+	_card.visible = not get_tree().paused
+	if _open_t > 0.0:
+		_open_t -= delta
+		if _open_t <= 0.0:
+			_fit_line()
+
+
+## Mở đủ: xuống dòng hết chữ; gọn: một dòng, dư thì "…".
+func _fit_line() -> void:
+	var open := _open_t > 0.0
+	_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART if open else TextServer.AUTOWRAP_OFF
+	_line.clip_text = not open
+	_line.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING if open else TextServer.OVERRUN_TRIM_ELLIPSIS
+	_card.reset_size.call_deferred()  # đo lại chiều cao thẻ theo số dòng chữ
 
 
 func refresh() -> void:
@@ -104,6 +136,9 @@ func _build_book() -> Control:
 	head.add_child(hv)
 	_book_title = T.label("", 30, T.INK, "display")
 	hv.add_child(_book_title)
+	_now = T.label("", 16, T.INK, "bold")
+	_now.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hv.add_child(_now)
 	hv.add_child(T.label("Mỗi người một trang. Giúp xong thì dán ảnh chung, được một tim và một món quà.", 15, T.MUTED, "bold"))
 	hv.add_child(T.label("Tab đóng sổ · ảnh tự do (P) dán lên bìa", 13, T.MUTED, "bold"))
 	var scroll := ScrollContainer.new()

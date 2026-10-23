@@ -199,6 +199,12 @@ func active_id() -> String:
 	return _active_id
 
 
+## Dòng tóm tắt dưới chữ "Tạm dừng" (main.gd hỏi khi bấm Esc): tim thân thiết và việc đang làm, không có "Đơn 1/5".
+func pause_info() -> String:
+	var line := ui.line_text() if ui else ""
+	return "Dạo phố · ♥ %d/%d%s" % [SoHangXom.hearts(), SoHangXom.PEOPLE_PAGES, (" · " + line) if line != "" else ""]
+
+
 func muc_chapter_open() -> bool:
 	return SoHangXom.muc_friend() or SoHangXom.hearts() >= int(DoKho.v("muc_chapter_after", 3))
 

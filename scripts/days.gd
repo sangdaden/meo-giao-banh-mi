@@ -25,7 +25,8 @@ class_name Days
 ##   nodes: script node riêng của ngày, main.gd thêm vào cảnh phố (node tự gỡ nếu không phải ngày của nó).
 ##          Node có thể có: begin() (ngày tự do bắt đầu), resume_day() -> bool (quay về giữa ngày từ cảnh khác).
 ##   hud: script mảnh giao diện riêng của ngày (Control có biến hud), main.gd gắn vào HUD qua hud.add_piece()
-##   help, help_note: bảng "Cách chơi" trong menu Esc của ngày (thiếu thì dùng bảng chung HudTamDung.HELP_PHO)
+##   help, help_note: dòng riêng của ngày trong bảng "Cách chơi" (menu Esc), ghép sau phím chung bằng
+##          scripts/ui/chu_huong_dan.gd (thiếu help thì thêm dòng "E giao bánh")
 
 ## Thứ tự các ngày trong tuần
 const ORDER := ["thu_hai", "thu_ba", "thu_tu", "thu_nam", "thu_sau", "thu_bay", "chu_nhat"]

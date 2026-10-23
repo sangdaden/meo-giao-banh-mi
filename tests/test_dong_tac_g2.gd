@@ -72,7 +72,7 @@ func _run() -> void:
 	print("Số liệu động tác:")
 	var data: Dictionary = PlayerScript.dong_tac()
 	var clips: Dictionary = data.get("clips", {})
-	_check(clips.size() == 18, "đủ 18 động tác (%d)" % clips.size())
+	_check(clips.size() >= 18, "đủ 18 động tác G2, có thêm động tác sau (%d)" % clips.size())
 	var missing := []
 	for n in CLIPS:
 		if not clips.has(n):

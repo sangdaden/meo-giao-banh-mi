@@ -278,6 +278,7 @@ const EN := {
 	"Vòng cổ lục lạc xương cá": "Fishbone bell collar",
 	"Bạn bốn chân · %d/%d": "Four-legged friends · %d/%d",
 	"Bạn bốn chân": "Four-legged friends",
+	"Quà Bạn bốn chân: làm quen đủ các bạn": "Four-legged friends gift: meet them all",
 	"Bấm Q kêu meo cạnh con vật. Con nào đáp lại lần đầu thì có tên trong trang này.": "Press Q to meow next to an animal. Each one that answers you gets its name on this page.",
 	"♥ %s": "♥ %s",
 	"Đàn bồ câu": "Pigeon flock",

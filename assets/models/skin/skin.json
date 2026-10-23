@@ -6035,6 +6035,112 @@
    "ears": "",
    "lift": 0,
    "tris": 1537
+  },
+  "vongluclac": {
+   "objects": {
+    "Day_Tet": {
+     "sock": "neck",
+     "kind": "cloth",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    },
+    "Luc_Lac": {
+     "sock": "neck",
+     "kind": "gloss",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0,
+     "cloth": {
+      "hinge": [
+       0.0,
+       -0.045,
+       0.114
+      ],
+      "mode": 2,
+      "dir": 1,
+      "ridge": 0
+     }
+    },
+    "Bi_Luc_Lac": {
+     "sock": "neck",
+     "kind": "gloss",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0,
+     "cloth": {
+      "hinge": [
+       0.0,
+       -0.045,
+       0.114
+      ],
+      "mode": 2,
+      "dir": 1,
+      "ridge": 0
+     }
+    },
+    "Khoen_Lac": {
+     "sock": "neck",
+     "kind": "gloss",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0,
+     "cloth": {
+      "hinge": [
+       0.0,
+       -0.045,
+       0.114
+      ],
+      "mode": 2,
+      "dir": 1,
+      "ridge": 0
+     }
+    },
+    "Xuong_Ca": {
+     "sock": "neck",
+     "kind": "gloss",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0,
+     "cloth": {
+      "hinge": [
+       0.03,
+       -0.0568,
+       0.1055
+      ],
+      "mode": 2,
+      "dir": 1,
+      "ridge": 0
+     }
+    },
+    "Khoen_Ca": {
+     "sock": "neck",
+     "kind": "gloss",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0,
+     "cloth": {
+      "hinge": [
+       0.03,
+       -0.0568,
+       0.1055
+      ],
+      "mode": 2,
+      "dir": 1,
+      "ridge": 0
+     }
+    },
+    "Khoa_Day": {
+     "sock": "neck",
+     "kind": "gloss",
+     "alpha": 1,
+     "emit": 0,
+     "metal": 0
+    }
+   },
+   "ears": "",
+   "lift": 0,
+   "tris": 2294
   }
  },
  "bo_head": {

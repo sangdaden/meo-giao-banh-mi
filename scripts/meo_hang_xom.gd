@@ -8,8 +8,8 @@ extends Node3D
 ##   N4: chạy lòng vòng hơn 20 s không gần đích hơn thì mèo của ngày chạy ra dẫn đường (Cài đặt "Mèo chỉ đường").
 ## Node nạp cho mọi ngày qua khóa "nodes" của scripts/ngay/thu_hai.gd (main.gd thêm node của mọi ngày); ngày không có
 ## trong LICH thì tự gỡ. Không có begin()/resume_day(): hai hàm đó dành cho node chính của ngày.
-## Động tác chào mới (chạm mũi, cụng đầu, 4 kiểu đáp) do luồng "Phác thảo động tác và phụ kiện thưởng" vẽ; chưa có
-## clip tên đó thì dùng động tác tạm có sẵn (BO_CLIP, DAP_TAM).
+## Động tác chào mới (chạm mũi, cụng đầu, liếm đầu, 4 kiểu đáp) do luồng "Phác thảo động tác và phụ kiện thưởng" vẽ
+## (Sang duyệt 23/10, CAP); chưa có clip tên đó thì dùng động tác tạm có sẵn (BO_CLIP, DAP_TAM).
 
 const GREET_R := 2.0          ## đứng gần chừng này thì chào kiểu mèo
 const VIEW_END := 14.0        ## mèo đứng yên ngoài 14 m thì không vẽ (ngã tư sát trần 400k tam giác)
@@ -48,6 +48,13 @@ const BO_CLIP := {"mui": ["cham_mui", "ngui_mui"], "dau": ["cung_dau", "dui_dau"
 ## Đáp tạm khi chưa có clip luồng 7: dáng MeoNpc giữ trong DAP_GIAY giây
 const DAP_TAM := {"lui_ngai": "tron", "hat_mat": "kieu", "liem_dau": "vay_duoi", "cung_lai": "vay_duoi"}
 const DAP_GIAY := 1.8
+## Cặp động tác luồng 7 (trang https://claude.ai/artifact/VfkNSdts59PFPJ1ipYsjVQ, Sang duyệt 23/10): mèo đi tới đứng
+## đúng chỗ rồi hai con cùng diễn. Khoảng cách gốc hai con đo va chạm từng khung trong Blender: mũi, trán chỉ vừa chạm.
+## kiểu đáp: [clip Bơ, cách (m), đứng bên trái Bơ cùng hướng thay vì mặt đối mặt]
+const CAP := {"liem_dau": ["duoc_liem", 0.34, true], "cung_lai": ["cung_dau", 0.76, false]}
+const SAT := 0.76             ## chạm mũi, cụng đầu: gốc hai con cách nhau chừng này
+const DI_CHAO := 1.0          ## tốc độ mèo bước lại chỗ chào (m/s)
+const LIEM_GIAY := 2.0        ## liếm đầu (clip lặp 1 s) chừng này rồi dừng
 
 # N3: đua mái Thứ Tư
 const RACE_ORDER := 1         ## đơn 2 (Cô Hai): đường sân thượng "co_hai"
@@ -68,6 +75,7 @@ const GUIDE_COOL := 30.0
 
 var main: Node
 var player: CharacterBody3D
+var _pairing := {}            ## id mèo đang bước lại chỗ chào (clip luồng 7)
 var hud: Node
 var day_id := ""
 ## id -> MeoNpc của ngày (mỗi id một con)
@@ -195,13 +203,62 @@ func _greet(m: MeoNpc) -> void:
 			player.visual.rotation.y = atan2(-to.x, -to.z)
 		if player.has_method("hold"):
 			player.hold(1.4)
-		var pair: Array = BO_CLIP["mui" if n == 0 else "dau"]
-		var clip: String = pair[0] if player.has_clip(pair[0]) else pair[1]
-		player.play_clip(clip)
+		var dap := str(c.dap)
+		if player.has_clip("cham_mui") and MeoNpc._clips().has(dap):
+			_greet_pair(m, dap, n, to)
+		else:
+			var pair: Array = BO_CLIP["mui" if n == 0 else "dau"]
+			var clip: String = pair[0] if player.has_clip(pair[0]) else pair[1]
+			player.play_clip(clip)
 	m.say(str(c.dau if n == 0 else c.lai), 3.2)
 	if n == 0:
 		_toast("Bơ và %s đã thành bạn!" % m.ten)
-	get_tree().create_timer(0.45).timeout.connect(_reply.bind(m, str(c.dap)))
+	if not _pairing.has(id):
+		get_tree().create_timer(0.45).timeout.connect(_reply.bind(m, str(c.dap)))
+
+
+## Chào bằng clip luồng 7: mèo bước tới chỗ chào cạnh Bơ (to: hướng Bơ nhìn), xong thì Bơ diễn, mèo đáp.
+## Cặp cụng đầu, liếm đầu diễn cùng lúc; mèo lùi ngại, hất mặt đáp sau 0,45 s như cũ.
+func _greet_pair(m: MeoNpc, dap: String, n: int, to: Vector3) -> void:
+	var f := to.normalized() if to.length() > 0.01 else Vector3.FORWARD
+	var cap: Array = CAP.get(dap, ["cham_mui" if n == 0 else "cung_dau", SAT, false])
+	var spot: Vector3 = player.global_position + (Vector3(f.z, 0.0, -f.x) if cap[2] else f) * float(cap[1])
+	spot.y = m.global_position.y
+	# chỗ chào vướng tường, thùng (mèo đứng sát quá phải lùi vào tường) thì mèo đứng yên chỗ cũ
+	var lift := Vector3.UP * 0.3   # trên mép lề đường 20 cm
+	var q := PhysicsRayQueryParameters3D.create(m.global_position + lift, spot + lift + (spot - m.global_position).normalized() * 0.2)
+	q.exclude = [player.get_rid()]
+	if not get_world_3d().direct_space_state.intersect_ray(q).is_empty():
+		spot = m.global_position
+	var id := m.cast_id
+	_pairing[id] = true
+	var t := Vector2(spot.x - m.global_position.x, spot.z - m.global_position.z).length() / DI_CHAO
+	_busy[id] = t + (LIEM_GIAY if CAP.has(dap) else DAP_GIAY) + 0.3
+	if player.has_method("hold"):
+		player.hold((LIEM_GIAY if CAP.has(dap) else 1.4) + t)
+	if t > 0.08:
+		m.walk_to(spot, DI_CHAO)
+	get_tree().create_timer(t + 0.05).timeout.connect(func():
+		_pairing.erase(id)
+		if not is_instance_valid(m) or not is_instance_valid(player):
+			return
+		m.stop()
+		m.global_position = spot
+		if cap[2]:
+			m.rotation.y = atan2(-f.x, -f.z)
+		else:
+			m.face(player.global_position)
+		player.play_clip(str(cap[0]))
+		if not CAP.has(dap):
+			get_tree().create_timer(0.45).timeout.connect(_reply.bind(m, dap))
+			return
+		_reply(m, dap)
+		if MeoNpc._clips()[dap].loop:   # liếm đầu lặp: liếm hai lượt rồi thôi
+			get_tree().create_timer(LIEM_GIAY).timeout.connect(func():
+				if is_instance_valid(player) and player.clip == str(cap[0]):
+					player.stop_clip()
+				if is_instance_valid(m):
+					m.set_pose(m.pose)))
 
 
 func _reply(m: MeoNpc, kind: String) -> void:

@@ -93,6 +93,8 @@ static func check(id: String) -> Dictionary:
 	if GOALS.has(id):
 		var g: Array = GOALS[id]
 		return {"ok": false, "text": "%s (%d/%d)" % [g[2], mini(stat(g[0]), g[1]), g[1]]}
+	if id == ConVat.QUA:
+		return {"ok": false, "text": "Quà Bạn bốn chân: làm quen đủ các bạn"}
 	if rarity(id) == GIFT:
 		return {"ok": false, "text": "Quà Thứ Bảy: giúp " + str(GIFTS.get(id, "hàng xóm"))}
 	if pack(id) != "":

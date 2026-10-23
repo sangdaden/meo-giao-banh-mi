@@ -58,6 +58,8 @@ const ACCS := [
 	["nonphot", "Nón phớt", "qua", "head"],
 	["kinhbaoho", "Kính bảo hộ", "qua", "face"],
 	["lycaphe", "Ly cà phê đội đầu", "qua", "head"],
+	# Quà "Bạn bốn chân" (con_vat.gd ConVat.QUA, Sang duyệt 23/10/2026): gặp đủ bạn bốn chân thì được tặng
+	["vongluclac", "Vòng cổ lục lạc xương cá", "qua", "neck"],
 ]
 ## Phụ kiện Bơ vẽ sẵn bằng code (player.gd), không cần model phụ kiện
 const IN_GAME := ["khando", "tuibanh"]

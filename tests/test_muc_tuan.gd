@@ -92,9 +92,9 @@ func _goi_chua_quen() -> void:
 	await _load("thu_hai")
 	dog.awake = true
 	await _frames(3)
-	mt.on_called(dog.global_position + Vector3(0, 0, -4))
+	ConVat.call_near(self, dog.global_position + Vector3(0, 0, -4))  # Q thật đi qua ConVat
 	await _frames(2)
-	_check(dog.state == dog.State.SUSPICIOUS, "kêu meo lúc Mực canh hẻm: nó nghi ngờ")
+	_check(dog.state == dog.State.SUSPICIOUS, "kêu meo (ConVat) lúc Mực canh hẻm: nó nghi ngờ")
 	dog.awake = false
 	await _frames(3)
 	mt.on_called(dog.global_position + Vector3(0, 0, -4))

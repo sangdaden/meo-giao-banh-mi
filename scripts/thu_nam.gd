@@ -1,7 +1,7 @@
 class_name ThuNam
 extends Node3D
 ## Thứ Năm · Lên tầng năm (gói việc thiet-ke-man/goi-viec-thu-nam.md). Model G1 bản 2 (Sang duyệt 22/10, bàn giao
-## leo-chung-cu/phac-thao/BAN-GIAO.md) ở assets/models/thu_nam/; va chạm là hộp dựng trong code. Tủ báo, mái tôn còn khối tạm.
+## leo-chung-cu/phac-thao/BAN-GIAO.md) ở assets/models/thu_nam/; tủ báo, mái tôn, giá cục nóng, bạt là đồ G1 (DoThem). Va chạm là hộp dựng trong code.
 ## main.gd thêm node này mọi ngày, ngày khác tự gỡ. Cả ngày bật động tác leo (bám mép, đạp tường).
 ## deliveries.gd chuyển bốn cách giao mới qua đây (deliveries.thu_nam.step):
 ## - shelf: Chú Tư ngủ gật trước sạp báo. Đặt bánh lên nóc tủ báo cao shelf_height: nhảy, đẩy về phía tủ để
@@ -50,8 +50,6 @@ const MODELS := "res://assets/models/thu_nam/%s.glb"
 ## Đơn 5 · cổng LÔ B chung cư trên bản đồ (x cảnh chung cư = x bản đồ − 22, cổng cảnh x 18,1)
 const GATE := Vector3(40.1, 0, -15.0)
 
-const WOOD := Color("#9B6A3A")
-const STEEL := Color("#8C949A")
 const GUIDE := Color("#F6C945")
 
 ## Tiến độ ngày cất lại khi sang cảnh chung cư, biến static nên còn nguyên khi đổi scene.
@@ -233,20 +231,17 @@ func _has_errand(item: String) -> bool:
 	return false
 
 
-# ---------------------------------------------------------------- dựng cảnh (khối tạm)
+# ---------------------------------------------------------------- dựng cảnh
 
 ## Sạp báo trưa vắng: Chú Tư ngủ gật trên ghế, sạp thấp bên phải, tủ báo cao bên trái.
 func _build_shelf() -> void:
 	var i := _index("shelf")
 	var h: float = DoKho.v("shelf_height", 1.9)
-	Blocks.solid_box(self, Vector3(0.42, 0.45, 0.42), TU_SEAT + Vector3(0, 0.225, -0.07), Color("#3D7FC1"), Blocks.LAYER_PROP)
+	DoThem.solid(self, "ghe_dua_nhua", Vector3(0.42, 0.45, 0.42), TU_SEAT + Vector3(0, 0.225, -0.07))  # lưng ghế phía tường (-Z)
 	var stand := Blocks.collider(self, Vector3(1.7, 0.95, 0.7), TU_SEAT + Vector3(1.4, 0.475, 0.03), Blocks.LAYER_PROP)
 	PhoModels.put(stand, "sap_bao", Vector3(0, -0.475, 0))
-	# Tủ báo: thân gỗ, cửa kính, nóc phẳng đặt bánh
-	Blocks.solid_box(self, Vector3(SHELF_SIZE.x, h, SHELF_SIZE.y), SHELF + Vector3(0, h / 2.0, 0), Color("#7A5230"), Blocks.LAYER_PROP)
-	Blocks.box(self, Vector3(SHELF_SIZE.x - 0.12, h - 0.3, 0.02), SHELF + Vector3(0, h / 2.0 + 0.05, SHELF_SIZE.y / 2.0 + 0.01), Color("#BFD8DC"))
-	for k in 4:
-		Blocks.box(self, Vector3(0.22, 0.3, 0.03), SHELF + Vector3(-0.3 + k * 0.2, 0.4 + (k % 2) * 0.55, SHELF_SIZE.y / 2.0 + 0.03), Color("#EDE6D6"))
+	# Tủ báo kính (G1): model cao 1,6 m, Thử thách kéo theo shelf_height; cửa kính nhìn ra đường (+Z)
+	DoThem.solid(self, "tu_bao_kinh", Vector3(SHELF_SIZE.x, h, SHELF_SIZE.y), SHELF + Vector3(0, h / 2.0, 0), 0.0, Vector3(SHELF_SIZE.x / 0.96, h / 1.6, SHELF_SIZE.y / 0.66))
 	_shelf_loaf = Node3D.new()
 	_shelf_loaf.position = SHELF + Vector3(0.1, h + 0.06, 0.05)
 	add_child(_shelf_loaf)
@@ -275,7 +270,8 @@ func _build_shop() -> void:
 	sign.pixel_size = 0.0035
 	Blocks.label(self, "Trưa nghỉ · vô cửa sau\n← khe hông", Vector3(30.2, 2.3, SHUTTER_Z + 0.3), 30, GUIDE)
 	# Mái tôn trên khe, sau cổng tôn: chỉ lên được bằng đạp tường hoặc từ nóc cổng
-	Blocks.solid_box(self, Vector3(TIN_ROOF.size.x, 0.35, TIN_ROOF.size.y), Vector3(TIN_ROOF.get_center().x, TIN_ROOF_Y - 0.175, TIN_ROOF.get_center().y), Color("#B7C2C4"), Blocks.LAYER_PROP)
+	Blocks.collider(self, Vector3(TIN_ROOF.size.x, 0.35, TIN_ROOF.size.y), Vector3(TIN_ROOF.get_center().x, TIN_ROOF_Y - 0.175, TIN_ROOF.get_center().y), Blocks.LAYER_PROP)
+	DoThem.put(self, "mai_ton_khe", Vector3(TIN_ROOF.get_center().x, TIN_ROOF_Y - 0.39, TIN_ROOF.get_center().y))  # mặt tôn chạm 3,0 m
 	Blocks.label(self, "↑ mái tôn: đạp tường", Vector3(28.9, 2.3, 22.6), 28, GUIDE)
 	Blocks.label(self, "cửa sau →", Vector3(30.6, 1.6, 15.9), 30, GUIDE)
 	# Võng dù giữa hai cột sắt (model: móc ở x ±1,4, cột 2,2 m), căng dọc trục x sát cửa cuốn
@@ -296,10 +292,11 @@ func _build_shop() -> void:
 ## Đường tắt mát về lò: thùng gỗ, cục nóng trên giá, rồi lên dãy mái hiên khối 1 (cao 2,9 m) đi về phía tây.
 func _build_shade_path() -> void:
 	var a: Vector3 = SHADE_STEPS[0]
-	Blocks.solid_box(self, Vector3(0.7, a.y, 0.7), Vector3(a.x, a.y / 2.0, a.z), WOOD, Blocks.LAYER_PROP)
+	DoThem.solid(self, "../pho/thung_go", Vector3(0.7, a.y, 0.7), Vector3(a.x, a.y / 2.0, a.z), 0.0, Vector3(0.7 / 0.82, a.y / 0.8, 0.7 / 0.82))
 	var b: Vector3 = SHADE_STEPS[1]
-	Blocks.solid_box(self, Vector3(0.8, 0.5, 0.55), Vector3(b.x, b.y - 0.25, b.z), Color("#E4E7E2"), Blocks.LAYER_PROP)
-	Blocks.box(self, Vector3(0.06, b.y - 0.5, 0.06), Vector3(b.x, (b.y - 0.5) / 2.0, b.z), STEEL)
+	# Cục nóng trên giá sắt chạm đất (G1): nóc cục nóng ở b.y = 1,75 m như model
+	Blocks.collider(self, Vector3(0.8, 0.5, 0.55), Vector3(b.x, b.y - 0.25, b.z), Blocks.LAYER_PROP)
+	DoThem.put(self, "gia_cuc_nong", Vector3(b.x, 0, b.z), PI)  # mặt quạt quay ra đường (-Z)
 	Blocks.label(self, "đường mát ↑ mái hiên", Vector3(-24.9, 2.4, -5.2), 30, GUIDE)
 
 
@@ -332,14 +329,14 @@ func _build_loft() -> void:
 			Blocks.box(self, Vector3(0.04, a.y - 0.28, 0.04), Vector3(a.x + dx, (a.y - 0.28) / 2.0, a.z + dz), Color("#4A4F55"))
 	for y in [0.5, a.y - 0.3]:
 		Blocks.box(self, Vector3(0.76, 0.04, 0.44), Vector3(a.x, y, a.z), Color("#4A4F55"))
-	Blocks.box(self, Vector3(4.0, 0.22, 0.22), Vector3(7.0, 3.05, 6.9), Color("#3F7D5C"))  # bạt mái hiên cuốn tròn sát tường
+	DoThem.put(self, "bat_cuon", Vector3(7.0, 3.05 - 0.945, 6.9), PI)  # bạt mái hiên cuốn tròn sát tường, pát bắt vào tường (+Z)
 	may = Nguoi.make("may", "viec_rieng")
 	may.position = MAY_LOFT
 	may.rotation.y = PI  # nhìn ra đường (phía bắc)
 	add_child(may)
 	may.add_collision(Vector3(0.5, 1.6, 0.35), Vector3(0, 0.8, 0))
 	if may.anim and may.anim.has_animation("tha_gio"):
-		Blocks.box(self, Vector3(0.3, 0.32, 0.3), MAY_LOFT + Vector3(0, 0.16, 0.05), Color("#8A5A3B"))  # ghế đẩu: clip thả giỏ ngồi 0,32 m
+		DoThem.put(self, "../pho/chi_tiet/ghe_nhua_thap", MAY_LOFT + Vector3(0, 0, 0.05), 0.0, Vector3(1, 0.32 / 0.26, 1))  # ghế đẩu: clip thả giỏ ngồi 0,32 m
 	# Giỏ (model gio): giỏ trên gác cạnh Chị Mây; giỏ thòng dây chỉ hiện lúc thả xuống
 	var gio := _model("gio", MAY_LOFT + Vector3(-0.8, 0, 0.12))
 	_gio_tren = gio.find_child("w_gio_tren", true, false)

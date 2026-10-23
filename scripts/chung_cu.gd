@@ -9,7 +9,7 @@ extends Node3D
 ##   rồi cục nóng, chuồng cọp, ống nước tới hành lang tầng 5, ngay cửa nhà Bé Na. Nhanh nhất, rơi là xuống tầng dưới.
 ## Toạ độ riêng của cảnh: x dọc nhà (tây → đông), z = 0 là mép hành lang nhìn ra hẻm (phía nam), y = 0 mặt đất.
 ## Khớp nhà trên bản đồ (4 căn × 4,2 m + khối cầu thang 2,6 m, 5 tầng × 3 m): x cảnh = x bản đồ − 22.
-## Bản khối tạm: khi Sang duyệt phác thảo model (thang máy, võng em bé, giá phơi đồ, ống nước...) thì thay bằng .glb.
+## Đồ trong cảnh là model đã duyệt (G1 thay nốt xe, bồn nước, kệ giày, dây phơi, thùng, Ông Bảy); vỏ nhà còn là khối, chờ bộ ráp nhà P2.
 
 const PlayerScript := preload("res://scripts/player.gd")
 const CameraRigScript := preload("res://scripts/camera_rig.gd")
@@ -546,8 +546,7 @@ func _build_ground() -> void:
 	Blocks.invisible_wall(self, Vector3(40, 30, 1), Vector3(8, 15, -9.5))
 	# Xe máy đậu dọc hành lang tầng trệt (bậc nhảy 0,9 m, chỉ để trang trí đường đi)
 	for i in 3:
-		var bike := Blocks.solid_box(self, Vector3(0.5, 0.9, 1.6), Vector3(3.0 + i * 1.1, 0.45, 1.3), [Color("#C8412F"), Color("#3A6EA5"), Color("#2B2622")][i], Blocks.LAYER_PROP)
-		Blocks.box(bike, Vector3(0.36, 0.08, 0.7), Vector3(0, 0.49, 0.1), Color("#2B2622"))
+		DoThem.solid(self, ["../pho/xe_may_do", "../pho/xe_may_xanh", "../pho/xe_may_den"][i], Vector3(0.5, 0.9, 1.6), Vector3(3.0 + i * 1.1, 0.45, 1.3), PI / 2.0)
 
 
 func _build_building() -> void:
@@ -557,7 +556,7 @@ func _build_building() -> void:
 	# Mái bằng: sàn, lan can, bồn nước
 	Blocks.solid_box(self, Vector3(W + 0.4, 0.3, DEPTH + 0.3), Vector3(W / 2.0, FLOORS * FLOOR_H + 0.15, -DEPTH / 2.0 + 0.1), FLOOR)
 	for i in 3:
-		Blocks.box(self, Vector3(1.6, 1.0, 1.0), Vector3(2.0 + i * 5.5, FLOORS * FLOOR_H + 0.8, -6.0), Color("#3A6EA5"))
+		DoThem.put(self, "bon_nuoc_inox__nam", Vector3(2.0 + i * 5.5, FLOORS * FLOOR_H + 0.3, -6.0))
 	Blocks.label(self, "CHUNG CƯ HOA SỮA", Vector3(W / 2.0, FLOORS * FLOOR_H - 0.5, 0.3), 60, Color("#8A3A2A"))
 	for f in FLOORS:
 		var y := f * FLOOR_H
@@ -574,16 +573,15 @@ func _build_building() -> void:
 			Blocks.label(self, "%dB-%d" % [f + 1, u + 1], Vector3(x0 + 0.85, y + 2.4, -CORR + 0.4), 24, Color("#F4EAD2"))
 			Blocks.box(self, Vector3(1.3, 1.1, 0.05), Vector3(x0 + 2.7, y + 1.5, -CORR + 0.02), Color("#3D4A4A"))  # cửa sổ lá sách
 			if (u + f) % 2 == 0:  # kệ giày, chậu cây trước cửa (nhỏ, đi vòng được)
-				Blocks.solid_box(self, Vector3(0.7, 0.5, 0.3), Vector3(x0 + 1.8, y + 0.25, -CORR + 0.18), Color("#6E8F5E"), Blocks.LAYER_PROP)
+				DoThem.solid(self, "ke_giay", Vector3(0.7, 0.75, 0.3), Vector3(x0 + 1.8, y + 0.375, -CORR + 0.18))
 			if (u * 3 + f) % 4 == 1:  # dây phơi đồ trên cao, chỉ để nhìn
-				for k in 4:
-					Blocks.box(self, Vector3(0.4, 0.6, 0.02), Vector3(x0 + 0.9 + k * 0.6, y + 2.3, -0.6), [Color("#F2EFE6"), Color("#C8412F"), Color("#3A6EA5"), Color("#E8B23A")][k])
+				DoThem.put(self, "../pho/chi_tiet/day_phoi", Vector3(x0 + 1.8, y + 1.75, -0.6), 0.0, Vector3(2.4 / 3.54, 1, 1))
 		# Cột hành lang
 		for u in UNITS + 1:
 			var cx := clampf(u * UNIT_W, 0.15, W - 0.15)
 			Blocks.solid_box(self, Vector3(0.3, FLOOR_H, 0.3), Vector3(cx, y + FLOOR_H / 2.0, -0.15), FLOOR)
 	# Xe đạp dựng ở hành lang tầng 4 (đi né)
-	Blocks.solid_box(self, Vector3(1.6, 0.9, 0.4), Vector3(8.4, 9.45, -1.3), Color("#3A6EA5"), Blocks.LAYER_PROP)
+	DoThem.solid(self, "xe_dap", Vector3(1.6, 0.9, 0.4), Vector3(8.4, 9.45, -1.3), 0.0, Vector3(1, 0.9 / 1.02, 1))
 	# Võng em bé hành lang tầng 3 (thấp 0,6 m, Bơ đi dưới được)
 	# Khung võng xếp đứng yên; vải võng và em bé đưa quanh trục móc (cao 1,42 m)
 	var hook := 1.42
@@ -723,20 +721,9 @@ func _build_neighbor() -> void:
 	Blocks.box(self, Vector3(x1 - x0 - 0.8, 2.3, 0.05), Vector3(cx, 1.15, -0.48), Color("#5E6F6C"))  # cửa cuốn
 	Blocks.solid_box(self, Vector3(x1 - x0, 0.12, 1.1), Vector3(cx, 2.74, 0.05), Color("#C8412F"), Blocks.LAYER_PROP)  # mái hiên
 	Blocks.solid_box(self, Vector3(x1 - x0, 0.5, 0.12), Vector3(cx, NEIGHBOR_ROOF + 0.25, -7.94), Color("#E3B95E"))  # tường mái phía sau
-	Blocks.solid_box(self, Vector3(0.8, 0.8, 0.8), Vector3(-4.4, 0.4, 1.3), Color("#B08550"), Blocks.LAYER_PROP)
-	Blocks.solid_box(self, Vector3(0.8, 0.8, 0.8), Vector3(-3.4, 0.4, 1.3), Color("#9C7444"), Blocks.LAYER_PROP)
-	Blocks.solid_box(self, Vector3(0.8, 0.8, 0.8), Vector3(-3.4, 1.2, 1.3), Color("#B08550"), Blocks.LAYER_PROP)
+	for c in [Vector3(-4.4, 0.4, 1.3), Vector3(-3.4, 0.4, 1.3), Vector3(-3.4, 1.2, 1.3)]:
+		DoThem.solid(self, "../pho/thung_go", Vector3(0.8, 0.8, 0.8), c, c.x + c.y)
 	Blocks.label(self, "Khe 1,2 m: bật tường!", Vector3(-0.6, 1.6, 0.4), 22, Color("#F4EAD2"))
-
-
-func _person(parent: Node, pos: Vector3, h: float, body: Color, head := Color("#E9C4A0")) -> Node3D:
-	var n := Node3D.new()
-	n.position = pos
-	parent.add_child(n)
-	Blocks.box(n, Vector3(0.4, h * 0.55, 0.26), Vector3(0, h * 0.5, 0), body)
-	Blocks.box(n, Vector3(0.3, h * 0.25, 0.22), Vector3(0, h * 0.12, 0), body.darkened(0.3))
-	Blocks.mesh(n, SphereMesh.new(), Vector3(0, h * 0.87, 0), head).scale = Vector3.ONE * h * 0.17
-	return n
 
 
 func _build_elevator() -> void:
@@ -789,7 +776,7 @@ func _build_elevator() -> void:
 	zs.position.y = 0.6
 	_cabin_zone.add_child(zs)
 	_cabin.add_child(_cabin_zone)
-	# Ông Bảy xách lồng chim (khối tạm), có lúc bước ra chắn cửa
+	# Ông Bảy xách lồng chim (người có xương, clip G1 "xach_long"), có lúc bước ra chắn cửa
 	_ong_bay = StaticBody3D.new()
 	_ong_bay.collision_layer = Blocks.LAYER_PROP
 	var oc := CollisionShape3D.new()
@@ -799,8 +786,11 @@ func _build_elevator() -> void:
 	oc.position.y = 0.2
 	oc.disabled = true
 	_ong_bay.add_child(oc)
-	_person(_ong_bay, Vector3(0, -0.6, 0), 1.6, Color("#D7D2C4"))
-	Blocks.box(_ong_bay, Vector3(0.3, 0.4, 0.3), Vector3(0.0, 0.0, 0.35), Color("#B08550"))  # lồng chim
+	var ong := Nguoi.make("ongbay", "xach_long")
+	ong.position = Vector3(0, -0.6, 0)
+	ong.rotation.y = -PI / 2.0  # nhìn ra cửa thang, về phía cầu thang
+	_ong_bay.add_child(ong)
+	ong.ready.connect(func(): ong.hold("res://assets/models/pho/chi_tiet/long_chim.glb", "hand.R", Vector3(0, -0.89, 0)), CONNECT_ONE_SHOT)
 	_ong_bay.visible = false
 	add_child(_ong_bay)
 

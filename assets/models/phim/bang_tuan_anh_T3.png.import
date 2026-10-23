@@ -1,0 +1,37 @@
+[remap]
+
+importer="texture"
+type="CompressedTexture2D"
+uid="uid://gy4oncy26t6v"
+path="res://.godot/imported/bang_tuan_anh_T3.png-fb4d356c75be705411760a7491362280.ctex"
+metadata={
+"vram_texture": false
+}
+generator_parameters={
+"md5": "50dd21b611ac4a36ce5dbbe297f48f66"
+}
+
+[deps]
+
+source_file="res://assets/models/phim/bang_tuan_anh_T3.png"
+dest_files=["res://.godot/imported/bang_tuan_anh_T3.png-fb4d356c75be705411760a7491362280.ctex"]
+
+[params]
+
+compress/mode=0
+compress/high_quality=false
+compress/lossy_quality=0.7
+compress/hdr_compression=1
+compress/normal_map=0
+compress/channel_pack=0
+mipmaps/generate=true
+mipmaps/limit=-1
+roughness/mode=0
+roughness/src_normal=""
+process/fix_alpha_border=true
+process/premult_alpha=false
+process/normal_map_invert_y=false
+process/hdr_as_srgb=false
+process/hdr_clamp_exposure=false
+process/size_limit=0
+detect_3d/compress_to=1

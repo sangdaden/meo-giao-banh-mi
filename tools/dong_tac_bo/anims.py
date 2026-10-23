@@ -296,3 +296,46 @@ A('nhan_tui', day='CN', strip_view='side', center=(0, -.37, .3), scale=1.5, view
   notes='Bơ đứng chờ ở vạch, ngẩng đầu đón; chạm mũi thì ngậm quai (0,7 s), mèo đưa nhả ra, Bơ quay người chạy tiếp. '
         'Mèo đưa trong ảnh là Xiêm.',
   game='Như trên; sau 1 s chuyển sang chạy.')
+
+
+# ======================= PHIM MỞ ĐẦU VÀ KẾT TUẦN (C1, Sang duyệt 23/10) =======================
+# Động tác lặp để cảnh phim giữ dáng bao lâu cũng được; vào/ra dáng do game hoà (player.gd play_clip).
+SNIFF = dict(head=(14, 8, 0), chest=(12,), earL=(14,), earR=(14,), tail=(40, 0, 25, 0, 15, 0, -20, 0), eye=(.75,), FL=(0, 0, .03, 0))
+A('ngui_mui', day='C1', title='Ngửi mùi bánh', dur=2.0, loop=True, ctx=None, bag=False,
+  keys=cyc(12, 2.0, lambda u: merge(SNIFF, dict(head=(14 + 4 * max(S(u * TAU * 3), 0), 8 + 3 * S(u * TAU), 0),
+                                                tail=(40, 0, 25, 0, 15, 4 * S(u * TAU), -20, 8 * S(u * TAU))))),
+  shots=[0, .25], main=.25,
+  notes='Đứng, ngẩng mũi hít ba nhịp mùi bánh từ cửa lò, tai dựng hướng trước, đuôi dựng cong móc câu.',
+  game='Phim mở đầu M2.')
+
+SIT_YEN = merge(SIT, dict(head=(-2,), eye=(1.0,), tail=(-30, 20, -10, 35, 0, 35, 10, 30)))
+A('ngoi_yen', day='C1', title='Ngồi ngay ngắn', dur=3.0, loop=True, ctx=None, bag=False,
+  keys=cyc(12, 3.0, lambda u: merge(SIT_YEN, dict(chest=(-14 + 1.5 * S(u * TAU),), head=(-2 + 2 * S(u * TAU - .6), 4 * S(u * TAU * .5 * 2), 0),
+                                                  tail=(-30, 20, -10, 35, 0, 35, 10 + 12 * S(u * TAU * 2), 30)))),
+  shots=[0, 1.5], main=0,
+  notes='Ngồi thẳng chờ, thở chậm, chóp đuôi búng nhẹ. Dáng nền cho các cảnh phim.',
+  game='Phim mở đầu M3, M6; kết tuần K1, K5, K7.')
+
+NGUA = merge(SIT, dict(head=(2, 0, 0), chest=(-10,), eye=(.3,), earL=(-12,), earR=(-12,), tail=(-30, 20, -10, 35, 0, 35, 10, 30)))
+A('ngua_co', day='C1', title='Ngẩng cổ chờ quàng khăn', dur=1.6, loop=True, ctx=None, bag=False,
+  keys=cyc(8, 1.6, lambda u: merge(NGUA, dict(head=(2 + 2 * S(u * TAU), 0, 3 * S(u * TAU * 2)), chest=(-10 + 1.5 * S(u * TAU * 2),)))),
+  shots=[0, .4], main=0,
+  notes='Ngồi, ngẩng cằm cho Cô Ba quàng khăn, mắt híp cười, tai hơi xuôi vì thích, rừ rừ (ngực rung nhẹ).',
+  game='Phim mở đầu M4.')
+
+NGAM = merge(SIT, dict(head=(-30, 16, 10), chest=(-4,), eye=(.95,), earL=(6,), earR=(6,), tail=(50, 0, 30, 10, 20, 0, -35, 0)))
+A('ngam_khan', day='C1', title='Ngắm khăn mới', dur=2.2, loop=True, ctx=None, bag=False,
+  keys=cyc(11, 2.2, lambda u: merge(NGAM, dict(head=(-30 + 4 * S(u * TAU), 16 * C(u * TAU), 10 * C(u * TAU)),
+                                               tail=(50, 0, 30, 10, 20, 0, -35, 15 * S(u * TAU * 2))))),
+  shots=[0, 1.1], main=0,
+  notes='Cúi nhìn khăn trên ngực, nghiêng đầu sang trái rồi sang phải, ưỡn ngực; đuôi dựng thẳng, chóp cong vẫy (vui).',
+  game='Phim mở đầu M5.')
+
+STRETCH = dict(root=(0, -.03, .02, -16, 0, 0), chest=(-6,), head=(24,), FL=(0, 0, .22, -10), FR=(0, 0, .22, -10),
+               BL=(0, 0, -.03, 0), BR=(0, 0, -.03, 0), tail=(45, 0, 20, 0, 10, 0, 0, 0), eye=(0.,), earL=(-14,), earR=(-14,))
+A('vuon_vai', day='C1', title='Vươn vai ngáp', dur=2.4, loop=False, ctx=None, bag=False,
+  keys=[(0, {}), (.6, STRETCH), (1.5, merge(STRETCH, dict(head=(30,), FL=(0, 0, .24, -12), FR=(0, 0, .24, -12)))),
+        (1.9, dict(head=(6, 0, 10), eye=(.6,))), (2.1, dict(head=(6, 0, -10), eye=(.8,))), (2.4, {})],
+  shots=[0, .6, 1.5, 2.0], main=1.5,
+  notes='Duỗi hai chân trước, hạ ngực, mông cao, ngẩng ngáp (mắt nhắm), rồi rùng mình đứng dậy.',
+  game='Kết tuần K8: sáng Thứ Hai tuần mới.')

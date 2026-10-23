@@ -29,6 +29,6 @@ const DATA := {
 		{"who": "Bà Sáu", "place": "Nhà bông giấy", "item": "2 ổ chả cá (chuyến 4)", "pos": ThuSau.GIO_TABLE, "time": 120.0, "color": Color("#C8412F"), "delivery": "gio_table", "boss": true, "gio": true, "gio_group": true},
 	],
 	# Bảng "Cách chơi" trong menu Esc: phím chung + các dòng này (scripts/ui/chu_huong_dan.gd)
-	"help": [["E", "giao bánh"], ["Q", "ngồi kêu meo gọi khách"], ["Space", "đạp tường qua khe hông tiệm xe"]],
+	"help": [["E", "giao bánh"], ["Q", "ngồi kêu meo gọi khách"], ["Space", "đạp tường qua khe hông tiệm xe"], ["E", "thả chả cá ở đầu hẻm 42 cho Mực ngủ say"]],
 	"help_note": "Chiều nay Chó Mực thức hoài: qua hẻm 42 thì giữ Z rón rén, bị đuổi thì nhảy lên chỗ cao. Đơn giỗ chạy nhiều chuyến, mỗi chuyến có giờ riêng.",
 }

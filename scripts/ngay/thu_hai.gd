@@ -2,8 +2,12 @@ extends RefCounted
 ## Thứ Hai: dữ liệu ngày này (đơn, lời Cô Ba, đồ riêng). scripts/days.gd đọc DATA qua tên file.
 ## Thêm hay sửa một ngày chỉ đụng file của ngày đó; các khóa ghi ở đầu scripts/days.gd.
 const DATA := {
-	# Mèo hàng xóm trong tuần (gói N): node nạp cho mọi ngày, tự gỡ ở ngày không có mèo
-	"nodes": ["res://scripts/meo_hang_xom.gd"],
+	# Node nạp cho mọi ngày (main.gd thêm vào cảnh phố), mỗi node tự chọn việc theo ngày hoặc tự gỡ:
+	# Chó Mực cả tuần (khoảnh khắc mỗi ngày, chả cá, gọi Q, ngủ trưa); mèo hàng xóm trong tuần (gói N)
+	"nodes": [
+		"res://scripts/muc_tuan.gd",
+		"res://scripts/meo_hang_xom.gd",
+	],
 	"title": "Mẻ bánh đầu tiên",
 	"blurb": "Làm bánh trong bếp Cô Ba rồi giao 5 đơn. Đơn cuối phải lách qua Chó Mực ở hẻm 42.",
 	"intro": "Cô Ba: \"Sáng nay 5 đơn nha Bơ. Đơn chót qua hẻm 42, nhớ rón rén kẻo thằng Mực nó thức!\"",
@@ -17,6 +21,6 @@ const DATA := {
 		{"who": "Bà Sáu", "place": "Nhà bông giấy", "item": "1 ổ chả cá", "pos": CityProps.BA_SAU_CHAIR, "time": 24.0, "color": Color("#C8412F"), "delivery": "chair", "side_quest": "muc_ngu_yen", "boss": true},
 	],
 	# Bảng "Cách chơi" trong menu Esc: phím chung + các dòng này (scripts/ui/chu_huong_dan.gd)
-	"help": [["E", "giao bánh"]],
+	"help": [["E", "giao bánh"], ["E", "thả chả cá ở đầu hẻm 42 cho Mực ngủ say"]],
 	"help_note": "Đơn 5 qua hẻm 42 có Chó Mực canh: giữ Z rón rén cho nó ngủ yên. Bị đuổi thì nhảy lên thùng, bờ rào hay chui gầm ba gác.",
 }

@@ -164,6 +164,9 @@ jobs:
           # Chơi liền các ngày: xong ngày thì lưu ngày kế, hết tuần sang Tuần mới
           timeout 300 ~/godot/godot --headless --path . -s tests/test_lien_ngay.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee lien_ngay.log
           grep -q "LIEN NGAY TEST OK" lien_ngay.log
+          # Màn dạy chơi B1: bot đi hết 5 trạm sân sau lò bánh, lưu "đã tập"
+          timeout 300 ~/godot/godot --headless --path . res://scenes/day_choi.tscn -- --autotest-tap 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee day_choi.log
+          grep -q "DAY CHOI TEST OK" day_choi.log
           # Đơn mua trứng Thứ Ba: túi trứng dễ vỡ, tạp hóa Cô Hai
           timeout 300 ~/godot/godot --headless --path . --script res://tools/egg_test.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee egg_test.log
           grep -q "EGG TEST OK" egg_test.log

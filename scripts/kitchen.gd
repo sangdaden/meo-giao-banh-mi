@@ -2523,6 +2523,7 @@ func _co_ba_say(text: String, anim_name := "noi", secs := 3.5) -> void:
 	if _bot:
 		print("[bep] %5.1fs Cô Ba: %s" % [time_limit - time_left, text])
 	hud.say(text, secs)
+	GiongUO.noi("Cô Ba", text)
 	_co_ba(anim_name)
 
 

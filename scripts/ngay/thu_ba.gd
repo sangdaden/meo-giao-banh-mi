@@ -17,4 +17,7 @@ const DATA := {
 		{"who": "Bé Na", "place": "Chung cư", "item": "2 ổ trứng", "note": "them_pate", "pos": Vector3(24.0, 0, -15.6), "time": 22.0, "color": Color("#D7A9C4"), "delivery": "basket", "basket_period": 2.0, "side_quest": "khong_dung_nguoi"},
 		{"who": "Anh Hùng", "place": "Sửa xe", "item": "3 ổ xíu mại", "pos": Vector3(30.6, 0, 25.3), "time": 28.0, "color": Color("#5E6F6C"), "delivery": "under_car", "side_quest": "khong_do_thung"},
 	],
+	# Bảng "Cách chơi" trong menu Esc: phím chung + các dòng này (scripts/ui/chu_huong_dan.gd)
+	"help": [["E", "giao bánh, nhận túi trứng"], ["Tab", "xem đủ phiếu đơn (món, ghi chú)"]],
+	"help_note": "Túi trứng dễ vỡ: đừng nhảy từ chỗ cao xuống, đừng va người hay xe đẩy. Qua chợ đông thì đi chậm.",
 }

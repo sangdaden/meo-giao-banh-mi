@@ -195,6 +195,9 @@ jobs:
           # Thứ Bảy: nhảy vào chồng thùng cạnh lò bánh không bị treo mãi trên mép (giữ phím đi tới tự leo lên, lùi ra buông)
           timeout 300 ~/godot/godot --headless --path . -s tests/test_bam_mep_thu_bay.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee bam_mep.log
           grep -q "BAM MEP TEST OK" bam_mep.log
+          # Camera không chui tường (A1): vật che giữa camera và Bơ mờ đi, tường dày mới kéo camera lại, trên mái bớt chúc xuống
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_camera_che.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee camera_che.log
+          grep -q "CAMERA CHE TEST OK" camera_che.log
           # Nút cứu kẹt (A2): giữ R 1 giây về chỗ an toàn, bấm lại lùi thêm, kẹt yên 4 giây thì nhắc, rơi khỏi bản đồ về chỗ an toàn
           timeout 300 ~/godot/godot --headless --path . -s tests/test_cuu_ket.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee cuu_ket.log
           grep -q "CUU KET TEST OK" cuu_ket.log
@@ -204,12 +207,18 @@ jobs:
           # P3: trạm và xe buýt tuyến 08 (đỗ trạm, dừng còi trước Bơ, chờ Bơ xuống nóc), người qua đường thật
           timeout 300 ~/godot/godot --headless --path . -s tests/test_xe_buyt.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee xe_buyt.log
           grep -q "TEST XE BUYT OK" xe_buyt.log
+          # Giọng ú ớ: dấu thanh, giọng từng người, Cô Ba nói khi hiện bong bóng
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_giong_uo.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee giong_uo.log
+          grep -q "TEST GIONG UO OK" giong_uo.log
           # Đồ đeo lưng: phần cứng không hở khỏi lưng quá 6 mm khi thở, ngồi, liếm (Bơ đực, Bơ cái)
           timeout 900 ~/godot/godot --headless --path . -s tests/test_khe_lung.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee khe_lung.log
           grep -q "KHE LUNG TEST OK" khe_lung.log
           # Chủ Nhật Hội mèo: khay bánh sáng không tính giờ, bot chơi đủ 5 trò, tới tổng kết tuần
           timeout 600 ~/godot/godot --headless --path . -- --autotest --ngay=chu_nhat 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee chu_nhat.log
           grep -q "AUTOTEST CHU_NHAT OK" chu_nhat.log
+          # Chữ hướng dẫn theo ngày (B2) và thẻ nhiệm vụ một dòng (F1): Cách chơi có Giữ R, Thứ Bảy không "Đơn 1/5", Tab mở thẻ
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_chu_huong_dan.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee chu_huong_dan.log
+          grep -q "CHU HUONG DAN TEST OK" chu_huong_dan.log
           mkdir -p export
           ~/godot/godot --headless --path . --export-release "macOS" "export/$ZIP_NAME"
           unzip -l "export/$ZIP_NAME" | grep -q "_CodeSignature/CodeResources"

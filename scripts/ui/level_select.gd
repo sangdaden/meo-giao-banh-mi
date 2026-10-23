@@ -4,7 +4,7 @@ extends Control
 ## hoặc "Chọn màn" trong menu tạm dừng. "Cả ca" của một ngày chơi tiếp mạch tuần từ ngày đó;
 ## chỉ bếp, chỉ giao, một đơn là chơi tập, xong không sang ngày kế.
 ## Bên trái là bảy ngày trong tuần (theo trang thiết kế màn chơi), bên phải là các cách chơi của ngày đang chọn.
-## Ngày đã làm (Days.playable) có: cả ca, chỉ bếp, chỉ giao 5 đơn, hoặc giao một đơn. Ngày chưa làm hiện "Sắp có".
+## Ngày đã làm (Days.playable) có: cả ca, chỉ bếp, chỉ giao (mọi đơn của ngày), hoặc giao một đơn. Ngày chưa làm hiện "Sắp có".
 ## Dữ liệu ngày và đơn lấy từ scripts/days.gd. Bản chơi thử mở sẵn mọi ngày đã làm (Days.PLAYTEST_UNLOCK_ALL).
 ## Sao và kỷ lục đọc từ file lưu (GameState), mỗi ngày một mục.
 
@@ -202,7 +202,8 @@ func _build_day(id: String) -> void:
 		func(): PlayMode.start_day(get_tree(), id))
 	modes.add_child(full)
 	modes.add_child(_mode_button(id, "Chỉ làm bếp", "Kỷ lục bếp %d/3 sao" % kitchen_best if kitchen_best >= 0 else "Chưa làm bếp lần nào", "secondary", PlayMode.Mode.KITCHEN))
-	modes.add_child(_mode_button(id, "Chỉ giao 5 đơn", "Bỏ qua phần bếp", "secondary", PlayMode.Mode.DELIVERY))
+	var n := Days.orders(id).size()
+	modes.add_child(_mode_button(id, "Chỉ giao %d đơn" % n if n > 1 else "Chỉ đi giao", "Bỏ qua phần bếp", "secondary", PlayMode.Mode.DELIVERY))
 	if id == Days.ORDER[0] and ResourceLoader.exists(PlayMode.TAP_SCENE):  # màn dạy chơi B1
 		modes.add_child(_mode_button(id, "Tập chơi", "3 phút ở sân sau lò bánh", "secondary", PlayMode.Mode.ORDER,
 			func(): PlayMode.start_tutorial(get_tree(), "select")))
@@ -331,7 +332,7 @@ func _order_button(id: String, i: int, o: Dictionary) -> Button:
 	return b
 
 
-# ---------------------------------------------------------------- Thứ Năm (chơi thử cảnh chung cư)
+# ---------------------------------------------------------------- Thứ Năm chưa mở: vẫn cho leo thử cảnh chung cư
 
 func _build_thursday() -> void:
 	_detail.add_child(T.label("Thứ Năm · Lên tầng năm", 30, T.INK, "display"))
@@ -340,11 +341,11 @@ func _build_thursday() -> void:
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_detail.add_child(desc)
 	var best := Scoring.best_stars(0, "thu_nam")
-	var play := _mode_button("thu_nam", "Leo chung cư", "Kỷ lục %d/3 sao" % best if best > 0 else "Bản khối tạm, chưa có model",
+	var play := _mode_button("thu_nam", "Leo chung cư", "Kỷ lục %d/3 sao" % best if best > 0 else "Chưa leo lần nào",
 		"primary", PlayMode.Mode.ORDER, func(): PlayMode.start_chung_cu(get_tree()))
 	play.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	_detail.add_child(play)
-	var note := T.label("Cả ngày Thứ Năm (đường từ lò tới chung cư, nhiều đơn) làm sau bản Thứ Hai.", 14, T.MUTED, "bold")
+	var note := T.label("Đây là riêng cảnh chung cư (đơn 5). Cả ngày Thứ Năm mở khi chơi xong Thứ Tư.", 14, T.MUTED, "bold")
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_detail.add_child(note)
 	_first_focus = play

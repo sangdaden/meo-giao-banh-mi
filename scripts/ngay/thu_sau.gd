@@ -4,7 +4,7 @@ extends RefCounted
 # Thứ Sáu chiều tà (gói việc thiet-ke-man/goi-viec-thu-sau.md): giờ là số Thử thách, Thong thả ×2 qua DoKho.
 # Ba cách giao mới call, lift, gio_table ở scripts/thu_sau.gd. Đơn "gio": ngậm túi 3 ổ tới nhà Bà Sáu.
 # Thong thả 6 ổ / 2 chuyến, mỗi chuyến giờ riêng. Thử thách (orders_hard) 10 ổ / 4 chuyến, đơn "gio_group"
-# dùng chung đồng hồ gio_shared_time giây. Cảnh tiệm xe, sân giỗ là khối tạm chờ model G6, G7.
+# dùng chung đồng hồ gio_shared_time giây. Tiệm xe và sân giỗ dùng model G6, G7 (scripts/thu_sau.gd).
 const DATA := {
 	"nodes": ["res://scripts/thu_sau.gd"],
 	"title": "Đám giỗ Bà Sáu",
@@ -28,4 +28,7 @@ const DATA := {
 		{"who": "Bà Sáu", "place": "Nhà bông giấy", "item": "2 ổ chả cá (chuyến 3)", "pos": ThuSau.GIO_GATE, "time": 120.0, "color": Color("#C8412F"), "delivery": "call", "boss": true, "gio": true, "gio_group": true},
 		{"who": "Bà Sáu", "place": "Nhà bông giấy", "item": "2 ổ chả cá (chuyến 4)", "pos": ThuSau.GIO_TABLE, "time": 120.0, "color": Color("#C8412F"), "delivery": "gio_table", "boss": true, "gio": true, "gio_group": true},
 	],
+	# Bảng "Cách chơi" trong menu Esc: phím chung + các dòng này (scripts/ui/chu_huong_dan.gd)
+	"help": [["E", "giao bánh"], ["Q", "ngồi kêu meo gọi khách"], ["Space", "đạp tường qua khe hông tiệm xe"]],
+	"help_note": "Chiều nay Chó Mực thức hoài: qua hẻm 42 thì giữ Z rón rén, bị đuổi thì nhảy lên chỗ cao. Đơn giỗ chạy nhiều chuyến, mỗi chuyến có giờ riêng.",
 }

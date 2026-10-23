@@ -1064,6 +1064,7 @@ func _say(n: Node3D, text: String, seconds := 2.5, delay := 0.0) -> void:
 		_speech.global_position = n.global_position + Vector3(0, 2.0, 0)
 		_speech.visible = true
 		_speech_until = Time.get_ticks_msec() / 1000.0 + seconds
+		GiongUO.noi_theo(n, text)
 	if delay > 0.0:
 		get_tree().create_timer(delay).timeout.connect(show)
 	else:

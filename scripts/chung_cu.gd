@@ -9,7 +9,7 @@ extends Node3D
 ##   rồi cục nóng, chuồng cọp, ống nước tới hành lang tầng 5, ngay cửa nhà Bé Na. Nhanh nhất, rơi là xuống tầng dưới.
 ## Toạ độ riêng của cảnh: x dọc nhà (tây → đông), z = 0 là mép hành lang nhìn ra hẻm (phía nam), y = 0 mặt đất.
 ## Khớp nhà trên bản đồ (4 căn × 4,2 m + khối cầu thang 2,6 m, 5 tầng × 3 m): x cảnh = x bản đồ − 22.
-## Bản khối tạm: khi Sang duyệt phác thảo model (thang máy, võng em bé, giá phơi đồ, ống nước...) thì thay bằng .glb.
+## Thang máy, võng em bé, giá phơi đồ... là model G1 (assets/models/chung_cu/); va chạm vẫn là hộp dựng trong code.
 
 const PlayerScript := preload("res://scripts/player.gd")
 const CameraRigScript := preload("res://scripts/camera_rig.gd")
@@ -157,6 +157,11 @@ func _ready() -> void:
 	player.deliver_finished.connect(_on_delivered)
 
 	hud = HudScript.new()
+	# Bảng "Cách chơi": phím leo của Thứ Năm, ghi chú riêng của cảnh chung cư
+	var help_day := Days.get_day("thu_nam").duplicate()
+	help_day.help_note = "Ba đường lên căn 5B-1: cầu thang (chui giá phơi đồ, rón rén qua em bé ngủ), đợi thang máy, hay leo ngoài tường hông tây."
+	hud.help = ChuHuongDan.bang(help_day)
+	hud.help_note = ChuHuongDan.ghi_chu(help_day)
 	add_child(hud)
 	hud.restart_pressed.connect(func(): get_tree().paused = false; get_tree().reload_current_scene())
 	hud.menu_pressed.connect(func(): PlayMode.back_to_menu(get_tree()))

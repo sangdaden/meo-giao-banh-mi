@@ -357,6 +357,10 @@ func _ready() -> void:
 	visual.top_level = true
 	_prev_pos = global_position
 	_curr_pos = global_position
+	if not preview:
+		var ck := CuuKet.new()
+		ck.name = "CuuKet"
+		add_child(ck)
 
 
 ## Mèo Bơ kiểu D "Chững chạc" (dựng từ model chuẩn, xem tools/bo_game.py).
@@ -730,10 +734,12 @@ func _physics_process(delta: float) -> void:
 		_face_yaw = atan2(-dir.x, -dir.z)
 		_face_rate = turn_speed
 
-	# Rơi khỏi bản đồ thì đưa về chỗ cũ
+	# Rơi khỏi bản đồ thì đưa về chỗ đứng vững gần nhất (CuuKet), chưa có thì về chỗ cũ
 	if global_position.y < -10.0:
-		global_position = Vector3(-33, 1, -2)
-		velocity = Vector3.ZERO
+		var ck := get_node_or_null("CuuKet")
+		if ck == null or not ck.cuu():
+			global_position = Vector3(-33, 1, -2)
+			velocity = Vector3.ZERO
 	_curr_pos = global_position
 
 
@@ -907,6 +913,28 @@ func _input_dir() -> Vector3:
 	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var yaw: float = camera_rig.yaw if camera_rig else 0.0
 	return Vector3(input.x, 0, input.y).rotated(Vector3.UP, yaw)
+
+
+## Nút cứu kẹt (scripts/cuu_ket.gd): bỏ hết thế đang dở (bám, ống, động tác, khựng) rồi đặt Bơ đứng ở `at`.
+func cuu_ket_ve(at: Vector3) -> void:
+	climb = ""
+	_pipe = null
+	_hang_push = 0.0
+	_kicks = 0
+	_kick_lock = 0.0
+	_grab_cooldown = 0.5
+	_stun = 0.0
+	_buffer = 0.0
+	_act = ""
+	_forced_crouch = false
+	stop_clip()
+	velocity = Vector3.ZERO
+	global_position = at + Vector3.UP * 0.05
+	_fall_from = global_position.y  # về chỗ cũ không tính là cú rơi (trứng không vỡ)
+	_was_on_floor = true
+	_prev_pos = global_position
+	_curr_pos = global_position
+	_squash.v += 4.0
 
 
 func _release(vel: Vector3) -> void:

@@ -55,6 +55,8 @@ const WATER_TOP := Color("#8FB7C9")
 const OIL_TOP := Color("#2B2724")
 
 const MODELS := "res://assets/models/giao/%s.glb"
+const SMALL_ITEM := 0.4          ## đồ nhỏ hơn chừng này (m) không đổ bóng, tắt khi xa
+const SMALL_ITEM_VIEW := 18.0
 ## Điểm miệng Bơ trong toạ độ model bo.glb (mặt trước +Z), ổ bánh ngậm nằm ngang theo trục X
 const MOUTH := Vector3(0, 0.368, 0.30)
 const RELEASE_AT := 0.8          ## giây trong động tác giao thì Bơ nhả ổ bánh
@@ -438,6 +440,13 @@ func _model(model_name: String, parent: Node, pos := Vector3.ZERO, glass := fals
 		if RenderingServer.get_rendering_device() == null:
 			_srgb(mi, model_name)
 		mi.material_override = _mat_glass if glass else _mat_solid
+		# Đồ nhỏ trên bàn (ly cà phê, chén sữa, tờ báo): 36 ly ở quán Mây từng ngốn ~54k tam giác ở góc ngã tư.
+		# Không đổ bóng, tắt khi xa hơn 18 m (lúc đó ly chỉ còn vài điểm ảnh).
+		var size := mi.get_aabb().size
+		if maxf(size.x, maxf(size.y, size.z)) < SMALL_ITEM:
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			mi.visibility_range_end = SMALL_ITEM_VIEW
+			mi.visibility_range_end_margin = 2.0
 	return n
 
 
@@ -446,15 +455,17 @@ var _srgb_meshes := {}
 func _srgb(mi: MeshInstance3D, key: String) -> void:
 	if not _srgb_meshes.has(key):
 		var src: ArrayMesh = mi.mesh
-		var dst := ArrayMesh.new()
+		# Dựng lại qua ImporterMesh để giữ LOD (add_surface_from_arrays bỏ mất LOD của file .glb)
+		var im := ImporterMesh.new()
 		for i in src.get_surface_count():
 			var arrays := src.surface_get_arrays(i)
 			var cols: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
 			for k in cols.size():
 				cols[k] = cols[k].linear_to_srgb()
 			arrays[Mesh.ARRAY_COLOR] = cols
-			dst.add_surface_from_arrays(src.surface_get_primitive_type(i), arrays)
-		_srgb_meshes[key] = dst
+			im.add_surface(src.surface_get_primitive_type(i), arrays)
+		im.generate_lods(25, 60, [])
+		_srgb_meshes[key] = im.get_mesh()
 	mi.mesh = _srgb_meshes[key]
 
 

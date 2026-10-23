@@ -22,7 +22,8 @@ Bỏ qua: PR từ fork, PR không nhắm vào main. PR có nhãn `khong-tu-gop` 
 - Commit do `GITHUB_TOKEN` đẩy không tự kích hoạt CI, nên workflow gọi lại CI bằng `workflow_dispatch`.
   Các lượt đó vẫn hiện trên commit đầu nhánh của PR.
 - `GITHUB_TOKEN` không được đẩy thay đổi file trong `.github/workflows/`. Khi main đổi file workflow,
-  PR chỉ được báo "gộp sạch nhưng cần gộp tay".
+  PR được gắn nhãn `gop-tay` và một bình luận chỉ lệnh gộp tay (chỉ cần `git merge origin/main` rồi đẩy,
+  không phải sửa gì). Gộp xong thì nhãn tự gỡ.
 - Muốn bỏ hai giới hạn trên: tạo token cá nhân (classic, quyền `repo` + `workflow`) và thêm vào
   Settings → Secrets and variables → Actions với tên `GOP_MAIN_TOKEN`. Không bắt buộc.
 

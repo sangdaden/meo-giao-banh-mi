@@ -4,7 +4,8 @@ extends RefCounted
 # Số giây trong bảng gói việc đã là Thứ Hai × 0,92, nên time_mult giữ 1.0 để khỏi nhân hai lần.
 # Chỗ đứng của Chú Năm, Cô Hai, góc cờ là tạm; các gói T3-2/3/4/6 dời theo bố cục chợ, tạp hóa, góc cờ.
 const DATA := {
-	"nodes": ["res://scripts/market.gd"],
+	# Con vật mới V1–V6 (gà sổ bu, cá, vịt, bướm): node nạp cho mọi ngày, tự gỡ ở ngày không có con nào
+	"nodes": ["res://scripts/market.gd", "res://scripts/con_vat_moi/con_vat_moi.gd"],
 	"title": "Chợ đông",
 	"blurb": "Chợ tạm chiếm đường lớn, hàng rong chặn hẻm. Có đơn mua trứng về lò và đơn cho hai ông đánh cờ.",
 	"intro": "Cô Ba: \"Bữa nay chợ đông lắm Bơ ơi. Lò hết trứng rồi, ghé Cô Hai mua giùm cô một túi nha!\"",

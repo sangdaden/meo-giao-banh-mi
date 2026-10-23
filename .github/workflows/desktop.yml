@@ -245,6 +245,9 @@ jobs:
           # Chào mào (K3 lồng Ông Bảy góc cờ hót đáp phím Q, K4 chim trong lồng ban công)
           timeout 300 ~/godot/godot --headless --path . -s tests/test_chao_mao.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee chao_mao.log
           grep -q "CHAO MAO TEST OK" chao_mao.log
+          # Con vật mới V1–V6 (gà sổ bu, cá, vịt lúc ngập, bướm, thạch sùng chung cư, chuột Tí trong bếp)
+          timeout 900 ~/godot/godot --headless --path . -s tests/test_con_vat_moi.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee con_vat_moi.log
+          grep -q "CON VAT MOI TEST OK" con_vat_moi.log
           mkdir -p export
           ~/godot/godot --headless --path . --export-release "macOS" "export/$ZIP_NAME"
           unzip -l "export/$ZIP_NAME" | grep -q "_CodeSignature/CodeResources"

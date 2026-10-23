@@ -280,4 +280,7 @@ const EN := {
 	"Đang cầm: %s": "Holding: %s",
 	"%d  %s": "%d  %s",
 	"Pate": "Pâté",
+	# scripts/con_vat_moi/chuot_ti.gd (chuột Tí, con vật mới V6)
+	"Chít chít!": "Squeak squeak!",
+	"Chuột Tí ở góc bếp vẫy chào Bơ. Cô Ba: \"Tí ngoan, chỉ gặm vụn thôi!\"": "Tí the mouse waves at Bơ from the kitchen corner. Cô Ba: \"Good Tí, only the crumbs!\"",
 }

@@ -19,4 +19,7 @@ const DATA := {
 		{"who": "Chú Năm", "place": "Xe ôm đầu hẻm 42", "item": "1 ổ thịt nguội", "note": "khong_ot", "pos": Vector3(-17.5, 0, 10.0), "time": 24.0, "color": Color("#4F7FA8"), "delivery": "on_seat", "side_quest": "khong_bi_tat", "flood": Vector2(0.25, 15.0)},
 		{"who": "Chú Tư", "place": "Sạp báo", "item": "2 ổ chả cá", "pos": Vector3(-1, 0, -6), "time": 18.0, "color": Color("#3D5A80"), "delivery": "hand", "side_quest": "khong_truot", "flood": Vector2(0.0, 20.0), "pigeons": "street", "clear": true},
 	],
+	# Bảng "Cách chơi" trong menu Esc: phím chung + các dòng này (scripts/ui/chu_huong_dan.gd)
+	"help": [["E", "giao bánh"]],
+	"help_note": "Mưa lớn, đường ngập dần: leo lên sân thượng mà đi. Trên ván hẹp Bơ tự đi chậm, đừng giữ Shift kẻo chao. Tránh xe tạt nước và đàn bồ câu.",
 }

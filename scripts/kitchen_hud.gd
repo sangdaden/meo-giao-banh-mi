@@ -276,7 +276,7 @@ func _ready() -> void:
 	root.add_child(start_screen)
 
 	pause_screen = _build_pause([["W A S D", "chạy trong bếp"], ["E", "làm việc ở trạm"], ["Tab", "tự đi"],
-		["Chuột", "xoay camera, vuốt ở cận cảnh"]], "Thẻ cận cảnh góc phải chỉ phím cần bấm cho từng bước.")
+		["Chuột", "xoay camera, vuốt ở cận cảnh"]] + ChuHuongDan.PHIM_CUU_KET, "Thẻ cận cảnh góc phải chỉ phím cần bấm cho từng bước.")
 	pause_screen.visible = false
 	root.add_child(pause_screen)
 

@@ -69,9 +69,8 @@ func run(phim: Phim) -> void:
 	if not await p.wait(1.7):
 		return
 	# đặt khay lên nóc tủ kính xe bánh mì rồi quay sang Bơ
-	var top := PhoModels.aabb("xe_banh_mi").end.y
 	tray.reparent(_set)
-	tray.global_transform = Transform3D(Basis(), B(4.4, -1.25, top + 0.01))
+	tray.global_transform = Transform3D(Basis(), B(4.4, -1.25) + XeCoBa.TRAY + Vector3(0, 0.01, 0))
 	p.sound("glass_rattle", -6.0)
 	_coba_face(bo.global_position)
 	coba.play("noi")

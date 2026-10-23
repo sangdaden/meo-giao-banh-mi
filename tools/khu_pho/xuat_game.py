@@ -80,21 +80,6 @@ def lo_banh():
     return g
 
 
-def xe_banh_mi():
-    """Xe tủ kính bánh mì trước lò (main.gd đặt ở chỗ khối tạm cũ, có va chạm riêng)."""
-    gg = group('xe_banh_mi', (0, 0, 0))
-    with at(gg):
-        box((1.6, .7, .7), (0, 0, .45), M(C['shutter'], .5), .03)
-        box((1.6, .7, .45), (0, 0, 1.03), M('#CFE8EA', .05), .01)
-        for sx in (-.8, .8):
-            for sy in (-.35, .35): box((.04, .04, .5), (sx, sy, 1.03), M(C['steel'], .3, .8), 0)
-        box((1.64, .74, .04), (0, 0, 1.27), M(C['steel'], .3, .8), .01)
-        for i in range(5): cyl(.045, .42, (-.55 + i * .27, .05, .86), M('#D98E2B', .6), rot=(math.pi / 2, 0, .2), n=10, r2=.035)
-        text('BÁNH MÌ', .2, (0, -.36, 1.03), M('#C8412F', .5), extrude=.008)
-        for sx in (-.6, .6): torus(.11, .035, (sx, -.36, .11), M('#222222', .8), rot=(0, math.pi / 2, math.pi / 2), n=14, m=6)
-    return gg
-
-
 def chung_cu(floors=5, units=4, uw=4.2, d=8.3):
     """Chung cư Hoa Sữa: hành lang (mặt trước, -y) quay ra hẻm giữa khối 3, ban công Bé Na là hành lang tầng 3."""
     w = units * uw; F_ = 3.0; H = F_ * floors
@@ -271,7 +256,6 @@ def sap_bao_game():
 
 
 PROPS = {
-    'xe_banh_mi': xe_banh_mi,
     'xe_may_do': lambda: xe_may((0, 0, 0), col='#C8412F'),
     'xe_may_den': lambda: xe_may((0, 0, 0), col='#2E2E2E'),
     'xe_may_xanh': lambda: xe_may((0, 0, 0), col='#3A6EA5'),
@@ -316,7 +300,7 @@ SON = '#FFFFFE'   # màu đánh dấu phần sơn xe (xe_may_son)
 
 # Trần số tam giác: quá thì giảm lưới (collapse), giữ khối chính.
 TARGET = dict(nha_G=4000, nha_C=3500, chung_cu=12000, nha_ba_sau=8000, cay_xanh=900, xe_may_son=900, xe_may_do=900, xe_may_den=900, xe_may_xanh=900, xe_may_trang=900,
-              ba_gac=1200, ban_nang=1100, sap_bao=900, o_cho=700, xe_banh_mi=900)
+              ba_gac=1200, ban_nang=1100, sap_bao=900, o_cho=700)
 BUILDING_TARGET = 2500
 SPECIAL_TARGET = 7000
 PROP_TARGET = 600

@@ -10,9 +10,8 @@ extends SceneTree
 ## Cả tuần:        tools/bot_ca_tuan.py (gọi script này cho 7 ngày rồi gộp báo cáo).
 ## Chụp ảnh cần chạy có màn hình (CI dùng xvfb-run); --headless thì bỏ qua ảnh.
 ##
-## Script này không sửa gì trong game. Để tự chạy bộ, nó giữ biến _autotest_frames của main.gd ở 0 mỗi khung
-## hình nên bước dịch chuyển của autotest (20 khung một lần) không bao giờ tới lượt; phần chấm cuối ngày
-## (in "AUTOTEST ... OK") vẫn của main.gd. Sau khi tách main.gd (H1) nên thay bằng một cờ rõ ràng.
+## Khi chạy bộ, script bật TuChoiPho.walk_bot để bot autotest (scripts/tu_choi_pho.gd) thôi dịch chuyển Bơ;
+## phần chấm cuối ngày (in "AUTOTEST ... OK") vẫn là của TuChoiPho.verdict.
 
 ## Vùng chơi 96 x 60 m (City.SIZE) và vành phố tới cầu kênh x -62 (VanhPho). Ra ngoài khung này là rơi khỏi map.
 const OUT_X := 70.0
@@ -93,6 +92,7 @@ func _initialize() -> void:
 	if shot_dir != "":
 		DirAccess.make_dir_recursive_absolute(shot_dir)
 	PlayMode.day = day_id
+	TuChoiPho.walk_bot = walk
 	report = {"day": day_id, "expected": Days.orders(day_id).size(), "title": Days.get_day(day_id).get("title", ""), "walk": walk, "orders": [],
 		"falls": [], "teleports": [], "scenes": [], "shots": [], "seconds": 0.0}
 	_start_ms = Time.get_ticks_msec()
@@ -119,7 +119,6 @@ func _process(_delta: float) -> bool:
 func _physics_process(delta: float) -> bool:
 	if not walk or _main == null or not is_instance_valid(_main):
 		return false
-	_main.set("_autotest_frames", 0)  # chặn bước dịch chuyển của autotest (xem đầu file)
 	if _main.state != _main.State.PLAY or _main.orders.is_empty() or _main.get("_leaving"):
 		_release_keys()
 		return false

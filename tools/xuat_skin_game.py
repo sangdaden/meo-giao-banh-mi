@@ -32,10 +32,11 @@ SOCK = dict(khando='neck', khanran='neck', chuong='neck', nobuom='neck', vonghoa
 # Món thêm sau, đặt cạnh acc.py: acc_moi.py = 7 món bán theo gói (Sang duyệt 21/10),
 # acc_t7.py = 3 món quà Thứ Bảy (G8, Sang duyệt 22/10), acc_dau.py = 13 món đội đầu làm kỹ (Sang duyệt 22/10,
 # ghi đè cành mai, nón phớt, ly cà phê của hai module trước), co_duoi.py = 11 món cổ + đuôi làm kỹ,
-# acc_mc.py = 11 món mặt + chân làm kỹ (Sang duyệt 22/10; đồ chân đã tách sẵn từng chiếc, tên <bộ phận>__FL...).
+# acc_mc.py = 11 món mặt + chân làm kỹ (Sang duyệt 22/10; đồ chân đã tách sẵn từng chiếc, tên <bộ phận>__FL...),
+# vong_luc_lac.py = vòng cổ lục lạc xương cá, quà "Bạn bốn chân" (Sang duyệt 23/10).
 # Ngân sách tam giác từng bộ phận lấy theo bản đã duyệt (mon_moi/meta_<id>.json) để bản web nhẹ.
 EXTRA = {}
-for _mod in ('acc_moi', 'acc_t7', 'acc_dau', 'co_duoi', 'acc_mc', 'acc_lung'):
+for _mod in ('acc_moi', 'acc_t7', 'acc_dau', 'co_duoi', 'acc_mc', 'acc_lung', 'vong_luc_lac'):
     try:
         _m = __import__(_mod)
     except ImportError:

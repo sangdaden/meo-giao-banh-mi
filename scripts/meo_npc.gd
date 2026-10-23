@@ -49,6 +49,8 @@ const POSES := {
 const HOI_DONG_TAC := "res://assets/models/meo_hoi_dong_tac.json"
 ## Giống chân ngắn: độ hạ gốc (root) của động tác nhân theo hệ số chân, không thì thân lún xuống đất
 const LEG_K := {"vobanh": 0.62}
+## Động tác chào luồng 7: thân nhoài tới lui vài cm (cụng lại tới 6 cm) là một phần động tác, không bỏ như đường đi
+const CLIP_GIU_TOI := ["lui_ngai", "hat_mat", "liem_dau", "cung_lai"]
 const WALK_SPEED := 1.6
 const RUN_SPEED := 4.5
 const LEGS := [["upperarm_FL", "forearm_FL"], ["upperarm_FR", "forearm_FR"], ["thigh_BL", "shin_BL"], ["thigh_BR", "shin_BR"]]
@@ -400,7 +402,8 @@ func _apply_clip() -> void:
 			_skel.set_bone_pose_rotation(idx, _skel.get_bone_pose_rotation(idx).slerp(q.normalized(), w))
 		if ch.has("p") and bone_name == "root":
 			var p: Vector3 = P._clip_v(ch.p, fr) - Vector3(rb.p[0], rb.p[1], rb.p[2])
-			p.z = 0.0  # động tác đi chỗ khác (bật tường...) thì giữ mèo tại chỗ
+			if not _clip in CLIP_GIU_TOI:
+				p.z = 0.0  # động tác đi chỗ khác (bật tường...) thì giữ mèo tại chỗ
 			p.y *= float(LEG_K.get(breed, 1.0))
 			_skel.set_bone_pose_position(idx, _skel.get_bone_pose_position(idx).lerp(_skel.get_bone_rest(idx).origin + p, w))
 

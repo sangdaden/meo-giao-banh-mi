@@ -203,6 +203,9 @@ func _build_day(id: String) -> void:
 	modes.add_child(full)
 	modes.add_child(_mode_button(id, "Chỉ làm bếp", "Kỷ lục bếp %d/3 sao" % kitchen_best if kitchen_best >= 0 else "Chưa làm bếp lần nào", "secondary", PlayMode.Mode.KITCHEN))
 	modes.add_child(_mode_button(id, "Chỉ giao 5 đơn", "Bỏ qua phần bếp", "secondary", PlayMode.Mode.DELIVERY))
+	if id == Days.ORDER[0] and ResourceLoader.exists(PlayMode.TAP_SCENE):  # màn dạy chơi B1
+		modes.add_child(_mode_button(id, "Tập chơi", "3 phút ở sân sau lò bánh", "secondary", PlayMode.Mode.ORDER,
+			func(): PlayMode.start_tutorial(get_tree(), "select")))
 	_first_focus = full
 
 	var h := T.label("Giao một đơn · vào thẳng đơn đó, không tính kỷ lục ca", 20, T.INK, "display")

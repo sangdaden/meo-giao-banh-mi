@@ -364,9 +364,7 @@ func _scold() -> void:
 	_say(0, "Ê con mèo này!", 1.8)
 	_say(1, "Đổ bàn cờ bây giờ!", 1.8)
 	_stun_player(0.4)
-	_sfx("chess_rattle")
-	_sfx("scold_%d" % _rng.randi_range(1, 2))  # 1–2 giọng Ông Bảy, 3–4 Ông Tám
-	get_tree().create_timer(0.5).timeout.connect(func(): _sfx("scold_%d" % _rng.randi_range(3, 4)))
+	_sfx("chess_rattle")  # lời mắng: giọng ú ớ theo bong bóng (_say)
 	_toast("Hai ông mắng rồi: đơn này mất 1 sao!", 2.2)
 	chess_event.emit("mang")
 
@@ -470,6 +468,7 @@ func _say(k: int, text: String, seconds: float) -> void:
 	l.text = text
 	l.visible = true
 	m.speech_t = seconds
+	GiongUO.noi_theo(m.person, text)
 
 
 ## Hết thời gian của suỵt / mắng / reo thì quay lại đánh cờ. Thoại tắt sau speech_t giây.

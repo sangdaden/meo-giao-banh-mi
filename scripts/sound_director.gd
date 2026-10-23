@@ -9,9 +9,9 @@ const TICK_FROM := 5         ## còn bấy nhiêu giây thì đồng hồ bắt 
 const URGENT_FROM := 3       ## từ đây kêu gấp hơn
 const BARK_RANGE := 16.0     ## mèo trong tầm này thì Chó Mực sủa
 const SNORE_RANGE := 14.0    ## mèo trong tầm này thì nghe Chó Mực ngáy
-## Khách nói cảm ơn khi nhận bánh (giọng theo từng người, tên lấy từ main.orders, tức Days)
-const THANKS := {"Chú Tư": "thanks_chu_tu", "Bé Na": "thanks_be_na", "Chị Mây": "thanks_chi_may",
-	"Anh Hùng": "thanks_anh_hung", "Bà Sáu": "thanks_ba_sau"}
+## Khách nói cảm ơn bằng giọng ú ớ khi nhận bánh (tên lấy từ main.orders, tức Days; giọng xem GiongUO).
+## Lời của Cô Ba đã có giọng ú ớ theo bong bóng thoại (residents.gd), nên ở đây không phát câu thu sẵn nữa.
+const THANKS := "Cảm ơn Bơ nha!"
 
 var main: Node
 var _state := -1
@@ -25,7 +25,6 @@ var _snoring := false
 var _late := false
 var _intact := true
 var _bites := 0
-var _hello_at := -10.0
 
 
 func _ready() -> void:
@@ -69,8 +68,6 @@ func _watch_state() -> void:
 		main.State.PLAY:
 			Sound.music("delivery")
 			Sound.ambience("morning")  # Thứ Hai là ca sáng: chim sẻ, chổi tre, rao bánh mì
-			_hello_at = _now()
-			get_tree().create_timer(0.5).timeout.connect(Sound.play.bind("coba_hello"))
 		main.State.END:
 			var total := 0
 			for s in main.results:
@@ -79,8 +76,6 @@ func _watch_state() -> void:
 			Sound.music("", 0.8)
 			var good := total >= 10
 			get_tree().create_timer(1.1).timeout.connect(Sound.music.bind("jingle_win" if good else "jingle_lose", 0.1))
-			# Cô Ba tổng kết sau nhạc kết
-			get_tree().create_timer(3.0).timeout.connect(Sound.play.bind("coba_good" if good else "coba_ok"))
 
 
 func _watch_orders() -> void:
@@ -89,8 +84,6 @@ func _watch_orders() -> void:
 		Sound.play("pickup")
 		Sound.play("paper_slip", 0.0, randf_range(0.95, 1.05))
 		Sound.play("meow_short", -2.0, randf_range(0.95, 1.08))
-		if _now() - _hello_at > 3.0:  # đơn đầu thì Cô Ba vừa chào xong, khỏi nói chồng
-			get_tree().create_timer(0.25).timeout.connect(Sound.play.bind("coba_order"))
 		_late = false
 		_intact = true
 		_bites = main.bites
@@ -132,8 +125,14 @@ func _on_delivered() -> void:
 	if stars == 3:
 		get_tree().create_timer(0.3).timeout.connect(Sound.play.bind("meow"))
 	var i: int = row.get("index", main.order_index - 1)
-	if i >= 0 and i < main.orders.size() and THANKS.has(main.orders[i].who):
-		get_tree().create_timer(0.55).timeout.connect(Sound.play.bind(THANKS[main.orders[i].who]))
+	if i >= 0 and i < main.orders.size():
+		get_tree().create_timer(0.55).timeout.connect(_thank.bind(str(main.orders[i].who)))
+
+
+## Khách đang nói câu riêng (vd Bà Sáu nhắc Mực) thì thôi không cảm ơn chồng lên.
+func _thank(who: String) -> void:
+	if who != "" and not GiongUO.dang_noi(who):
+		GiongUO.noi(who, THANKS)
 
 
 func _now() -> float:

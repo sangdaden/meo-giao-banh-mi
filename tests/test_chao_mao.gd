@@ -32,7 +32,7 @@ func _run() -> void:
 func _hang() -> void:
 	var praised := [0]
 	var hook := Vector3(-20.0, 2.45, 30.0)
-	var c := ChaoMao.hang(world, hook, false, PI / 2.0)
+	var c := ChaoMao.hang(world, hook, PI / 2.0)
 	c.praise = func(): praised[0] += 1
 	await process_frame
 	_check(c.is_in_group("con_vat") and c.has_method("on_called"), "lồng chào mào theo hợp đồng ConVat")

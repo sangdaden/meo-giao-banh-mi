@@ -2,7 +2,7 @@ class_name ChaoMao
 extends Node3D
 ## Chim chào mào trong lồng tre (luồng "Bồ câu và chim", K3 + K4). Model đã duyệt 23/10 (trang phác thảo con vật mới,
 ## assets/models/chim/): chao_mao (908 tam giác, clip dau, hot, nhay, ria_long, vo_canh, nghieng_dau), bản nhẹ
-## chao_mao_nhe (476); long_tre (1 558) / long_tre_nhe (694), cua_long. Mặt trước +Z, gốc lồng ở giữa đáy.
+## chao_mao_nhe (476); long_tre (1 558), cua_long. Mặt trước +Z, gốc lồng ở giữa đáy.
 ## - K3: lồng của Ông Bảy treo dưới tán cây lớn ở góc cờ (ChessCorner gọi ChaoMao.for_chess(self)). Bơ bấm Q gần
 ##   lồng thì chim hót đáp lại (clip hot, tiếng "líu lo"); hót đối 3 lần thì Ông Bảy khen.
 ## - K4: chim thật trong vài lồng ban công (long_chim P4 do NhaRap gắn tường, ghi chỗ ở NhaRap.bird_cages):
@@ -34,12 +34,11 @@ var _rng := RandomNumberGenerator.new()
 
 
 ## Lồng tre treo ở `hook` (điểm móc), có chim bên trong. yaw: xoay mặt trước lồng.
-static func hang(parent: Node3D, hook: Vector3, light := false, yaw := 0.0) -> ChaoMao:
+static func hang(parent: Node3D, hook: Vector3, yaw := 0.0) -> ChaoMao:
 	var c := ChaoMao.new()
-	c.nhe = light
 	c.position = hook
 	c.rotation.y = yaw
-	var cage := _put(c, "long_tre_nhe" if light else "long_tre", Vector3(0, -HOOK_Y, 0))
+	var cage := _put(c, "long_tre", Vector3(0, -HOOK_Y, 0))
 	_put(cage, "cua_long", DOOR)
 	c._add_bird(Vector3(0, -HOOK_Y, 0) + PERCH)
 	parent.add_child(c)  # sau cùng: _ready cần chim đã có
@@ -60,7 +59,7 @@ static func in_cage(parent: Node3D, xf: Transform3D) -> ChaoMao:
 ## K3: lồng chào mào của Ông Bảy dưới tán cây lớn góc cờ (cây ở CENTER + (-1,7; 1,7), tán từ ~2,9 m).
 static func for_chess(chess: Node3D, praise := Callable()) -> ChaoMao:
 	var hook := ChessCorner.CENTER + Vector3(-1.45, 2.45, 0.35)
-	var c := hang(chess, hook, false, PI / 2.0)  # mặt lồng nhìn về phía bàn cờ (+X)
+	var c := hang(chess, hook, PI / 2.0)  # mặt lồng nhìn về phía bàn cờ (+X)
 	var cord := CylinderMesh.new()  # dây treo lên cành
 	cord.top_radius = 0.006
 	cord.bottom_radius = 0.006

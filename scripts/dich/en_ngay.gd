@@ -435,4 +435,8 @@ const EN := {
 	"Cười lên nào cả hội!": "Everybody smile!",
 	# scripts/ngay/thu_hai.gd, thu_sau.gd (Cách chơi: chả cá cho Mực, scripts/muc_tuan.gd)
 	"thả chả cá ở đầu hẻm 42 cho Mực ngủ say": "drop fish cake at the mouth of Hẻm 42 so Mực sleeps soundly",
+	# luồng "Bồ câu và chim" K3, K4: chào mào trong lồng
+	"líu lo": "tweet tweedle",
+	"Chào mào hót đáp lại Bơ: líu lo!": "The bulbul sings back to Bơ: tweet tweedle!",
+	"Con mèo này hót đối với chim tui được nè!": "This cat can sing along with my bird!",
 }

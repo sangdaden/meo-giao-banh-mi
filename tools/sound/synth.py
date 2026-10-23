@@ -1258,6 +1258,39 @@ def basket_topple():
     return fade(x, 0, 0.15)
 
 
+# ---------------------------------------------------------------- chim (luồng "Bồ câu và chim")
+
+def bird_whistle(f0, f1, dur, vib=0.0):
+    """Một tiếng huýt chim: sóng sin quét cao độ f0 -> f1, có rung nhẹ, lên nhanh tắt nhanh."""
+    t = t_of(dur)
+    k = t / dur
+    f = f0 + (f1 - f0) * (3 * k * k - 2 * k * k * k) + vib * np.sin(2 * np.pi * 38 * t)
+    x = np.sin(2 * np.pi * np.cumsum(f) / SR) + 0.12 * np.sin(4 * np.pi * np.cumsum(f) / SR)
+    env = np.minimum(1.0, t / 0.008) * np.minimum(1.0, (dur - t) / 0.02)
+    return x * np.clip(env, 0, 1)
+
+
+def chao_mao_hot():
+    """Chào mào hót: một chuỗi 'líu lo' 5–6 nốt huýt quét lên xuống quanh 2–4 kHz, nốt cuối kéo dài."""
+    x = silence(1.5)
+    notes = [(2400, 3300, 0.09), (3300, 2600, 0.08), (2600, 3600, 0.1), (3500, 2900, 0.07), (2200, 3100, 0.12),
+        (3100, 2500, 0.26)]
+    st = 0.02
+    for f0, f1, d in notes:
+        j = rng.uniform(0.94, 1.06)
+        mix_at(x, bird_whistle(f0 * j, f1 * j, d, vib=60.0), st, rng.uniform(0.7, 1.0))
+        st += d + rng.uniform(0.03, 0.07)
+    return fade(reverb(x, wet=0.12, size=0.4), 0, 0.1)
+
+
+def chao_mao_chiep():
+    """Chào mào kêu khẽ một tiếng 'chiếp' khi nhảy trong lồng."""
+    x = silence(0.25)
+    mix_at(x, bird_whistle(3400, 2700, 0.06), 0.01, 1.0)
+    mix_at(x, bird_whistle(3000, 3500, 0.05), 0.1, 0.7)
+    return fade(x, 0, 0.05)
+
+
 def build_voice_jobs():
     """Mọi câu nói trong game. Muốn đổi lời: sửa chữ ở đây rồi chạy lại file đó."""
     lines = {
@@ -1413,6 +1446,9 @@ def build():
         "cart_rattle": (cart_rattle, "ogg"),
         "cart_bump": (cart_bump, "wav"),
         "basket_topple": (basket_topple, "wav"),
+        # Chim chào mào (K3 góc cờ, K4 lồng ban công)
+        "chao_mao_hot": (chao_mao_hot, "wav"),
+        "chao_mao_chiep": (chao_mao_chiep, "wav"),
     }
     jobs.update(build_voice_jobs())  # Cô Ba, khách, hai ông đánh cờ
     global rng

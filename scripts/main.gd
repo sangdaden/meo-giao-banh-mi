@@ -131,6 +131,7 @@ func _ready() -> void:
 		add_child(n)
 		day_nodes.append(n)
 	ConVat.setup(player, self)  # phím Q ở mọi ngày: Bơ kêu meo, con vật gần đó đáp lại (scripts/con_vat.gd)
+	ChaoMao.balconies(self)  # K4: chim chào mào thật trong vài lồng ban công gần đường lớn (scripts/chao_mao.gd)
 
 	stamps = StampsScript.new()
 	stamps.name = "TemCoBa"

@@ -453,4 +453,6 @@ const EN := {
 	"Đầy đủ": "Full",
 	"Ngắn": "Short",
 	"Tắt": "Off",
+	# scripts/ui/settings_panel.gd (mèo hàng xóm)
+	"Mèo chỉ đường khi lạc": "Cats show the way when lost",
 }

@@ -35,7 +35,7 @@ func _run() -> void:
 	var player: Node3D = scene.get("player")
 	if player:
 		player.visible = false
-	var at := City.BAKERY_POINT + Vector3(2.4, 0, 0.2)
+	var at := City.BAKERY_POINT + Vector3(2.4, 0, 0.2)  # chỗ xe ngày nắng: ngày mưa vẫn nhìn từ đây vào lò
 	var cam := Camera3D.new()
 	cam.fov = 60.0
 	cam.far = 300.0

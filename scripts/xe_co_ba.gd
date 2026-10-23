@@ -11,6 +11,27 @@ const TRAY := Vector3(-0.21, TOP, 0.05)
 const BODY := Vector3(1.5, 1.38, 0.68)  ## thân xe + tủ kính, để làm hộp va chạm
 
 
+## Trời mưa (Thứ Tư, hoặc -- --buoi=pho_mua): xe và Cô Ba vào trong gian hàng tầng trệt lò (sâu 2,7 m sau mặt tiền),
+## trước lò dựng dù quán G5 (du_quan_mo, Sang duyệt 22/10) che chỗ nhận bánh.
+static func sheltered() -> bool:
+	return AnhSang.PRESETS[AnhSang.preset_for_day(PlayMode.day)].get("weather", "") == "mua"
+
+
+## Chỗ đặt xe: ngày nắng ra mép vỉa hè; ngày mưa trong gian hàng, cách mặt tiền (z = BAKERY_POINT.z - 1,2) khoảng 1,1 m.
+static func cart_pos() -> Vector3:
+	var p := City.BAKERY_POINT
+	return Vector3(p.x + 0.4, 0, p.z - 2.3) if sheltered() else Vector3(p.x + 2.4, 0, p.z + 0.2)
+
+
+## Chỗ Cô Ba đứng: luôn sau xe, nhìn ra đường.
+static func coba_pos() -> Vector3:
+	return cart_pos() + Vector3(0, 0, -0.8)
+
+
+## Dù trước lò ngày mưa: lệch khỏi tâm vòng nhận bánh để cán dù không chắn đường Bơ.
+const DU_AT := Vector3(0.9, 0, 0.8)
+
+
 ## Đặt xe vào parent tại pos (giữa đáy thân xe), quay rot_y. collide = có hộp va chạm (màn phố).
 static func put(parent: Node, pos: Vector3, rot_y := 0.0, collide := true) -> Node3D:
 	var root := Node3D.new()
@@ -41,6 +62,8 @@ static func put(parent: Node, pos: Vector3, rot_y := 0.0, collide := true) -> No
 			mi.material_override = PhoModels.material()  # màu đỉnh chung: Blocks.merge_static gộp vào ô phố
 	if collide:
 		Blocks.collider(root, BODY, Vector3(0, BODY.y / 2.0, 0), Blocks.LAYER_PROP)
+		if sheltered():
+			ThuTuModels.put(parent, "du_quan_mo", City.BAKERY_POINT + DU_AT, 0.3)
 	return root
 
 

@@ -10,6 +10,8 @@ Game 3D góc nhìn thứ ba làm bằng **Godot 4** (ráp game) và **Blender** 
 |---|---|
 | ![Lò bánh](docs/lo-banh.png) | ![Chó Mực](docs/cho-muc.png) |
 
+Làm việc trên repo (luật độ khó, ngân sách, cách chạy test, bản đồ file, cách tránh đụng PR): xem [CLAUDE.md](CLAUDE.md).
+
 ## Chơi ngay trên trình duyệt
 
 **https://sangdaden.github.io/meo-giao-banh-mi/**

@@ -73,13 +73,10 @@ Khi thêm tiếng lấy từ nơi khác, ghi thêm một dòng vào bảng cuố
 | meow_startle.wav | Bơ giật mình (bị đớp, bị xe tông) | tự tổng hợp, CC0 |
 | squish.wav | bánh bị dập khi rơi cao | tự tổng hợp, CC0 |
 | paper_slip.wav | Cô Ba đưa phiếu đơn | tự tổng hợp, CC0 |
-| coba_hello.ogg, coba_order_1..3.ogg, coba_good.ogg, coba_ok.ogg | Cô Ba: chào đầu ca, giao đơn, tổng kết cuối ngày (giọng tổng hợp từ chữ) | tự tổng hợp, CC0 |
-| thanks_chu_tu/be_na/chi_may/anh_hung/ba_sau.ogg | khách cảm ơn khi nhận bánh, mỗi người một giọng | tự tổng hợp, CC0 |
 | scale_clank.wav | Thứ Ba: cân đĩa ở sạp chợ | tự tổng hợp, CC0 |
 | chess_slap_1..3.wav | Thứ Ba: quân cờ tướng đập xuống bàn | tự tổng hợp, CC0 |
 | chess_rattle.wav | Thứ Ba: đụng bàn cờ, quân nảy và rớt | tự tổng hợp, CC0 |
 | shush.wav | Thứ Ba: "suỵt!" | tự tổng hợp, CC0 |
-| scold_1..4.ogg | Thứ Ba: Ông Bảy (1, 2) và Ông Tám (3, 4) mắng | tự tổng hợp, CC0 |
 | check_cheer.ogg | Thứ Ba: "Chiếu tướng!", người xem "ồ" và vỗ tay | tự tổng hợp, CC0 |
 | egg_crack.wav | Thứ Ba: một quả trứng vỡ trong túi | tự tổng hợp, CC0 |
 | nylon_1..3.wav | Thứ Ba: túi nilon sột soạt | tự tổng hợp, CC0 |
@@ -94,3 +91,10 @@ Chưa có.
 
 | File | Link gốc | Tác giả | Giấy phép |
 |---|---|---|---|
+
+## Giọng ú ớ (không có file)
+
+Lời thoại của mọi nhân vật (Cô Ba, khách, hai ông đánh cờ, người Thứ Sáu, Thứ Bảy, mèo Hội mèo) phát bằng giọng líu lo
+tự tổng hợp ngay lúc chơi trong `scripts/giong_uo.gd`: mỗi âm tiết một tiếng ngắn, cao độ theo dấu thanh, âm sắc theo
+nguyên âm. Không dùng mẫu âm thanh bên ngoài, không ElevenLabs; tự làm, CC0. Câu mẫu nghe thử xuất bằng
+`tools/giong_uo/xuat_mau.gd`. Các câu thu sẵn cũ (coba_*, thanks_*, scold_*) đã bỏ.

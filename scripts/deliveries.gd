@@ -913,6 +913,7 @@ func _deliver_sau(i: int) -> void:
 	_celebrate(i, "goi_muc")  # nhận bánh rồi quay ra hẻm gọi Mực
 	var sau: Nguoi = _people.get(i)
 	_speech.text = "\"Mực, đừng làm bé mèo sợ!\""
+	GiongUO.noi("Bà Sáu", _speech.text, sau)
 	_speech.global_position = (sau.global_position + Vector3(0, 1.6, 0)) if sau else orders[i].pos + Vector3(0, 1.8, 0)
 	_speech.visible = true
 	get_tree().create_timer(3.5).timeout.connect(func(): _speech.visible = false)

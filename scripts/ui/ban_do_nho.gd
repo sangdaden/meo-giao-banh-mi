@@ -298,6 +298,7 @@ func _draw_names() -> void:
 
 
 func _text(f: Font, at: Vector2, s: String, fs: int, col: Color, outline: Color) -> void:
+	s = tr(s)  # draw_string không tự dịch như Label (bản tiếng Anh, scripts/ngon_ngu.gd)
 	var w := f.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	var p := at + Vector2(-w / 2.0, fs * 0.35)
 	draw_string_outline(f, p, s, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 4, outline)

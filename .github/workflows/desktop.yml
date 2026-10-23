@@ -216,6 +216,12 @@ jobs:
           # Chữ hướng dẫn theo ngày (B2) và thẻ nhiệm vụ một dòng (F1): Cách chơi có Giữ R, Thứ Bảy không "Đơn 1/5", Tab mở thẻ
           timeout 300 ~/godot/godot --headless --path . -s tests/test_chu_huong_dan.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee chu_huong_dan.log
           grep -q "CHU HUONG DAN TEST OK" chu_huong_dan.log
+          # Bản tiếng Anh (F3): bảng dịch, menu hiện tiếng Anh, tiếng Việt vẫn mặc định; in chữ có dấu chưa dịch
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_ngon_ngu.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee ngon_ngu.log
+          grep -q "NGON NGU TEST OK" ngon_ngu.log
+          # Thứ Hai chơi bằng tiếng Anh, in các câu còn tiếng Việt (THIEU DICH)
+          timeout 600 ~/godot/godot --headless --path . -- --autotest --lang=en --dich-thieu 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee thu_hai_en.log
+          grep -q "AUTOTEST OK" thu_hai_en.log
           mkdir -p export
           ~/godot/godot --headless --path . --export-release "macOS" "export/$ZIP_NAME"
           unzip -l "export/$ZIP_NAME" | grep -q "_CodeSignature/CodeResources"

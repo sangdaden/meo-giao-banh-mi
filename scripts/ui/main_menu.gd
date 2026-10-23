@@ -115,6 +115,7 @@ func _ready() -> void:
 	var ver := T.label("Bản chơi thử · %s" % ("web" if OS.has_feature("web") else "Windows"), 14, T.MUTED, "bold")
 	T.place(ver, 0.0, 1.0, Rect2(72, -40, 400, 24))
 	add_child(ver)
+	add_child(_lang_button())
 
 	wardrobe = WardrobePanel.new()
 	wardrobe.visible = false
@@ -364,3 +365,19 @@ class GlassShine:
 		var h := size.y
 		draw_colored_polygon(PackedVector2Array([Vector2(0, 0), Vector2(110, 0), Vector2(110 - h * 0.6, h), Vector2(0, h)]), Color(1, 1, 1, 0.16))
 		draw_colored_polygon(PackedVector2Array([Vector2(150, 0), Vector2(180, 0), Vector2(180 - h * 0.6, h), Vector2(150 - h * 0.6, h)]), Color(1, 1, 1, 0.1))
+
+
+## Nút đổi nhanh tiếng Việt / English (F3), ghi tên ngôn ngữ còn lại. Cài đặt > Ngôn ngữ cũng đổi được.
+func _lang_button() -> Button:
+	var ng := get_node_or_null("/root/NgonNgu")
+	var b := T.button("", "secondary", 40, 15)
+	b.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	T.place(b, 0.0, 1.0, Rect2(300, -50, 150, 40))
+	var show := func() -> void:
+		b.text = "Tiếng Việt" if ng and ng.ma == "en" else "English"
+	show.call()
+	b.pressed.connect(func() -> void:
+		if ng:
+			ng.dat("vi" if ng.ma == "en" else "en")
+		show.call())
+	return b

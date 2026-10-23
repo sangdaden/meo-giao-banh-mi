@@ -57,7 +57,9 @@ def basis_of(pb):
 
 
 bones = list(arm.pose.bones)
-for name, an in anims.ANIMS.items():
+import os
+ONLY = os.environ.get('ONLY', '')   # vd ONLY=cho_khen,dui_dau: chỉ xuất mấy động tác này (rồi xuat_json.py --gop)
+for name, an in [(k, a) for k, a in anims.ANIMS.items() if not ONLY or k in ONLY.split(',')]:
     keys = [(k, rig.full(merge_base(an, d))) for k, d in an['keys']]
     R.modes = {k: an.get('modes', {}).get(k, 'w') for k in rig.LEGS}
     n = int(round(an['dur'] * FPS))

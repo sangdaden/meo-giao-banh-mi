@@ -91,6 +91,7 @@ func _ready() -> void:
 	_switch_row(right, "Gợi ý phím", "hints")
 	_switch_row(right, "Mẹo lần đầu chơi", "tips")
 	_switch_row(right, "Bóng kỷ lục (lần giao nhanh nhất)", "bong_ky_luc")
+	_segment_row(right, "Khoảnh khắc giao bánh", "khoanh_khac", [["Đầy đủ", 0], ["Ngắn", 1], ["Tắt", 2]])
 	_switch_row(right, "Chế độ thử thách (giờ gấp, phạt nặng)", "thu_thach")
 
 	var foot := HBoxContainer.new()

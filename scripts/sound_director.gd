@@ -115,6 +115,9 @@ func _on_delivered() -> void:
 	var stars: int = main.results[-1]
 	var row: Dictionary = main.score_rows[-1] if main.score_rows.size() == main.results.size() else {}
 	Sound.play("deliver", -4.0 if row.get("late", false) else 0.0)
+	var kk := get_tree().get_first_node_in_group("khoanh_khac_giao")
+	if kk and kk.sap_dien():
+		return  # khoảnh khắc giao bánh tự phát sao, xu, lời cảm ơn đúng lúc sao bật (scripts/khoanh_khac_giao.gd)
 	for i in stars:
 		get_tree().create_timer(0.35 + i * 0.22).timeout.connect(Sound.play.bind("star_%d" % (i + 1)))
 	var after := 0.35 + stars * 0.22

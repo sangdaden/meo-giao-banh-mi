@@ -2,7 +2,8 @@
 Mỗi động tác: thời lượng, lặp hay không, và từng khung (30 khung/giây) của các xương có cử động:
 xoay (quaternion x,y,z,w), vị trí (chỉ xương có dịch), tỉ lệ (chỉ xương mắt). Số liệu là biến đổi cục bộ của xương
 y như glTF (3 số lẻ; kênh đứng yên chỉ ghi 1 khung), nên Godot đặt thẳng vào set_bone_pose_*. Thêm cờ "tui3" (túi 3 ổ đang ngậm hay không) theo từng khung.
-Chạy: python3 tools/dong_tac_bo/xuat_json.py <bo_g2.glb> assets/models/bo_dong_tac.json"""
+Chạy: python3 tools/dong_tac_bo/xuat_json.py <bo_g2.glb> assets/models/bo_dong_tac.json
+Thêm vài động tác vào file có sẵn (vd 4 clip A3 xuất riêng bằng ONLY=cho_khen,...): thêm cờ --gop."""
 import json
 import struct
 import sys
@@ -11,6 +12,7 @@ sys.path.insert(0, __file__.rsplit('/', 1)[0])
 import anims  # noqa: E402  (chỉ cần math, không cần bpy)
 
 src, dst = sys.argv[1], sys.argv[2]
+GOP = '--gop' in sys.argv
 b = open(src, 'rb').read()
 jl = struct.unpack('<I', b[12:16])[0]
 J = json.loads(b[20:20 + jl])
@@ -58,5 +60,9 @@ for an in J['animations']:
             vals = vals[:1]  # đứng yên suốt động tác: chỉ giữ một khung
         clip['bones'].setdefault(node, {})[key] = [round(x, 3) for v in vals for x in v]
     out['clips'][an['name']] = clip
+if GOP:
+    cu = json.load(open(dst))
+    cu['clips'].update(out['clips'])
+    out = cu
 json.dump(out, open(dst, 'w'), separators=(',', ':'))
 print('xong', dst, len(out['clips']), 'động tác')

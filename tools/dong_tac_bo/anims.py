@@ -80,15 +80,15 @@ A('keo_len', day='T5', title='Kéo người lên', dur=.6, loop=False, ctx='ledg
         'khuỷu chống, chân sau leo lên mặt tường. 0,36–0,6 s: hông lên, chân sau bước lên mặt mép, đứng thẳng (0,52 m cao, 0,32 m vào trong).',
   game='Code đang tự dời gốc mèo (lên trước, rồi vào trong); khi ráp, trừ quãng dời đó khỏi root của clip.')
 
-PIPE = dict(root=(0, .45, .33, 84), head=(-50, 0, 0), chest=(-4,),
-            FL=(-.035, .76, .11, -80), FR=(.035, .72, .11, -80), BL=(-.005, .30, .31, -50), BR=(.005, .30, .31, -50),
-            tail=(-60, 0, -10, 0, 0, 0, 0, 0))
+PIPE = dict(root=(0, .45, .29, 84), head=(-50, 0, 0), chest=(-4,),
+            FL=(-.035, .76, .11, -80), FR=(.035, .72, .11, -80), BL=(-.02, .30, .31, -50), BR=(.02, .30, .31, -50),
+            tail=(-60, 25, -10, 0, 0, 0, 0, 0))
 A('leo_ong', day='T5', title='Leo ống nước', dur=.8, loop=True, ctx='pipe', bag=True,
   keys=cyc(8, .8, lambda u: merge(PIPE, dict(
-      root=(0, .45 + .03 * S(u * TAU), .33, 84 - 3 * S(u * TAU)),
+      root=(0, .45 + .03 * S(u * TAU), .29, 84 - 3 * S(u * TAU)),
       FL=(-.035, .76 + .05 * S(u * TAU), .11, -80), FR=(.035, .72 - .05 * S(u * TAU), .11, -80),
-      BL=(-.005, .30 + .05 * S(u * TAU + 2), .31, -50), BR=(.005, .30 - .05 * S(u * TAU + 2), .31, -50),
-      tail=(-60, 12 * S(u * TAU), -10, 15 * S(u * TAU - 1), 0, 15 * S(u * TAU - 2), 0, 10 * S(u * TAU - 3))))),
+      BL=(-.02, .30 + .05 * S(u * TAU + 2), .31, -50), BR=(.02, .30 - .05 * S(u * TAU + 2), .31, -50),
+      tail=(-60, 25 + 8 * S(u * TAU), -10, 15 * S(u * TAU - 1), 0, 15 * S(u * TAU - 2), 0, 10 * S(u * TAU - 3))))),
   shots=[0, .2, .4, .6], main=.2,
   notes='Ôm ống (đường kính 10 cm) bằng cả bốn chân, bụng sát ống, đầu ngẩng nhìn lên. Chân trước vòng qua hai bên ống, '
         'chân sau co lên kẹp hai bên ống (Sang 23/10: dáng cũ chân sau buông thõng). Chân trước với lên so le, '

@@ -121,19 +121,41 @@ func build(city_root: Node3D) -> void:
 	routes["be_na"] = be_na
 	# Đơn 4: mái hiên khối 1 → cổng chào qua đường lớn → dốc xuống đầu hẻm 42
 	routes["chu_nam"] = _arch(crate_top_x)
-	# Chuồng bồ câu: sân thượng phẳng nhất khối 2 (đơn 3 đi ngang), lệch về phía tây chừa chỗ bồn nước
-	var flat: Array = b2[0]
-	for h in b2:
-		if _flatness(h) < _flatness(flat):
-			flat = h
-	var cx: float = flat[0] + (flat[1] - flat[0]) * 0.3
-	coop = Vector3(cx, roof_y(flat, -12.4, cx), -12.4)
-	perch = Vector3((flat[0] + flat[1]) / 2.0, roof_y(flat, -10.4), -10.4)
+	var spots := coop_spots(b2)
+	coop = spots[0]
+	perch = spots[1]
 	_coop(coop)
 	for key in routes:
 		_paw_trail(routes[key])
 	_draw_paws()
 	Blocks.merge_static(self)
+
+
+## Chuồng bồ câu: sân thượng phẳng nhất khối 2 (đơn 3 đi ngang), lệch về phía tây chừa chỗ bồn nước.
+## Trả [chỗ chuồng, chỗ đàn đậu]. b2: nhà dãy nam khối 2 (_scan_roofs(...)[1]). z: chỗ chuồng theo chiều sâu mái.
+static func coop_spots(b2: Array, z := -12.4) -> Array:
+	var flat: Array = b2[0]
+	for h in b2:
+		if _flatness(h) < _flatness(flat):
+			flat = h
+	var cx: float = flat[0] + (flat[1] - flat[0]) * 0.3
+	return [Vector3(cx, roof_y(flat, z, cx), z), Vector3((flat[0] + flat[1]) / 2.0, roof_y(flat, -10.4), -10.4)]
+
+
+## Chuồng bồ câu trên mái khối 2 của phố đã dựng (root: nút chứa nhà, như main): [chỗ chuồng, chỗ đứng trên gờ
+## tường mặt tiền ngay trước chuồng]. Rỗng nếu không đo được mái. Thứ Bảy (bồ câu non) đặt chuồng sát mép mái
+## phía đường (z -7,9), chim đậu trên gờ cho thấy được từ vỉa hè.
+static func coop_in(root: Node3D, z := -12.4) -> Array:
+	var roofs := _scan_roofs(root)
+	if roofs[1].is_empty():
+		return []
+	var c: Vector3 = coop_spots(roofs[1], z)[0]
+	var ledge := c.y
+	for h: Array in roofs[1]:
+		var prof := _prof(h)
+		if c.x > h[0] and c.x < h[1] and not prof.is_empty():
+			ledge = maxf(ledge, prof[1][0])
+	return [c, Vector3(c.x, ledge, FACE_Z - 0.12)]
 
 
 # ---------------------------------------------------------------- đo mái

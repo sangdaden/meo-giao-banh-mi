@@ -64,6 +64,7 @@ var hud: CanvasLayer
 var ui: ThuBayHud
 var photo: ChupAnh
 var pigeons: BoCau
+var baby_pigeon: BoCauNon
 var people := {}                   ## id -> Nguoi
 var autotest := false
 
@@ -112,6 +113,12 @@ func _ready() -> void:
 	pigeons.player = player
 	add_child(pigeons)
 	pigeons.perch_at(PIGEON_HOME)
+	pigeons.toast = toast  # K1: Q gần đàn thì rắc vụn bánh
+	baby_pigeon = BoCauNon.new()  # K2: bồ câu non lạc đàn, dẫn về chuồng mái khối 2 (không nằm trong sổ)
+	baby_pigeon.player = player
+	baby_pigeon.city_root = main
+	baby_pigeon.toast = toast
+	add_child(baby_pigeon)
 	ui = ThuBayHud.new()
 	ui.day = self
 	add_child(ui)

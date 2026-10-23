@@ -33,3 +33,22 @@ anti_aliasing/quality/msaa_3d.web=0
 lights_and_shadows/directional_shadow/size.web=2048
 lights_and_shadows/directional_shadow/soft_shadow_filter_quality.web=0
 textures/vram_compression/import_etc2_astc=true
+
+[shader_globals]
+
+cam_cut_from={
+"type": "vec3",
+"value": Vector3(0, 0, 0)
+}
+cam_cut_to={
+"type": "vec3",
+"value": Vector3(0, 0, 0)
+}
+cam_cut_feet={
+"type": "float",
+"value": 0.0
+}
+cam_cut={
+"type": "float",
+"value": 0.0
+}

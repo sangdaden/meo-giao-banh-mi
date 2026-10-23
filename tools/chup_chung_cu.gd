@@ -77,10 +77,10 @@ func _run() -> void:
 
 	# Ống nước
 	bo.enter_pipe(scene.get_children().filter(func(n): return n is Area3D and n.has_meta("top"))[0])
-	_bo_at(Vector3(-0.32, 7.0, scene.PIPE.z), PI / 2.0, "pipe")
-	bo._pipe = bo._pipes[0]
-	bo._wall_n = Vector3.LEFT
+	_bo_at(Vector3(-0.32, 7.0, scene.PIPE.z), 0.0)
+	bo._try_pipe(Vector3.RIGHT)  # ôm ống đúng như trong game (mặt quay vào tường)
 	await _shot("4_ong_nuoc", Vector3(-4.0, 8.0, -4.0), Vector3(-0.2, 7.0, -6.4), 55.0)
+	await _shot("4b_ong_nuoc_ngang", Vector3(-0.3, 7.3, -4.4), Vector3(-0.15, 7.1, -6.6), 45.0)
 
 	# Khe 1,2 m giữa chung cư và nhà bên: bật tường
 	_bo_at(Vector3(-0.55, 2.4, -3.6), PI / 2.0)

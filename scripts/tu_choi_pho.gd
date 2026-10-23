@@ -5,8 +5,15 @@ extends RefCounted
 ## m là node main (scripts/main.gd).
 
 
+## true: Bơ do bot ngoài điều khiển (tests/bot_ca_tuan.gd --bot-di chạy bộ thật), bỏ bước dịch chuyển bên dưới.
+## Phần chấm cuối ngày (verdict) vẫn chạy như thường.
+static var walk_bot := false
+
+
 ## Mỗi 20 khung: mèo tự "dịch chuyển" tới lò rồi tới khách, ghé qua Chó Mực ở đơn boss để thử bị đớp.
 static func step(m: Node) -> void:
+	if walk_bot:
+		return
 	m._autotest_frames += 1
 	if m._autotest_frames % 20 != 0:
 		return

@@ -430,6 +430,6 @@ func _leo_ong() -> void:
 	p.climb = "pipe"
 	p._pipe = p._pipes[0] if p._pipes.size() > 0 else null
 	p._wall_n = Vector3.LEFT
-	p.visual.rotation.y = PI / 2.0
+	p.visual.rotation.y = atan2(p._wall_n.x, p._wall_n.z)  # mặt quay vào tường, ôm ống như trong game (_try_pipe)
 	rig.yaw = PI / 2.0
 	shot.erase("start")

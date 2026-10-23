@@ -1696,6 +1696,9 @@ def g9_clips(R, role, cid):
     if cid in ('ongbay', 'ongtam'):
         side = -1 if cid == 'ongbay' else 1
         out += [('chi_quan_co', 2.0, hold('chi', role, point(side)), True)]
+    if cid == 'ongbay':  # G1: đứng xách lồng chim chờ thang máy chung cư (khung đứng, tay phải gập ra trước)
+        xach = {'upperarm.R': {'fw': 25, 'out': 8}, 'forearm.R': {'fw': 75}, 'hand.R': {'fw': -15}}
+        out += [('xach_long', 3.0, lambda t: add(base(t, R, stand), xach, breathe(3.0)(t)), True)]
     if cid == 'cohai':
         out += [('chong_nanh', 2.4, hold('chongnanh', extra=lambda t: {'head': {'out': osc(t, 1.2) * 6}, 'spine': {'tw': osc(t, 2.4) * 3}}), True),
                 once('vo_tay', 'votay', 1.2, t_in=.15, t_out=.25, extra=lambda t, k: clap(t, k))]

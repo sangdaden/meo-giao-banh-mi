@@ -107,6 +107,7 @@ Ghi chú: luồng **H1 "Tách file chống đụng PR"** (23/10) đang tách `ma
 | Thứ Sáu (đám giỗ, tiệm xe) | `scripts/thu_sau.gd` | "Thứ Sáu trong game" |
 | Thứ Bảy (dạo phố, việc nhỏ, Sổ hàng xóm) | `scripts/thu_bay.gd`, `scripts/viec_nho/`, `scripts/so_hang_xom.gd`, `scripts/chup_anh.gd`, `scripts/anh_chung.gd`, `scripts/ui/thu_bay_hud.gd` | "Thứ Bảy dạo phố" |
 | Chủ Nhật (Hội mèo) | `scripts/chu_nhat.gd`, `scripts/hoi_meo/`, `scripts/meo_npc.gd` | "Hội mèo" |
+| Phim mở đầu, cảnh kết tuần, ảnh 7 ngày | `scripts/phim/` (`phim.gd` chạy chung, `mo_dau.gd`, `ket_tuan.gd`, `canh_phim.gd`, `anh_tuan.gd`), `scenes/phim.tscn`, `tools/phim/do_phim.py` | C1 "Phác thảo mở đầu và kết tuần" |
 | Tiệm, mua đồ bằng tiền boa | `scripts/shop.gd`, `scripts/tiem.gd`, `scripts/ui/wardrobe_panel.gd`, `tools/xuat_skin_game.py` | "Skin mèo và phụ kiện", "Giao diện menu và HUD" |
 | Test, đo, chụp | `tests/`, `tools/do_hieu_nang.gd`, `tools/chup_*.gd` | luồng nào thêm tính năng thì thêm test của mình; I1 bot tự chơi cả tuần |
 | CI | `.github/workflows/` | "Xuất bản Windows tự động"; H2 tự gộp main |

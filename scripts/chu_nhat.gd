@@ -281,6 +281,16 @@ func _finish_week() -> void:
 	var summary := Scoring.end_day(Scoring.STARS_PER_ORDER)  # đơn khay bánh sáng: lưu số lần chơi, tiền boa
 	GameState.set_global("tuan_moi", true)
 	GameState.write_save()
+	if not _autotest and ResourceLoader.exists(Phim.SCENE):
+		# Cảnh kết tuần C1: ảnh chung Hội mèo, Bơ về tiệm, treo huy chương, ngủ; bảng tổng kết và chữ chạy trên phố đêm
+		hud.show_playing_ui(false)
+		var best := 4
+		for m in list:
+			best = mini(best, int(m.rank))
+		Phim.anh_hoi(self, cats.get("ba_muop"), {"medals": list, "neighbour_pages": pages.size(), "week_stars": stars,
+			"week_stars_max": 5 * 5 * Scoring.STARS_PER_ORDER, "extra_medal": "Hàng xóm thân" if full else "", "best": best,
+			"new_week_text": PlayMode.next_label() if PlayMode.continuous else "Tuần mới"})
+		return
 	_summary = TongKetTuan.new()
 	_summary.medals = list
 	_summary.neighbour_pages = pages.size()

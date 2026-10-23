@@ -6,30 +6,52 @@ extends CanvasLayer
 
 signal new_week
 signal to_menu
+signal credit_line(text: String)   ## một dòng chữ chạy vừa lên tới giữa màn hình (phim kết tuần: người đó vẫy tay)
 
 const INK := Color("#3A2418")
 const PAPER := Color("#FFF8EA")
 const AMBER := Color("#E8913A")
 const MEDAL_COLORS := [Color(), Color("#F2C14E"), Color("#C9CED6"), Color("#C98B4A"), Color("#7DB46C")]
 const MEDAL_NAMES := ["", "Vàng", "Bạc", "Đồng", "Tham gia"]
+## Chữ chạy cuối game theo trang C1 Sang duyệt 23/10/2026 (Sang: phần "Làm game" ghi Sang Da Den (Mark Học AI),
+## có dòng "Làm cùng: Claude, trợ lý AI của Anthropic"). Dòng bắt đầu bằng "#" là tiêu đề mục (chữ nhỏ màu hổ phách).
 const CREDITS := [
 	"MÈO GIAO BÁNH MÌ",
-	"",
 	"Một tuần ở khu phố nhỏ",
 	"",
-	"Ý tưởng, thiết kế, duyệt từng con mèo",
-	"Sang",
+	"#Làm game",
+	"Sang Da Den (Mark Học AI)",
+	"ý tưởng, thiết kế màn, duyệt từng con mèo, từng ngôi nhà",
 	"",
-	"Model, rig, animation",
-	"Blender (phong cách D \"Chững chạc\")",
+	"#Diễn viên, theo thứ tự xuất hiện",
+	"Bơ · mèo giao bánh",
+	"Cô Ba · chủ Lò bánh mì Cô Ba",
+	"Chó Mực · gác hẻm 42, sau thành bạn",
+	"Chú Tư sạp báo · Bé Na · Chị Mây cà phê · Anh Hùng tiệm xe",
+	"Bà Sáu · Cô Hai · Chú Năm xe ôm · Chị Thảo",
+	"Ông Bảy · Ông Tám · Chị Thu và em bé",
 	"",
-	"Ráp game",
+	"#Đám giỗ nhà Bà Sáu",
+	"Chú Thành · Cô Loan · Ông Mười · Chị Hạnh · Bé Bin · Bé Mít",
+	"",
+	"#Hội mèo khu phố",
+	"Bà Mướp · Mít · Bột · Mun · Tuyết · Lạc · Gừng · Sữa",
+	"và bà con chợ sáng, người qua đường, đàn bồ câu sân thượng",
+	"",
+	"#Model, rig, animation",
+	"Blender, phong cách D \"Chững chạc\"",
+	"",
+	"#Ráp game",
 	"Godot 4",
 	"",
-	"Bơ · Cô Ba · Chó Mực",
-	"Chú Tư · Bé Na · Chị Mây · Anh Hùng · Bà Sáu",
-	"Cô Hai · Chú Năm · Ông Bảy · Ông Tám · Chị Thu",
-	"Bà Mướp · Mít · Bột · Mun · Tuyết · Lạc · Gừng · Sữa",
+	"#Nhạc và tiếng",
+	"Tự tổng hợp bằng code, phát hành CC0",
+	"",
+	"#Phông chữ",
+	"Baloo 2, Be Vietnam Pro (SIL Open Font License) · DejaVu Sans",
+	"",
+	"#Làm cùng",
+	"Claude, trợ lý AI của Anthropic",
 	"",
 	"Cảm ơn bạn đã giao bánh cùng Bơ!",
 	"",
@@ -45,21 +67,25 @@ var week_stars_max := 0
 var extra_medal := ""        ## "Hàng xóm thân" khi sổ đã đủ trang
 var autotest := false
 var new_week_text := "Tuần mới"   ## chơi liền các ngày: PlayMode.next_label()
+## Phim kết tuần (scripts/phim/ket_tuan.gd): nền mờ nhẹ để thấy phố đêm phía sau, chữ chạy không có nền
+var see_through := false
 
 var _summary: Control
 var _credits: Control
 var _roll: VBoxContainer
 var _rolling := false
 var _end_box: Control
+var _bg: ColorRect
+var _shown := 0
 
 
 func _ready() -> void:
 	layer = 30
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	var bg := ColorRect.new()
-	bg.color = Color(0.11, 0.08, 0.06, 0.82)
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(bg)
+	_bg = ColorRect.new()
+	_bg.color = Color(0.11, 0.08, 0.06, 0.45 if see_through else 0.82)
+	_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(_bg)
 	_summary = _build_summary()
 	add_child(_summary)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -105,6 +131,8 @@ func _build_summary() -> Control:
 
 func _start_credits() -> void:
 	_summary.visible = false
+	if see_through:
+		create_tween().tween_property(_bg, "color:a", 0.0, 0.8)
 	_credits = Control.new()
 	_credits.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_credits.clip_contents = true
@@ -113,8 +141,13 @@ func _start_credits() -> void:
 	_roll.add_theme_constant_override("separation", 14)
 	_roll.custom_minimum_size = Vector2(get_viewport().get_visible_rect().size.x, 0)
 	for line: String in CREDITS:
-		var l := _text(line, 34 if line == CREDITS[0] else 22, AMBER if line == CREDITS[0] else PAPER)
+		var head := line.begins_with("#")
+		var l := _text(line.trim_prefix("#"), 34 if line == CREDITS[0] else (17 if head else 22),
+			AMBER if line == CREDITS[0] or head else PAPER)
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		if see_through:
+			l.add_theme_color_override("font_outline_color", Color(0.06, 0.04, 0.05, 0.9))
+			l.add_theme_constant_override("outline_size", 8)
 		_roll.add_child(l)
 	_credits.add_child(_roll)
 	_roll.position.y = get_viewport().get_visible_rect().size.y
@@ -130,6 +163,10 @@ func _process(delta: float) -> void:
 	if not _rolling:
 		return
 	_roll.position.y -= delta * CREDIT_SPEED * (12.0 if autotest else 1.0)
+	var mid := get_viewport().get_visible_rect().size.y * 0.6
+	while _shown < _roll.get_child_count() and _roll.position.y + (_roll.get_child(_shown) as Control).position.y < mid:
+		credit_line.emit((_roll.get_child(_shown) as Label).text)
+		_shown += 1
 	if _roll.position.y + _roll.size.y < 0.0:
 		_end_credits()
 

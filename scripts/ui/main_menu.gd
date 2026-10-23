@@ -115,6 +115,11 @@ func _ready() -> void:
 	var ver := T.label("Bản chơi thử · %s" % ("web" if OS.has_feature("web") else "Windows"), 14, T.MUTED, "bold")
 	T.place(ver, 0.0, 1.0, Rect2(72, -40, 400, 24))
 	add_child(ver)
+	# Xem lại phim mở đầu (C1, Sang 23/10)
+	var film := T.button("  Xem phim mở đầu", "secondary", 40, 15)
+	T.place(film, 0.0, 1.0, Rect2(262, -60, 205, 40))
+	film.pressed.connect(func(): Phim.mo_dau(get_tree(), "menu"))
+	add_child(film)
 
 	wardrobe = WardrobePanel.new()
 	wardrobe.visible = false
@@ -163,6 +168,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 ## Chơi tiếp: chơi liền các ngày, vào ngày kế tiếp lưu trong hồ sơ. Chọn màn thì nút Chọn màn hoặc Esc.
 func _start() -> void:
+	if not _has_progress():
+		Phim.new_game(get_tree())  # lần đầu: phim mở đầu rồi vào Thứ Hai
+		return
 	PlayMode.play_week(get_tree())
 
 
@@ -204,7 +212,7 @@ func _build_confirm() -> Control:
 	v.add_child(h)
 	var yes := T.button("Chơi mới", "primary", 60, 20)
 	yes.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	yes.pressed.connect(func(): PlayMode.new_game(get_tree()))
+	yes.pressed.connect(func(): Phim.new_game(get_tree()))  # phim mở đầu (bỏ qua được) rồi Thứ Hai tuần 1
 	h.add_child(yes)
 	var no := T.button("Thôi, chơi tiếp", "secondary", 60, 20)
 	no.size_flags_horizontal = Control.SIZE_EXPAND_FILL

@@ -195,6 +195,11 @@ jobs:
           # Nút cứu kẹt (A2): giữ R 1 giây về chỗ an toàn, bấm lại lùi thêm, kẹt yên 4 giây thì nhắc, rơi khỏi bản đồ về chỗ an toàn
           timeout 300 ~/godot/godot --headless --path . -s tests/test_cuu_ket.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee cuu_ket.log
           grep -q "CUU KET TEST OK" cuu_ket.log
+          # Phim mở đầu và cảnh kết tuần (C1): chạy hết kịch bản (nhanh 12 lần), chữ chạy, sáng tuần mới
+          timeout 300 ~/godot/godot --headless --path . res://scenes/phim.tscn -- --phim=mo_dau --phim-test 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee phim_mo_dau.log
+          grep -q "PHIM MO_DAU OK" phim_mo_dau.log
+          timeout 300 ~/godot/godot --headless --path . res://scenes/phim.tscn -- --phim=ket_tuan --phim-test 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee phim_ket_tuan.log
+          grep -q "PHIM KET_TUAN OK" phim_ket_tuan.log
           # Vành phố P1: mép mềm chặn Bơ mà không chặn camera, đầu đường cho Bơ quay đầu, cầu kênh, phông trời
           timeout 300 ~/godot/godot --headless --path . -s tests/test_vanh_pho.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee vanh_pho.log
           grep -q "TEST VANH PHO OK" vanh_pho.log

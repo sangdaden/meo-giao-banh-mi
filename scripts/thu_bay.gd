@@ -10,7 +10,7 @@ extends Node3D
 ## - Giúp đủ DoKho "muc_chapter_after" người thì mở chương Chó Mực (scripts/viec_nho/muc.gd); xong thì Mực đi theo
 ##   Bơ (MucBan) và có thể kết ngày: lên "bồn nước" trên mái hiên cạnh lò bánh ngắm hoàng hôn, nhận thư mời Hội mèo.
 ## - Chụp ảnh tự do P (ChupAnh) bật cả ngày.
-## Người dân G9, đồ việc nhờ G8, mèo lạ G10 là model thật; bồn nước kết ngày và vài đồ nhỏ còn khối tạm.
+## Người, đồ, mèo lạ dùng model đã duyệt (G8, G9, G10); ghế đẩu, võng chị Thu, bồn nước inox thay khối tạm ở G1.
 ## Tự kiểm tra: godot --headless -- --autotest --ngay=thu_bay (bot giúp đủ 10 người, làm chương Mực rồi kết ngày).
 
 const DAY := "thu_bay"
@@ -46,7 +46,7 @@ const REACT := {
 	"ongbay": ["chi_quan_co", "reo"], "cohai": ["chong_nanh", "vo_tay"], "chunam": ["gai_dau", "chi_mai"],
 }
 const HAMMOCK := Vector3(30.6, 0, -15.6)
-## Kết ngày: "bồn nước" (khối tạm) trên mái hiên khối 1 cạnh lò bánh; leo lên bằng chồng thùng góc khối (City.CORNER_STAIR)
+## Kết ngày: bồn nước inox trên mái hiên khối 1 cạnh lò bánh; leo lên bằng chồng thùng góc khối (City.CORNER_STAIR)
 const END_SPOT := Vector2(-28.8, -6.55)
 ## Mái tôn ấm để ngủ trưa (mái hiên khối 5 phía tây quán cà phê)
 const NAP_SPOT := Vector2(1.0, 6.55)
@@ -510,7 +510,7 @@ func _build_people() -> void:
 		if spec.get("seat", false):
 			var h: float = Nguoi.SEAT.get(model, 0.45)
 			var back := Vector3(0, 0, -0.08).rotated(Vector3.UP, spec.yaw)
-			Blocks.solid_box(self, Vector3(0.36, h, 0.36), spec.pos + back + Vector3(0, h / 2.0, 0), Color("#3D7FC1"), Blocks.LAYER_PROP)
+			DoThem.stool(self, spec.pos + back, h, spec.yaw)
 			n.add_collision(Vector3(0.5, 1.15, 0.65), Vector3(0, 0.58, 0.08))
 		elif not spec.get("chair", false):
 			n.add_collision(Vector3(0.5, 1.6, 0.35), Vector3(0, 0.8, 0))
@@ -518,12 +518,20 @@ func _build_people() -> void:
 			var stand := Blocks.collider(self, Vector3(1.7, 0.95, 0.7), Vector3(0.4, 0.475, -6.6), Blocks.LAYER_PROP)
 			PhoModels.put(stand, "sap_bao", Vector3(0, -0.475, 0))
 		if id == "chithu":
-			# Võng và em bé (khối tạm, chờ G1): hai cọc, tấm võng, em bé quấn khăn
-			for dx in [-0.9, 0.9]:
-				Blocks.solid_box(self, Vector3(0.08, 1.1, 0.08), HAMMOCK + Vector3(dx, 0.55, 0), Color("#9B6A3A"), Blocks.LAYER_PROP)
-			Blocks.box(self, Vector3(1.4, 0.06, 0.5), HAMMOCK + Vector3(0, 0.55, 0), Color("#E39C7A"))
-			Blocks.box(self, Vector3(0.36, 0.14, 0.2), HAMMOCK + Vector3(0, 0.64, 0), Color("#FFF8EA"))
-			Blocks.label(self, "Chị Thu (tạm)", spec.pos + Vector3(0, 2.0, 0), 36)
+			# Võng và em bé ngủ: model chung cư (chung_cu/vong.glb, em_be.glb), chỉ giữ em bé ngủ, đưa về giữa võng
+			var vong: Node3D = load("res://assets/models/chung_cu/vong.glb").instantiate()
+			vong.position = HAMMOCK
+			add_child(vong)
+			var be: Node3D = load("res://assets/models/chung_cu/em_be.glb").instantiate()
+			be.position = HAMMOCK + Vector3(0, 0.66, 0)
+			add_child(be)
+			for c: Node in be.find_children("w_*", "", true, false):
+				if c.name != "w_em_be_ngu":
+					c.free()
+			var ngu: MeshInstance3D = be.find_child("w_em_be_ngu", true, false)
+			ngu.position.x -= (ngu.transform * ngu.get_aabb().get_center()).x
+			for dx in [-1.1, 1.1]:  # hai chân khung võng
+				Blocks.collider(self, Vector3(0.16, 1.46, 0.66), HAMMOCK + Vector3(dx, 0.73, 0), Blocks.LAYER_PROP)
 		people[id] = n
 	# Người phố đã dựng sẵn: Cô Ba (residents.gd), Cô Hai, Chú Năm (hàng xóm residents.gd), Ông Bảy (ChessCorner)
 	var residents: Node = main.get("residents")
@@ -564,24 +572,19 @@ func _end_pos() -> Vector3:
 	return ViecNho.surface(get_world_3d(), END_SPOT.x, END_SPOT.y)
 
 
-## Sau chương Mực: bồn nước (khối tạm) và 2 mèo lạ trên mái hiên cạnh lò bánh.
+## Sau chương Mực: bồn nước inox (G1) và 2 mèo lạ trên mái hiên cạnh lò bánh.
 func _show_end_spot() -> void:
 	_end_ready = true
 	if not _end_nodes.is_empty():
 		return
 	var top := _end_pos()
-	var tank := CylinderMesh.new()
-	tank.top_radius = 0.42
-	tank.bottom_radius = 0.42
-	tank.height = 0.8
-	tank.radial_segments = 16
 	var tn := Node3D.new()
 	add_child(tn)
-	Blocks.mesh(tn, tank, top + Vector3(-0.9, 0.4, -0.15), Color("#3D7FB8"))
+	DoThem.put(tn, "bon_nuoc_inox", top + Vector3(-0.9, 0, -0.15), PI * 0.75)  # G1: bồn inox đứng, nắp cao 1,29 m
 	_end_nodes.append(tn)
 	var card := ViecNho.prop("thiep_moi", false)  # thiệp Hội mèo đứng trên nắp bồn nước (G8)
 	tn.add_child(card)
-	card.global_position = top + Vector3(-0.9, 0.8, -0.15)
+	card.global_position = top + Vector3(-0.9, 1.29, -0.15)
 	card.rotation.y = PI * 0.75
 	var letter := ViecNho.prop("thu_moi", false)  # phong bì mèo lạ ngậm tới, đặt trước chân
 	tn.add_child(letter)

@@ -186,9 +186,10 @@ func _apply(mi: MeshInstance3D) -> bool:
 
 
 ## Trả vật liệu gốc, trừ chỗ code khác đã thay vật liệu khác trong lúc đang cắt.
-func _restore(mi: MeshInstance3D) -> void:
-	if not is_instance_valid(mi) or not mi.has_meta(META):
-		return
+func _restore(node) -> void:
+	if not is_instance_valid(node) or not node.has_meta(META):
+		return  # mesh đã bị xoá (đổi màn, đồ phố dọn đi): không còn gì để trả
+	var mi := node as MeshInstance3D
 	var got: Dictionary = mi.get_meta(META)
 	for i in got:
 		if i == -1:

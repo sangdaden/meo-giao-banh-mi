@@ -25,6 +25,7 @@ func _run() -> void:
 	await _frames(30)
 	bo = m.player
 	rig = m.get_node("CameraRig")
+	rig.first_person = false  # cài đặt máy có thể đang để góc thứ nhất (test khác bấm V)
 	var aw := _awning_near(Vector2(-3.5, -6.55))
 	_check(aw != null, "tìm thấy mái hiên khối 2 (sạp báo Chú Tư)")
 	if aw == null:

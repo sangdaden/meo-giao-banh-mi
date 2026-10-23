@@ -620,6 +620,10 @@ func _apply_sky(t: float) -> void:
 	sun.rotation_degrees = (a.sun_rot as Vector3).lerp(b.sun_rot, k)
 	sun.light_color = (a.sun_color as Color).lerp(b.sun_color, k)
 	sun.light_energy = lerpf(a.sun_energy[q], b.sun_energy[q], k)
+	AnhSang.sun_disc(sun, (a.sky_horizon as Color).lerp(b.sky_horizon, k))
+	var rim: VienSang = main.get_node_or_null("VienSang")
+	if rim:
+		rim.strength = lerpf(a.rim[q] if a.has("rim") else 0.0, b.rim[q] if b.has("rim") else 0.0, k)
 	if fill:
 		fill.rotation_degrees = (a.fill_rot as Vector3).lerp(b.fill_rot, k)
 		fill.light_color = (a.fill_color as Color).lerp(b.fill_color, k)

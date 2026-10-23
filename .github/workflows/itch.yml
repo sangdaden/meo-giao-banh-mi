@@ -1,0 +1,141 @@
+# Đẩy bản chơi thử lên trang itch.io bằng butler (công cụ chính thức của itch).
+# KHÔNG tự chạy khi main đổi: Sang bấm "Run workflow" trong tab Actions mỗi lần muốn đẩy.
+# Tag v* chỉ đẩy khi biến repo ITCH_TU_DONG = "co".
+# Cần một lần (xem docs/itch.md):
+#   - Secret BUTLER_API_KEY: khóa API lấy ở itch.io > Settings > API keys.
+#   - Biến ITCH_GAME: "<tên-tài-khoản-itch>/<đường-dẫn-game>", ví dụ "sang/meo-giao-banh-mi".
+# Thiếu một trong hai thì workflow chỉ xuất bản web rồi dừng, không đẩy gì.
+# Bản Windows và macOS lấy từ GitHub Releases (desktop.yml đã build và chạy thử), web build lại ở đây.
+# Đẩy lên itch không đổi chế độ hiển thị của trang: trang để Draft/Restricted thì vẫn chưa ai thấy.
+name: Đẩy lên itch.io
+
+on:
+  workflow_dispatch:
+    inputs:
+      ban:
+        description: "Lấy bản Windows/macOS từ release nào (ban-moi-nhat hoặc tag như v0.2.0)"
+        default: ban-moi-nhat
+        required: true
+      kenh:
+        description: "Kênh cần đẩy"
+        type: choice
+        default: tat-ca
+        options: [tat-ca, web, windows, mac]
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: itch
+  cancel-in-progress: false
+
+env:
+  GODOT_VERSION: "4.3"
+  BAN: ${{ github.event.inputs.ban || github.ref_name }}
+  KENH: ${{ github.event.inputs.kenh || 'tat-ca' }}
+
+jobs:
+  itch:
+    if: github.event_name == 'workflow_dispatch' || vars.ITCH_TU_DONG == 'co'
+    runs-on: ubuntu-latest
+    env:
+      BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+      ITCH_GAME: ${{ vars.ITCH_GAME }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Kiểm tra khóa và tên trang
+        id: cfg
+        run: |
+          if [ -z "$BUTLER_API_KEY" ] || [ -z "$ITCH_GAME" ]; then
+            echo "::warning::Chưa có secret BUTLER_API_KEY hoặc biến ITCH_GAME, chỉ xuất bản web để thử, không đẩy lên itch. Xem docs/itch.md."
+            echo "day=khong" >> "$GITHUB_OUTPUT"
+          elif ! echo "$ITCH_GAME" | grep -Eq '^[A-Za-z0-9_-]+/[A-Za-z0-9_-]+$'; then
+            echo "::error::ITCH_GAME phải có dạng tai-khoan/duong-dan-game (đang là: $ITCH_GAME)"
+            exit 1
+          else
+            echo "day=co" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Bản: $BAN, kênh: $KENH"
+
+      - name: Cache Godot và template web
+        if: env.KENH == 'tat-ca' || env.KENH == 'web'
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}-web
+
+      - name: Tải Godot và template web
+        if: (env.KENH == 'tat-ca' || env.KENH == 'web') && steps.cache.outputs.cache-hit != 'true'
+        run: |
+          base=https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable
+          mkdir -p ~/godot
+          curl -sSL -o godot.zip "$base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip -d ~/godot
+          mv ~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64 ~/godot/godot
+          curl -sSL -o templates.tpz "$base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          dest=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          mkdir -p "$dest"
+          unzip -q -j templates.tpz 'templates/web_*' 'templates/version.txt' -d "$dest"
+          rm godot.zip templates.tpz
+
+      - name: Xuất bản web
+        if: env.KENH == 'tat-ca' || env.KENH == 'web'
+        run: |
+          # Tag thì xuất đúng mã của tag; chạy tay thì xuất mã nhánh đang chọn
+          ~/godot/godot --headless --path . --import || true
+          mkdir -p dist/web
+          ~/godot/godot --headless --path . --export-release "Web" dist/web/index.html
+          test -f dist/web/index.wasm
+          sed "s/__BUILD_VERSION__/${GITHUB_SHA}/" web/update-check.js > dist/web/update-check.js
+          echo "{\"version\": \"${GITHUB_SHA}\"}" > dist/web/version.json
+          # Giới hạn của itch cho game HTML: tối đa 1000 file, mỗi file tối đa 200 MB
+          n=$(find dist/web -type f | wc -l); echo "Số file web: $n"; test "$n" -le 1000
+          find dist/web -type f -size +200M | (! grep .)
+          du -sh dist/web
+
+      - name: Tải bản Windows và macOS từ GitHub Releases
+        if: env.KENH != 'web'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p dist
+          case "$KENH" in
+            windows) pat='MeoGiaoBanhMi-windows.zip' ;;
+            mac) pat='MeoGiaoBanhMi-macos.zip' ;;
+            *) pat='MeoGiaoBanhMi-*.zip' ;;
+          esac
+          # Tag mới đẩy thì desktop.yml có thể chưa đăng xong: chờ tối đa 40 phút
+          for i in $(seq 1 40); do
+            if gh release download "$BAN" --repo "$GITHUB_REPOSITORY" --pattern "$pat" --dir dist --clobber 2>/dev/null; then break; fi
+            [ "$GITHUB_EVENT_NAME" = push ] || { echo "::error::Không tìm thấy release $BAN"; exit 1; }
+            echo "Chưa có release $BAN, chờ 60 s ($i/40)"; sleep 60
+          done
+          ls -la dist
+          [ "$KENH" = mac ] || test -s dist/MeoGiaoBanhMi-windows.zip
+          [ "$KENH" = windows ] || test -s dist/MeoGiaoBanhMi-macos.zip
+
+      - name: Cài butler
+        if: steps.cfg.outputs.day == 'co'
+        run: |
+          curl -sSL -o butler.zip https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default
+          mkdir -p ~/butler && unzip -q butler.zip -d ~/butler && chmod +x ~/butler/butler
+          ~/butler/butler -V
+
+      - name: Đẩy lên itch.io
+        if: steps.cfg.outputs.day == 'co'
+        run: |
+          # Số phiên bản người chơi thấy trên itch: tag (v0.2.0) hoặc ngày + mã commit
+          if [ "$BAN" = ban-moi-nhat ]; then ver="$(date -u +%Y.%m.%d)-${GITHUB_SHA::7}"; else ver="$BAN"; fi
+          b=~/butler/butler
+          # Tên kênh có chữ web/windows/mac nên itch tự gắn đúng nền tảng
+          if [ -d dist/web ]; then $b push dist/web "$ITCH_GAME:web" --userversion "$ver"; fi
+          if [ -f dist/MeoGiaoBanhMi-windows.zip ]; then $b push dist/MeoGiaoBanhMi-windows.zip "$ITCH_GAME:windows" --userversion "$ver"; fi
+          if [ -f dist/MeoGiaoBanhMi-macos.zip ]; then $b push dist/MeoGiaoBanhMi-macos.zip "$ITCH_GAME:mac" --userversion "$ver"; fi
+          $b status "$ITCH_GAME"
+          echo "### Đã đẩy $ver lên https://itch.io (trang $ITCH_GAME)" >> "$GITHUB_STEP_SUMMARY"

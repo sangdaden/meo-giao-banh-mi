@@ -10,6 +10,8 @@ Game 3D góc nhìn thứ ba làm bằng **Godot 4** (ráp game) và **Blender** 
 |---|---|
 | ![Lò bánh](docs/lo-banh.png) | ![Chó Mực](docs/cho-muc.png) |
 
+Làm việc trên repo (luật độ khó, ngân sách, cách chạy test, bản đồ file, cách tránh đụng PR): xem [CLAUDE.md](CLAUDE.md).
+
 ## Chơi ngay trên trình duyệt
 
 **https://sangdaden.github.io/meo-giao-banh-mi/**
@@ -67,6 +69,10 @@ Bản Mac là bản universal (một app chạy được cả chip Intel lẫn c
 Các bản đã đánh số nằm ở trang [Releases](https://github.com/sangdaden/meo-giao-banh-mi/releases).
 
 Trong `export_presets.cfg` còn có sẵn preset **Android** (arm64, chưa ký) cho tuần làm bản điện thoại. Muốn xuất Android cần cài Android SDK. Project đã bật sẵn `rendering/textures/vram_compression/import_etc2_astc` (bản Mac chip Apple và Android đều cần).
+
+## Trang itch.io
+
+Workflow **Đẩy lên itch.io** (`.github/workflows/itch.yml`) đẩy bản web, Windows và macOS lên trang itch.io bằng butler. Chỉ chạy khi bấm **Run workflow** trong tab Actions, cần secret `BUTLER_API_KEY` và biến `ITCH_GAME`. Cách cài đặt từng bước ở [docs/itch.md](docs/itch.md).
 
 ## Mở và chơi trong Godot 4
 

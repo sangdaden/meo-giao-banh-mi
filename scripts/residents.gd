@@ -35,10 +35,10 @@ func set_orders(orders: Array) -> void:
 
 
 func _ready() -> void:
-	var p := City.BAKERY_POINT
-	# Cô Ba đứng sau tủ bánh, cách mặt tiền lò gần nửa mét, nhìn ra đường (hướng nam, +Z)
+	# Cô Ba đứng sau tủ bánh, cách mặt tiền lò gần nửa mét, nhìn ra đường (hướng nam, +Z);
+	# ngày mưa cùng xe vào trong gian hàng lò (XeCoBa.coba_pos)
 	coba = Nguoi.make("coba", "viec_rieng")
-	coba.position = Vector3(p.x + 2.4, 0.0, p.z - 0.6)
+	coba.position = XeCoBa.coba_pos()
 	add_child(coba)
 	coba.add_collision(Vector3(0.5, 1.6, 0.35), Vector3(0, 0.8, 0))
 	people.append(coba)

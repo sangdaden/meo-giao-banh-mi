@@ -108,6 +108,7 @@ func _scan_scripts() -> void:
 			continue
 		var lines := FileAccess.get_file_as_string(path).split("\n")
 		for s in _strings(lines):
+			s = s.trim_prefix("#")  # tiêu đề mục trong lời cảm ơn (tong_ket.gd) bỏ "#" trước khi hiện
 			if not bd.co_dau(s) or bd.xong(bd.dich(s, 0)):
 				continue
 			thieu[s] = path

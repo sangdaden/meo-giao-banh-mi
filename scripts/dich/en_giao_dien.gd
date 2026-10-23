@@ -444,4 +444,8 @@ const EN := {
 	"Cao": "High",
 	"To": "Large",
 	"nhanh": "sprint",
+	"  Xem phim mở đầu": "  Watch the opening",
+	"Tập chơi": "Tutorial",
+	"3 phút ở sân sau lò bánh": "3 minutes in the bakery backyard",
+	"Giữ phím cách để bỏ qua": "Hold Space to skip",
 }

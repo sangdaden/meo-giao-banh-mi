@@ -885,7 +885,9 @@ func _climb_process(delta: float) -> void:
 				ledge_climbed.emit()
 		"pipe":
 			var p := _pipe
-			var target := p.global_position + _wall_n * 0.24
+			# Gốc mèo cách trục ống 0,27 m: động tác leo_ong vẽ với 0,24 m trên ống Ø10 cm; ống trong game Ø11 cm,
+			# lùi thêm 3 cm để ngực, mặt, mông không lún vào ống (đo đỉnh lưới qua cả nhịp leo: thân ≥ 6,8 cm tới trục)
+			var target := p.global_position + _wall_n * 0.27
 			var v := 0.0
 			if can_move and Input.is_action_pressed("move_forward"):
 				v = pipe_speed

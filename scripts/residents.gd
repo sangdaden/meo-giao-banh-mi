@@ -36,7 +36,7 @@ func set_orders(orders: Array) -> void:
 
 func _ready() -> void:
 	# Cô Ba đứng sau tủ bánh, cách mặt tiền lò gần nửa mét, nhìn ra đường (hướng nam, +Z);
-	# ngày mưa đứng cạnh xe dưới mái hiên lò (XeCoBa.coba_pos)
+	# ngày mưa cùng xe vào trong gian hàng lò (XeCoBa.coba_pos)
 	coba = Nguoi.make("coba", "viec_rieng")
 	coba.position = XeCoBa.coba_pos()
 	add_child(coba)

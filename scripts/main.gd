@@ -707,7 +707,7 @@ func _setup_environment() -> void:
 func _build_bakery() -> void:
 	var p := City.BAKERY_POINT
 	# Xe bánh mì Cô Ba trước lò (xe đẩy đã duyệt 21/10, có hộp va chạm cao bằng nóc tủ kính): scripts/xe_co_ba.gd
-	XeCoBa.put(self, XeCoBa.cart_pos())  # ngày mưa lùi vào dưới mái hiên
+	XeCoBa.put(self, XeCoBa.cart_pos())  # ngày mưa vào trong lò, trước lò dựng dù
 	# Cô Ba (người có xương) do scripts/residents.gd dựng sau khi gộp khối tĩnh
 	bakery_zone = _zone(p, 1.8)
 	# Vòng tròn đánh dấu chỗ nhận bánh

@@ -14,6 +14,7 @@ const MENU_SCENE := "res://scenes/menu.tscn"
 const KITCHEN_SCENE := "res://scenes/kitchen.tscn"
 const DELIVERY_SCENE := "res://scenes/main.tscn"
 const CHUNG_CU_SCENE := "res://scenes/chung_cu.tscn"   ## Thứ Năm: leo chung cư (cảnh riêng, chơi thử từ màn Chọn màn)
+const TAP_SCENE := "res://scenes/day_choi.tscn"       ## Màn dạy chơi B1: sân sau lò bánh, trước bếp Thứ Hai lần đầu
 
 ## FULL: bếp rồi giao 5 đơn · KITCHEN: chỉ bếp · DELIVERY: chỉ giao 5 đơn · ORDER: giao một đơn
 static var mode := Mode.FULL
@@ -27,6 +28,8 @@ static var back_to_select := false
 static var continuous := false
 ## Tuần của ngày đang chơi, để chơi lại Chủ Nhật không cộng tuần hai lần.
 static var week_playing := 1
+## Xong màn tập đi đâu: "week" vào bếp Thứ Hai (lần đầu bấm Bắt đầu), "select" về màn Chọn màn (tập lại).
+static var tap_then := "select"
 
 
 ## Ngày sẽ chơi khi bấm Bắt đầu: ngày kế tiếp trong hồ sơ, ngày chưa làm thì nhảy tới ngày làm rồi kế đó.
@@ -62,13 +65,41 @@ static func next_of(id: String) -> Array:
 
 ## Bắt đầu (trang chủ): chơi tiếp ngày đang dở trong hồ sơ.
 static func play_week(tree: SceneTree) -> void:
+	if _tutorial_first(tree):
+		return
 	start_day(tree, current_day())
 
 
 ## Chơi mới (trang chủ): ngày đang chơi về Thứ Hai tuần 1. Kỷ lục, ví, tủ đồ giữ nguyên.
 static func new_game(tree: SceneTree) -> void:
 	reset_week()
+	if _tutorial_first(tree):
+		return
 	start_day(tree, current_day())
+
+
+## Hồ sơ chưa tập (chưa có "da_tap") mà sắp vào Thứ Hai: chơi màn dạy chơi trước, xong thì after_tutorial vào bếp.
+static func _tutorial_first(tree: SceneTree) -> bool:
+	if current_day() != Days.ORDER[0] or GameState.get_global("da_tap", false) or not ResourceLoader.exists(TAP_SCENE):
+		return false
+	start_tutorial(tree, "week")
+	return true
+
+
+## Vào màn dạy chơi. then: "week" (xong vào bếp Thứ Hai) hoặc "select" (xong về màn Chọn màn).
+static func start_tutorial(tree: SceneTree, then := "select") -> void:
+	tap_then = then
+	continuous = false
+	tree.paused = false
+	tree.change_scene_to_file(TAP_SCENE)
+
+
+## Xong hay bỏ qua màn dạy chơi.
+static func after_tutorial(tree: SceneTree) -> void:
+	if tap_then == "week":
+		start_day(tree, current_day())
+	else:
+		back_to_menu(tree)
 
 
 ## Phần lưu của Chơi mới: chỉ đưa ngày và tuần về đầu.

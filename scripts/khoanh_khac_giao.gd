@@ -154,8 +154,8 @@ func _bat_dau() -> void:
 	for n in _khach:
 		var k: Array = KHACH.get(_goc(n.id), [])
 		var clip: String = k[0] if not k.is_empty() and n.anim and n.anim.has_animation(k[0]) else "vui"
-		if clip == "vui":
-			n.play_for("vui", _dai + 0.4)
+		if clip not in Nguoi.ONE_SHOT:  # "vui", xoa_dau (lặp, dùng chung với phim kết tuần)
+			n.play_for(clip, _dai + 0.4)
 		else:
 			n.play_once(clip, "vui", 1.2)
 

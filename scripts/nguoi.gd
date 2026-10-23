@@ -70,7 +70,7 @@ const ONE_SHOT := ["nhan_banh", "goi_muc", "suyt", "mang", "reo", "dua_tui", "nh
 	"cam_on", "mo_cua", "thuc_day", "ngoi_day", "dat_mam", "vap_nhe",
 	"nem_banh", "khen_ngon", "nhan_bao", "bi_tim_thay", "vo_tay", "lac_dau_cuoi", "nhan_oc", "nhan_bong", "nhan_mu",
 	"ne_bo", "len_xe_buyt", "xuong_xe_buyt", "len_xe", "xuong_xe", "vuon_vai", "moi_ve", "lau_mo_hoi",
-	"xoa_dau", "day_kinh", "om_banh", "nang_ly", "dap_tay", "chao_nghiem", "tha_xu", "vuot_rau", "quat_bo"]  # cảm ơn lúc giao (A3)
+	"day_kinh", "om_banh", "nang_ly", "dap_tay", "chao_nghiem", "tha_xu", "vuot_rau", "quat_bo"]  # cảm ơn lúc giao (A3)
 
 ## Mọi người dân Nguoi.make ra đều vào nhóm này: một người chỉ có một bản trong cảnh.
 ## Cảnh phụ (người xem cờ...) hỏi in_scene() rồi mới dựng, nhường người đã có chỗ trong ngày (khách, chợ).

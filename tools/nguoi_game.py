@@ -1825,9 +1825,9 @@ def mua_clips(R, role, cid):
 
 
 # Khoảnh khắc giao bánh (A3): mỗi khách một clip cảm ơn, chạy một lần lúc máy quay lại gần (scripts/khoanh_khac_giao.gd).
-# (tên clip, khoá dáng trong nguoi_a3.py, giây). Bơ đáp lại bằng cho_khen / dui_dau / dap_tay (tools/dong_tac_bo/anims.py).
+# (tên clip, khoá dáng trong nguoi_a3.py, giây). Cô Ba dùng xoa_dau ngồi xổm của phim C1 (phim_clips). Bơ đáp lại bằng cho_khen / dui_dau / dap_tay (tools/dong_tac_bo/anims.py).
 A3 = {
-    'coba': ('xoa_dau', 'xoadau', 1.5), 'chutu': ('day_kinh', 'daykinh', 1.4), 'bena': ('om_banh', 'ombanh', 1.4),
+    'chutu': ('day_kinh', 'daykinh', 1.4), 'bena': ('om_banh', 'ombanh', 1.4),
     'may': ('nang_ly', 'nangly', 1.3), 'hung': ('dap_tay', 'daptay', 1.0), 'basau': ('xoa_dau', 'xoadau', 1.6),
     'chunam': ('chao_nghiem', 'chao', 1.2), 'cohai': ('tha_xu', 'thaxu', 1.3), 'ongbay': ('vuot_rau', 'vuotrau', 1.6),
     'ongtam': ('quat_bo', 'quat', 1.6),
@@ -1878,6 +1878,76 @@ def a3_clips(R, role, cid):
         return add(mix(b, add(b, g), k), extra(t, k))
     return [(name, sec, f, False)]
 
+# ---------------------------------------------------------------- phim mở đầu và kết tuần (C1)
+def _ngoi_xom(R, hip_h=.34, knee=(.5, .30), spread=.2, kx=.13):
+    """Ngồi xổm: đùi chĩa lên trước tới gối, cẳng chân xuống đất; hạ hông cho bàn chân chạm đất (tính hình học)."""
+    s = R.G['s']
+    hip = R.head['thigh.L']
+    Lt = (R.head['shin.L'] - R.head['thigh.L']).length
+    Ls = (R.head['foot.L'] - R.head['shin.L']).length
+    ank0 = R.head['foot.L'].z
+    kv = Vector((kx * s, knee[0] * s, knee[1] * s))
+    h = Vector((abs(hip.x), hip_h * s, 0))
+    dt = (kv - h).normalized()
+    knee_p = h + dt * Lt
+    drop = knee_p.y - ank0
+    back = max(0.0, Ls * Ls - drop * drop) ** .5 if drop < Ls else 0.0
+    ds = Vector((0.0, -min(drop, Ls), -back * .6)).normalized()
+    lift = ank0 - (knee_p.y + ds.y * Ls)  # bàn chân phải chạm đất
+    p = {'hips': {'pos': (0, -(hip.z - (hip_h * s + lift)), .02 * s), 'fw': 18}}
+    for sd in 'LR':
+        p['thigh.' + sd] = {'aim': (spread, dt.y, dt.z), 'aim_ref': 'world'}
+        p['shin.' + sd] = {'aim': (spread * .4, ds.y, ds.z), 'aim_ref': 'world'}
+        p['foot.' + sd] = {'aim': (0, -.1, 1), 'aim_ref': 'world'}
+    return p
+
+
+def phim_clips(R, role):
+    """Cô Ba trong phim mở đầu và cảnh kết tuần (trang C1 Sang duyệt 23/10). Bơ ngồi trước mặt, cổ cao 0,34 m, cách 0,32 m.
+    quang_khan ngồi xổm vòng khăn đỏ qua cổ Bơ rồi thắt nút · dua_tui cúi đưa túi bánh · chi_ra_pho chỉ tay ra phố,
+    tay trái chống hông · xoa_dau ngồi xổm xoa đầu Bơ · treo_tuong nhón chân treo huy chương lên bảng ở 1,55 m."""
+    sq = _ngoi_xom(R)
+
+    def quang(t):
+        knot = osc(t, .5) * smooth((t - .8) / .3)  # thắt nút: hai tay đan qua lại
+        return add(base(t * .4, R, role), sq, {
+            'spine': {'fw': 10}, 'chest': {'fw': 6}, 'neck': {'fw': 4}, 'head': {'fw': 12, 'out': 6},
+            'upperarm.L': {'aim': (.12, -.25, 1), 'aim_ref': 'chest'}, 'forearm.L': {'aim': (-.75, -.15, .75), 'aim_ref': 'chest'},
+            'upperarm.R': {'aim': (.12, -.25, 1), 'aim_ref': 'chest'}, 'forearm.R': {'aim': (-.75, -.15, .75), 'aim_ref': 'chest'},
+            'hand.L': {'fw': 10 + knot * 15}, 'hand.R': {'fw': 10 - knot * 15}})
+
+    def dua(t):
+        return add(base(t * .5, R, role), {
+            'hips': {'fw': -4}, 'spine': {'fw': 22 + osc(t, 2.0)}, 'chest': {'fw': 16}, 'neck': {'fw': 6}, 'head': {'fw': 16, 'out': 8},
+            'thigh.L': {'fw': 10}, 'thigh.R': {'fw': 10}, 'shin.L': {'fw': -14}, 'shin.R': {'fw': -14},
+            'upperarm.R': {'aim': (-.05, -.35, 1), 'aim_ref': 'chest'}, 'forearm.R': {'aim': (-.2, -.25, 1), 'aim_ref': 'chest'}, 'hand.R': {'fw': -15},
+            'upperarm.L': {'aim': (.1, -.6, .8), 'aim_ref': 'chest'}, 'forearm.L': {'aim': (-.6, -.1, 1), 'aim_ref': 'chest', 'tw': 40}})
+
+    def chi(t):
+        p = max(0.0, osc(t, 1.0)) * smooth(t / .3)
+        return add(base(t, R, role), {
+            'chest': {'tw': 10}, 'neck': {'tw': 12}, 'head': {'tw': 22, 'fw': -4},
+            'upperarm.R': {'aim': (.55, .12, .8), 'aim_ref': 'chest'}, 'forearm.R': {'aim': (.5, .2, .85), 'aim_ref': 'chest', 'fw': p * 8}, 'hand.R': {'fw': -10},
+            'upperarm.L': {'aim': (.45, -.85, -.1), 'aim_ref': 'chest'}, 'forearm.L': {'aim': (-.6, .1, -.6), 'aim_ref': 'chest'}, 'hand.L': {'fw': 30}})
+
+    def xoa(t):
+        rub = osc(t, .7)
+        return add(base(t * .4, R, role), sq, {
+            'spine': {'fw': 10}, 'chest': {'fw': 6, 'tw': 6}, 'neck': {'fw': 4}, 'head': {'fw': 10, 'out': 10},
+            'upperarm.R': {'aim': (-.05, -.05, 1), 'aim_ref': 'chest'}, 'forearm.R': {'aim': (-.3 + rub * .15, -.3, .9), 'aim_ref': 'chest'}, 'hand.R': {'fw': 30},
+            'upperarm.L': {'aim': (.2, -.9, .45), 'aim_ref': 'chest'}, 'forearm.L': {'aim': (-.3, -.35, 1), 'aim_ref': 'chest'}})
+
+    def treo(t):
+        tip = smooth(t / .4)
+        return add(base(t * .3, R, role), {
+            'hips': {'pos': (0, .03 * tip, 0)}, 'spine': {'fw': -4}, 'chest': {'fw': -6}, 'neck': {'fw': -10}, 'head': {'fw': -14},
+            'foot.L': {'up': -22 * tip}, 'foot.R': {'up': -22 * tip},
+            'upperarm.R': {'aim': (-.1, .9, .45), 'aim_ref': 'world'}, 'forearm.R': {'aim': (-.1, .75, .65), 'aim_ref': 'world'}, 'hand.R': {'fw': 10},
+            'upperarm.L': {'aim': (.05, .55, .8), 'aim_ref': 'world'}, 'forearm.L': {'aim': (-.3, .7, .65), 'aim_ref': 'world'}})
+
+    return [('quang_khan', 2.0, quang, True), ('dua_tui', 2.0, dua, True), ('chi_ra_pho', 2.0, chi, True),
+            ('xoa_dau', 2.1, xoa, True), ('treo_tuong', 2.0, treo, True)]
+
 
 def build_anims(info, cid):
     R = Rig(info)
@@ -1924,6 +1994,8 @@ def build_anims(info, cid):
         R.keyframe('thai_cha', L(2.0), anim_chop(R, role))
         R.keyframe('tron_do_chua', L(4.8), anim_pickle(R, role))
         R.keyframe('bung_khay', L(1.05 / tp), anim_tray(R, role))
+        for name, sec, fn, loop in phim_clips(R, role):
+            R.keyframe(name, L(sec), fn, loop=loop)
     if cid == 'bena':
         R.keyframe('keo_day', L(1.6 / tp), anim_rope(R, role))
     if cid == 'basau':

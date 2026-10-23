@@ -1,4 +1,4 @@
-"""Xuất Bơ bản game (15k tam giác, rig 22 xương) kèm 18 animation G2 vào một .glb cho khung xem 3D trên trang phác thảo
+"""Xuất Bơ bản game (15k tam giác, rig 22 xương) kèm các animation trong anims.py (18 G2 + 5 phim C1) vào một .glb cho khung xem 3D trên trang phác thảo
 (và để luồng code đọc số liệu). Mỗi animation lấy mẫu 30 khung/giây từ anims.py, IK chân được nướng thành góc xương.
 Chạy: xvfb-run -a python3 export_glb.py <out.glb>"""
 import sys
@@ -8,6 +8,7 @@ from mathutils import Vector, Matrix
 
 HERE = '/mnt/project-files/thiet-ke-man/goi-phac-thao/g2-bo'
 sys.path.insert(0, HERE)
+sys.path.insert(0, __file__.rsplit('/', 1)[0])  # anims.py, rig.py, props.py trong repo (động tác mới thêm ở đây)
 OUT = sys.argv[1]
 FPS = 30
 bpy.ops.wm.open_mainfile(filepath=f'{HERE}/bo_game.blend')

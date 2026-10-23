@@ -144,8 +144,8 @@ func _ready() -> void:
 	_build_arrow()
 
 	hud = HudScript.new()
-	hud.help = day.help  # bảng "Cách chơi" riêng của ngày (rỗng thì dùng bảng chung)
-	hud.help_note = day.help_note
+	hud.help = ChuHuongDan.bang(day)  # bảng "Cách chơi" của ngày: phím chung + khóa help của ngày
+	hud.help_note = ChuHuongDan.ghi_chu(day)
 	add_child(hud)
 	for path: String in day.hud:  # mảnh giao diện riêng của ngày (khóa "hud" trong scripts/ngay/<ngày>.gd)
 		hud.add_piece(load(path).new())
@@ -259,7 +259,7 @@ func _start_free() -> void:
 
 ## Node ngày còn sống (node của ngày khác đã tự gỡ trong _ready).
 func _live_day_nodes() -> Array:
-	return day_nodes.filter(func(n: Node) -> bool: return is_instance_valid(n) and not n.is_queued_for_deletion())
+	return day_nodes.filter(func(n) -> bool: return is_instance_valid(n) and not n.is_queued_for_deletion())  # n không gõ kiểu: node đã gỡ thì kiểu Node báo lỗi
 
 
 ## Ráp nhanh xong quay về: lấy lại tiến độ ngày (Scoring giữ đơn đã chấm trong biến static) và chơi tiếp.
@@ -299,6 +299,11 @@ func _to_menu() -> void:
 
 
 func _pause_info() -> String:
+	if orders.is_empty():  # ngày tự do (Thứ Bảy): node của ngày tự ghi dòng tóm tắt
+		for n in _live_day_nodes():
+			if n.has_method("pause_info"):
+				return n.pause_info()
+		return day.title
 	if order_index >= orders.size():
 		return ""
 	var order: Dictionary = orders[order_index]

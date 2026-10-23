@@ -25,9 +25,12 @@ const RED := Color("#C8412F")
 var root: Control
 var play_root: Control
 var order_card: PanelContainer
-var order_label: Label      # dòng tên khách · nơi giao
+var order_label: Label      # dòng tên khách · nơi giao (thẻ gọn: một dòng, dư thì "…")
 var order_detail: Label
 var order_chip: Label
+var order_more: VBoxContainer   # phần chỉ hiện khi thẻ mở đủ: món, sao bếp, ghi chú món
+var _card_pinned := false       # Tab mở đủ thẻ đơn (bấm lại thì gọn)
+var _card_open_t := 0.0         # sang đơn mới: thẻ tự mở đủ thêm chừng này giây
 var kitchen_row: HBoxContainer  # sao bếp của ổ đang giao (ẩn khi chưa có)
 var kitchen_stars: UiTheme.StarRow
 var stance_pill: PanelContainer
@@ -191,6 +194,7 @@ func _process(delta: float) -> void:
 	if _toast_time > 0.0:
 		_toast_time -= delta
 		toast.modulate.a = clampf(_toast_time / 0.4, 0.0, 1.0)
+	_step_order_card(delta)
 	if edge_arrow == null:
 		return
 	edge_arrow.visible = _playing and _has_goal
@@ -234,9 +238,12 @@ func show_playing_ui(on: bool) -> void:
 
 ## color và initial là tuỳ chọn: màu áo và chữ cái của khách cho hình đại diện.
 func set_order(index: int, total: int, title: String, detail: String, color := Color(), initial := "") -> void:
+	if order_more and title != order_label.text:
+		_card_open_t = ChuHuongDan.THE_MO_GIAY  # việc mới (đổi nơi tới): mở đủ vài giây cho thấy món rồi gọn lại
 	order_chip.text = "Đơn %d/%d" % [index + 1, total]
 	order_label.text = title
 	order_detail.text = detail
+	_set_dot_count(total)
 	if initial == "":
 		var who := title.split(" · ")[0].strip_edges().split(" ")
 		initial = who[who.size() - 1].left(1).to_upper() if who.size() > 0 else "?"
@@ -336,7 +343,7 @@ func toggle_pause() -> void:
 	if tree.paused:
 		_mouse_before = Input.mouse_mode
 		if pause_info:
-			if info == "" and order_chip:
+			if info == "" and order_chip and _playing:  # ngày tự do không có thẻ đơn: đừng ghi "Đơn 1/5"
 				info = "%s · %s" % [order_chip.text, order_label.text]
 			pause_info.text = info
 			pause_info.visible = info != ""
@@ -425,30 +432,33 @@ func _card() -> PanelContainer:
 	return p
 
 
+## Thẻ đơn góc trái, gọn một dòng (Sang 22/10: thẻ cũ 3 dòng che phố lúc leo): hình khách, số đơn, tên · nơi giao, phím Tab.
+## Tab (tay cầm: Back) mở đủ: món, sao bếp của ổ, ghi chú món. Sang đơn mới thẻ tự mở đủ ChuHuongDan.THE_MO_GIAY giây.
 func _build_order_card() -> void:
 	order_card = _card()
-	_place(order_card, 0.0, 0.0, Rect2(28, 24, 330, 0))
+	_place(order_card, 0.0, 0.0, Rect2(28, 24, 360, 0))
+	order_card.custom_minimum_size.x = 360  # chữ một dòng tự co về 0 nên giữ bề ngang thẻ
 	play_root.add_child(order_card)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 0)
 	order_card.add_child(v)
-	var stripe := T.stripe(10)
+	var stripe := T.stripe(8)
 	v.add_child(stripe)
 	var m := MarginContainer.new()
 	for side in ["left", "right"]:
-		m.add_theme_constant_override("margin_" + side, 16)
-	m.add_theme_constant_override("margin_top", 10)
-	m.add_theme_constant_override("margin_bottom", 12)
+		m.add_theme_constant_override("margin_" + side, 12)
+	m.add_theme_constant_override("margin_top", 7)
+	m.add_theme_constant_override("margin_bottom", 8)
 	v.add_child(m)
 	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 14)
+	h.add_theme_constant_override("separation", 10)
 	m.add_child(h)
 	avatar = Panel.new()
-	avatar.custom_minimum_size = Vector2(60, 60)
-	avatar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	avatar.custom_minimum_size = Vector2(40, 40)
+	avatar.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	avatar.add_theme_stylebox_override("panel", T.box(T.CRUST, 999, 0, INK, 3))
 	h.add_child(avatar)
-	avatar_label = T.label("?", 28, INK, "display")
+	avatar_label = T.label("?", 20, INK, "display")
 	avatar_label.set_anchors_preset(Control.PRESET_FULL_RECT)
 	avatar_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	avatar_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -457,17 +467,33 @@ func _build_order_card() -> void:
 	col.add_theme_constant_override("separation", 2)
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(col)
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 8)
+	top.custom_minimum_size.y = 40
+	col.add_child(top)
 	var chip := PanelContainer.new()
-	chip.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	chip.add_theme_stylebox_override("panel", T.box(INK, 999, 10, Color(0, 0, 0, 0), 0))
+	chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	chip.add_theme_stylebox_override("panel", T.box(INK, 999, 8, Color(0, 0, 0, 0), 0))
 	order_chip = T.label("Đơn 1/5", 13, PAPER, "bold")
 	chip.add_child(order_chip)
-	col.add_child(chip)
-	order_label = T.label("", 19, INK, "bold")
-	order_label.autowrap_mode = TextServer.AUTOWRAP_WORD
-	col.add_child(order_label)
-	order_detail = T.label("", 16, Color("#2C4F52"))
-	col.add_child(order_detail)
+	top.add_child(chip)
+	order_label = T.label("", 17, INK, "bold")
+	order_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	order_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	order_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	order_label.clip_text = true
+	top.add_child(order_label)
+	var key := _keycap(ChuHuongDan.PHIM_THE, 12)
+	key.modulate.a = 0.75
+	top.add_child(key)
+	order_more = VBoxContainer.new()
+	order_more.add_theme_constant_override("separation", 2)
+	order_more.visible = false
+	col.add_child(order_more)
+	order_detail = T.label("", 15, Color("#2C4F52"))
+	order_detail.autowrap_mode = TextServer.AUTOWRAP_WORD
+	order_detail.custom_minimum_size.x = 270  # chữ xuống dòng cần bề ngang sẵn, không thì thẻ cao vọt
+	order_more.add_child(order_detail)
 	kitchen_row = HBoxContainer.new()
 	kitchen_row.add_theme_constant_override("separation", 6)
 	kitchen_row.add_child(T.label("Ổ từ bếp", 13, T.MUTED, "bold"))
@@ -477,7 +503,7 @@ func _build_order_card() -> void:
 	kitchen_stars.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	kitchen_row.add_child(kitchen_stars)
 	kitchen_row.visible = false
-	col.add_child(kitchen_row)
+	order_more.add_child(kitchen_row)
 	# Ghi chú món của khách (Thứ Ba: "không ớt", "thêm pate"), như mẩu giấy ghim trên phiếu
 	order_note = PanelContainer.new()
 	order_note.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
@@ -485,7 +511,47 @@ func _build_order_card() -> void:
 	order_note_label = T.label("", 14, INK, "bold")
 	order_note.add_child(order_note_label)
 	order_note.visible = false
-	col.add_child(order_note)
+	order_more.add_child(order_note)
+	if not InputMap.has_action("the_nhiem_vu"):
+		InputMap.add_action("the_nhiem_vu", 0.2)
+		var k := InputEventKey.new()
+		k.physical_keycode = KEY_TAB
+		InputMap.action_add_event("the_nhiem_vu", k)
+		var j := InputEventJoypadButton.new()
+		j.button_index = JOY_BUTTON_BACK
+		InputMap.action_add_event("the_nhiem_vu", j)
+
+
+## Tab mở/gọn thẻ đơn; hết giờ tự mở thì gọn lại.
+func _step_order_card(delta: float) -> void:
+	if order_more == null:
+		return
+	if _card_open_t > 0.0:
+		_card_open_t -= delta
+	if _playing and not get_tree().paused and InputMap.has_action("the_nhiem_vu") and Input.is_action_just_pressed("the_nhiem_vu"):
+		var was_open := _card_pinned or _card_open_t > 0.0
+		_card_pinned = not was_open
+		_card_open_t = 0.0
+	var open := _card_pinned or _card_open_t > 0.0
+	if order_more.visible != open:
+		order_more.visible = open
+		order_label.clip_text = not open  # mở đủ: hiện hết tên, thẻ nở ngang theo chữ
+		order_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING if open else TextServer.OVERRUN_TRIM_ELLIPSIS
+		order_card.reset_size()  # gọn lại thì thẻ co về một dòng
+
+
+## Số ổ tiến độ góc phải theo số đơn của ngày (Chủ Nhật 1 đơn, Thứ Sáu Thử thách 6 đơn).
+func _set_dot_count(total: int) -> void:
+	if dots.is_empty() or total <= 0:
+		return
+	var row: HBoxContainer = dots[0].get_parent()
+	while dots.size() < total:
+		var d := HudHinh.LoafIcon.new()
+		d.custom_minimum_size = Vector2(40, 26)
+		row.add_child(d)
+		dots.append(d)
+	for i in dots.size():
+		dots[i].visible = i < total
 
 
 func _build_timer() -> void:
@@ -768,8 +834,8 @@ func _build_hints() -> void:
 	_place(v, 1.0, 1.0, Rect2(-560, -110, 532, 80))
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	play_root.add_child(v)
-	v.add_child(_key_line([["W A S D", "chạy"], ["Shift", "nhanh"], ["Space", "nhảy"]]))
-	v.add_child(_key_line([["V", "góc nhìn"], ["Esc", "menu"], ["F1", "ẩn gợi ý"]]))
+	for line: Array in ChuHuongDan.DAY_PHIM:
+		v.add_child(_key_line(line))
 	hint = v
 
 
@@ -789,13 +855,7 @@ func _key_line(pairs: Array) -> HBoxContainer:
 
 
 func _keycap(text: String, size := 14) -> PanelContainer:
-	var k := PanelContainer.new()
-	var s := T.box(PAPER, 7, 7, INK, 2, 3, Color("#9C8E70"))
-	k.add_theme_stylebox_override("panel", s)
-	k.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	k.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	k.add_child(T.label(text, size, INK, "bold"))
-	return k
+	return T.keycap(text, size)
 
 
 

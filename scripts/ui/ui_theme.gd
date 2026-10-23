@@ -256,3 +256,13 @@ class StarRow:
 			draw_colored_polygon(pts, AMBER if i < filled else empty_color)
 			pts.append(pts[0])
 			draw_polyline(pts, INK, 1.6, true)
+
+
+## Nút phím vẽ như phím thật (nền giấy, viền mực, gờ dưới) cho dãy gợi ý phím và thẻ nhiệm vụ.
+static func keycap(text: String, size := 14) -> PanelContainer:
+	var k := PanelContainer.new()
+	k.add_theme_stylebox_override("panel", box(PAPER, 7, 7, INK, 2, 3, Color("#9C8E70")))
+	k.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	k.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	k.add_child(label(text, size, INK, "bold"))
+	return k

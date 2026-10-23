@@ -394,7 +394,7 @@ func _hud_contest() -> void:
 			beacon.global_position = Vector3(g.x, 15, g.z)
 
 
-# ---------------------------------------------------------------- dựng cảnh (khối tạm, chờ G11)
+# ---------------------------------------------------------------- dựng cảnh (đồ sân hội G11, va chạm bằng hộp)
 
 ## Đổi trời giữa ngày: gỡ môi trường, nắng, đèn phụ, đèn lồng của buổi cũ rồi dựng buổi mới.
 func _swap_sky(preset: String) -> void:

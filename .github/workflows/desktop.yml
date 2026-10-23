@@ -218,6 +218,9 @@ jobs:
           # Chủ Nhật Hội mèo: khay bánh sáng không tính giờ, bot chơi đủ 5 trò, tới tổng kết tuần
           timeout 600 ~/godot/godot --headless --path . -- --autotest --ngay=chu_nhat 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee chu_nhat.log
           grep -q "AUTOTEST CHU_NHAT OK" chu_nhat.log
+          # Chữ hướng dẫn theo ngày (B2) và thẻ nhiệm vụ một dòng (F1): Cách chơi có Giữ R, Thứ Bảy không "Đơn 1/5", Tab mở thẻ
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_chu_huong_dan.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee chu_huong_dan.log
+          grep -q "CHU HUONG DAN TEST OK" chu_huong_dan.log
           mkdir -p export
           ~/godot/godot --headless --path . --export-release "macOS" "export/$ZIP_NAME"
           unzip -l "export/$ZIP_NAME" | grep -q "_CodeSignature/CodeResources"

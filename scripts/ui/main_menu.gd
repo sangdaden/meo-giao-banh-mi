@@ -61,7 +61,7 @@ func _ready() -> void:
 	loaf.position = Vector2(76, 262)
 	loaf.size = Vector2(300, 44)
 	add_child(loaf)
-	var tag := T.label("Ca sáng ở lò bánh Cô Ba · làm bánh rồi giao 5 đơn", 18, Color("#2C4F52"))
+	var tag := T.label("Một tuần ở lò bánh Cô Ba · làm bánh, giao bánh, giúp hàng xóm", 18, Color("#2C4F52"))
 	tag.position = Vector2(72, 316)
 	add_child(tag)
 

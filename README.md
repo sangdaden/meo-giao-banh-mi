@@ -1,8 +1,8 @@
 # Mèo Giao Bánh Mì
 
-Game 3D góc nhìn thứ ba làm bằng **Godot 4** (ráp game) và **Blender** (model, rig, animation). Mèo cam Bơ phụ Cô Ba làm bánh mì trong bếp, rồi chạy nhảy khắp khu phố để giao kịp giờ cho 5 khách.
+Game 3D góc nhìn thứ ba làm bằng **Godot 4** (ráp game) và **Blender** (model, rig, animation). Mèo cam Bơ phụ Cô Ba làm bánh mì trong bếp, rồi chạy nhảy khắp khu phố giao bánh cho hàng xóm, suốt một tuần: Thứ Hai tới Thứ Sáu giao đơn, Thứ Bảy dạo phố giúp hàng xóm, Chủ Nhật đi Hội mèo.
 
-Đây là **bản chơi thử**: mèo Bơ đã dùng model kiểu D "Chững chạc" (bản tạm rút gọn từ model phác thảo), Chó Mực dùng 8 tư thế kiểu D đã duyệt, còn phố và khách vẫn là khối hộp tạm. Mục tiêu là thử cảm giác chạy nhảy và vòng giao đơn trước khi làm đồ họa thật.
+Đây là **bản chơi thử**. Bơ, Chó Mực, nhà phố, hàng xóm, đồ bếp và đồ phố đều là model kiểu D "Chững chạc" tự dựng trong Blender; vài thứ còn là khối tạm (người lái xe máy, người xem cờ, tủ báo và mái tôn Thứ Năm, bàn ghế hàng xóm) và đang được thay dần. Mặc định là chế độ "Thong thả" dễ chơi; Cài đặt > "Chế độ thử thách" cho ai muốn khó hơn.
 
 ![Toàn cảnh khu phố](docs/toan-canh.png)
 
@@ -16,7 +16,7 @@ Làm việc trên repo (luật độ khó, ngân sách, cách chạy test, bản
 
 **https://sangdaden.github.io/meo-giao-banh-mi/**
 
-Mở bằng Chrome, Edge hoặc Firefox trên máy tính. Lần đầu tải khoảng 35 MB. Bấm vào khung game để camera bắt chuột; Esc trả chuột lại.
+Mở bằng Chrome, Edge hoặc Firefox trên máy tính. Lần đầu tải khoảng 65 MB. Bấm vào khung game để camera bắt chuột; Esc trả chuột lại.
 
 Bản web tự cập nhật mỗi lần nhánh `main` thay đổi (GitHub Actions trong `.github/workflows/pages.yml` xuất bản web rồi đăng lên GitHub Pages). Bản web dùng renderer Compatibility (WebGL 2) nên ánh sáng hơi khác bản chạy trong Godot.
 
@@ -83,7 +83,7 @@ Workflow **Đẩy lên itch.io** (`.github/workflows/itch.yml`) đẩy bản web
 
 ## Màn bếp
 
-Vào game là tới bếp Cô Ba trước (`scenes/kitchen.tscn`). Camera đứng cố định ngoài tủ kính nhìn vào. Bơ phải làm **2 ổ bánh mì trong 2 phút 30 giây**, mỗi lần chỉ cầm được một món.
+Mỗi ngày giao bánh bắt đầu ở bếp Cô Ba (`scenes/kitchen.tscn`). Camera đứng cố định ngoài tủ kính nhìn vào, Bơ làm 2 ổ bánh mì, Cô Ba phụ một tay. Chế độ Thong thả không có thua và bánh không cháy; đồng hồ chỉ quyết định sao thứ ba. Dấu chân vàng chỉ trạm kế, giữ **Tab** là Bơ tự đi tới. Chi tiết luật ở đầu `scripts/kitchen.gd`; bảng dưới là các bước của bản đầu (chế độ Thử thách).
 
 ![Bếp Cô Ba](docs/bep.png)
 
@@ -101,7 +101,7 @@ Vào game là tới bếp Cô Ba trước (`scenes/kitchen.tscn`). Camera đứn
 
 Vòng sáng cam dưới đất chỉ trạm nên tới tiếp; đứng trong vòng thì vòng chuyển vàng và hiện "E · tên trạm". Chấm điểm: ★ làm đủ 2 ổ trước giờ, ★ bánh không cháy, ★ còn dư từ 45 giây. Mỗi sao cộng **2 giây** vào đồng hồ của mọi đơn giao (tối đa +6 giây). Xong bếp bấm Enter là sang màn giao bánh.
 
-Đồ bếp hiện là khối tạm (`scripts/kitchen_props.gd`), màu theo 15 thẻ đồ bếp kiểu D; khi có `.glb` low-poly từ Blender thì thay từng hàm trong file đó.
+Đồ bếp là model kiểu D (`assets/models/bep/`, nạp ở `scripts/kitchen_models.gd`).
 
 ## Cách chơi màn giao bánh
 
@@ -115,7 +115,12 @@ Vòng sáng cam dưới đất chỉ trạm nên tới tiếp; đứng trong vò
 | Ctrl hoặc C (giữ) | B | chui (tự chui khi chạy vào gầm thấp) |
 | Alt hoặc Z (giữ) | bấm cần trái | rón rén (tiếng động nhỏ) |
 | E | Y | giao bánh |
-| Esc | Start | tạm dừng, trả chuột |
+| Tab | Back | xem đủ thẻ đơn (món, sao bếp, ghi chú); Thứ Bảy: mở Sổ hàng xóm |
+| B | lên | bản đồ lớn |
+| R (giữ 1 giây) | xuống | về chỗ an toàn khi bị kẹt |
+| Q | LB | ngồi kêu meo gọi khách (Thứ Năm, Thứ Sáu) |
+| P | | chụp ảnh (Thứ Bảy) |
+| Esc | Start | tạm dừng, trả chuột, xem bảng "Cách chơi" của ngày |
 | E hoặc Enter | B | làm việc ở trạm trong bếp |
 | Enter | | bắt đầu, chơi lại |
 | F3 | | hiện hoặc ẩn bộ đếm FPS |
@@ -157,7 +162,7 @@ scenes/bo_paw.tscn     một chân trước của Bơ (đặt side = -1 trái, 1
 shaders/bo_fur.gdshader  lông chân Bơ: cam, vằn mảnh, tất kem, sợi lông
 scripts/
   kitchen.gd           màn bếp: trạm, luật làm bánh, đồng hồ 2:30, cận cảnh từng bước, bot tự chơi
-  kitchen_props.gd     đồ bếp dựng tạm bằng khối
+  kitchen_models.gd    nạp đồ bếp .glb kiểu D
   bo_paw.gd            chân trước của Bơ (BoPaw), dùng chung cho cận cảnh bếp và góc nhìn thứ nhất
   kitchen_camera.gd    camera cố định ngoài tủ kính, lướt vào cận cảnh
   kitchen_hud.gd       giao diện bếp (dùng lại khung của hud.gd)
@@ -167,9 +172,10 @@ scripts/
   camera_rig.gd        camera sau lưng mèo (SpringArm3D tránh xuyên tường)
   dog.gd               Chó Mực: 7 trạng thái (ngủ gật, hé mắt, nghi ngờ, đuổi, đớp, sủa, mệt), nghe tiếng động, model có 30 xương, 22 animation theo trạng thái và theo ngày (assets/models/cho_muc/cho_muc.glb, thẻ tên rời the_ten_muc.glb)
   city.gd              dựng khu phố 6 khối theo bản đồ trong sổ phác thảo
-  hud.gd               thẻ đơn, đồng hồ, 5 chấm tiến độ, màn bắt đầu, tạm dừng, kết thúc
+  hud.gd               thẻ đơn một dòng (Tab xem đủ), đồng hồ, ổ bánh tiến độ, tạm dừng, kết thúc
+  ui/chu_huong_dan.gd  chữ hướng dẫn: bảng "Cách chơi" theo ngày, dãy phím góc phải
   timer_ring.gd        đồng hồ vòng tròn
-  blocks.gd            hàm tiện ích dựng khối hộp tạm, gộp mesh cho nhẹ
+  blocks.gd            dựng hộp va chạm và khối tạm, gộp mesh đứng yên cho nhẹ
   sound.gd             autoload "Sound": bus Music/SFX/Ambience, phát tiếng, đổi nhạc, lưu âm lượng
   sound_panel.gd       dòng thông báo khi bấm M tắt/bật tiếng
   sound_director.gd    gắn tiếng vào màn giao bánh (bước chân, nhận/giao đơn, đồng hồ, Chó Mực)
@@ -186,7 +192,7 @@ Khu phố rộng 96 × 60 m, gốc tọa độ ở giữa ngã tư; trục X là
 
 Model Bơ hiện tại tạo bằng `python3 tools/bo_game.py chung2.glb assets/models/bo.glb`: giảm tam giác, dồn màu lông vào màu đỉnh, gắn 16 xương (đầu, 4 chân, 4 đốt đuôi, 2 tai, 2 mắt, khăn). Game tự xoay các xương này bằng code (hàm `_animate` trong player.gd): chân vung, thân nghiêng khi quẹo và chúi khi tăng tốc, đầu gật và ngó quanh, tai cụp khi chạy, mắt chớp, khăn đung đưa; đuôi (dài ~0,30 m, khoảng 0,55 lần đầu + thân như mèo thật) là chuỗi lò xo nên tự đổi dáng khi đứng, đi, chạy, nhảy, quẹo. Model chính thức 22 xương có animation làm trong Blender sẽ thay vào sau.
 
-Bản khối thô dựng mọi thứ bằng code để dễ đọc từ trên xuống. Khi model Blender xong (tuần 2 và 3), mèo, chó và các mảnh phố sẽ thành scene `.tscn` riêng, thay cho các khối hộp.
+Va chạm của phố vẫn là hộp dựng bằng code (`scripts/blocks.gd`) cho dễ đọc; phần nhìn thấy là model `.glb` từ Blender trong `assets/models/`.
 
 ## Âm thanh
 

@@ -233,6 +233,9 @@ jobs:
           # Chó Mực cả tuần (M1–M5): chả cá, Thứ Sáu quen dần, khoảnh khắc Thứ Ba/Tư/Năm, gọi Q, đánh hơi, ngủ trưa
           timeout 600 ~/godot/godot --headless --path . -s tests/test_muc_tuan.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee muc_tuan.log
           grep -q "MUC TUAN TEST OK" muc_tuan.log
+          # Cơ chế chung con vật (T1, T2): phím Q mọi ngày, mèo gần đáp, ConVat.meet lưu hồ sơ, trang Bạn bốn chân
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_con_vat.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee con_vat.log
+          grep -q "CON VAT TEST OK" con_vat.log
           mkdir -p export
           ~/godot/godot --headless --path . --export-release "macOS" "export/$ZIP_NAME"
           unzip -l "export/$ZIP_NAME" | grep -q "_CodeSignature/CodeResources"

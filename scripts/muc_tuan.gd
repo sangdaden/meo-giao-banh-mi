@@ -10,7 +10,7 @@ extends Node3D
 ##   Mực tới ăn (an_banh) rồi ngủ say DoKho "cha_ca_ngu" giây. Mỗi đơn một miếng, đang bị đuổi thả cũng được.
 ## - M3 quen dần (Thứ Sáu): đuổi tối đa DoKho "muc_duoi_t6" giây, bớt QUEN_STEP giây mỗi khoảnh khắc đã gặp
 ##   trong tuần, rồi đứng sủa, vẫy đuôi.
-## - M4 phím Q: node ở nhóm "con_vat", ConVat (luồng "Cơ chế chung con vật") gọi on_called(pos). Đã làm bạn
+## - M4 phím Q: node ở nhóm "con_vat", ConVat (scripts/con_vat.gd) gọi on_called(pos). Đã làm bạn
 ##   (SoHangXom.muc_friend()) thì Mực chạy tới ngồi vẫy đuôi rồi đi theo FOLLOW_TIME giây; Q lần nữa khi Mực đang
 ##   theo và Bơ không mang bánh thì Mực đánh hơi dẫn tới tem Cô Ba gần nhất. Chưa làm bạn: đang canh hẻm thì tiếng
 ##   meo làm Mực nghi ngờ (hear), không canh thì hé mắt rồi ngủ tiếp.
@@ -21,7 +21,6 @@ extends Node3D
 
 const DAYS := ["thu_hai", "thu_ba", "thu_tu", "thu_nam", "thu_sau", "thu_bay"]
 const CHA_CA_DAYS := ["thu_hai", "thu_sau"]
-const CON_VAT := "res://scripts/con_vat.gd"
 const TIP := 2000
 const CHA_CA_SPOT := Vector3(-18.6, 0, 10.25)  ## đầu hẻm 42, ngay sau cổng (z 9), giữa thùng gỗ và xe ba gác
 ## Lối dọc bờ rào hẻm 42, né xe ba gác đậu sát tường (CityProps: x -17,72, z 11,45..13,55)
@@ -119,8 +118,6 @@ func _setup() -> void:
 	if _main.has_signal("order_delivered"):
 		_main.order_delivered.connect(func(_i, _o): _piece_ready = false)
 	dog.state_changed.connect(_on_dog_state)
-	if not ResourceLoader.exists(CON_VAT) and player.has_signal("called"):
-		player.called.connect(_on_meow)  # chưa có ConVat: tự nghe tiếng meo (Thứ Năm, Thứ Sáu, Thứ Bảy có phím Q)
 	if MOMENTS.has(day_id) and not autotest:
 		_start_moment(MOMENTS[day_id])
 
@@ -512,11 +509,6 @@ func on_called(pos: Vector3) -> void:
 					_clip(_moment.get("idle", "")))
 
 
-func _on_meow(pos: Vector3) -> void:
-	if _flat(pos, dog.global_position) <= goi_r:
-		on_called(pos)
-
-
 func _called_friend() -> void:
 	var mb := dog.get_node_or_null("MucBan")
 	if mb == null:
@@ -822,13 +814,7 @@ func ban_do_pins() -> Array:
 
 
 func _meet() -> void:
-	if not ResourceLoader.exists(CON_VAT):
-		return
-	var cv: Script = load(CON_VAT)
-	for m in cv.get_script_method_list():
-		if m.name == "meet":
-			cv.call("meet", "muc")
-			return
+	ConVat.meet("muc")
 
 
 func _toast(text: String, seconds := 2.0) -> void:

@@ -298,6 +298,46 @@ A('nhan_tui', day='CN', strip_view='side', center=(0, -.37, .3), scale=1.5, view
   game='Như trên; sau 1 s chuyển sang chạy.')
 
 
+# ======================= A3: KHOẢNH KHẮC GIAO BÁNH (mọi ngày giao) =======================
+# Sau giao_xong Bơ đang đứng 4 chân; mọi clip A3 bắt đầu từ dáng đứng ({}), ngồi xuống trong 0,25 s.
+TAIL_UP = (60, 0, 15, 0, 10, 0, 60, 0)            # đuôi dựng, chóp móc như dấu hỏi: "chào thân thiện"
+KHEN = merge(SIT, dict(head=(12, 18, 14), chest=(-10, 6, 0), eye=(1.0,), earL=(8,), earR=(8,), tail=TAIL_UP))
+A('cho_khen', day='A3', title='Ngồi chờ khen', dur=1.2, loop=False, ctx=None, bag=True,
+  keys=[(0, {}), (.25, SIT), (.45, KHEN), (.7, merge(KHEN, dict(eye=(.15,)))), (.9, merge(KHEN, dict(eye=(1.0,), tail=(60, 0, 15, -12, 10, -10, 60, -10)))),
+        (1.2, merge(KHEN, dict(tail=(60, 0, 15, 12, 10, 10, 60, 10))))],
+  shots=[0, .45, .7, 1.1], main=.45,
+  notes='Clip chung, chạy ở mọi lần giao. Ngồi xuống (0,25 s), đuôi dựng thẳng, chóp móc như dấu hỏi (kiểu mèo chào người quen), '
+        'đầu nghiêng 14° về phía khách, rồi chớp mắt chậm một cái (0,6–0,8 s: kiểu mèo nói "thương"), chóp đuôi vẫy. Túi đeo hông vẫn đeo.',
+  game='Phát ngay sau giao_xong; clip của khách chạy cùng lúc. Đồng xu boa rơi vào túi đeo hông ở 0,6 s.')
+
+DUI = merge(SIT, dict(head=(30, 0, 0), chest=(-4,), eye=(0.0,), earL=(-12, 0, -10), earR=(-12, 0, 10), tail=TAIL_UP))
+A('dui_dau', day='A3', title='Dụi đầu vào tay', dur=1.4, loop=False, ctx=None, bag=True,
+  keys=[(0, {}), (.25, SIT), (.45, DUI), (.75, merge(DUI, dict(head=(34, 8, -12)))), (1.05, merge(DUI, dict(head=(34, -8, 12)))),
+        (1.4, merge(DUI, dict(head=(26, 0, 0), eye=(.6,))))],
+  shots=[.25, .45, .75, 1.05], main=.75,
+  notes='Khi khách xoa đầu (Cô Ba, Bà Sáu): ngồi thẳng, ngửa đầu lên đón bàn tay, mắt nhắm, tai cụp nhẹ ra sau, '
+        'đầu dụi qua lại hai nhịp theo tay. Đuôi dựng, chóp móc. Có tiếng rừ rừ nhỏ.',
+  game='Thay cho_khen khi khách có clip xoa_dau; bàn tay khách chạm đầu Bơ ở 0,45 s.')
+
+TAY = merge(SIT, dict(head=(10, 0, 0), chest=(-16, 0, -4), eye=(1.0,), earL=(10,), earR=(10,), tail=TAIL_UP,
+                      FR=(.0, .2, .2, -70)))
+A('dap_tay', day='A3', title='Đập tay', dur=1.0, loop=False, ctx=None, bag=True, modes=dict(FR='b'),
+  keys=[(0, {}), (.25, SIT), (.45, merge(TAY, dict(FR=(.0, .16, .14, -50)))), (.55, TAY), (.65, merge(TAY, dict(FR=(.0, .19, .17, -60), eye=(.6,)))),
+        (1.0, KHEN)],
+  shots=[.25, .45, .55, 1.0], main=.55,
+  notes='Với Anh Hùng, Chú Năm: ngồi, giơ chân trước phải ra trước cao 0,2 m chạm nắm tay khách ở 0,55 s (lùi lại một chút như bị đẩy), '
+        'rồi thu chân về, nghiêng đầu như cho_khen.',
+  game='Thay cho_khen khi khách có clip dap_tay; hai clip phải chạm đúng 0,55 s.')
+
+LOI = merge(SIT, dict(head=(-22, 0, 8), chest=(-8,), eye=(.45,), earL=(-25, -30, -35), earR=(-25, 30, 35),
+                      tail=(-30, 30, -10, 40, 0, 40, 10, 35)))
+A('xin_loi', day='A3', title='Xin lỗi vì trễ', dur=1.0, loop=False, ctx=None, bag=True,
+  keys=[(0, {}), (.25, SIT), (.5, LOI), (.8, merge(LOI, dict(head=(-14, 0, 12), eye=(.8,)))), (1.0, merge(LOI, dict(head=(-6, 0, 10), eye=(.9,))))],
+  shots=[0, .25, .5, .9], main=.5,
+  notes='Giao trễ: ngồi, cúi đầu, tai xoè ngang (tai "máy bay" nhẹ), mắt híp, đuôi quấn quanh chân. Không buồn bã quá: '
+        'cuối clip ngẩng lên nhìn khách. Khách vẫn cười (giao trễ không bị mắng).',
+  game='Thay cho_khen khi late = true.')
+
 # ======================= PHIM MỞ ĐẦU VÀ KẾT TUẦN (C1, Sang duyệt 23/10) =======================
 # Động tác lặp để cảnh phim giữ dáng bao lâu cũng được; vào/ra dáng do game hoà (player.gd play_clip).
 SNIFF = dict(head=(14, 8, 0), chest=(12,), earL=(14,), earR=(14,), tail=(40, 0, 25, 0, 15, 0, -20, 0), eye=(.75,), FL=(0, 0, .03, 0))

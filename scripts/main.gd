@@ -151,6 +151,7 @@ func _ready() -> void:
 		hud.add_piece(load(path).new())
 	hud.start_pressed.connect(start_game)
 	hud.restart_pressed.connect(restart)
+	add_child(KhoanhKhacGiao.new())  # máy quay lại gần 1,5 s sau mỗi lần giao (gói A3)
 	add_child(preload("res://scripts/sound_director.gd").new())  # nhạc và tiếng động
 	add_child(FirstHints.new())  # mẹo lần đầu: gầm thấp, gần Chó Mực, tới khách
 	hud.menu_pressed.connect(_to_menu)

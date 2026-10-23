@@ -448,4 +448,9 @@ const EN := {
 	"Tập chơi": "Tutorial",
 	"3 phút ở sân sau lò bánh": "3 minutes in the bakery backyard",
 	"Giữ phím cách để bỏ qua": "Hold Space to skip",
+	# scripts/ui/settings_panel.gd (A3)
+	"Khoảnh khắc giao bánh": "Delivery moment",
+	"Đầy đủ": "Full",
+	"Ngắn": "Short",
+	"Tắt": "Off",
 }

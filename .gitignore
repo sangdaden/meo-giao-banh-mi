@@ -6,3 +6,4 @@ build/
 export/
 *.tmp
 __pycache__/
+bot_ca_tuan/

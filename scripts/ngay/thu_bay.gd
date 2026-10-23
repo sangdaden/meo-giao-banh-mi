@@ -27,4 +27,7 @@ const DATA := {
 		{"id": "chunam", "page": 9, "who": "Chú Năm", "place": "Xe ôm đầu hẻm", "task": "Lấy mũ bảo hiểm khách bỏ quên trên mái hiên", "skill": "mái hiên", "gift": "mubaohiem", "gift_name": "Mũ bảo hiểm", "pose": "chup_dung"},
 		{"id": "chithu", "page": 10, "who": "Chị Thu", "place": "Chung cư tầng 3", "task": "Ru em bé: nằm cạnh võng kêu rừ rừ", "skill": "rón rén", "gift": "chuong", "gift_name": "Vòng chuông", "pose": "chup_nam"},
 	],
+	# Bảng "Cách chơi" trong menu Esc: phím chung + các dòng này (scripts/ui/chu_huong_dan.gd)
+	"help": [["E", "giúp người có dấu !"], ["Tab", "mở Sổ hàng xóm"], ["P", "chụp ảnh"], ["Space", "bám mép, đạp tường"]],
+	"help_note": "Không đồng hồ, không thua. Chó Mực nằm buồn cuối hẻm 42, không đuổi ai: giúp vài người rồi hỏi Bà Sáu.",
 }

@@ -2,6 +2,8 @@ extends RefCounted
 ## Thứ Hai: dữ liệu ngày này (đơn, lời Cô Ba, đồ riêng). scripts/days.gd đọc DATA qua tên file.
 ## Thêm hay sửa một ngày chỉ đụng file của ngày đó; các khóa ghi ở đầu scripts/days.gd.
 const DATA := {
+	# Mèo hàng xóm trong tuần (gói N): node nạp cho mọi ngày, tự gỡ ở ngày không có mèo
+	"nodes": ["res://scripts/meo_hang_xom.gd"],
 	"title": "Mẻ bánh đầu tiên",
 	"blurb": "Làm bánh trong bếp Cô Ba rồi giao 5 đơn. Đơn cuối phải lách qua Chó Mực ở hẻm 42.",
 	"intro": "Cô Ba: \"Sáng nay 5 đơn nha Bơ. Đơn chót qua hẻm 42, nhớ rón rén kẻo thằng Mực nó thức!\"",

@@ -38,6 +38,8 @@ const LEVEL := {
 	"scale_clank": -8.0, "chess_slap": -3.0, "chess_rattle": -3.0, "shush": -6.0,
 	"check_cheer": -4.0, "egg_crack": -2.0, "nylon": -14.0, "cart_rattle": -8.0, "cart_bump": -4.0,
 	"basket_topple": -3.0, "oops": -8.0,
+	# Chim chào mào (scripts/chao_mao.gd)
+	"chao_mao_hot": -12.0, "chao_mao_chiep": -18.0,
 }
 ## Tiếng có nhiều bản: play("step") chọn ngẫu nhiên step_1..step_4, đổi cao độ nhẹ cho đỡ lặp.
 const VARIANTS := {"step": 4, "knead": 3, "chop": 3, "sneak": 3, "moto_pass": 2,

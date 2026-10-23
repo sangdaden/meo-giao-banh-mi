@@ -433,4 +433,8 @@ const EN := {
 	"thử": "test",
 	"Nhảy thùng": "Crate jump",
 	"Cười lên nào cả hội!": "Everybody smile!",
+	# luồng "Bồ câu và chim" K3, K4: chào mào trong lồng
+	"líu lo": "tweet tweedle",
+	"Chào mào hót đáp lại Bơ: líu lo!": "The bulbul sings back to Bơ: tweet tweedle!",
+	"Con mèo này hót đối với chim tui được nè!": "This cat can sing along with my bird!",
 }

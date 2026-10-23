@@ -65,6 +65,7 @@ static var _signs := {}     ## kiểu tiệm -> lượt đã dùng (xoay vòng 3
 static var _text_mat: StandardMaterial3D
 static var _number := 0
 static var houses: Array = []  ## [{spec, x0, w, face_z, faces_south}] (test, công cụ đo đọc)
+static var bird_cages: Array = []  ## Transform3D gốc các lồng chim ban công không che (ChaoMao.balconies đặt chim thật)
 
 
 static func meta() -> Dictionary:
@@ -76,6 +77,7 @@ static func meta() -> Dictionary:
 ## Xoá trạng thái trước khi dựng phố mới (City.build gọi đầu tiên).
 static func begin() -> void:
 	_walls.clear()
+	bird_cages.clear()
 	_texts.clear()
 	_signs.clear()
 	_number = 0
@@ -593,6 +595,8 @@ static func _item(model: String, xf: Transform3D, pos: Vector3, sx := 1.0) -> vo
 	# món không giãn theo bề ngang căn: bỏ phần giãn x của xf, chỉ giữ hướng quay
 	var rot := Basis(Vector3.UP, PI) if xf.basis.x.x < 0.0 else Basis.IDENTITY
 	_walls[key].append_from(_p4(model), 0, Transform3D(rot * Basis.from_scale(Vector3(sx, 1, 1)), w))
+	if model == "long_chim":
+		bird_cages.append(Transform3D(rot, w))
 
 
 static func _p4(model: String) -> Mesh:

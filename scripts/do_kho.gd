@@ -127,6 +127,8 @@ const EASY := {
 	"rac_vun_r": 7.0,            # ngồi gọi Q cách đàn 7 m vẫn rắc vụn bánh được (Thử thách 4 m)
 	"rac_vun_giay": 10.0,        # đàn mổ vụn quanh Bơ 10 s (Thử thách 6)
 	"rac_vun_em": 10.0,          # ăn xong thì quen hơi Bơ: 10 s đi sát không bay (Thử thách 4)
+	"chao_mao_r": 4.0,           # đứng cách lồng chào mào 4 m (cộng độ cao lồng) bấm Q là chim hót đáp (Thử thách 2,5)
+	"chim_ban_cong": 3,          # số lồng ban công có chim thật (cả hai chế độ 3)
 }
 
 

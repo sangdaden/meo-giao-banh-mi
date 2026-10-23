@@ -24,6 +24,7 @@ KHO=${KHO:-0}
 THU=${THU:-0}
 NHAN_DUNG=dung-main
 NHAN_TAT=khong-tu-gop
+NHAN_TAY=gop-tay
 DAU='<!-- gop-main -->'
 TRANG_THAI="Gộp với main"
 # Workflow chạy cho pull_request và có workflow_dispatch: gọi lại sau khi bot đẩy.
@@ -49,6 +50,8 @@ fi
 if [ "$THU" != 1 ]; then
   gh label create "$NHAN_DUNG" --repo "$REPO" --color d73a4a \
     --description "Nhánh đụng main, cần gộp tay" >/dev/null 2>&1 || true
+  gh label create "$NHAN_TAY" --repo "$REPO" --color fbca04 \
+    --description "Gộp sạch nhưng main đổi file workflow, máy không đẩy được" >/dev/null 2>&1 || true
 fi
 
 binh_luan_cu() {  # id bình luận của workflow trên PR $1 (nếu có)
@@ -72,8 +75,9 @@ dat_trang_thai() {  # $1 = sha, $2 = success|failure, $3 = mô tả
 
 het_dung() {  # $1 = PR, $2 = sha đầu nhánh hiện tại
   local n=$1 sha=$2
-  if [ "$co_nhan_dung" = 1 ]; then
-    ghi gh pr edit "$n" --repo "$REPO" --remove-label "$NHAN_DUNG" >/dev/null || true
+  if [ "$co_nhan_dung" = 1 ] || [ "$co_nhan_tay" = 1 ]; then
+    [ "$co_nhan_dung" = 1 ] && { ghi gh pr edit "$n" --repo "$REPO" --remove-label "$NHAN_DUNG" >/dev/null || true; }
+    [ "$co_nhan_tay" = 1 ] && { ghi gh pr edit "$n" --repo "$REPO" --remove-label "$NHAN_TAY" >/dev/null || true; }
     local id; id=$(binh_luan_cu "$n")
     if [ -n "$id" ]; then
       ghi gh api -X PATCH "repos/$REPO/issues/comments/$id" \
@@ -102,6 +106,7 @@ while read -r pr; do
   fork=$(jq -r .isCrossRepository <<<"$pr")
   nhan=$(jq -r '[.labels[].name] | join(",")' <<<"$pr")
   co_nhan_dung=0; [[ ",$nhan," == *",$NHAN_DUNG,"* ]] && co_nhan_dung=1
+  co_nhan_tay=0; [[ ",$nhan," == *",$NHAN_TAY,"* ]] && co_nhan_tay=1
   tat=0; [[ ",$nhan," == *",$NHAN_TAT,"* ]] && tat=1
   echo "== PR #$n ($nhanh)"
 
@@ -133,7 +138,24 @@ while read -r pr; do
     elif [ -n "$workflow_doi" ] && [ -z "${CO_PAT:-}" ]; then
       # GITHUB_TOKEN không được phép đẩy thay đổi file workflow.
       kq="gộp sạch nhưng main đổi file workflow, cần gộp tay"
-      het_dung "$n" "$dau"
+      dat_trang_thai "$dau" success "Gộp sạch với $BASE $main_sha (cần gộp tay)"
+      if [ "$co_nhan_tay" != 1 ]; then
+        ghi gh pr edit "$n" --repo "$REPO" --add-label "$NHAN_TAY" >/dev/null || true
+        ds_wf=$(sed 's/^/- `/; s/$/`/' <<<"$workflow_doi")
+        dat_binh_luan "$n" "$DAU
+ℹ️ Nhánh \`$nhanh\` gộp sạch với \`$BASE\` ($main_sha), nhưng main có đổi file workflow nên máy không được phép tự đẩy:
+
+$ds_wf
+
+Gộp tay một lần (không phải sửa gì):
+\`\`\`bash
+git pull
+git fetch origin $BASE
+git merge origin/$BASE
+git push
+\`\`\`
+Sau đó máy tự gộp tiếp được. Xem \`docs/gop-main.md\`."
+      fi
     elif ghi git push -q origin "HEAD:refs/heads/$nhanh"; then
       kq="đã gộp và đẩy"
       moi=$(git rev-parse HEAD)

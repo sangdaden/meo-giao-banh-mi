@@ -32,6 +32,7 @@ import nguoi6  # noqa: F401  dáng Thứ Năm ngoài phố: Chú Tư ngủ gật
 import nguoi7  # noqa: F401  đám giỗ Bà Sáu: 6 người mới + 3 dáng Bà Sáu (trang G7 Sang duyệt 22/10)
 import nguoi_p3  # người qua đường: 8 người + đổi đồ, áo mưa, nón đi xe (gói P3 Sang duyệt 22/10)
 import nguoi9  # noqa: F401  Thứ Bảy: dáng chụp ảnh chung + việc nhờ, Chị Thảo không mũ (trang G9 Sang duyệt 22/10)
+import nguoi_a3  # noqa: F401  dáng cảm ơn lúc giao bánh xong (trang A3 Sang duyệt 23/10)
 from sdflib import v, hexc
 import bpy
 from mathutils import Vector, Matrix, Quaternion
@@ -1823,6 +1824,60 @@ def mua_clips(R, role, cid):
     return out
 
 
+# Khoảnh khắc giao bánh (A3): mỗi khách một clip cảm ơn, chạy một lần lúc máy quay lại gần (scripts/khoanh_khac_giao.gd).
+# (tên clip, khoá dáng trong nguoi_a3.py, giây). Cô Ba dùng xoa_dau ngồi xổm của phim C1 (phim_clips). Bơ đáp lại bằng cho_khen / dui_dau / dap_tay (tools/dong_tac_bo/anims.py).
+A3 = {
+    'chutu': ('day_kinh', 'daykinh', 1.4), 'bena': ('om_banh', 'ombanh', 1.4),
+    'may': ('nang_ly', 'nangly', 1.3), 'hung': ('dap_tay', 'daptay', 1.0), 'basau': ('xoa_dau', 'xoadau', 1.6),
+    'chunam': ('chao_nghiem', 'chao', 1.2), 'cohai': ('tha_xu', 'thaxu', 1.3), 'ongbay': ('vuot_rau', 'vuotrau', 1.6),
+    'ongtam': ('quat_bo', 'quat', 1.6),
+}
+
+
+def a3_clips(R, role, cid):
+    if cid not in A3:
+        return []
+    name, key, sec = A3[cid]
+    g = dp(R, cid, key)
+    legs = bike_legs(R) if cid == 'chunam' else None  # Chú Năm ngồi trên yên xe ôm như lúc chờ khách (anim_bike_wait)
+
+    def bump(t, at, w=.12):  # một cú giật ngắn quanh giây at
+        return max(0.0, 1 - abs(t - at) / w)
+
+    def extra(t, k):
+        if name == 'xoa_dau':  # bàn tay xoa qua lại trên đầu Bơ (Bơ dụi đầu theo)
+            nm = 'R' if cid == 'coba' else 'L'
+            return {'forearm.' + nm: {'tw': osc(t, .5) * 10 * k}, 'hand.' + nm: {'out': osc(t, .5, .1) * 12 * k}, 'head': {'out': osc(t, 1.0) * 3 * k}}
+        if name == 'day_kinh':  # đẩy gọng kính rồi gật gù hai cái
+            nod = max(0.0, osc(t - .5, .45)) * smooth((t - .5) / .1) * (1 - smooth((t - 1.2) / .15))
+            return {'head': {'fw': nod * 9 * k}, 'neck': {'fw': nod * 3 * k}}
+        if name == 'om_banh':  # nhún hai nhịp, đầu lắc lư
+            b = abs(osc(t, .7)) * k
+            return {'hips': {'pos': (0, -b * .035, 0)}, 'head': {'out': osc(t, .7) * 6 * k}, 'chest': {'fw': b * 3}}
+        if name == 'nang_ly':  # chìa ly tới "cụng" ở 0,55 s
+            c = bump(t, .55, .15) * k
+            return {'forearm.R': {'fw': c * 12}, 'upperarm.R': {'fw': c * 6}, 'head': {'out': osc(t, 1.3) * 4 * k}}
+        if name == 'dap_tay':  # Bơ chạm nắm tay ở 0,55 s: giật tay lại như bị đẩy, ngả người cười
+            c = smooth((t - .55) / .08) * (1 - smooth((t - .75) / .2)) * k
+            return {'forearm.R': {'fw': -c * 16}, 'chest': {'fw': -c * 6}, 'head': {'fw': -c * 6}}
+        if name == 'chao_nghiem':  # đưa tay lên trán "cái rụp" rồi giữ
+            c = bump(t, .3, .1) * k
+            return {'hand.R': {'fw': c * 12}, 'head': {'fw': -c * 4}}
+        if name == 'tha_xu':  # búng tay thả xu ở 0,6 s
+            c = bump(t, .6, .1) * k
+            return {'hand.L': {'fw': c * 18}, 'forearm.L': {'fw': c * 6}}
+        if name == 'vuot_rau':  # vuốt râu xuống chậm rãi, gật gù
+            return {'forearm.R': {'fw': -abs(osc(t, .8)) * 8 * k}, 'head': {'fw': osc(t, .8, .2) * 4 * k}}
+        if name == 'quat_bo':  # phe phẩy quạt mo về phía Bơ
+            return {'hand.L': {'out': osc(t, .35) * 26 * k}, 'forearm.L': {'tw': osc(t, .35) * 10 * k}}
+        return {}
+
+    def f(t):
+        b = add(legs, {'chest': {'fw': osc(t, 3.6) * 1.5}}) if legs else base(t, R, role)
+        k = enter_hold(t, .22, .3, sec)
+        return add(mix(b, add(b, g), k), extra(t, k))
+    return [(name, sec, f, False)]
+
 # ---------------------------------------------------------------- phim mở đầu và kết tuần (C1)
 def _ngoi_xom(R, hip_h=.34, knee=(.5, .30), spread=.2, kx=.13):
     """Ngồi xổm: đùi chĩa lên trước tới gối, cẳng chân xuống đất; hạ hông cho bàn chân chạm đất (tính hình học)."""
@@ -1928,6 +1983,8 @@ def build_anims(info, cid):
             clips += g9_clips(R, role, cid)
         if qua_duong:
             clips += p3_clips(R, role, cid, goc)
+        if goc == cid:
+            clips += a3_clips(R, role, cid)
     if cid in CHO and 'va' not in [n for n, *_ in clips]:  # người chợ nào cũng giật mình khi bị Bơ va
         clips.append(('va', .6, anim_startle(R, role, cid), False))
     for name, sec, fn, loop in clips:

@@ -93,6 +93,7 @@ func _ready() -> void:
 	_switch_row(right, "Bóng kỷ lục (lần giao nhanh nhất)", "bong_ky_luc")
 	_segment_row(right, "Khoảnh khắc giao bánh", "khoanh_khac", [["Đầy đủ", 0], ["Ngắn", 1], ["Tắt", 2]])
 	_switch_row(right, "Chế độ thử thách (giờ gấp, phạt nặng)", "thu_thach")
+	_segment_row(right, "Ngôn ngữ · Language", "ngon_ngu", [["Tiếng Việt", "vi"], ["English", "en"]], _apply_lang)
 
 	var foot := HBoxContainer.new()
 	foot.alignment = BoxContainer.ALIGNMENT_END
@@ -148,6 +149,12 @@ func _apply_all() -> void:
 
 func _apply_graphics() -> void:
 	GameSettings.apply_graphics(get_tree())
+
+
+func _apply_lang() -> void:
+	var ng := get_node_or_null("/root/NgonNgu")
+	if ng:
+		ng.dat(str(GameSettings.get_value("ngon_ngu")))
 
 
 func _apply_camera() -> void:

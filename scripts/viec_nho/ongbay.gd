@@ -13,14 +13,9 @@ func begin() -> void:
 	carry_each = true
 	return_to = ChessCorner.DROP
 	return_name = "bàn cờ"
-	# Xe đạp dựng (khối tạm)
-	Blocks.solid_box(self, Vector3(1.5, 0.08, 0.06), PIECES[2] + Vector3(0, 0.75, -0.35), Color("#2E7C80"), Blocks.LAYER_PROP)
-	for wx in [-0.55, 0.55]:
-		var w := TorusMesh.new()
-		w.inner_radius = 0.28
-		w.outer_radius = 0.32
-		var wm := Blocks.mesh(self, w, PIECES[2] + Vector3(wx, 0.32, -0.35), Color("#2B2724"))
-		wm.rotation.x = PI / 2.0
+	# Xe đạp dựng (model xe_dap G1); va chạm vẫn là thanh ngang cũ để quân cờ dưới gầm còn với được
+	Blocks.collider(self, Vector3(1.5, 0.08, 0.06), PIECES[2] + Vector3(0, 0.75, -0.35), Blocks.LAYER_PROP)
+	DoThem.put(self, "xe_dap", PIECES[2] + Vector3(0, 0, -0.35))
 	for p in PIECES:
 		var piece := trinket(Vector3(0.07, 0.03, 0.07), Color("#C8412F"), "cyl")
 		add_child(piece)

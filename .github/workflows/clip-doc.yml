@@ -1,0 +1,91 @@
+# Clip dọc 9:16 cho devlog (mã PH4, tools/clip_doc/README.md):
+# - Mỗi lần main đổi, quay 5 clip ngắn từ game thật (leo chung cư, giao bánh, mưa trên mái, hẻm Chó Mực, chạy phố),
+#   thêm chữ VI/EN và tên game, chuẩn độ to, để ở artifact "clip-doc" (mở index.html để xem).
+# - Không đăng gì: Sang chọn clip rồi tự đăng qua Metricool.
+# - Chỉ là công cụ quảng bá: quay lỗi thì báo cảnh báo, không chặn gì.
+name: Clip dọc devlog
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+  workflow_dispatch:
+    inputs:
+      clip:
+        description: "Clip cần quay, cách nhau bằng dấu cách (để trống = cả 5: leo giao mua_mai muc chay)"
+        required: false
+        default: ""
+
+concurrency:
+  group: clip-doc
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  GODOT_VERSION: "4.3"
+  LANG: C.UTF-8
+  LC_ALL: C.UTF-8
+
+jobs:
+  clip-doc:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: ~/godot-bot
+          key: godot-${{ env.GODOT_VERSION }}-linux-bot
+
+      - name: Tải Godot
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot-bot
+          curl -sSL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip -d ~/godot-bot
+          mv ~/godot-bot/Godot_v${GODOT_VERSION}-stable_linux.x86_64 ~/godot-bot/godot
+          rm godot.zip
+
+      - name: Cài màn hình ảo, ffmpeg, Pillow
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends xvfb libgl1-mesa-dri ffmpeg python3-pil >/dev/null
+
+      - name: Nhập project
+        run: ~/godot-bot/godot --headless --path . --import >/dev/null 2>&1 || true
+
+      - name: Quay và dựng clip
+        env:
+          CLIP: ${{ github.event.inputs.clip }}
+        run: |
+          GODOT="$HOME/godot-bot/godot" tools/clip_doc/lam_clip.sh "$RUNNER_TEMP/clip-doc" 1080x1920 $CLIP | tee "$RUNNER_TEMP/clip.log"
+          grep -q "CLIP DOC OK [1-9]" "$RUNNER_TEMP/clip.log" || echo "::warning::Không dựng được clip nào, xem log trong artifact clip-doc"
+          mkdir -p clip-doc
+          cp "$RUNNER_TEMP"/clip-doc/*.mp4 "$RUNNER_TEMP"/clip-doc/*.jpg "$RUNNER_TEMP"/clip-doc/index.html clip-doc/ 2>/dev/null || true
+          cp "$RUNNER_TEMP"/clip-doc/avi/*.log clip-doc/ 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v4
+        id: clip
+        if: always()
+        with:
+          name: clip-doc
+          path: clip-doc
+          retention-days: 30
+
+      - name: Tóm tắt
+        if: always()
+        env:
+          LINK: ${{ steps.clip.outputs.artifact-url }}
+        run: |
+          {
+            echo "### Clip dọc devlog (${GITHUB_SHA::7})"
+            grep -E "^xong|CLIP DOC OK|thiếu|lỗi" "$RUNNER_TEMP/clip.log" 2>/dev/null || echo "Không có log."
+            [ -n "$LINK" ] && echo && echo "Tải: [artifact clip-doc]($LINK) (giải nén, mở \`index.html\`). Chọn clip rồi tự đăng; không có gì được đăng tự động."
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -408,7 +408,7 @@ func _on_pick_up(i: int, order: Dictionary) -> void:
 		"shelf":
 			tu_woke = false
 			deliveries.side_ok[i] = true
-			_toast("Chú Tư đang ngủ gật. Rón rén (Alt) lại tủ báo, nhảy rồi bám mép để đặt bánh lên nóc tủ.", 3.5, 2.4)
+			_toast("Chú Tư đang ngủ gật. Rón rén (Z) lại tủ báo, nhảy rồi bám mép để đặt bánh lên nóc tủ.", 3.5, 2.4)
 		"shutter":
 			_toast("Trưa tiệm xe kéo cửa cuốn. Vô khe hông bên trái, ra hẻm sau rồi vào cửa sau nha!", 3.5, 2.4)
 		"loft":
@@ -609,7 +609,7 @@ func _on_noise(pos: Vector3, radius: float) -> void:
 		tu.play_once("thuc_day", "viec_rieng")
 	else:
 		tu.play_once("sot_ruot", "viec_rieng", 1.5)
-	_toast("Chú Tư giật mình thức giấc. Lần sau rón rén (Alt) nha!", 2.0)
+	_toast("Chú Tư giật mình thức giấc. Lần sau rón rén (Z) nha!", 2.0)
 
 
 ## Trưa oi (chỉ Thử thách, heat_slow < 1): đứng trên mặt đường ngoài nắng quá 3 s thì đi chậm lại.

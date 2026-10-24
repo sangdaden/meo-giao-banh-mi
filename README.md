@@ -14,13 +14,13 @@ Làm việc trên repo (luật độ khó, ngân sách, cách chạy test, bản
 
 ## Chơi ngay trên trình duyệt
 
-**https://sangdaden.github.io/meo-giao-banh-mi/**
+**https://sangdaden.github.io/meo-giao-banh-mi/** (bản ổn định cho người chơi thử)
 
-Mở bằng Chrome, Edge hoặc Firefox trên máy tính. Lần đầu tải khoảng 65 MB. Bấm vào khung game để camera bắt chuột; Esc trả chuột lại.
+Mở bằng Chrome, Edge hoặc Firefox trên máy tính. Lần đầu tải khoảng 65 MB. Bấm vào khung game để camera bắt chuột; Esc trả chuột lại. Trên trình duyệt, chui là **C**, rón rén là **Z**.
 
-Bản web tự cập nhật mỗi lần nhánh `main` thay đổi (GitHub Actions trong `.github/workflows/pages.yml` xuất bản web rồi đăng lên GitHub Pages). Bản web dùng renderer Compatibility (WebGL 2) nên ánh sáng hơi khác bản chạy trong Godot.
+Bản mới nhất của nhánh `main` (đổi sau mỗi lần gộp PR, có thể còn lỗi, lưu game riêng): **https://sangdaden.github.io/meo-giao-banh-mi/moi-nhat/**. Link gốc chỉ đổi khi Sang đưa bản mới lên; cách làm ở [docs/ban-web.md](docs/ban-web.md). Bản web dùng renderer Compatibility (WebGL 2) nên ánh sáng hơi khác bản chạy trong Godot.
 
-Khi có bản mới, trang đang mở tự biết (mỗi phút hỏi file `version.json` một lần, và mỗi khi quay lại tab). Trang tải sẵn file mới rồi hiện thông báo "Có bản mới!" và tự tải lại sau 10 giây; bấm **Để sau** nếu đang chơi dở. Mã nằm ở `web/update-check.js`; GitHub Actions ghi mã commit vào file này và vào `version.json` mỗi lần đăng.
+Khi có bản mới, trang hiện dải "Có bản mới" ở màn hình chính hoặc bảng kết quả cuối ca, không bao giờ giữa lúc đang chơi, và chỉ tải lại khi bấm **Tải bản mới** (`web/update-check.js`).
 
 ## Tải bản Windows và macOS
 
@@ -112,8 +112,8 @@ Vòng sáng cam dưới đất chỉ trạm nên tới tiếp; đứng trong vò
 | Space | A | nhảy (giữ lâu nhảy cao, bấm nhanh nhảy thấp) |
 | Chuột | cần phải | xoay camera |
 | V | | đổi góc nhìn thứ ba / thứ nhất |
-| Ctrl hoặc C (giữ) | B | chui (tự chui khi chạy vào gầm thấp) |
-| Alt hoặc Z (giữ) | bấm cần trái | rón rén (tiếng động nhỏ) |
+| C (giữ; bản PC thêm Ctrl) | B | chui (tự chui khi chạy vào gầm thấp) |
+| Z (giữ; bản PC thêm Alt) | bấm cần trái | rón rén (tiếng động nhỏ) |
 | E | Y | giao bánh |
 | Tab | Back | xem đủ thẻ đơn (món, sao bếp, ghi chú); Thứ Bảy: mở Sổ hàng xóm |
 | B | lên | bản đồ lớn |

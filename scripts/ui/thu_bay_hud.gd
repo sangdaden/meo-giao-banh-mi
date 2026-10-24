@@ -301,6 +301,7 @@ func choosing() -> bool:
 # ---------------------------------------------------------------- cuối ngày
 
 func show_end(lines: Array) -> void:
+	TrangWeb.bao("ket_ngay", self)
 	for c in _end.get_children():
 		c.queue_free()
 	var dim := ColorRect.new()

@@ -455,4 +455,8 @@ const EN := {
 	"Tắt": "Off",
 	# scripts/ui/settings_panel.gd (mèo hàng xóm)
 	"Mèo chỉ đường khi lạc": "Cats show the way when lost",
+	# scripts/ui/settings_panel.gd (nhật ký chơi thử, scripts/nhat_ky.gd)
+	"Mở thư mục nhật ký": "Open log folder",
+	"Tải nhật ký": "Download log",
+	"Nhật ký lần chơi và lỗi của game, gửi cho Sang khi gặp lỗi": "Play log and game errors, send it to Sang if something goes wrong",
 }

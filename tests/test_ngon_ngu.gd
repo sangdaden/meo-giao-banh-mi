@@ -8,7 +8,7 @@ extends SceneTree
 
 const BanDich := preload("res://scripts/dich/ban_dich.gd")
 ## File không phải chữ hiện cho người chơi (bảng âm tiết giọng ú ớ, chính bảng dịch).
-const BO_QUA_FILE := ["res://scripts/giong_uo.gd", "res://scripts/dich/"]
+const BO_QUA_FILE := ["res://scripts/giong_uo.gd", "res://scripts/dich/", "res://scripts/nhat_ky.gd"]  # nhat_ky: file nhật ký cho Sang đọc, không hiện cho người chơi
 ## Dòng có những chữ này là ghi chú test/debug, không hiện cho người chơi.
 const BO_QUA_DONG := ["print(", "push_warning(", "push_error(", "printerr(", "_expect(", "notes.append(", "skipped.append(", "why = ", "_fits_group(", "@export_group", "\"mieu:"]
 

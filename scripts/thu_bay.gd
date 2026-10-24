@@ -400,9 +400,11 @@ func _befriend(story: bool) -> void:
 	dog.play_clip("vay_duoi")
 	player.play_clip("ngoi_goi")
 	toast("Mực vẫy đuôi lần đầu tiên! Bơ chia cho nó ổ bánh Cô Ba gửi.", 3.0)
-	var loaf := ViecNho.trinket(Vector3(0.24, 0.08, 0.09), Color("#E0A458"))
+	var loaf := Node3D.new()  # ổ bánh vàng (model bếp banh_vang), nằm ngang trước mõm Mực
 	add_child(loaf)
+	PhoModels.put(loaf, "../bep/banh_vang", Vector3.ZERO, 0.0, Vector3.ONE * 0.7)
 	loaf.global_position = dog.global_position + Vector3(0, 0.02, 0.45).rotated(Vector3.UP, dog.rotation.y)
+	loaf.rotation.y = dog.rotation.y
 	get_tree().create_timer(1.6).timeout.connect(func(): dog.play_clip("an_banh"))
 	get_tree().create_timer(1.0).timeout.connect(func():
 		photo.snap(SoHangXom.MUC)

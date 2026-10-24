@@ -106,25 +106,6 @@ static func flat_dist(a: Vector3, b: Vector3) -> float:
 	return Vector2(a.x - b.x, a.z - b.z).length()
 
 
-## Cột cờ nhỏ (khối tạm tới khi có model G11): cán + lá cờ màu.
-static func flag(parent: Node3D, pos: Vector3, color: Color, text := "") -> Node3D:
-	var f := Node3D.new()
-	parent.add_child(f)
-	f.global_position = pos
-	Blocks.box(f, Vector3(0.04, 1.3, 0.04), Vector3(0, 0.65, 0), Color("#5B4632"))
-	Blocks.box(f, Vector3(0.02, 0.32, 0.5), Vector3(0, 1.12, 0.26), color)
-	if text != "":
-		var l := Label3D.new()
-		l.text = text
-		l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		l.font_size = 64
-		l.outline_size = 12
-		l.pixel_size = 0.005
-		l.position = Vector3(0, 1.6, 0)
-		f.add_child(l)
-	return f
-
-
 ## Vòng sáng trên đất đánh dấu chỗ đứng.
 static func ring(parent: Node3D, pos: Vector3, color: Color, radius := 0.8) -> MeshInstance3D:
 	var t := TorusMesh.new()

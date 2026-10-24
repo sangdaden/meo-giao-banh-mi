@@ -253,7 +253,7 @@ func _build_shelf() -> void:
 	_shelf_loaf = Node3D.new()
 	_shelf_loaf.position = SHELF + Vector3(0.1, h + 0.06, 0.05)
 	add_child(_shelf_loaf)
-	Blocks.box(_shelf_loaf, Vector3(0.3, 0.1, 0.12), Vector3.ZERO, Color("#D9A35A"))
+	PhoModels.put(_shelf_loaf, "../do/banh_goi", Vector3(0, -0.05, 0), 0.0, Vector3.ONE * 1.25)  # ổ bánh gói Bơ vừa ngậm lên
 	_shelf_loaf.visible = false
 	tu = Nguoi.make("chutu", "viec_rieng")
 	tu.position = TU_SEAT

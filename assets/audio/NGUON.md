@@ -15,7 +15,8 @@ Khi thêm tiếng lấy từ nơi khác, ghi thêm một dòng vào bảng cuố
 | music_chase.ogg | đơn 5, Chó Mực thức | La thứ, 150 BPM, gấp, trống 4 phách | tự tổng hợp, CC0 |
 | music_kitchen.ogg | màn bếp | Fa trưởng, 100 BPM, đàn gõ kiểu marimba, nhịp lắc lư | tự tổng hợp, CC0 |
 | jingle_win.ogg | kết thúc, từ 10/15 sao | hợp âm rải đi lên + chuông | tự tổng hợp, CC0 |
-| jingle_lose.ogg | kết thúc, dưới 10 sao | bốn nốt đi xuống, nhẹ nhàng | tự tổng hợp, CC0 |
+| jingle_lose.ogg | kết thúc, dưới 10 sao (chỉ chế độ Thử thách) | bốn nốt đi xuống, nhẹ nhàng | tự tổng hợp, CC0 |
+| jingle_ket.ogg | kết thúc chế độ Thong thả khi chưa đủ 10/15 sao, bếp chưa xong | bốn nốt Sol trưởng nhẹ, đệm êm + chuông nhỏ, không buồn | tự tổng hợp, CC0 |
 
 ## Tiếng nền (lặp liền, .ogg)
 
@@ -100,3 +101,5 @@ Lời thoại của mọi nhân vật (Cô Ba, khách, hai ông đánh cờ, ng�
 tự tổng hợp ngay lúc chơi trong `scripts/giong_uo.gd`: mỗi âm tiết một tiếng ngắn, cao độ theo dấu thanh, âm sắc theo
 nguyên âm. Không dùng mẫu âm thanh bên ngoài, không ElevenLabs; tự làm, CC0. Câu mẫu nghe thử xuất bằng
 `tools/giong_uo/xuat_mau.gd`. Các câu thu sẵn cũ (coba_*, thanks_*, scold_*) đã bỏ.
+
+Tiếng .wav nhập vào Godot nén QOA (`compress/mode=2` trong file `.import`, khoảng 1/5 dung lượng, bản web vẫn phát được). File .wav mới cũng đặt `compress/mode=2`.

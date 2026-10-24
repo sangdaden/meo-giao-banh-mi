@@ -75,7 +75,9 @@ func _watch_state() -> void:
 			# 10/15 sao trở lên là ca làm tốt. Đợi tiếng giao đơn cuối xong rồi mới chơi nhạc kết.
 			Sound.music("", 0.8)
 			var good := total >= 10
-			get_tree().create_timer(1.1).timeout.connect(Sound.music.bind("jingle_win" if good else "jingle_lose", 0.1))
+			# Thong thả (NC3): ca chưa tốt vẫn chỉ nghe nhạc kết nhẹ, không có tiếng "thua"
+			var jingle := "jingle_win" if good else ("jingle_lose" if DoKho.hard() else "jingle_ket")
+			get_tree().create_timer(1.1).timeout.connect(Sound.music.bind(jingle, 0.1))
 
 
 func _watch_orders() -> void:

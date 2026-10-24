@@ -40,17 +40,33 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     steps:
+      # QT1: có secret GOP_MAIN_TOKEN (cách tạo: docs/gop-main.md) và token còn dùng được thì đẩy bằng nó:
+      # CI của PR tự chạy như khi người đẩy, không cần lượt chạy bù, đẩy được cả khi main đổi file workflow.
+      # Không có token hoặc token hết hạn thì dùng GITHUB_TOKEN và gọi lại CI bằng workflow_dispatch như cũ.
+      - name: Kiểm token GOP_MAIN_TOKEN
+        id: tok
+        env:
+          T: ${{ secrets.GOP_MAIN_TOKEN }}
+        run: |
+          if [ -z "$T" ]; then
+            echo "Chưa có secret GOP_MAIN_TOKEN: đẩy bằng GITHUB_TOKEN, CI của PR chạy bù bằng workflow_dispatch." | tee -a "$GITHUB_STEP_SUMMARY"
+          elif git ls-remote "https://x-access-token:${T}@github.com/${GITHUB_REPOSITORY}.git" HEAD >/dev/null 2>&1; then
+            echo "ok=1" >> "$GITHUB_OUTPUT"
+            echo "Đẩy bằng GOP_MAIN_TOKEN." | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning::GOP_MAIN_TOKEN không dùng được (hết hạn hoặc thiếu quyền), tạm đẩy bằng GITHUB_TOKEN. Xem docs/gop-main.md."
+            echo "⚠️ GOP_MAIN_TOKEN không dùng được (hết hạn?), tạm đẩy bằng GITHUB_TOKEN." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          # Có secret GOP_MAIN_TOKEN (token cá nhân, quyền repo + workflow) thì đẩy bằng nó:
-          # CI của PR tự chạy lại và đẩy được cả khi main đổi file workflow. Không có thì dùng GITHUB_TOKEN.
-          token: ${{ secrets.GOP_MAIN_TOKEN || github.token }}
+          token: ${{ steps.tok.outputs.ok == '1' && secrets.GOP_MAIN_TOKEN || github.token }}
 
       - name: Thử gộp main vào từng PR
         env:
           GH_TOKEN: ${{ github.token }}
-          CO_PAT: ${{ secrets.GOP_MAIN_TOKEN != '' && '1' || '' }}
+          CO_PAT: ${{ steps.tok.outputs.ok }}
           TU_GOP: ${{ inputs.chi_kiem && '0' || '1' }}
         run: bash tools/gop_main.sh
 

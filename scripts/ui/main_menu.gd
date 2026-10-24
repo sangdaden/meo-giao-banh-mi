@@ -380,7 +380,12 @@ class GlassShine:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 	func _draw() -> void:
 		var h := size.y
-		draw_colored_polygon(PackedVector2Array([Vector2(0, 0), Vector2(110, 0), Vector2(110 - h * 0.6, h), Vector2(0, h)]), Color(1, 1, 1, 0.16))
+		if h < 1.0:  # chưa có kích thước: đa giác dẹt
+			return
+		# Khung cao hơn ~183 px thì vệt thứ nhất tự cắt chéo (Godot báo "triangulation failed" và không vẽ):
+		# bỏ qua như hình đang hiện, không đổi giao diện.
+		if 110 - h * 0.6 >= 0.0:
+			draw_colored_polygon(PackedVector2Array([Vector2(0, 0), Vector2(110, 0), Vector2(110 - h * 0.6, h), Vector2(0, h)]), Color(1, 1, 1, 0.16))
 		draw_colored_polygon(PackedVector2Array([Vector2(150, 0), Vector2(180, 0), Vector2(180 - h * 0.6, h), Vector2(150 - h * 0.6, h)]), Color(1, 1, 1, 0.1))
 
 

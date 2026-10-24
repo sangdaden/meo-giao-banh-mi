@@ -5,7 +5,6 @@ extends SceneTree
 ## Chạy: godot --headless --path . -s tests/test_thu_tu.gd
 
 const PlayerScript := preload("res://scripts/player.gd")
-const MainScript := preload("res://scripts/main.gd")
 const STUCK_TIME := 4.0
 const MAX_DROP := 2.5
 
@@ -18,12 +17,13 @@ var falls := 0
 
 
 func _init() -> void:
-	MainScript._setup_input()
 	DoKho.force = -1
 	_run.call_deferred()
 
 
 func _run() -> void:
+	# main.gd dùng autoload (Sound): nạp lúc chạy, không preload, kẻo ở chế độ -s báo lỗi biên dịch
+	load("res://scripts/main.gd")._setup_input()
 	world = Node3D.new()
 	root.add_child(world)
 	City.build(world)

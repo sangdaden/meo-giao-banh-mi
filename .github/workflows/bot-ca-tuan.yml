@@ -1,5 +1,6 @@
 # Bot tự chơi cả tuần (mã I1): 7 ngày, mỗi ngày hai lượt.
-# - autotest: autotest sẵn có của ngày (Bơ dịch chuyển), đỏ khi AUTOTEST ... FAIL, SCRIPT ERROR, Bơ rơi khỏi map.
+# - autotest: autotest sẵn có của ngày (Bơ dịch chuyển), đỏ khi AUTOTEST ... FAIL, SCRIPT ERROR hay lỗi Godot
+#   ngoài tools/loi_duoc_phep.txt, Bơ rơi khỏi map. Đây là nơi duy nhất chạy autotest từng ngày (desktop.yml không chạy lại).
 # - chạy bộ: Bơ chạy bộ thật tới lò và khách theo lưới đường đi; đỏ khi không giao đủ đơn hoặc rơi khỏi map.
 # Bảng kết quả (giờ còn dư mỗi đơn, chỗ bot phải dịch chuyển) hiện ở trang Summary của lượt chạy;
 # ảnh mỗi đơn + log nằm trong artifact "bot-ca-tuan". Chạy tay: tools/bot_ca_tuan.py (xem đầu file).
@@ -9,6 +10,7 @@ on:
   push:
     branches: [main]
   pull_request:
+    paths-ignore: ["**.md", "docs/**"]
   workflow_dispatch:
 
 concurrency:

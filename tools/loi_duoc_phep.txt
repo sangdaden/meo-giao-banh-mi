@@ -1,0 +1,31 @@
+# Lỗi Godot được phép trong log CI (mã KT2). Mỗi dòng một biểu thức chính quy (Python re.search),
+# so với dòng "ERROR: ..." / "SCRIPT ERROR: ...". Dòng "at: ..." ngay sau được bỏ theo.
+# Lỗi khác mọi dòng ở đây làm đỏ CI (tools/loc_log.py --kiem, tools/bot_ca_tuan.py).
+# Chỉ thêm lỗi đã hiểu là vô hại, kèm lý do. Lỗi do code game thì sửa code.
+
+# Bộ vẽ giả lúc --headless không có lưới thật: mỗi lần hỏi số mặt của mesh đều báo lỗi này.
+# Chỉ xuất hiện khi --headless, không có trên máy người chơi.
+^ERROR: Parameter "m" is null\.
+
+# Rò rỉ lúc thoát: test và autotest gọi quit() giữa chừng (cảnh còn đang chạy, font và
+# khối va chạm chưa kịp giải phóng). Không ảnh hưởng lúc chơi.
+^ERROR: \d+ RID allocations of type '.*' were leaked at exit\.
+^ERROR: \d+ resources still in use at exit
+^ERROR: Pages in use exist at exit in PagedAllocator
+
+# tests/test_luu_game.gd cố ý mở một file lưu hỏng để kiểm game không sập.
+^ERROR: ConfigFile parse error at user://test_luu_game\.cfg
+
+# Bot cả tuần chạy có màn hình ảo (xvfb, opengl3): máy CI không có card âm thanh, và driver GL
+# báo texture chưa giải phóng lúc thoát.
+^ERROR: Condition "status < 0" is true\. Returning: ERR_CANT_OPEN
+^ERROR: Texture with GL ID of \d+: leaked \d+ bytes\.
+
+# Lưới đường đi của bot (tests/bot_ca_tuan.gd tự nướng lúc chạy, game không dùng điều hướng):
+# vài cạnh chồng nhau khi nướng từ khối va chạm của phố.
+^ERROR: Navigation map synchronization error\.
+
+# Bản xuất (release, .exe chạy bằng wine) lúc đổi cảnh: Godot tự gỡ nối của Skeleton3D và thân Bơ
+# trong lúc xóa cảnh cũ, bản release không giữ tên hàm nên báo callable ''. Lỗi nội bộ engine,
+# không có trong bản chạy từ editor, không ảnh hưởng lúc chơi.
+^ERROR: Attempt to disconnect a nonexistent connection from '(Skeleton3D|Bo):<\w+#\d+>'\. Signal: '(skeleton_updated|tree_entered|tree_exiting)', callable: ''\.

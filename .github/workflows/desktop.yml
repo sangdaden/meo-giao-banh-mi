@@ -11,6 +11,8 @@ on:
     branches: [main]
     tags: ["v*"]
   pull_request:
+    # PR chỉ sửa chữ (.md, docs/) không cần xuất bản và chạy test (QT2)
+    paths-ignore: ["**.md", "docs/**"]
   workflow_dispatch:
 
 permissions:
@@ -92,8 +94,9 @@ jobs:
 
       - name: Chạy thử .exe bằng wine (tự chơi 5 đơn)
         run: |
-          timeout 600 wine export/MeoGiaoBanhMi.exe --headless -- --autotest 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee autotest.log
+          timeout 600 wine export/MeoGiaoBanhMi.exe --headless -- --autotest 2>&1 | python3 tools/loc_log.py | tee autotest.log
           grep -q "AUTOTEST OK" autotest.log
+          python3 tools/loc_log.py --kiem autotest.log
 
       - name: Đóng gói zip
         run: |
@@ -158,132 +161,129 @@ jobs:
       - name: Xuất bản macOS (universal, ký ad-hoc)
         run: |
           ~/godot/godot --headless --path . --import || true
-          # Chạy thử logic game trước (bản macOS không chạy được trên máy Linux)
-          timeout 600 ~/godot/godot --headless --path . -- --autotest 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee autotest.log
-          grep -q "AUTOTEST OK" autotest.log
           # Chơi liền các ngày: xong ngày thì lưu ngày kế, hết tuần sang Tuần mới
-          timeout 300 ~/godot/godot --headless --path . -s tests/test_lien_ngay.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee lien_ngay.log
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_lien_ngay.gd 2>&1 | python3 tools/loc_log.py | tee lien_ngay.log
           grep -q "LIEN NGAY TEST OK" lien_ngay.log
           # Màn dạy chơi B1: bot đi hết 5 trạm sân sau lò bánh, lưu "đã tập"
-          timeout 300 ~/godot/godot --headless --path . res://scenes/day_choi.tscn -- --autotest-tap 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee day_choi.log
+          timeout 300 ~/godot/godot --headless --path . res://scenes/day_choi.tscn -- --autotest-tap 2>&1 | python3 tools/loc_log.py | tee day_choi.log
           grep -q "DAY CHOI TEST OK" day_choi.log
           # Đơn mua trứng Thứ Ba: túi trứng dễ vỡ, tạp hóa Cô Hai
-          timeout 300 ~/godot/godot --headless --path . --script res://tools/egg_test.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee egg_test.log
+          timeout 300 ~/godot/godot --headless --path . --script res://tools/egg_test.gd 2>&1 | python3 tools/loc_log.py | tee egg_test.log
           grep -q "EGG TEST OK" egg_test.log
           # Góc cờ tướng Thứ Ba: suỵt, mắng, chiếu tướng, giao cạnh ấm trà
-          timeout 300 ~/godot/godot --headless --path . --script res://tools/chess_test.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee chess.log
+          timeout 300 ~/godot/godot --headless --path . --script res://tools/chess_test.gd 2>&1 | python3 tools/loc_log.py | tee chess.log
           grep -q "CHESS TEST OK" chess.log
-          # Thứ Tư mưa: đủ 5 đơn khi đường ngập, và đi bộ thật trên đường sân thượng, ván, cổng chào
-          timeout 600 ~/godot/godot --headless --path . -- --autotest --ngay=thu_tu --ngap 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee thu_tu.log
-          grep -q "AUTOTEST THU_TU OK" thu_tu.log
-          timeout 300 ~/godot/godot --headless --path . -s tests/test_thu_tu.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee thu_tu_test.log
+          # Thứ Tư mưa: đi bộ thật trên đường sân thượng, ván, cổng chào
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_thu_tu.gd 2>&1 | python3 tools/loc_log.py | tee thu_tu_test.log
           grep -q "THU TU TEST OK" thu_tu_test.log
           # Thứ Năm leo chung cư: xoay được camera ngoài hẻm và trong lồng cầu thang
-          timeout 300 ~/godot/godot --headless --path . -s tests/test_xoay_camera.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee xoay_camera.log
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_xoay_camera.gd 2>&1 | python3 tools/loc_log.py | tee xoay_camera.log
           grep -q "XOAY CAMERA OK" xoay_camera.log
           # Cú nhảy của Bơ: bay đủ cao, trên không quay mặt và bẻ hướng theo phím (Thong thả + Thử thách)
-          timeout 300 ~/godot/godot --headless --path . -s tests/test_nhay_bo.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee nhay_bo.log
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_nhay_bo.gd 2>&1 | python3 tools/loc_log.py | tee nhay_bo.log
           grep -q "NHAY TEST OK" nhay_bo.log
           # Model G1 đã duyệt (chung cư + Thứ Năm ngoài phố): mở được, đủ node theo tên bộ phận
-          timeout 300 ~/godot/godot --headless --path . -s tests/test_model_g1.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee model_g1.log
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_model_g1.gd 2>&1 | python3 tools/loc_log.py | tee model_g1.log
           grep -q "MODEL G1 OK" model_g1.log
-          # Thứ Năm cả ngày: 4 đơn phố, đơn 5 sang cảnh chung cư rồi về phố tổng kết; leo thật tủ báo, khe hông, gác lửng
-          timeout 600 ~/godot/godot --headless --path . -- --autotest --ngay=thu_nam 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee thu_nam.log
-          grep -q "AUTOTEST THU_NAM OK" thu_nam.log
-          timeout 300 ~/godot/godot --headless --path . -s tests/test_thu_nam.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee thu_nam_test.log
+          # Thứ Năm: leo thật tủ báo, khe hông, gác lửng
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_thu_nam.gd 2>&1 | python3 tools/loc_log.py | tee thu_nam_test.log
           grep -q "THU NAM TEST OK" thu_nam_test.log
           # Thứ Bảy: nhảy vào chồng thùng cạnh lò bánh không bị treo mãi trên mép (giữ phím đi tới tự leo lên, lùi ra buông)
-          timeout 300 ~/godot/godot --headless --path . -s tests/test_bam_mep_thu_bay.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee bam_mep.log
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_bam_mep_thu_bay.gd 2>&1 | python3 tools/loc_log.py | tee bam_mep.log
           grep -q "BAM MEP TEST OK" bam_mep.log
           # Camera không chui tường (A1): vật che giữa camera và Bơ mờ đi, tường dày mới kéo camera lại, trên mái bớt chúc xuống
-          timeout 300 ~/godot/godot --headless --path . -s tests/test_camera_che.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee camera_che.log
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_camera_che.gd 2>&1 | python3 tools/loc_log.py | tee camera_che.log
           grep -q "CAMERA CHE TEST OK" camera_che.log
           # Nút cứu kẹt (A2): giữ R 1 giây về chỗ an toàn, bấm lại lùi thêm, kẹt yên 4 giây thì nhắc, rơi khỏi bản đồ về chỗ an toàn
-          timeout 300 ~/godot/godot --headless --path . -s tests/test_cuu_ket.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee cuu_ket.log
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_cuu_ket.gd 2>&1 | python3 tools/loc_log.py | tee cuu_ket.log
           grep -q "CUU KET TEST OK" cuu_ket.log
           # Phim mở đầu và cảnh kết tuần (C1): chạy hết kịch bản (nhanh 12 lần), chữ chạy, sáng tuần mới
-          timeout 300 ~/godot/godot --headless --path . res://scenes/phim.tscn -- --phim=mo_dau --phim-test 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee phim_mo_dau.log
+          timeout 300 ~/godot/godot --headless --path . res://scenes/phim.tscn -- --phim=mo_dau --phim-test 2>&1 | python3 tools/loc_log.py | tee phim_mo_dau.log
           grep -q "PHIM MO_DAU OK" phim_mo_dau.log
-          timeout 300 ~/godot/godot --headless --path . res://scenes/phim.tscn -- --phim=ket_tuan --phim-test 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee phim_ket_tuan.log
+          timeout 300 ~/godot/godot --headless --path . res://scenes/phim.tscn -- --phim=ket_tuan --phim-test 2>&1 | python3 tools/loc_log.py | tee phim_ket_tuan.log
           grep -q "PHIM KET_TUAN OK" phim_ket_tuan.log
           # Vành phố P1: mép mềm chặn Bơ mà không chặn camera, đầu đường cho Bơ quay đầu, cầu kênh, phông trời
-          timeout 300 ~/godot/godot --headless --path . -s tests/test_vanh_pho.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee vanh_pho.log
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_vanh_pho.gd 2>&1 | python3 tools/loc_log.py | tee vanh_pho.log
           grep -q "TEST VANH PHO OK" vanh_pho.log
           # P3: trạm và xe buýt tuyến 08 (đỗ trạm, dừng còi trước Bơ, chờ Bơ xuống nóc), người qua đường thật
-          timeout 300 ~/godot/godot --headless --path . -s tests/test_xe_buyt.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee xe_buyt.log
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_xe_buyt.gd 2>&1 | python3 tools/loc_log.py | tee xe_buyt.log
           grep -q "TEST XE BUYT OK" xe_buyt.log
           # Giọng ú ớ: dấu thanh, giọng từng người, Cô Ba nói khi hiện bong bóng
-          timeout 300 ~/godot/godot --headless --path . -s tests/test_giong_uo.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee giong_uo.log
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_giong_uo.gd 2>&1 | python3 tools/loc_log.py | tee giong_uo.log
           grep -q "TEST GIONG UO OK" giong_uo.log
           # Đồ đeo lưng: phần cứng không hở khỏi lưng quá 6 mm khi thở, ngồi, liếm (Bơ đực, Bơ cái)
-          timeout 900 ~/godot/godot --headless --path . -s tests/test_khe_lung.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee khe_lung.log
+          timeout 900 ~/godot/godot --headless --path . -s tests/test_khe_lung.gd 2>&1 | python3 tools/loc_log.py | tee khe_lung.log
           grep -q "KHE LUNG TEST OK" khe_lung.log
-          # Chủ Nhật Hội mèo: khay bánh sáng không tính giờ, bot chơi đủ 5 trò, tới tổng kết tuần
-          timeout 600 ~/godot/godot --headless --path . -- --autotest --ngay=chu_nhat 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee chu_nhat.log
-          grep -q "AUTOTEST CHU_NHAT OK" chu_nhat.log
           # Chữ hướng dẫn theo ngày (B2) và thẻ nhiệm vụ một dòng (F1): Cách chơi có Giữ R, Thứ Bảy không "Đơn 1/5", Tab mở thẻ
-          timeout 300 ~/godot/godot --headless --path . -s tests/test_chu_huong_dan.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee chu_huong_dan.log
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_chu_huong_dan.gd 2>&1 | python3 tools/loc_log.py | tee chu_huong_dan.log
           grep -q "CHU HUONG DAN TEST OK" chu_huong_dan.log
           # Bản tiếng Anh (F3): bảng dịch, menu hiện tiếng Anh, tiếng Việt vẫn mặc định; in chữ có dấu chưa dịch
-          timeout 300 ~/godot/godot --headless --path . -s tests/test_ngon_ngu.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee ngon_ngu.log
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_ngon_ngu.gd 2>&1 | python3 tools/loc_log.py | tee ngon_ngu.log
           grep -q "NGON NGU TEST OK" ngon_ngu.log
           # Thứ Hai chơi bằng tiếng Anh, in các câu còn tiếng Việt (THIEU DICH)
-          timeout 600 ~/godot/godot --headless --path . -- --autotest --lang=en --dich-thieu 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee thu_hai_en.log
+          timeout 600 ~/godot/godot --headless --path . -- --autotest --lang=en --dich-thieu 2>&1 | python3 tools/loc_log.py | tee thu_hai_en.log
           grep -q "AUTOTEST OK" thu_hai_en.log
           # Chó Mực cả tuần (M1–M5): chả cá, Thứ Sáu quen dần, khoảnh khắc Thứ Ba/Tư/Năm, gọi Q, đánh hơi, ngủ trưa
-          timeout 600 ~/godot/godot --headless --path . -s tests/test_muc_tuan.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee muc_tuan.log
+          timeout 600 ~/godot/godot --headless --path . -s tests/test_muc_tuan.gd 2>&1 | python3 tools/loc_log.py | tee muc_tuan.log
           grep -q "MUC TUAN TEST OK" muc_tuan.log
           # Cơ chế chung con vật (T1, T2): phím Q mọi ngày, mèo gần đáp, ConVat.meet lưu hồ sơ, trang Bạn bốn chân
-          timeout 300 ~/godot/godot --headless --path . -s tests/test_con_vat.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee con_vat.log
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_con_vat.gd 2>&1 | python3 tools/loc_log.py | tee con_vat.log
           grep -q "CON VAT TEST OK" con_vat.log
           # Mèo hàng xóm trong tuần (N1–N4): mèo mỗi ngày, chào Q, Bột đua mái Thứ Tư, mèo chỉ đường khi lạc
-          timeout 900 ~/godot/godot --headless --path . -s tests/test_meo_hang_xom.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee meo_hang_xom.log
+          timeout 900 ~/godot/godot --headless --path . -s tests/test_meo_hang_xom.gd 2>&1 | python3 tools/loc_log.py | tee meo_hang_xom.log
           grep -q "MEO HANG XOM TEST OK" meo_hang_xom.log
           # Bồ câu và chim (K1 rắc vụn bánh, K2 bồ câu non lạc đàn về chuồng mái khối 2)
-          timeout 300 ~/godot/godot --headless --path . -s tests/test_bo_cau.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee bo_cau.log
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_bo_cau.gd 2>&1 | python3 tools/loc_log.py | tee bo_cau.log
           grep -q "BO CAU TEST OK" bo_cau.log
           # Chào mào (K3 lồng Ông Bảy góc cờ hót đáp phím Q, K4 chim trong lồng ban công)
-          timeout 300 ~/godot/godot --headless --path . -s tests/test_chao_mao.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee chao_mao.log
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_chao_mao.gd 2>&1 | python3 tools/loc_log.py | tee chao_mao.log
           grep -q "CHAO MAO TEST OK" chao_mao.log
           # Con vật mới V1–V6 (gà sổ bu, cá, vịt lúc ngập, bướm, thạch sùng chung cư, chuột Tí trong bếp)
-          timeout 900 ~/godot/godot --headless --path . -s tests/test_con_vat_moi.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee con_vat_moi.log
+          timeout 900 ~/godot/godot --headless --path . -s tests/test_con_vat_moi.gd 2>&1 | python3 tools/loc_log.py | tee con_vat_moi.log
           grep -q "CON VAT MOI TEST OK" con_vat_moi.log
           # Ngày mưa hợp lý (người trú mưa, Bé Na nhận tận tay, áo mưa người lái) và xe dừng nhường con vật
-          timeout 300 ~/godot/godot --headless --path . -s tests/test_ngay_mua.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee ngay_mua.log
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_ngay_mua.gd 2>&1 | python3 tools/loc_log.py | tee ngay_mua.log
           grep -q "NGAY MUA TEST OK" ngay_mua.log
           # File lưu có phiên bản (Q2): mở file lưu của bản trước, khóa sai kiểu, file mới hơn, file hỏng, khóa đã đăng ký
-          timeout 300 ~/godot/godot --headless --path . -s tests/test_luu_game.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee luu_game.log
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_luu_game.gd 2>&1 | python3 tools/loc_log.py | tee luu_game.log
           grep -q "LUU GAME TEST OK" luu_game.log
           # Đua mái nhà Chủ Nhật: lái Bơ bằng phím thật qua đủ 3 vòng (kẹt quá 6 s là đỏ)
-          timeout 600 ~/godot/godot --headless --path . -s tools/thu_dua_mai.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee dua_mai.log
+          timeout 600 ~/godot/godot --headless --path . -s tools/thu_dua_mai.gd 2>&1 | python3 tools/loc_log.py | tee dua_mai.log
           grep -q "RACE FINISHED" dua_mai.log
           # Nhật ký chơi thử (P3, P4): file nhật ký + lỗi godot.log trong user://logs, chỗ lúng túng > 8 giây, heatmap
-          timeout 300 ~/godot/godot --headless --path . -s tests/test_nhat_ky.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee nhat_ky.log
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_nhat_ky.gd 2>&1 | python3 tools/loc_log.py | tee nhat_ky.log
           grep -q "NHAT KY TEST OK" nhat_ky.log
           # W3: các bài thử đã có nhưng chưa chạy trong CI (rig Bơ, động tác, leo, nhà phố, Chó Mực, chợ, chi tiết phố, trò Hội mèo)
-          timeout 300 ~/godot/godot --headless --path . -s tests/test_bo_rig.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee bo_rig.log
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_bo_rig.gd 2>&1 | python3 tools/loc_log.py | tee bo_rig.log
           grep -q "KẾT QUẢ: TẤT CẢ OK" bo_rig.log
-          timeout 300 ~/godot/godot --headless --path . -s tests/test_dong_tac_bo.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee dong_tac_bo.log
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_dong_tac_bo.gd 2>&1 | python3 tools/loc_log.py | tee dong_tac_bo.log
           grep -q "KẾT QUẢ: TẤT CẢ OK" dong_tac_bo.log
-          timeout 300 ~/godot/godot --headless --path . -s tests/test_dong_tac_g2.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee dong_tac_g2.log
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_dong_tac_g2.gd 2>&1 | python3 tools/loc_log.py | tee dong_tac_g2.log
           grep -q "KẾT QUẢ: TẤT CẢ OK" dong_tac_g2.log
-          timeout 300 ~/godot/godot --headless --path . -s tests/test_leo_tuong.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee leo_tuong.log
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_leo_tuong.gd 2>&1 | python3 tools/loc_log.py | tee leo_tuong.log
           grep -q "KẾT QUẢ: TẤT CẢ OK" leo_tuong.log
-          timeout 300 ~/godot/godot --headless --path . -s tests/test_nha_pho.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee nha_pho.log
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_nha_pho.gd 2>&1 | python3 tools/loc_log.py | tee nha_pho.log
           grep -q "TEST NHA PHO OK" nha_pho.log
-          timeout 300 ~/godot/godot --headless --path . -s tools/dog_test.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee dog_test.log
+          timeout 300 ~/godot/godot --headless --path . -s tools/dog_test.gd 2>&1 | python3 tools/loc_log.py | tee dog_test.log
           grep -q "DOG TEST OK" dog_test.log
-          timeout 300 ~/godot/godot --headless --path . -s tools/cho_test.gd -- --cho 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee cho_test.log
+          timeout 300 ~/godot/godot --headless --path . -s tools/cho_test.gd -- --cho 2>&1 | python3 tools/loc_log.py | tee cho_test.log
           grep -q "CHO TEST OK" cho_test.log
-          timeout 600 ~/godot/godot --headless --path . -s tools/thu_chi_tiet_pho.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee chi_tiet_pho.log
+          timeout 600 ~/godot/godot --headless --path . -s tools/thu_chi_tiet_pho.gd 2>&1 | python3 tools/loc_log.py | tee chi_tiet_pho.log
           grep -q "CHI TIET PHO OK" chi_tiet_pho.log
-          timeout 300 ~/godot/godot --headless --path . -s tools/thu_chong_thung.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee chong_thung.log
+          timeout 300 ~/godot/godot --headless --path . -s tools/thu_chong_thung.gd 2>&1 | python3 tools/loc_log.py | tee chong_thung.log
           grep -q "CRATES DONE" chong_thung.log
-          timeout 300 ~/godot/godot --headless --path . -s tools/thu_tiep_suc.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee tiep_suc.log
+          timeout 300 ~/godot/godot --headless --path . -s tools/thu_tiep_suc.gd 2>&1 | python3 tools/loc_log.py | tee tiep_suc.log
           grep -q "RELAY DONE" tiep_suc.log
           # Gói tải sau của bản web (Q1): màn chờ, nạp gói, ngày nào cần gói nào, tủ đồ chưa về không mất giống mèo
-          timeout 300 ~/godot/godot --headless --path . -s tests/test_goi_web.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee goi_web.log
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_goi_web.gd 2>&1 | python3 tools/loc_log.py | tee goi_web.log
           grep -q "GOI WEB TEST OK" goi_web.log
+          # Bếp Cô Ba (KT1): bot làm đủ ca bếp, và ráp nhanh ổ trứng Thứ Ba
+          timeout 600 ~/godot/godot --headless --path . res://scenes/kitchen.tscn -- --autotest-bep 2>&1 | python3 tools/loc_log.py | tee bep.log
+          grep -q "AUTOTEST BEP OK" bep.log
+          timeout 300 ~/godot/godot --headless --path . res://scenes/kitchen.tscn -- --autotest-rap-nhanh 2>&1 | python3 tools/loc_log.py | tee rap_nhanh.log
+          grep -q "AUTOTEST RAP NHANH OK" rap_nhanh.log
+          # Log sạch (KT2): lỗi Godot ngoài tools/loi_duoc_phep.txt làm đỏ (autotest từng ngày: bot-ca-tuan.yml)
+          python3 tools/loc_log.py --kiem *.log
           mkdir -p export
           ~/godot/godot --headless --path . --export-release "macOS" "export/$ZIP_NAME"
           unzip -l "export/$ZIP_NAME" | grep -q "_CodeSignature/CodeResources"

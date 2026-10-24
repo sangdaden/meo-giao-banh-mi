@@ -24,8 +24,32 @@ Bỏ qua: PR từ fork, PR không nhắm vào main. PR có nhãn `khong-tu-gop` 
 - `GITHUB_TOKEN` không được đẩy thay đổi file trong `.github/workflows/`. Khi main đổi file workflow,
   PR được gắn nhãn `gop-tay` và một bình luận chỉ lệnh gộp tay (chỉ cần `git merge origin/main` rồi đẩy,
   không phải sửa gì). Gộp xong thì nhãn tự gỡ.
-- Muốn bỏ hai giới hạn trên: tạo token cá nhân (classic, quyền `repo` + `workflow`) và thêm vào
-  Settings → Secrets and variables → Actions với tên `GOP_MAIN_TOKEN`. Không bắt buộc.
+- Các lượt CI chạy bù bằng `workflow_dispatch` không gắn vào PR như lượt thường: trên PR hiện thêm
+  một lượt "failure, 0 job" của sự kiện pull_request cho commit gộp, nhìn như CI đỏ dù không có gì hỏng (QT1).
+- Bỏ cả ba điều trên bằng token riêng `GOP_MAIN_TOKEN` (cách tạo ở mục dưới). Có token thì bot đẩy bằng
+  token đó: CI của PR tự chạy như khi người đẩy, không còn lượt chạy bù, đẩy được cả khi main đổi workflow.
+
+### Tạo token GOP_MAIN_TOKEN (Sang làm một lần, khoảng 3 phút)
+
+Token là một chìa khóa bí mật: chỉ dán vào ô secret trên GitHub, **không dán vào chat hay file nào**.
+
+1. Mở https://github.com/settings/personal-access-tokens/new (GitHub → ảnh đại diện → Settings →
+   Developer settings → Personal access tokens → **Fine-grained tokens** → Generate new token).
+2. **Token name**: `gop-main meo-giao-banh-mi`. **Expiration**: 1 năm (hoặc "No expiration").
+3. **Repository access**: chọn **Only select repositories** → `sangdaden/meo-giao-banh-mi`.
+4. **Permissions → Repository permissions**, đặt đúng ba quyền (còn lại để No access):
+   - **Contents**: Read and write (đẩy commit gộp lên nhánh PR)
+   - **Workflows**: Read and write (đẩy được khi main đổi file trong `.github/workflows/`)
+   - **Metadata**: Read-only (GitHub tự bật)
+5. Bấm **Generate token**, bấm nút copy cạnh token (chuỗi bắt đầu bằng `github_pat_`).
+   Trang chỉ hiện token một lần.
+6. Mở https://github.com/sangdaden/meo-giao-banh-mi/settings/secrets/actions →
+   **New repository secret**. **Name**: `GOP_MAIN_TOKEN`, **Secret**: dán token → **Add secret**.
+7. Xong. Lần tới main đổi, tóm tắt lượt "Tự gộp main vào PR" ghi "đẩy bằng GOP_MAIN_TOKEN".
+   Muốn thử ngay: tab Actions → **Tự gộp main vào PR** → Run workflow.
+
+Token hết hạn thì bot tự quay về cách cũ (GITHUB_TOKEN + lượt chạy bù) cho tới khi thay token mới
+ở cùng ô secret. Muốn thu hồi: xóa token ở trang Fine-grained tokens và xóa secret.
 
 ## Luồng làm việc (người và Claude)
 

@@ -216,7 +216,7 @@ static func _ensure() -> void:
 	var cfg := ConfigFile.new()
 	if cfg.load(PATH) == OK:
 		var b := str(cfg.get_value("giong", "dang_dung", "bo"))
-		_breed = b if breed_ready(b) else "bo"
+		_breed = b if breed_ready(b) or GoiWeb.pending("tu_do") else "bo"  # bản web: giống nằm trong gói tủ đồ chưa tải
 		_sex = str(cfg.get_value("giong", "gioi_tinh", ""))
 		for s in SLOTS:
 			var id: String = str(cfg.get_value("worn", s[0], _worn.get(s[0], "")))

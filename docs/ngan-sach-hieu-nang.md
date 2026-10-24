@@ -64,6 +64,23 @@ xvfb-run -a godot --path . --rendering-method gl_compatibility --rendering-drive
 
 `tools/dem_tam_giac.gd` đặt camera ở một góc của `do_hieu_nang.gd`, in số đo thật, rồi dựng lại khu phố chưa gộp và liệt kê từng model/nhóm: số tam giác trong khung nhìn và số tam giác đổ bóng trong tầm bóng web (ước theo LOD0). `--tat` tắt lần lượt từng nhóm lớn (ly cà phê, người, xe, vành phố, ô gộp có/không bóng...) và đo lại xem bớt được bao nhiêu.
 
+## Gói tải sau trên web (Q1)
+
+Bản web không tải hết một lần. `index.pck` chỉ chứa trang chủ, màn dạy chơi, bếp, Thứ Hai và đồ dùng chung; CI chạy `tools/goi_web/tach_goi.py` sau khi xuất để rút ra:
+- `goi/tu_do.pck`: 38 giống mèo bản đủ (11,4 MB). Tải khi mở Tủ đồ, khi Bơ mặc giống khác hay là mèo cái (trang chủ tải ở nền), và trước Thứ Bảy, Chủ Nhật. Mèo hàng xóm trên web dùng bản nhẹ `giong_nhe/`, nằm trong `index.pck`.
+- `goi/<mã ngày>.pck` cho Thứ Ba đến Chủ Nhật: đồ chỉ ngày đó dùng (người chợ, đồ giỗ, đồ mưa...).
+
+`scripts/goi_web.gd` tải gói của ngày trước khi vào (màn chờ có thanh tải, lỗi mạng có nút Thử lại), giữ gói trong `user://goi/` để lần sau khỏi tải, rồi 20 giây sau khi vào ngày tải nốt các gói còn lại ở nền. Bản desktop không tách.
+
+Số ngày 24/10: index.pck 52,7 → 30,3 MiB (55,2 → 31,8 MB). Lần đầu mở trang tải index.wasm 35,4 MB + index.pck 31,8 MB = 67 MB (trước 91 MB, tức bớt ~26%); ở 20 Mbit/s là khoảng 27 giây thay vì 36 giây. Gói ngày 0,2–3,9 MB, tủ đồ 11,9 MB.
+
+Chia lại gói khi thêm đồ cho một ngày:
+```
+bash tools/goi_web/ghi_file_mo.sh /tmp/file_mo     # bot chơi 7 ngày dưới strace (~10 phút)
+python3 tools/goi_web/lap_goi.py /tmp/file_mo      # ghi tools/goi_web/goi.json
+```
+Đồ nào bot không bao giờ mở ở ngày khác, trang chủ, màn dạy chơi hay phim thì vào gói của ngày đó; còn lại nằm trong `index.pck`. Đồ mới chưa có trong `goi.json` thì nằm trong `index.pck`, nên quên chạy cũng không hỏng.
+
 ## Tự hạ chất lượng trên web
 
 `scripts/giu_fps.gd` chạy trong cả màn phố và màn bếp ở bản web: sau 3 giây đầu, cứ 2 giây đo FPS trung bình, thấp hơn 88% mục tiêu thì hạ một bậc: độ phân giải 3D 85% → 70% (thấp nhất 60%), rồi rút tầm bóng còn 14 m, cuối cùng tắt bóng. Không ghi vào cài đặt; vào lại màn là thử lại từ đầu. Thử trên máy tính: `-- --giu-fps`.

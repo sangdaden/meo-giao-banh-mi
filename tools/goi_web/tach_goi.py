@@ -95,10 +95,16 @@ def main():
     rest.append(('res://goi_web.json', json.dumps(manifest, indent=1, sort_keys=True).encode()))
     before = os.path.getsize(pck)
     write_pck(pck, head, rest)
+    # index.html ghi sẵn cỡ index.pck cho thanh tải lúc mở trang: sửa theo cỡ mới
+    html = os.path.join(os.path.dirname(pck), 'index.html')
+    if os.path.exists(html):
+        t = open(html, encoding='utf-8').read()
+        t = re.sub(r'("index\.pck":)\d+', lambda m: m.group(1) + str(os.path.getsize(pck)), t)
+        open(html, 'w', encoding='utf-8').write(t)
     mb = lambda n: n / 1048576
-    print('index.pck: %.1f MB -> %.1f MB' % (mb(before), mb(os.path.getsize(pck))))
+    print('index.pck: %.1f MiB -> %.1f MiB' % (mb(before), mb(os.path.getsize(pck))))
     for name, m in manifest.items():
-        print('  goi/%s.pck  %.1f MB' % (name, mb(m['size'])))
+        print('  goi/%s.pck  %.1f MiB' % (name, mb(m['size'])))
 
 
 if __name__ == '__main__':

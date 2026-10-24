@@ -26,7 +26,11 @@ func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
 	if "--autotest" in args or "--autotest-bep" in args or "--demo-bep" in args \
 			or "--autotest-rap-nhanh" in args or "--demo-rap-nhanh" in args:
-		get_tree().change_scene_to_file.call_deferred(first_scene())
+		var ngay := PlayMode.day
+		for arg in args:
+			if arg.begins_with("--ngay="):
+				ngay = arg.substr(7)
+		GoiWeb.go.call_deferred(get_tree(), first_scene(), GoiWeb.for_day(ngay))  # bản web: tải gói của ngày như khi chơi
 		return
 	theme = T.make_theme()
 	T.full_rect(self)
@@ -91,7 +95,7 @@ func _ready() -> void:
 	nav.add_child(row2)
 	var wd := T.button("  Tủ đồ của Bơ", "secondary", 62, 21)
 	wd.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	wd.pressed.connect(func(): wardrobe.open())
+	wd.pressed.connect(func(): GoiWeb.then(["tu_do"] as Array[String], wardrobe.open))  # bản web: giống mèo ở gói tủ đồ
 	row2.add_child(wd)
 	var st := T.button("  Cài đặt", "secondary", 62, 21)
 	st.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -140,6 +144,10 @@ func _ready() -> void:
 			showcase_cat.set_active(not covered)
 			if not wardrobe.visible and showcase_cat.cat:
 				showcase_cat.cat.set_breed(Outfit.breed()))
+
+	if GoiWeb.pending("tu_do") and GoiWeb.wears_skin():
+		GoiWeb.node().pack_loaded.connect(_on_pack_loaded)  # bản web: Bơ trong tủ kính mặc lại giống khi gói tủ đồ về
+		GoiWeb.fetch("tu_do")
 
 	T.wire_clicks(self)
 	if PlayMode.back_to_select:
@@ -389,3 +397,8 @@ func _lang_button() -> Button:
 			ng.dat("vi" if ng.ma == "en" else "en")
 		show.call())
 	return b
+
+
+func _on_pack_loaded(pack: String) -> void:
+	if pack == "tu_do" and showcase_cat.cat:
+		showcase_cat.cat.set_breed(Outfit.breed())

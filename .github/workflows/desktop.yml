@@ -281,6 +281,9 @@ jobs:
           grep -q "CRATES DONE" chong_thung.log
           timeout 300 ~/godot/godot --headless --path . -s tools/thu_tiep_suc.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee tiep_suc.log
           grep -q "RELAY DONE" tiep_suc.log
+          # Gói tải sau của bản web (Q1): màn chờ, nạp gói, ngày nào cần gói nào, tủ đồ chưa về không mất giống mèo
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_goi_web.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee goi_web.log
+          grep -q "GOI WEB TEST OK" goi_web.log
           mkdir -p export
           ~/godot/godot --headless --path . --export-release "macOS" "export/$ZIP_NAME"
           unzip -l "export/$ZIP_NAME" | grep -q "_CodeSignature/CodeResources"

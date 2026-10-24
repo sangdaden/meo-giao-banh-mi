@@ -157,7 +157,7 @@ static func start(tree: SceneTree, m: Mode, which := 0, which_day := "") -> void
 	if m in [Mode.FULL, Mode.KITCHEN] and ResourceLoader.exists(KITCHEN_SCENE):
 		scene = KITCHEN_SCENE
 	tree.paused = false
-	tree.change_scene_to_file(scene)
+	GoiWeb.go(tree, scene, GoiWeb.for_day(day))  # bản web: tải gói đồ của ngày trước (scripts/goi_web.gd)
 
 
 ## Chơi thử cảnh leo chung cư của Thứ Năm (một đơn cho Bé Na, không có bếp).
@@ -168,7 +168,7 @@ static func start_chung_cu(tree: SceneTree) -> void:
 	order = 0
 	GameState.from_kitchen = false
 	tree.paused = false
-	tree.change_scene_to_file(CHUNG_CU_SCENE)
+	GoiWeb.go(tree, CHUNG_CU_SCENE, GoiWeb.for_day("thu_nam"))
 
 
 ## Về màn hình chính và mở lại màn Chọn màn.

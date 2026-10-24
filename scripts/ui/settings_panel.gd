@@ -100,6 +100,13 @@ func _ready() -> void:
 	foot.alignment = BoxContainer.ALIGNMENT_END
 	foot.add_theme_constant_override("separation", 14)
 	col.add_child(foot)
+	# Nhật ký chơi thử (scripts/nhat_ky.gd): người chơi thử gửi lại file này khi gặp lỗi
+	var nk := get_node_or_null("/root/NhatKy")
+	if nk:
+		var log_btn := T.button("Tải nhật ký" if OS.has_feature("web") else "Mở thư mục nhật ký", "secondary", 56, 17)
+		log_btn.tooltip_text = "Nhật ký lần chơi và lỗi của game, gửi cho Sang khi gặp lỗi"
+		log_btn.pressed.connect(func(): nk.mo_thu_muc())
+		foot.add_child(log_btn)
 	var reset_btn := T.button("Khôi phục mặc định", "secondary", 56, 17)
 	reset_btn.pressed.connect(func():
 		GameSettings.reset()

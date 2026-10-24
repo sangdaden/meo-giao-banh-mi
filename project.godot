@@ -54,3 +54,9 @@ cam_cut={
 "type": "float",
 "value": 0.0
 }
+
+[importer_defaults]
+
+wav={
+"compress/mode": 2
+}

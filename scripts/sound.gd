@@ -29,7 +29,7 @@ const LEVEL := {
 	"moto_pass": -4.0, "moto_idle": -12.0, "horn": -8.0,
 	"basket_lower": -6.0, "basket_drop": -5.0, "glass_rattle": -7.0, "glass_tip": -4.0, "oil_slip": -5.0,
 	"oven_open": -5.0, "oven_ding": -6.0, "sizzle": -10.0, "oven_fire": -10.0,
-	"jingle_win": -3.0, "jingle_lose": -3.0,
+	"jingle_win": -3.0, "jingle_lose": -3.0, "jingle_ket": -5.0,
 	# Thứ Hai lượt 2: mặt đất, sự kiện, giọng người
 	"step_metal": -14.0, "step_wood": -16.0, "step_grass": -19.0,
 	"splash": -5.0, "stamp": -4.0, "coin": -7.0, "record": -5.0, "bike_hit": -3.0,

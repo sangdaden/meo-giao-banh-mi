@@ -915,7 +915,7 @@ func _end_quick(done: bool) -> void:
 	hud.show_end(lines)
 	for b in hud.end_screen.find_children("*", "Button", true, false):
 		b.text = "Mang bánh đi giao (Enter)"
-	_sound("music", "jingle_win" if done else "jingle_lose")
+	_sound("music", _end_jingle(done))
 	print("[bep] rap_nhanh don=%d sao=%d trung=%d dung_phieu=%s con_lai=%.1fs truot=%d" % [quick_order + 1, stars, GameState.eggs_brought, _note_ok, time_left, mistakes])
 	if _bot_quit:
 		print("AUTOTEST RAP NHANH ", "OK" if done else "FAIL")
@@ -1036,7 +1036,7 @@ func _end(success: bool) -> void:
 	lines += "\n%d/3 sao · ổ bánh 3 sao giúp đơn đó được cộng thêm %d giây" % [stars, int(Scoring.KITCHEN_BONUS_SECONDS)]
 	hud.show_end(lines)
 	_sound("stop_loop", "oven_fire")
-	_sound("music", "jingle_win" if success else "jingle_lose")
+	_sound("music", _end_jingle(success))
 	for i in stars:
 		get_tree().create_timer(0.5 + 0.45 * i).timeout.connect(_sound.bind("play", "star_%d" % (i + 1)))
 	print("[bep] thong_tha=%s ca_dau=%s that=%.1fs" % [easy, first_shift, (Time.get_ticks_msec() - _start_ms) / 1000.0])
@@ -1312,6 +1312,11 @@ func _near_station() -> String:
 			best_d = d
 			best = id
 	return best
+
+
+## Nhạc kết bếp. Thong thả (NC3) không có tiếng "thua": chưa xong thì nghe nhạc kết nhẹ.
+func _end_jingle(ok: bool) -> String:
+	return "jingle_win" if ok else ("jingle_lose" if DoKho.hard() else "jingle_ket")
 
 
 func _sound(method: String, sound_name: String) -> void:

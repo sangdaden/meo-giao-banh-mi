@@ -393,6 +393,16 @@ def jingle_lose():
     return reverb(fade(x, 0, 0.3), 0.4)
 
 
+def jingle_ket():
+    """Kết ca nhẹ cho chế độ Thong thả (NC3): không buồn, không chê, chỉ "xong rồi, nghỉ thôi"."""
+    x = silence(3.0)
+    for i, n in enumerate(["B4", "D5", "A4", "G4"]):
+        mix_at(x, pluck(note(n), 1.6 if i == 3 else 0.7, 0.55, 3.0), i * 0.24, 0.45)
+    mix_at(x, pad([note("G3"), note("B3"), note("D4")], 2.0), 0.72, 0.18)
+    mix_at(x, bell(note("G5"), 2.0, 3.0), 0.72, 0.12)
+    return reverb(fade(x, 0, 0.4), 0.45)
+
+
 # ---------------------------------------------------------------- tiếng động: mèo
 
 def footstep(i):
@@ -1449,6 +1459,8 @@ def build():
         # Chim chào mào (K3 góc cờ, K4 lồng ban công)
         "chao_mao_hot": (chao_mao_hot, "wav"),
         "chao_mao_chiep": (chao_mao_chiep, "wav"),
+        # Kết ca Thong thả (NC3)
+        "jingle_ket": (jingle_ket, "ogg"),
     }
     jobs.update(build_voice_jobs())  # Cô Ba, khách, hai ông đánh cờ
     global rng

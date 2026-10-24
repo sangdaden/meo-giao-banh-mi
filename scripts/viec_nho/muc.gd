@@ -35,7 +35,7 @@ func _tag() -> Node3D:
 	if m:
 		m.scale = Vector3.ONE * 2.0  # thẻ thật 5,2 cm: phóng to chút cho dễ thấy
 		n.add_child(m)
-	n.add_child(trinket(Vector3(0.06, 0.02, 0.06), Color("#C9A040"), "cyl"))
+	glow_ring(n, Vector3(0.1, 0.13, 0.1))  # chỉ vòng sáng, không còn đĩa vàng khối tạm
 	return n
 
 

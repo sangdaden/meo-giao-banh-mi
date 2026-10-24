@@ -234,14 +234,19 @@ static func trinket(size: Vector3, color: Color, shape := "box") -> Node3D:
 			m = b
 	var mi := Blocks.mesh(n, m, Vector3(0, size.y / 2.0, 0), color)
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var glow := SphereMesh.new()
-	glow.radius = maxf(size.x, size.z) * 0.9 + 0.08
-	glow.height = glow.radius * 2.0
-	glow.radial_segments = 10
-	glow.rings = 5
-	var g := Blocks.mesh(n, glow, Vector3(0, size.y / 2.0, 0), Color(1.0, 0.92, 0.55, 0.22), true)
-	g.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	glow_ring(n, size)
 	return n
+
+
+## Vòng sáng mờ quanh một món cần tìm (cỡ size, gốc ở đáy) để dễ thấy từ xa.
+static func glow_ring(n: Node3D, size: Vector3) -> void:
+	var s := SphereMesh.new()
+	s.radius = maxf(size.x, size.z) * 0.9 + 0.08
+	s.height = s.radius * 2.0
+	s.radial_segments = 10
+	s.rings = 5
+	var g := Blocks.mesh(n, s, Vector3(0, size.y / 2.0, 0), Color(1.0, 0.92, 0.55, 0.22), true)
+	g.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
 ## Đồ thật G8 (assets/models/thu_bay/<ten>.glb, gốc giữa đáy, mặt trước +Z). glow: thêm vòng sáng mờ như khối tạm
@@ -256,13 +261,7 @@ static func prop(ten: String, glow := true) -> Node3D:
 		if size.length() < 0.6:
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	if glow:
-		var g := SphereMesh.new()
-		g.radius = maxf(size.x, size.z) * 0.9 + 0.08
-		g.height = g.radius * 2.0
-		g.radial_segments = 10
-		g.rings = 5
-		var gm := Blocks.mesh(n, g, Vector3(0, size.y / 2.0, 0), Color(1.0, 0.92, 0.55, 0.22), true)
-		gm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		ViecNho.glow_ring(n, size)
 	return n
 
 

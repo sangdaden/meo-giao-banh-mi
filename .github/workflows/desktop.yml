@@ -260,6 +260,27 @@ jobs:
           # Nhật ký chơi thử (P3, P4): file nhật ký + lỗi godot.log trong user://logs, chỗ lúng túng > 8 giây, heatmap
           timeout 300 ~/godot/godot --headless --path . -s tests/test_nhat_ky.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee nhat_ky.log
           grep -q "NHAT KY TEST OK" nhat_ky.log
+          # W3: các bài thử đã có nhưng chưa chạy trong CI (rig Bơ, động tác, leo, nhà phố, Chó Mực, chợ, chi tiết phố, trò Hội mèo)
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_bo_rig.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee bo_rig.log
+          grep -q "KẾT QUẢ: TẤT CẢ OK" bo_rig.log
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_dong_tac_bo.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee dong_tac_bo.log
+          grep -q "KẾT QUẢ: TẤT CẢ OK" dong_tac_bo.log
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_dong_tac_g2.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee dong_tac_g2.log
+          grep -q "KẾT QUẢ: TẤT CẢ OK" dong_tac_g2.log
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_leo_tuong.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee leo_tuong.log
+          grep -q "KẾT QUẢ: TẤT CẢ OK" leo_tuong.log
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_nha_pho.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee nha_pho.log
+          grep -q "TEST NHA PHO OK" nha_pho.log
+          timeout 300 ~/godot/godot --headless --path . -s tools/dog_test.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee dog_test.log
+          grep -q "DOG TEST OK" dog_test.log
+          timeout 300 ~/godot/godot --headless --path . -s tools/cho_test.gd -- --cho 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee cho_test.log
+          grep -q "CHO TEST OK" cho_test.log
+          timeout 600 ~/godot/godot --headless --path . -s tools/thu_chi_tiet_pho.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee chi_tiet_pho.log
+          grep -q "CHI TIET PHO OK" chi_tiet_pho.log
+          timeout 300 ~/godot/godot --headless --path . -s tools/thu_chong_thung.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee chong_thung.log
+          grep -q "CRATES DONE" chong_thung.log
+          timeout 300 ~/godot/godot --headless --path . -s tools/thu_tiep_suc.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee tiep_suc.log
+          grep -q "RELAY DONE" tiep_suc.log
           mkdir -p export
           ~/godot/godot --headless --path . --export-release "macOS" "export/$ZIP_NAME"
           unzip -l "export/$ZIP_NAME" | grep -q "_CodeSignature/CodeResources"

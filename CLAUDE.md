@@ -90,14 +90,16 @@ Model: Blender chạy headless qua `pip install bpy` (đang dùng bpy 5.2). Mỗ
 
 | Workflow | Chạy khi | Làm gì |
 |---|---|---|
-| `desktop.yml` | mỗi PR và mỗi lần `main` đổi | Xuất Windows (chạy thử `.exe` bằng wine) và macOS; job macOS chạy autotest mọi ngày và gần hết `tests/`. `main` thì thay zip ở bản phát hành `ban-moi-nhat`. |
+| `desktop.yml` | mỗi PR (trừ PR chỉ sửa `.md`, `docs/`) và mỗi lần `main` đổi | Xuất Windows (chạy thử `.exe` bằng wine) và macOS; job macOS chạy gần hết `tests/`, bot bếp. `main` thì thay zip ở bản phát hành `ban-moi-nhat`. |
+| `bot-ca-tuan.yml` | mỗi PR (trừ PR chỉ sửa `.md`, `docs/`) và mỗi lần `main` đổi | Autotest từng ngày và Bơ chạy bộ thật cả 7 ngày (nơi duy nhất chạy autotest các ngày). |
 | `hieu-nang.yml` | mỗi PR | Đo tam giác / lệnh vẽ / dung lượng `index.pck`, đỏ khi vượt ngân sách. Ảnh các góc ở mục Artifacts. |
 | `pages.yml` | `main` đổi | Xuất bản web lên https://sangdaden.github.io/meo-giao-banh-mi/ |
 | `gop-main.yml` | `main` đổi, PR mở hoặc đẩy thêm | Tự gộp `main` vào các PR đang mở, báo PR đụng (`docs/gop-main.md`). |
 | `itch.yml` | chỉ khi bấm Run workflow (hoặc tag `v*` khi biến `ITCH_TU_DONG` = `co`), xem `docs/itch.md` | Đẩy bản web/Windows/Mac lên itch.io; chỉ chạy khi Sang đồng ý. |
 | `so-anh.yml` | mỗi PR (trừ PR chỉ sửa `.md`, `docs/`) | Chụp cùng góc trên main và trên PR (mỗi ngày: trên cao, lò bánh, chỗ khách mỗi đơn; bếp; màn hình chính), khung đỏ quanh vùng khác. Trang xem ở artifact `so-anh`, bình luận trên PR khi có góc khác. Chỉ báo, không đỏ (`docs/so-anh.md`). |
 
-- Thêm test mới thì thêm một dòng chạy nó vào job macOS trong `desktop.yml`, kèm `grep -q "<CHU OK>"`.
+- Thêm test mới thì thêm một dòng chạy nó vào job macOS trong `desktop.yml` (cuối danh sách, trước bước kiểm log), dạng `timeout 300 ~/godot/godot ... 2>&1 | python3 tools/loc_log.py | tee <ten>.log` kèm `grep -q "<CHU OK>" <ten>.log`.
+- Log phải sạch (KT2): mọi `ERROR` / `SCRIPT ERROR` của Godot ngoài `tools/loi_duoc_phep.txt` làm đỏ CI (`tools/loc_log.py --kiem`, và trong bot cả tuần). Lỗi do code thì sửa code; chỉ thêm vào danh sách lỗi đã hiểu là vô hại, kèm lý do.
 - Không bỏ qua, tắt hay cách ly test để CI xanh. Không push commit rỗng để chạy lại CI.
 - CI vẽ bằng CPU: số tam giác và lệnh vẽ đúng, FPS thì không.
 

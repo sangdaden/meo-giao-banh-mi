@@ -6,7 +6,6 @@ extends SceneTree
 ## Chạy: godot --headless --path . -s tests/test_bo_cau.gd
 
 const PlayerScript := preload("res://scripts/player.gd")
-const MainScript := preload("res://scripts/main.gd")
 
 var world: Node3D
 var bo: CharacterBody3D
@@ -14,7 +13,6 @@ var fails := 0
 
 
 func _init() -> void:
-	MainScript._setup_input()
 	DoKho.force = -1
 	GameState.save_path = "user://test_bo_cau.cfg"
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(GameState.save_path))
@@ -22,6 +20,8 @@ func _init() -> void:
 
 
 func _run() -> void:
+	# main.gd dùng autoload (Sound): nạp lúc chạy, không preload, kẻo ở chế độ -s báo lỗi biên dịch
+	load("res://scripts/main.gd")._setup_input()
 	world = Node3D.new()
 	root.add_child(world)
 	City.build(world)

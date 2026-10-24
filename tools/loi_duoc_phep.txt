@@ -1,0 +1,17 @@
+# Lỗi Godot được phép trong log CI (mã KT2). Mỗi dòng một biểu thức chính quy (Python re.search),
+# so với dòng "ERROR: ..." / "SCRIPT ERROR: ...". Dòng "at: ..." ngay sau được bỏ theo.
+# Lỗi khác mọi dòng ở đây làm đỏ CI (tools/loc_log.py --kiem, tools/bot_ca_tuan.py).
+# Chỉ thêm lỗi đã hiểu là vô hại, kèm lý do. Lỗi do code game thì sửa code.
+
+# Bộ vẽ giả lúc --headless không có lưới thật: mỗi lần hỏi số mặt của mesh đều báo lỗi này.
+# Chỉ xuất hiện khi --headless, không có trên máy người chơi.
+^ERROR: Parameter "m" is null\.
+
+# Rò rỉ lúc thoát: test và autotest gọi quit() giữa chừng (cảnh còn đang chạy, font và
+# khối va chạm chưa kịp giải phóng). Không ảnh hưởng lúc chơi.
+^ERROR: \d+ RID allocations of type '.*' were leaked at exit\.
+^ERROR: \d+ resources still in use at exit
+^ERROR: Pages in use exist at exit in PagedAllocator
+
+# tests/test_luu_game.gd cố ý mở một file lưu hỏng để kiểm game không sập.
+^ERROR: ConfigFile parse error at user://test_luu_game\.cfg

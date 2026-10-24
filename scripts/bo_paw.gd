@@ -159,6 +159,8 @@ static func _add_shells(mat: ShaderMaterial) -> void:
 	var last := mat
 	for k in [0.003, 0.006]:
 		var sh: ShaderMaterial = mat.duplicate()
+		# duplicate() chép cả next_pass của mat (lớp trước): bỏ đi, kẻo lớp sau trỏ ngược lên lớp trước thành vòng lặp
+		sh.next_pass = null
 		sh.set_shader_parameter("shell", k)
 		last.next_pass = sh
 		last = sh

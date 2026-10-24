@@ -3,9 +3,9 @@
 
 Hai lượt cho mỗi ngày:
   autotest  autotest sẵn có của ngày (Bơ dịch chuyển). Đỏ khi main/cảnh in AUTOTEST ... FAIL, không in dòng OK,
-            có SCRIPT ERROR, hoặc Bơ rơi khỏi map.
+            có SCRIPT ERROR hay lỗi mới ngoài tools/loi_duoc_phep.txt, hoặc Bơ rơi khỏi map.
   chạy bộ   Bơ chạy bộ thật theo lưới đường đi tới lò và tới khách (ngày có đơn). Đỏ khi không giao đủ đơn,
-            Bơ rơi khỏi map, có SCRIPT ERROR, hoặc quá giờ. Dòng AUTOTEST của main ở lượt này chỉ để tham khảo
+            Bơ rơi khỏi map, có SCRIPT ERROR hay lỗi mới, hoặc quá giờ. Dòng AUTOTEST của main ở lượt này chỉ để tham khảo
             (bot không làm nhiệm vụ phụ, không cố bị Chó Mực đớp). Chỗ bot phải dịch chuyển, đơn trễ: cảnh báo.
 
 Chạy (từ gốc repo, đã --import):
@@ -18,10 +18,12 @@ import argparse
 import concurrent.futures as cf
 import json
 import os
-import re
 import subprocess
 import sys
 import time
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import loc_log  # noqa: E402  (KT2: danh sách lỗi được phép tools/loi_duoc_phep.txt)
 
 DAYS = ["thu_hai", "thu_ba", "thu_tu", "thu_nam", "thu_sau", "thu_bay", "chu_nhat"]
 DAY_NAMES = {"thu_hai": "Thứ Hai", "thu_ba": "Thứ Ba", "thu_tu": "Thứ Tư", "thu_nam": "Thứ Năm",
@@ -30,7 +32,7 @@ DAY_NAMES = {"thu_hai": "Thứ Hai", "thu_ba": "Thứ Ba", "thu_tu": "Thứ Tư"
 NO_ORDERS = {"thu_bay"}
 # Cờ thêm cho autotest của từng ngày (giống bước CI trong desktop.yml)
 EXTRA = {"thu_tu": ["--ngap"]}
-NOISE = re.compile(r"mesh_storage|Parameter \"m\"")
+ALLOWED = loc_log.load_allowed()
 
 
 def run_one(args, day, mode):
@@ -62,7 +64,8 @@ def run_one(args, day, mode):
         code, raw, timed_out = -1, e.stdout or b"", True
     text = raw.decode("utf-8", "replace")
     with open(log_path, "w", encoding="utf-8") as f:
-        f.write("\n".join(l for l in text.splitlines() if not NOISE.search(l)))
+        f.write("\n".join(l for l in text.splitlines()
+                           if not (loc_log.ERR.match(l) and loc_log.allowed(l, ALLOWED))))
     rep = {}
     if os.path.exists(report_path):
         with open(report_path, encoding="utf-8") as f:
@@ -70,6 +73,7 @@ def run_one(args, day, mode):
     lines = text.splitlines()
     autotest_lines = [l.strip() for l in lines if l.startswith("AUTOTEST")]
     script_errors = [l.strip() for l in lines if "SCRIPT ERROR" in l]
+    other_errors = [l.strip() for l in loc_log.new_errors(lines, ALLOWED) if "SCRIPT ERROR" not in l]
     problems = []
     if timed_out:
         problems.append(f"quá {args.timeout} giây chưa xong")
@@ -77,6 +81,9 @@ def run_one(args, day, mode):
         problems.append("không có báo cáo (game thoát giữa chừng?)")
     if script_errors:
         problems.append(f"{len(script_errors)} SCRIPT ERROR: {script_errors[0][:160]}")
+    if other_errors:
+        problems.append(f"{len(other_errors)} lỗi mới trong log (không có trong tools/loi_duoc_phep.txt): "
+                        f"{other_errors[0][:160]}")
     falls = rep.get("falls", [])
     if falls:
         f0 = falls[0]

@@ -251,6 +251,9 @@ jobs:
           # Ngày mưa hợp lý (người trú mưa, Bé Na nhận tận tay, áo mưa người lái) và xe dừng nhường con vật
           timeout 300 ~/godot/godot --headless --path . -s tests/test_ngay_mua.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee ngay_mua.log
           grep -q "NGAY MUA TEST OK" ngay_mua.log
+          # File lưu có phiên bản (Q2): mở file lưu của bản trước, khóa sai kiểu, file mới hơn, file hỏng, khóa đã đăng ký
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_luu_game.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee luu_game.log
+          grep -q "LUU GAME TEST OK" luu_game.log
           # Nhật ký chơi thử (P3, P4): file nhật ký + lỗi godot.log trong user://logs, chỗ lúng túng > 8 giây, heatmap
           timeout 300 ~/godot/godot --headless --path . -s tests/test_nhat_ky.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee nhat_ky.log
           grep -q "NHAT KY TEST OK" nhat_ky.log

@@ -18,7 +18,9 @@ extends Node3D
 ## Cô Tư bán rau (bancho, ngồi) ngoi_rao; Chú Sáu (hangrong) day_xe, quat_than, va; Cô Bảy (ganhhang) ganh_di, va.
 ## Chị Thảo khách xe ôm (khachxeom): ngoi_sau (yên sau, hông 0,95 m), nhan_banh trên yên, xuong_xe.
 ## Người chợ thêm: Cô Năm (cho4, bán đứng), Bé Thư (cho5), Ông Út (cho6), Chị Mai (cho7) mac_ca, dung_chon, xem, reo;
-## Chú Tám (cho8, bán ngồi ghế đẩu) mac_ca. Người chợ nào cũng có va, di_bo và bản nhẹ (ban = "nhe" / "dong").
+## Chú Tám (cho8, bán ngồi ghế đẩu) mac_ca. Người chợ nào cũng có va, di_bo. Chỉ giữ bản game dùng (Q3, 24/10):
+## bancho, ganhhang, hangrong bản "nhe"; cho4–cho8 bản "dong"; dicho1–3 đủ cả ba; xemco đủ + "dong".
+## Cần bản khác thì xuất lại bằng tools/nguoi_game.py --ban=...
 ## Người ngồi (Chú Tư, Anh Hùng, Bà Sáu, hai ông, Chú Năm) làm mọi động tác ở tư thế ngồi;
 ## gốc model là mặt đất, ghế đặt sao cho mặt ghế đúng chiều cao trong SEAT.
 ## Thứ Bảy (trang G9): ai cũng có chup_chung (đứng chụp ảnh chung với Bơ, lặp). Cô Ba nem_banh, khen_ngon;
@@ -26,7 +28,7 @@ extends Node3D
 ## Chị Mây chi_bang, vo_tay, lac_dau_cuoi; Anh Hùng cui_tim, nhan_oc; Bà Sáu (chup_chung ngồi) chi_gian, nhan_bong;
 ## hai ông chi_quan_co; Cô Hai chong_nanh, vo_tay; Chú Năm (chup_chung trên yên xe) gai_dau, chi_mai;
 ## Chị Thảo không mũ "khachxeom_tb" tim_mu, nhan_mu. Chú Tư, Anh Hùng, Bà Sáu, Chú Năm có di_bo.
-## Người qua đường (trang P3, id qd_*): chỉ có bản "nhe" (mặc định) và "dong". 8 người gốc qd_ongtd, qd_vanphong,
+## Người qua đường (trang P3, id qd_*): bản "nhe" (mặc định); bản "dong" chỉ còn cho người lái xe máy (traffic.gd). 8 người gốc qd_ongtd, qd_vanphong,
 ## qd_hocsinh, qd_sinhvien, qd_veso, qd_giaohang, qd_congnhan, qd_mehoa; đổi đồ <id>_b (qd_hocsinh_b là Bé Ngân);
 ## áo mưa qd_vanphong_mua, qd_hocsinh_mua, qd_congnhan_mua, qd_giaohang_mua, qd_mehoa_mua; đội nón đi xe
 ## qd_sinhvien_xe, qd_hocsinh_xe (Anh Đạt, Chị Hoa lúc nào cũng đội). Clip chung: di_bo, chay, dung_cho, dung_yen,

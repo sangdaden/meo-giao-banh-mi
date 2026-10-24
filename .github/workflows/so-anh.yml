@@ -1,0 +1,125 @@
+# Ảnh so sánh mỗi PR (mã P2, docs/so-anh.md):
+# - Chụp cùng các góc cố định (mỗi ngày: trên cao, lò bánh, chỗ khách mỗi đơn; thêm bếp và màn hình chính)
+#   trên main và trên PR bằng tools/so_anh/chup.gd, rồi tools/so_anh/so_sanh.py đánh dấu vùng khác.
+# - Trang so sánh (index.html + ảnh) nằm ở artifact "so-anh"; bảng tóm tắt ở trang Summary.
+#   Có góc khác thì bot bình luận một lần trên PR (lần sau sửa lại chính bình luận đó).
+# - Chỉ báo: khác ảnh, hay chụp lỗi, đều không làm đỏ CI.
+name: Ảnh so sánh
+
+on:
+  pull_request:
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+  workflow_dispatch:
+
+concurrency:
+  group: so-anh-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  GODOT_VERSION: "4.3"
+  LANG: C.UTF-8
+  LC_ALL: C.UTF-8
+
+jobs:
+  so-anh:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      # Với pull_request, HEAD là commit gộp PR vào main mới nhất; cha thứ nhất (HEAD^1) là main đó.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Cache Godot
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: ~/godot-bot
+          key: godot-${{ env.GODOT_VERSION }}-linux-bot
+
+      - name: Tải Godot
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot-bot
+          curl -sSL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip -d ~/godot-bot
+          mv ~/godot-bot/Godot_v${GODOT_VERSION}-stable_linux.x86_64 ~/godot-bot/godot
+          rm godot.zip
+
+      - name: Cài màn hình ảo, Pillow, numpy
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends xvfb libgl1-mesa-dri python3-pil python3-numpy >/dev/null
+
+      - name: Lấy bản main để so
+        run: |
+          git worktree add --detach "$RUNNER_TEMP/goc" HEAD^1
+          # Dùng công cụ chụp của PR cho cả hai bên để góc chụp y như nhau (main cũ có thể chưa có nó)
+          rm -rf "$RUNNER_TEMP/goc/tools/so_anh"
+          cp -r tools/so_anh "$RUNNER_TEMP/goc/tools/so_anh"
+
+      - name: Nhập project (PR, rồi main dùng lại phần đã nhập)
+        run: |
+          ~/godot-bot/godot --headless --path . --import >/dev/null 2>&1 || true
+          cp -r .godot "$RUNNER_TEMP/goc/.godot"
+          ~/godot-bot/godot --headless --path "$RUNNER_TEMP/goc" --import >/dev/null 2>&1 || true
+
+      - name: Chụp trên main và trên PR
+        continue-on-error: true
+        run: |
+          chup() {
+            XDG_DATA_HOME="$RUNNER_TEMP/user_$2" timeout 1200 xvfb-run -a -s "-screen 0 1280x720x24" \
+              ~/godot-bot/godot --path "$1" --rendering-driver opengl3 --fixed-fps 30 \
+              -s tools/so_anh/chup.gd -- --chup="$RUNNER_TEMP/anh_$2" > "$RUNNER_TEMP/chup_$2.log" 2>&1
+            grep -q "SO ANH CHUP OK" "$RUNNER_TEMP/chup_$2.log" || echo "::warning::Chụp ảnh trên $2 không xong, xem log trong artifact so-anh"
+            grep "SCRIPT ERROR" "$RUNNER_TEMP/chup_$2.log" | head -5 || true
+          }
+          chup "$RUNNER_TEMP/goc" main
+          chup . pr
+
+      - name: So ảnh, làm trang
+        continue-on-error: true
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_NUM: ${{ github.event.pull_request.number }}
+        run: |
+          python3 tools/so_anh/so_sanh.py --goc "$RUNNER_TEMP/anh_main" --moi "$RUNNER_TEMP/anh_pr" \
+            --out so-anh --tieu-de "PR #${PR_NUM:-?}" --link "${PR_URL:-}"
+          cp "$RUNNER_TEMP"/chup_*.log so-anh/ 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v4
+        id: trang
+        if: always()
+        continue-on-error: true
+        with:
+          name: so-anh
+          path: so-anh
+          retention-days: 14
+
+      - name: Tóm tắt và bình luận trên PR
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUM: ${{ github.event.pull_request.number }}
+          LINK: ${{ steps.trang.outputs.artifact-url }}
+        run: |
+          [ -f so-anh/tom_tat.md ] || { echo "Không có ảnh để so." >> "$GITHUB_STEP_SUMMARY"; exit 0; }
+          { cat so-anh/tom_tat.md; [ -n "$LINK" ] && echo && echo "Xem ảnh: [tải trang so sánh]($LINK) (giải nén, mở \`index.html\`)."; } > tom_tat_link.md
+          cat tom_tat_link.md >> "$GITHUB_STEP_SUMMARY"
+          [ -n "$PR_NUM" ] || exit 0
+          khac=$(python3 -c "import json; print(sum(r['status'] != 'giong' for r in json.load(open('so-anh/ket_qua.json'))))")
+          { echo "<!-- so-anh -->"; cat tom_tat_link.md; } > binh_luan.md
+          repo="${{ github.repository }}"
+          cu=$(gh api "repos/$repo/issues/$PR_NUM/comments" --paginate --jq '.[] | select(.body | startswith("<!-- so-anh -->")) | .id' | head -1)
+          if [ -n "$cu" ]; then
+            gh api -X PATCH "repos/$repo/issues/comments/$cu" -F body=@binh_luan.md >/dev/null
+          elif [ "$khac" != "0" ]; then
+            gh pr comment "$PR_NUM" --repo "$repo" --body-file binh_luan.md
+          fi

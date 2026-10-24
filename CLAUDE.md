@@ -94,6 +94,7 @@ Model: Blender chạy headless qua `pip install bpy` (đang dùng bpy 5.2). Mỗ
 | `pages.yml` | `main` đổi | Xuất bản web lên https://sangdaden.github.io/meo-giao-banh-mi/ |
 | `gop-main.yml` | `main` đổi, PR mở hoặc đẩy thêm | Tự gộp `main` vào các PR đang mở, báo PR đụng (`docs/gop-main.md`). |
 | `itch.yml` | chỉ khi bấm Run workflow (hoặc tag `v*` khi biến `ITCH_TU_DONG` = `co`), xem `docs/itch.md` | Đẩy bản web/Windows/Mac lên itch.io; chỉ chạy khi Sang đồng ý. |
+| `so-anh.yml` | mỗi PR (trừ PR chỉ sửa `.md`, `docs/`) | Chụp cùng góc trên main và trên PR (mỗi ngày: trên cao, lò bánh, chỗ khách mỗi đơn; bếp; màn hình chính), khung đỏ quanh vùng khác. Trang xem ở artifact `so-anh`, bình luận trên PR khi có góc khác. Chỉ báo, không đỏ (`docs/so-anh.md`). |
 
 - Thêm test mới thì thêm một dòng chạy nó vào job macOS trong `desktop.yml`, kèm `grep -q "<CHU OK>"`.
 - Không bỏ qua, tắt hay cách ly test để CI xanh. Không push commit rỗng để chạy lại CI.

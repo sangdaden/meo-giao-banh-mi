@@ -26,6 +26,9 @@ func _physics_process(d: float) -> bool:
 	if n == 60 + 60 * 6:
 		cn._play(0)
 		route = [Vector3(-27.0, 0, -5.6)] + cn.san.routes["co_hai"]
+		# Từ cờ 6 (hẻm sau tạp hóa) về cờ 1: chạy theo hẻm sang đường ngang x = -18, ra đường lớn, vòng qua chân
+		# cổng chào về chồng thùng. Đi thẳng về cờ 1 thì đâm chéo vào tường sau nhà, kẹt ở góc tường lồi x = -6,75
+		route.append_array([Vector3(-18.0, 0, -15.2), Vector3(-18.0, 0, -2.6), Vector3(-26.6, 0, -2.6)])
 		print("START ", cn.player.global_position)
 	if n < 60 + 60 * 6 + 5:
 		return false
@@ -70,9 +73,11 @@ func _physics_process(d: float) -> bool:
 		cam.look_at(p.global_position)
 		cam.make_current()
 		_cam = cam
+		if DisplayServer.get_name() == "headless":
+			quit(1)
 
 	if t > 200:
-		print("TIMEOUT"); quit()
+		print("TIMEOUT"); quit(1)
 	if not tr.running:
 		print("RACE FINISHED t=", t); quit()
 	return false

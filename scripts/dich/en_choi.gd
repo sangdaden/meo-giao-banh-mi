@@ -323,4 +323,5 @@ const EN := {
 	"Chuồn chuồn bay tới chào Bơ!": "A dragonfly comes to say hi to Bơ!",
 	"Tặc tặc": "Tsk tsk",
 	"Thạch sùng chỉ chỗ bám kế tiếp: nhảy lên chỗ nó đang bám!": "The gecko shows the next foothold: jump up to where it is clinging!",
+	"[E] Đưa bánh cho Bé Na": "[E] Give the bread to Bé Na",
 }

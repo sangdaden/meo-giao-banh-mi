@@ -369,7 +369,8 @@ static func _ba_gac_across(parent: Node3D, x: float, z_mid: float) -> void:
 	var foam := Blocks.collider(parent, Vector3(0.72, 0.42, 0.48), Vector3(x, 0.21, z_mid + 0.45), Blocks.LAYER_PROP)
 	PhoModels.put(foam, "thung_xop", Vector3(0, -0.21, 0))
 	_pot(parent, Vector3(x, 0, z_mid + 0.95))
-	_laundry(parent, x, z_mid)
+	if not ThoiTiet.dang_mua():  # trời mưa thì đồ phơi đã thu vào
+		_laundry(parent, x, z_mid)
 
 
 ## Dây phơi ngang hẻm cao 2,4 m, đồ phơi thòng xuống tới 1,4 m: đi bộ qua được, không nhảy qua được.
@@ -447,7 +448,8 @@ static func cafe(parent: Node3D) -> void:
 			var sz: float = z + side * 0.62
 			var stool := Blocks.collider(parent, Vector3(0.3, 0.28, 0.3), Vector3(x, 0.14, sz), Blocks.LAYER_PROP)
 			PhoModels.put(stool, "ghe_do" if (i + int(side > 0)) % 2 else "ghe_xanh", Vector3(0, -0.14, 0), 0.0, Vector3(1, 0.28 / 0.29, 1))
-			if (i + int(side > 0)) % 3 == 0:
+			# Trời mưa khách chỉ ngồi hàng ghế trong, dưới mái hiên (hàng ngoài phía đường bỏ trống)
+			if (i + int(side > 0)) % 3 == 0 and not (side < 0.0 and ThoiTiet.dang_mua()):
 				_seated_customer(parent, Vector3(x, 0.28, sz), side)
 		x += 1.0
 		i += 1

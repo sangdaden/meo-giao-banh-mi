@@ -66,6 +66,14 @@ func _ready() -> void:
 		chicks.append(c)
 
 
+## Chỗ gà mẹ và gà con (ConVat.road_points: xe nhường gà con chạy theo Bơ xuống đường).
+func road_points() -> PackedVector3Array:
+	var out := PackedVector3Array([hen.global_position])
+	for c in chicks:
+		out.append(c.node.global_position)
+	return out
+
+
 ## Q (ConVat): gà con lạc trong tầm chạy theo Bơ.
 func on_called(pos: Vector3) -> void:
 	var n := 0

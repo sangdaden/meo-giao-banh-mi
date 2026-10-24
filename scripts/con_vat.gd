@@ -11,6 +11,9 @@ extends Node
 ##     "ban_bon_chan" trong hồ sơ; trang "Bạn bốn chân" trong Sổ hàng xóm đọc ConVat.met(id).
 ##   - Đủ hết ALL thì tặng phụ kiện QUA (vòng cổ lục lạc xương cá, model chờ phác thảo; chưa có model vẫn ghi
 ##     vào tủ đồ như quà Sổ hàng xóm).
+##   - Xe nhường con vật dưới lòng đường: con vật có func road_points() -> PackedVector3Array (chỗ từng con đang
+##     đứng/bơi ngoài phố) thì traffic.gd đọc qua ConVat.road_points và dừng trước đó. Mèo (MeoNpc) và Chó Mực
+##     (MucTuan) chính là vị trí node nên không cần hàm riêng.
 ## Nối vào cảnh phố: ConVat.setup(player, main) (một dòng trong main.gd).
 
 const GROUP := "con_vat"
@@ -94,6 +97,23 @@ static func call_near(tree: SceneTree, pos: Vector3) -> int:
 			a.on_called(pos)
 			n += 1
 	return n
+
+
+## Chỗ các con vật đang ở sát mặt đất (cao dưới 0,6 m) để xe nhường (traffic.gd lọc theo làn xe của từng xe).
+static func road_points(tree: SceneTree) -> PackedVector3Array:
+	var out := PackedVector3Array()
+	for a in tree.get_nodes_in_group(GROUP):
+		if not (a is Node3D) or not a.is_inside_tree() or not (a as Node3D).is_visible_in_tree():
+			continue
+		if a.has_method("road_points"):
+			for p: Vector3 in a.road_points():
+				if p.y < 0.6:
+					out.append(p)
+		elif a is MeoNpc or a is MucTuan:
+			var p := (a as Node3D).global_position
+			if p.y < 0.6:
+				out.append(p)
+	return out
 
 
 # ---------------------------------------------------------------- đã gặp (T2)

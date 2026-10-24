@@ -20,7 +20,7 @@ const LICH := {
 		"xa": "Meo? Mít nằm phơi nắng trên mái hiên tiệm tóc nè!"}],
 	"thu_ba": [{"id": "bot", "pos": Vector3(-13.4, 0.2, 5.3), "yaw": 200.0, "pose": "ngoi",
 		"xa": "Bột chờ cô bán khô cho miếng cá. Mai mưa, lên mái đua với Bột nha!"}],
-	"thu_tu": [{"id": "mun", "pos": Vector3(3.2, 0.2, 5.6), "yaw": 180.0, "pose": "ngoi",
+	"thu_tu": [{"id": "mun", "pos": Vector3(3.2, 0.2, 6.45), "yaw": 180.0, "pose": "ngoi",
 		"xa": "Mun trú mưa dưới mái hiên. Ướt lông là ghét lắm."},
 		{"id": "bot", "pos": Vector3(-25.0, 3.3, -6.5), "yaw": 270.0, "pose": "ngoi", "dua": true,
 		"xa": "Bột đây! Chân Bột chắc lắm, mưa cũng không trượt."}],

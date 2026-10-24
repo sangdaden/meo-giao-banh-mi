@@ -248,6 +248,9 @@ jobs:
           # Con vật mới V1–V6 (gà sổ bu, cá, vịt lúc ngập, bướm, thạch sùng chung cư, chuột Tí trong bếp)
           timeout 900 ~/godot/godot --headless --path . -s tests/test_con_vat_moi.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee con_vat_moi.log
           grep -q "CON VAT MOI TEST OK" con_vat_moi.log
+          # Ngày mưa hợp lý (người trú mưa, Bé Na nhận tận tay, áo mưa người lái) và xe dừng nhường con vật
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_ngay_mua.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee ngay_mua.log
+          grep -q "NGAY MUA TEST OK" ngay_mua.log
           mkdir -p export
           ~/godot/godot --headless --path . --export-release "macOS" "export/$ZIP_NAME"
           unzip -l "export/$ZIP_NAME" | grep -q "_CodeSignature/CodeResources"

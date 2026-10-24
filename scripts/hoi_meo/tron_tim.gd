@@ -42,7 +42,7 @@ func begin() -> void:
 		m.show_name(false)
 		_place(HIDERS[i], SPOTS[i])
 	put_player(START, SPOTS[0])
-	toast("Trốn tìm! Năm bạn đã trốn trong hẻm 42 và hẻm giữa khối 5. Rón rén (Alt) để nghe tiếng chuông, tới sát rồi bấm E.", 5.0)
+	toast("Trốn tìm! Năm bạn đã trốn trong hẻm 42 và hẻm giữa khối 5. Rón rén (Z) để nghe tiếng chuông, tới sát rồi bấm E.", 5.0)
 
 
 func _place(id: String, pos: Vector3) -> void:

@@ -41,6 +41,7 @@ func dat(moi: String, luu := true) -> void:
 	ma = moi
 	if doi:
 		doi_ngon_ngu.emit(ma)
+		TrangWeb.bao_ngon_ngu(ma)
 
 
 ## Thử: godot --headless --path . -- --autotest --lang=en --dich-thieu → in các câu tiếng Việt chưa dịch lúc thoát.

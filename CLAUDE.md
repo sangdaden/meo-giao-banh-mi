@@ -92,7 +92,7 @@ Model: Blender chạy headless qua `pip install bpy` (đang dùng bpy 5.2). Mỗ
 |---|---|---|
 | `desktop.yml` | mỗi PR và mỗi lần `main` đổi | Xuất Windows (chạy thử `.exe` bằng wine) và macOS; job macOS chạy autotest mọi ngày và gần hết `tests/`. `main` thì thay zip ở bản phát hành `ban-moi-nhat`. |
 | `hieu-nang.yml` | mỗi PR | Đo tam giác / lệnh vẽ / dung lượng `index.pck`, đỏ khi vượt ngân sách. Ảnh các góc ở mục Artifacts. |
-| `pages.yml` | `main` đổi | Xuất bản web lên https://sangdaden.github.io/meo-giao-banh-mi/ |
+| `pages.yml` | `main` đổi; Run workflow; tag `v*` | Bản `main` lên https://sangdaden.github.io/meo-giao-banh-mi/moi-nhat/ ; link gốc là bản ổn định cho người chơi thử, chỉ đổi khi Sang bấm "Đưa main lên link ổn định" hoặc gắn tag (`docs/ban-web.md`). |
 | `gop-main.yml` | `main` đổi, PR mở hoặc đẩy thêm | Tự gộp `main` vào các PR đang mở, báo PR đụng (`docs/gop-main.md`). |
 | `itch.yml` | chỉ khi bấm Run workflow (hoặc tag `v*` khi biến `ITCH_TU_DONG` = `co`), xem `docs/itch.md` | Đẩy bản web/Windows/Mac lên itch.io; chỉ chạy khi Sang đồng ý. |
 | `so-anh.yml` | mỗi PR (trừ PR chỉ sửa `.md`, `docs/`) | Chụp cùng góc trên main và trên PR (mỗi ngày: trên cao, lò bánh, chỗ khách mỗi đơn; bếp; màn hình chính), khung đỏ quanh vùng khác. Trang xem ở artifact `so-anh`, bình luận trên PR khi có góc khác. Chỉ báo, không đỏ (`docs/so-anh.md`). |

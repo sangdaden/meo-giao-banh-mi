@@ -1,27 +1,42 @@
-# Mỗi lần cập nhật nhánh main: xuất bản web bằng Godot rồi đăng lên GitHub Pages.
+# Bản web trên GitHub Pages, hai link (PH2, xem docs/ban-web.md):
+#   https://sangdaden.github.io/meo-giao-banh-mi/           bản ỔN ĐỊNH cho người chơi thử: chỉ đổi khi Sang bấm
+#                                                            "Run workflow" với ô "Đưa main lên link ổn định", hoặc gắn tag v*
+#   https://sangdaden.github.io/meo-giao-banh-mi/moi-nhat/  bản MỚI NHẤT: tự đổi mỗi lần main đổi
+# Bản ổn định được giữ ở release "web-on-dinh" (file web-on-dinh.zip), mỗi lần main đổi thì lấy lại để đăng cùng.
 # Cần bật một lần: Settings > Pages > Source: GitHub Actions.
 name: Bản web (GitHub Pages)
 
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      len_on_dinh:
+        description: "Đưa main hiện tại lên link ổn định (người chơi thử)"
+        type: boolean
+        default: false
+      tra_lai:
+        description: "Hoặc trả link ổn định về một bản cũ: gõ tên tag (ví dụ on-dinh-2026-10-25-0900), để trống nếu không"
+        default: ""
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
-concurrency:
-  group: pages
-  cancel-in-progress: true
-
 env:
   GODOT_VERSION: "4.3"
+  REL: web-on-dinh
 
 jobs:
-  build:
+  # Chỉ chạy khi Sang bấm "Đưa main lên link ổn định" hoặc gắn tag v*: dựng bản ổn định và cất vào release.
+  on_dinh:
+    if: inputs.len_on_dinh || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    concurrency:
+      group: pages-on-dinh
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
 
@@ -48,26 +63,115 @@ jobs:
           unzip -q -j templates.tpz 'templates/web_*' 'templates/version.txt' -d "$dest"
           rm godot.zip templates.tpz
 
-      - name: Xuất bản web
+      - name: Xuất bản ổn định
         run: |
           ~/godot/godot --headless --path . --import || true
-          mkdir -p build/web
-          ~/godot/godot --headless --path . --export-release "Web" build/web/index.html
-          test -f build/web/index.wasm
-          # Gói nhẹ (Q1): đồ riêng từng ngày và tủ đồ tách ra build/web/goi/*.pck, tải khi vào ngày (scripts/goi_web.gd)
-          python3 tools/goi_web/tach_goi.py build/web/index.pck
-          # Ghi mã phiên bản để trang tự nhắc tải lại khi có bản mới (web/update-check.js)
-          sed "s/__BUILD_VERSION__/${GITHUB_SHA}/" web/update-check.js > build/web/update-check.js
-          echo "{\"version\": \"${GITHUB_SHA}\"}" > build/web/version.json
+          tools/web/xuat_web.sh build/on-dinh
+
+      - name: Gắn tag và cất vào release "web-on-dinh"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            tag="$GITHUB_REF_NAME"
+          else
+            tag="on-dinh-$(date -u +'%Y-%m-%d-%H%M')"
+            gh api "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$tag" -f sha="$GITHUB_SHA" >/dev/null
+          fi
+          (cd build/on-dinh && zip -qr "../web-$tag.zip" .)
+          cp "build/web-$tag.zip" build/web-on-dinh.zip
+          notes="Bản web ổn định đang ở https://sangdaden.github.io/meo-giao-banh-mi/ : $tag, commit ${GITHUB_SHA::7} ($(date -u +'%d/%m/%Y %H:%M') UTC).
+          Mỗi file web-<tag>.zip là một bản ổn định cũ; trả về bản cũ bằng ô \"tra_lai\" khi chạy workflow Bản web (docs/ban-web.md)."
+          if gh release view "$REL" >/dev/null 2>&1; then
+            gh release edit "$REL" --notes "$notes"
+          else
+            gh release create "$REL" --prerelease --title "Bản web ổn định (người chơi thử)" --notes "$notes"
+          fi
+          gh release upload "$REL" build/web-on-dinh.zip "build/web-$tag.zip" --clobber
+          echo "Link ổn định giờ là $tag (${GITHUB_SHA::7})" >> "$GITHUB_STEP_SUMMARY"
+
+  build:
+    needs: on_dinh
+    if: ${{ !cancelled() && needs.on_dinh.result != 'failure' }}
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pages
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Cache Godot và export template
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}-web
+
+      - name: Tải Godot và template web
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          base=https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable
+          mkdir -p ~/godot
+          curl -sSL -o godot.zip "$base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip -d ~/godot
+          mv ~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64 ~/godot/godot
+          curl -sSL -o templates.tpz "$base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          dest=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          mkdir -p "$dest"
+          unzip -q -j templates.tpz 'templates/web_*' 'templates/version.txt' -d "$dest"
+          rm godot.zip templates.tpz
+
+
+      - name: Trả link ổn định về bản cũ
+        if: inputs.tra_lai != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TRA_LAI: ${{ inputs.tra_lai }}
+        run: |
+          mkdir -p tmp
+          gh release download "$REL" -p "web-$TRA_LAI.zip" -D tmp
+          cp "tmp/web-$TRA_LAI.zip" tmp/web-on-dinh.zip
+          gh release upload "$REL" tmp/web-on-dinh.zip --clobber
+          echo "Link ổn định trả về $TRA_LAI" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Xuất bản mới nhất (/moi-nhat/)
+        run: |
+          ~/godot/godot --headless --path . --import || true
+          # Bản mới nhất lưu game riêng, để file lưu bản mới không rơi vào bản ổn định cùng tên miền
+          GITHUB_SHA=$(git rev-parse HEAD) tools/web/xuat_web.sh site/moi-nhat meo-giao-banh-mi-moi-nhat
+
+      - name: Lấy bản ổn định (link gốc)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p tmp
+          if gh release download "$REL" -p web-on-dinh.zip -D tmp --clobber 2>/dev/null; then
+            unzip -q tmp/web-on-dinh.zip -d site
+            echo "Link gốc: bản ổn định từ release $REL" >> "$GITHUB_STEP_SUMMARY"
+          else
+            # Chưa có bản ổn định nào: link gốc dùng main như trước, lưu game như cũ
+            GITHUB_SHA=$(git rev-parse HEAD) tools/web/xuat_web.sh site
+            echo "Chưa có bản ổn định: link gốc tạm dùng main. Bấm Run workflow > Đưa main lên link ổn định." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          test -f site/index.html && test -f site/moi-nhat/index.html
+          du -sh site site/moi-nhat
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: build/web
+          path: site
 
   deploy:
     needs: build
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
     runs-on: ubuntu-latest
+    concurrency:
+      group: pages-deploy
+      cancel-in-progress: true
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

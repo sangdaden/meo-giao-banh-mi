@@ -134,7 +134,7 @@ const EN := {
 	"khịt khịt": "sniff sniff",
 	"Trốn tìm": "Hide and seek",
 	"Tìm 5 mèo trốn ở hẻm 42 và hẻm giữa khối 5. Rón rén để nghe tiếng chuông.": "Find 5 cats hiding in alley 42 and the middle alley of block 5. Tiptoe to hear their bells.",
-	"Trốn tìm! Năm bạn đã trốn trong hẻm 42 và hẻm giữa khối 5. Rón rén (Alt) để nghe tiếng chuông, tới sát rồi bấm E.": "Hide and seek! Five friends are hiding in alley 42 and the middle alley of block 5. Tiptoe (Alt) to hear their bells, get right up close and press E.",
+	"Trốn tìm! Năm bạn đã trốn trong hẻm 42 và hẻm giữa khối 5. Rón rén (Z) để nghe tiếng chuông, tới sát rồi bấm E.": "Hide and seek! Five friends are hiding in alley 42 and the middle alley of block 5. Tiptoe (Z) to hear their bells, get right up close and press E.",
 	"Bị tìm ra rồi!": "Found me!",
 	"Tìm ra %s! (%d/5)": "Found %s! (%d/5)",
 	"%s nghe tiếng chạy nên chuồn mất rồi!": "%s heard you running and slipped away!",

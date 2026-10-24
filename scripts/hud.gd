@@ -368,6 +368,7 @@ func show_end(lines: String) -> void:
 	end_screen.add_child(o)
 	end_text = o.find_child("Body", true, false)
 	end_screen.visible = true
+	TrangWeb.bao("ket_ngay", self)
 
 
 ## rows: mỗi phần tử {who, place, item, color, stars (0 = trễ), note} và thêm (luồng chấm điểm):
@@ -380,6 +381,7 @@ func show_results(rows: Array, summary := {}) -> void:
 		c.queue_free()
 	end_screen.add_child(_build_results(rows, summary))
 	end_screen.visible = true
+	TrangWeb.bao("ket_ngay", self)
 	T.wire_clicks(end_screen)
 
 

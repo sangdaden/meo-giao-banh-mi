@@ -259,7 +259,7 @@ func _splash(at: Vector3) -> void:
 # ---------------------------------------------------------------- bồ câu che mắt
 
 func _on_blinded(seconds: float) -> void:
-	_tell("bo_cau", "Bồ câu bay tán loạn! Lần sau rón rén (Alt) đi ngang cho chim khỏi giật mình.")
+	_tell("bo_cau", "Bồ câu bay tán loạn! Lần sau rón rén (Z) đi ngang cho chim khỏi giật mình.")
 	if _blind == null or _autotest:
 		return
 	_blind.visible = true

@@ -459,4 +459,10 @@ const EN := {
 	"Mở thư mục nhật ký": "Open log folder",
 	"Tải nhật ký": "Download log",
 	"Nhật ký lần chơi và lỗi của game, gửi cho Sang khi gặp lỗi": "Play log and game errors, send it to Sang if something goes wrong",
+	# scripts/ui/man_cho_tai.gd (bản web tải gói đồ từng ngày)
+	"Đang mang đồ ra phố…": "Bringing the street to life…",
+	"Đang mở tủ đồ của Bơ…": "Opening Bơ's wardrobe…",
+	"Mạng chậm quá, chưa tải xong.": "The connection is slow, still not loaded.",
+	"Thử lại": "Try again",
+	"Về trang chủ": "Main menu",
 }

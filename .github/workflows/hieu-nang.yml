@@ -79,6 +79,9 @@ jobs:
         run: |
           mkdir -p build/web
           ~/godot/godot --headless --path . --export-release "Web" build/web/index.html >/dev/null 2>&1
+          # Gói nhẹ (Q1): tách đồ riêng từng ngày ra goi/*.pck như bản trên GitHub Pages, rồi mới đo index.pck
+          python3 tools/goi_web/tach_goi.py build/web/index.pck | tee goi.txt
+          { echo '**Gói tải sau:**'; echo '```'; cat goi.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           pck=$(stat -c %s build/web/index.pck)
           wasm=$(stat -c %s build/web/index.wasm)
           wasm_gz=$(gzip -9 -c build/web/index.wasm | wc -c)

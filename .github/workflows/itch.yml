@@ -92,6 +92,7 @@ jobs:
           mkdir -p dist/web
           ~/godot/godot --headless --path . --export-release "Web" dist/web/index.html
           test -f dist/web/index.wasm
+          python3 tools/goi_web/tach_goi.py dist/web/index.pck  # gói tải sau từng ngày (Q1)
           sed "s/__BUILD_VERSION__/${GITHUB_SHA}/" web/update-check.js > dist/web/update-check.js
           echo "{\"version\": \"${GITHUB_SHA}\"}" > dist/web/version.json
           # Giới hạn của itch cho game HTML: tối đa 1000 file, mỗi file tối đa 200 MB

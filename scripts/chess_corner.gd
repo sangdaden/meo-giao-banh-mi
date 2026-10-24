@@ -69,6 +69,8 @@ const ONE_SHOT_ANIM := ["suyt", "mang", "reo"]
 ## Không đủ người thì để trống chỗ đó, không dựng khối tạm.
 const SPECTATOR_IDS := ["xemco", "dicho1", "dicho3", "dicho2", "may", "bena"]
 const PAVING := [Color("#A8A396"), Color("#97928A")]
+## Ngày mưa: tâm bạt che (bạt 2,29 x 2,66 m xoay ngang: x ±1,14, z −0,9..1,6 quanh đây), cột tre né gốc cây
+const TARP_AT := Vector3(0.1, 0, 0.3)
 
 var player: Node3D
 var hud: CanvasLayer
@@ -108,7 +110,8 @@ func _init() -> void:
 
 ## Phần đứng yên: cây lớn, ghế nhựa, ghế đẩu để ấm trà. Gọi trước Blocks.merge_static.
 ## Bàn cờ có va chạm nhưng cũng đứng yên nên dựng ở đây; quân cờ, người, ấm trà dựng trong _ready.
-static func build_static(parent: Node3D) -> void:
+## has_order: hôm nay có đơn góc cờ (Thứ Ba) thì treo bảng tên đơn; ngày khác góc cờ chỉ cho phố vui.
+static func build_static(parent: Node3D, has_order := true) -> void:
 	var c := CENTER
 	# Gốc cây lớn phía tây nam bàn, tán che cả góc
 	var trunk := StaticBody3D.new()
@@ -149,7 +152,8 @@ static func build_static(parent: Node3D) -> void:
 			var tile := Blocks.box(parent, Vector3(0.6, 0.02, 0.6), c + Vector3(-1.7 + ix * 0.6, 0.06, -0.9 + iz * 0.6), PAVING[(ix + iz) % 2])
 			tile.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	build_furniture(parent)
-	Blocks.label(parent, "3. Ông Bảy, Ông Tám\nGóc cờ", c + Vector3(0, 3.0, 0), 40)
+	if has_order:
+		Blocks.label(parent, "3. Ông Bảy, Ông Tám\nGóc cờ", c + Vector3(0, 3.0, 0), 40)
 
 
 ## Bàn đá, bàn cờ gỗ, hai ghế đá, ghế đẩu và ấm trà (model thật, va chạm bằng hộp/trụ riêng).
@@ -174,7 +178,12 @@ func _ready() -> void:
 	# Hai ông: Ông Bảy phía tây nhìn sang đông, Ông Tám phía đông nhìn sang tây (model Nguoi nhìn về +Z)
 	_men.append(_man("ongbay", c + Vector3(-0.62, STOOL_TOP - float(Nguoi.SEAT.get("ongbay", 0.28)), 0), PI / 2))
 	_men.append(_man("ongtam", c + Vector3(0.62, STOOL_TOP - float(Nguoi.SEAT.get("ongtam", 0.28)), 0), -PI / 2))
-	ChaoMao.for_chess(self, func(): _set_state(0, "reo", 2.0); _say(0, "Con mèo này hót đối với chim tui được nè!", 3.0))  # K3: lồng chào mào của Ông Bảy dưới tán cây (scripts/chao_mao.gd)
+	if ThoiTiet.dang_mua():
+		# Trời mưa: hai ông căng bạt tre (model G5 bat_xe_om, Sang duyệt 22/10) che kín bàn, ghế, ấm trà và chỗ
+		# người xem đứng; lồng chim để ở nhà
+		ThuTuModels.put(self, "bat_xe_om", c + TARP_AT, PI / 2.0).name = "BatChe"
+	else:
+		ChaoMao.for_chess(self, func(): _set_state(0, "reo", 2.0); _say(0, "Con mèo này hót đối với chim tui được nè!", 3.0))  # K3: lồng chào mào của Ông Bảy dưới tán cây (scripts/chao_mao.gd)
 	# Người xem chen một phía (phía nam, quay mặt về bàn)
 	# Dựng sau cùng khung hình đầu: lúc đó khách, chợ, hàng xóm đã vào cảnh nên biết ai còn rảnh
 	_cast_crowd.call_deferred()

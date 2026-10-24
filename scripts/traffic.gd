@@ -67,6 +67,14 @@ const PAINTS := [Color("#C8412F"), Color("#3D5A80"), Color("#E8C98A"), Color("#2
 const RIDERS := [["qd_sinhvien_xe_dong", "lai_xe"], ["qd_giaohang_dong", "lai_xe"], ["qd_mehoa_dong", "lai_xe"]]
 const PILLION := ["qd_hocsinh_xe_dong", "ngoi_sau"]  ## học sinh ngồi sau, khoảng 1/4 số xe
 const PILLION_AT := Vector3(0, 0.02, 0.4)            ## sau lưng người lái (đầu xe về -Z)
+## Trời mưa (ThoiTiet.dang_mua): người lái, người ngồi sau, người bán xe đẩy mặc áo mưa P3 đã duyệt (mũ áo mưa trùm đầu).
+## Thứ tự giữ chỉ số 1 là anh giao hàng (không chở ai) như RIDERS.
+const RIDERS_MUA := [["qd_mehoa_mua_dong", "lai_xe"], ["qd_giaohang_mua_dong", "lai_xe"]]
+const PILLION_MUA := ["qd_hocsinh_mua_dong", "ngoi_sau"]
+const SELLERS := ["qd_mehoa", "qd_giaohang"]
+## Con vật dưới lòng đường (ConVat.road_points): xe phanh dừng trước con vật chừng này, rộng thêm chừng này mỗi bên
+const ANIMAL_GAP := 1.2
+const ANIMAL_SIDE := 0.2
 const LAMP_COLORS := [Color("#35D46A"), Color("#FFC22E"), Color("#FF3B2F")]
 
 ## Xe hàng rong chặn hẻm theo lịch (Thứ Ba, chợ bật bằng enable_alley_blocks): đẩy từ vỉa hè vào miệng hẻm,
@@ -131,6 +139,8 @@ var bus: XeBuyt                  ## xe buýt tuyến 08 (scripts/xe_buyt.gd), nu
 var passers: NguoiQuaDuong       ## người qua đường P3 (scripts/nguoi_qua_duong.gd)
 ## Người qua đường đang ở dưới lòng đường (NguoiQuaDuong cập nhật mỗi nhịp): xe máy, xe buýt phanh nhường
 var peds: PackedVector3Array = []
+## Con vật đang ở dưới lòng đường (ConVat.road_points, cập nhật mỗi nhịp): xe máy, xe buýt dừng nhường
+var animals: PackedVector3Array = []
 var _carts: Array = []            ## [{body, walker}]
 ## Vùng xe máy phải chạy chậm (chợ tạm Thứ Ba): [{rect: Rect2, speed: float}]
 var slow_zones: Array = []
@@ -278,12 +288,15 @@ func _build_routes(rng: RandomNumberGenerator) -> void:
 		GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY)
 	# Người lái: model quay mặt +Z, xoay 180° theo đầu xe
 	var face := Transform3D(Basis(Vector3.UP, PI), Vector3.ZERO)
-	for r in RIDERS:
+	var rain := ThoiTiet.dang_mua()
+	var riders: Array = RIDERS_MUA if rain else RIDERS
+	var pillion: Array = PILLION_MUA if rain else PILLION
+	for r in riders:
 		_mm_riders.append(_multimesh(_xf_mesh(Nguoi.bake_pose(r[0], r[1]), face), _bikes.size(), false))
-	_mm_pillion = _multimesh(_xf_mesh(Nguoi.bake_pose(PILLION[0], PILLION[1]), face.translated(PILLION_AT)), _bikes.size(), false)
+	_mm_pillion = _multimesh(_xf_mesh(Nguoi.bake_pose(pillion[0], pillion[1]), face.translated(PILLION_AT)), _bikes.size(), false)
 	for b in _bikes:
 		b.paint = PAINTS[rng.randi() % PAINTS.size()]
-		b.rider = rng.randi() % RIDERS.size()
+		b.rider = rng.randi() % riders.size()
 		b.pillion = rng.randf() < 0.25 and b.rider != 1  # anh giao hàng chở thùng, không chở ai
 
 
@@ -440,6 +453,13 @@ func _update_bike(b: Bike, delta: float) -> void:
 		var ahead := rel.dot(b.dir)
 		if ahead > 0.0 and ahead < 10.0 and absf(rel.dot(b.dir.cross(Vector3.UP))) < 1.1:
 			limit = minf(limit, sqrt(2.0 * BRAKE_MAX * maxf(ahead - b.front - 0.8, 0.0)))
+	# Con vật đang ở dưới lòng đường phía trước (đàn vịt lúc ngập, gà con, mèo, Mực): dừng hẳn chờ đi qua
+	var side := ANIMAL_SIDE + (1.15 if b.bus else 0.4)  # nửa bề ngang xe buýt 1,15 m, xe máy 0,4 m
+	for p in animals:
+		var rel := p - b.pos
+		var ahead := rel.dot(b.dir)
+		if ahead > -b.back and ahead < 12.0 and absf(rel.dot(b.dir.cross(Vector3.UP))) < side:
+			limit = minf(limit, sqrt(2.0 * BRAKE * maxf(ahead - b.front - ANIMAL_GAP, 0.0)))
 	for z in slow_zones:
 		var ahead_pt := b.pos + b.dir * 4.0  # phanh dần trước khi vào chợ
 		if z.rect.has_point(Vector2(b.pos.x, b.pos.z)) or z.rect.has_point(Vector2(ahead_pt.x, ahead_pt.z)):
@@ -659,7 +679,7 @@ func _build_carts(rng: RandomNumberGenerator) -> void:
 			if n.begins_with("banh_xe"):
 				wheels.append(mi)
 		# Người bán: người qua đường P3 có xương, clip dắt xe (hai tay trước, bước đi) sau tay đẩy (G1)
-		var seller := Nguoi.make(["qd_mehoa", "qd_giaohang"][k % 2], "dat_xe")
+		var seller := Nguoi.make(SELLERS[k % 2] + ("_mua" if ThoiTiet.dang_mua() else ""), "dat_xe")
 		seller.position = Vector3(0, 0, 1.32)
 		seller.rotation.y = PI
 		body.add_child(seller)
@@ -830,6 +850,7 @@ func _exit_tree_sound() -> void:
 func _physics_process(delta: float) -> void:
 	_t += delta
 	_hit_cd = maxf(_hit_cd - delta, 0.0)
+	animals = ConVat.road_points(get_tree())
 	for b in _bikes:
 		_update_bike(b, delta)
 	if bus:

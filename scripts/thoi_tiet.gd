@@ -35,6 +35,12 @@ var _flood_goal := 0.0
 var _flood_speed := 0.0
 
 
+## Hôm nay phố có mưa không (buổi của ngày có "weather": "mua", hoặc -- --buoi=pho_mua). Đồ, người, con vật
+## ngoài trời đọc hàm này để trú mưa: người dưới mái hoặc bạt, lồng chim đem vào, đồ phơi thu vào (soát: tools/soat_mua.gd).
+static func dang_mua() -> bool:
+	return AnhSang.PRESETS[AnhSang.preset_for_day(PlayMode.day)].get("weather", "") == "mua"
+
+
 func _ready() -> void:
 	add_to_group("giam_hat")
 	var q := 1 if AnhSang.is_compat() else 0

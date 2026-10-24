@@ -493,8 +493,8 @@ func _make_plan(k: Khach) -> void:
 			continue  # cổng mẫu giáo: đưa con buổi sáng, đón con chiều tà
 		if g == "cong_trinh" and preset != "pho_trua" and _rng.randf() < 0.6:
 			continue  # thợ ngồi ăn ở công trình chủ yếu buổi trưa
-		if g == "ca_phe" and preset == "pho_mua":
-			continue
+		if preset == "pho_mua" and g in ["ca_phe", "cong_vien", "cong_trinh", "goc_co", "xe_om"]:
+			continue  # trời mưa: không ghé chỗ ngoài trời (vươn vai công viên, ngồi ăn công trình, đứng xem cờ...)
 		k.plan.append({"kind": "ghe", "key": g})
 		stops -= 1
 	if kieu.get("door", false) and not _doors.is_empty():

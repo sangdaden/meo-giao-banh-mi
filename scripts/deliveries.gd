@@ -6,6 +6,8 @@ extends Node3D
 ##   Bơ đứng dưới ban công bấm E kêu "meo", Bé Na thả giỏ xuống sát đất cạnh xe máy, Bơ bỏ bánh vào,
 ##   Bé Na kéo lên. Chế độ thử thách giữ kiểu cũ: giỏ đung đưa, đứng trên xe máy bấm E lúc giỏ đưa tới.
 ##   Trật thì đợi nhịp sau 1,5 s. Phụ: trúng ngay nhịp đầu.
+##   Trời mưa (ThoiTiet.dang_mua) không thả giỏ: Bé Na mặc áo mưa xuống hành lang tầng trệt (có sàn tầng trên che)
+##   đứng chờ, Bơ đưa tận tay (cách giao "na_cua").
 ## - counter: đặt túi lên quầy Cà phê Mây, Chị Mây đẩy lại chén sữa. Phụ: không đổ ly cà phê nào
 ##   (đụng bàn là ly rung, đụng mạnh hoặc nhảy lên bàn là đổ).
 ## - under_car: Anh Hùng nằm dưới gầm xe máy, thò tay ra. Chạy nhanh qua vũng dầu là trượt.
@@ -77,6 +79,8 @@ const BASKET_HANG_Y := 1.25     ## đáy giỏ khi thòng xuống hẳn (yên xe
 const GROUND_SIDE := 1.15       ## Thong thả: giỏ thả xuống đất cạnh xe máy, lệch về phía đông bao nhiêu
 const GROUND_SWING := 0.08      ## Thong thả: giỏ sát đất chỉ lắc nhẹ
 const GROUND_Y := 0.03          ## Thong thả: đáy giỏ cách mặt đất
+## Trời mưa: Bé Na đứng ở hành lang tầng trệt chung cư (sàn hành lang tầng 1 che, z −15,75..−17,4), cạnh xe máy
+const NA_DOOR := Vector3(23.5, 0, -16.3)
 
 const XE_OM_SEAT := 0.78        ## mặt yên xe ôm Chú Năm
 const XE_OM_AWAY := 9.0         ## hết giờ thì Chú Năm chở khách đi bao lâu mới quay lại
@@ -192,6 +196,8 @@ func build_static(parent: Node3D, order_list: Array) -> void:
 		var o: Dictionary = orders[i]
 		# Đơn ngược mua trứng dùng tạp hóa ShopTapHoa; đơn ngược khác (nhang Thứ Sáu) theo khóa delivery
 		var kind: String = "errand" if o.get("kind", "deliver") == "errand" and o.get("errand_item", "trung6") == "trung6" else o.get("delivery", "hand")
+		if kind == "basket" and ThoiTiet.dang_mua():
+			kind = "na_cua"  # mưa không thả giỏ: Bé Na xuống tầng trệt nhận tận tay
 		_kind.append(kind)
 		var p: Vector3 = o.pos
 		var title := "%d. %s\n%s" % [i + 1, o.who, o.place]
@@ -207,6 +213,10 @@ func build_static(parent: Node3D, order_list: Array) -> void:
 				_build_hung(parent, i, p, o.color, title)
 			"chair":
 				_build_sau(parent, i, p, o.color, title)
+			"na_cua":
+				_person(i, "bena", NA_DOOR, PI, "viec_rieng", false)
+				_hand_fallback[i] = NA_DOOR + Vector3(0, 0.6, 0.3)
+				Blocks.label(parent, title, NA_DOOR + Vector3(0, 1.9, 0.2), 40)
 			"errand":
 				pass  # tiệm và Cô Hai do CityProps dựng (ô "tap_hoa"), phần chuyển động ở ShopTapHoa
 			"beside_tea":
@@ -226,7 +236,7 @@ func build_static(parent: Node3D, order_list: Array) -> void:
 				_build_generic(parent, i, p, o.color, title)
 	if chess == null:
 		# Ngày không có đơn góc cờ thì hai ông vẫn ngồi đánh cờ ở công viên cho phố đông vui
-		ChessCorner.build_static(parent)
+		ChessCorner.build_static(parent, false)
 		chess = ChessCorner.new()
 	var water := StandardMaterial3D.new()
 	water.albedo_color = Color(WATER_TOP, 0.6)
@@ -785,6 +795,8 @@ func step(i: int, in_zone: bool, _delta: float) -> bool:
 			hint = "[E] Đưa vào tay Anh Hùng"
 		"beside_tea":
 			hint = "[E] Đặt túi cạnh ấm trà"
+		"na_cua":
+			hint = "[E] Đưa bánh cho Bé Na"
 		"on_seat":
 			var on_seat := _on_xe_om()
 			in_zone = on_seat and _xe_om_state == "wait"
@@ -824,6 +836,10 @@ func step(i: int, in_zone: bool, _delta: float) -> bool:
 				_toast("Đặt túi đúng lúc chiếu tướng, chẳng ai để ý!", 2.0, 1.8)
 		"on_seat":
 			_deliver_nam(i)
+		"na_cua":
+			_play_deliver("hand")
+			_hand_bread(hand_point(i))
+			_celebrate(i)
 		_:
 			_play_deliver(kind)
 			_hand_bread(hand_point(i))

@@ -5,7 +5,7 @@ extends Node3D
 ## Model: vit (con đầu), vit_nhe (ba con theo sau). Khi bơi, mặt nước ở y ≈ 0,105 so với gốc vịt.
 
 ## Vòng bơi hình sân vận động: hai đoạn thẳng dài 2·HALF_X dọc trục x, hai đầu là nửa vòng tròn bán kính TURN_R
-const CENTER := Vector3(14.0, 0, -3.75)
+const CENTER := Vector3(14.0, 0, -4.3)  ## sát bó vỉa (z −4,9): xe buýt làn z −2,5 chạy qua không chạm vịt
 const HALF_X := 4.5
 const TURN_R := 0.45
 const SPEED := 0.45            ## m/giây
@@ -93,6 +93,15 @@ func _physics_process(delta: float) -> void:
 	var lead := ducks[0]
 	back.global_transform = Transform3D(Basis(Vector3.UP, lead.rotation.y), lead.global_position + Vector3(0, BACK_Y - BACK.y / 2.0, 0))
 	_check_rider()
+
+
+## Chỗ từng con vịt đang bơi (ConVat.road_points: xe máy, xe buýt dừng nhường đàn vịt qua đường).
+func road_points() -> PackedVector3Array:
+	var out := PackedVector3Array()
+	if _out:
+		for d in ducks:
+			out.append(Vector3(d.global_position.x, 0.0, d.global_position.z))
+	return out
 
 
 ## Điểm trên vòng bơi sau quãng s (m): [x, z, hướng x, hướng z] so với CENTER.

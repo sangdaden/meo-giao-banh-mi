@@ -5,6 +5,7 @@ extends Node3D
 ## chao_mao_nhe (476); long_tre (1 558), cua_long. Mặt trước +Z, gốc lồng ở giữa đáy.
 ## - K3: lồng của Ông Bảy treo dưới tán cây lớn ở góc cờ (ChessCorner gọi ChaoMao.for_chess(self)). Bơ bấm Q gần
 ##   lồng thì chim hót đáp lại (clip hot, tiếng "líu lo"); hót đối 3 lần thì Ông Bảy khen.
+##   Trời mưa (ThoiTiet.dang_mua) thì Ông Bảy để lồng ở nhà, chủ ban công đem chim vào: không có chim ngoài phố.
 ## - K4: chim thật trong vài lồng ban công (long_chim P4 do NhaRap gắn tường, ghi chỗ ở NhaRap.bird_cages):
 ##   ChaoMao.balconies(main) đặt chim nhẹ vào DoKho "chim_ban_cong" lồng gần đường lớn nhất.
 ## Chỉ là thưởng: không tính vào đơn. Lần đầu hót đáp thì ConVat.meet("chao_mao").
@@ -74,6 +75,8 @@ static func for_chess(chess: Node3D, praise := Callable()) -> ChaoMao:
 
 ## K4: chim thật trong `count` lồng ban công gần đường lớn nhất (mỗi lồng cách nhau ít nhất 10 m).
 static func balconies(main: Node3D, count := -1) -> Array:
+	if ThoiTiet.dang_mua():
+		return []  # trời mưa: chủ nhà đem chim vào trong, lồng ngoài ban công để trống
 	if count < 0:
 		count = int(DoKho.v("chim_ban_cong", 3))
 	var cages: Array = NhaRap.bird_cages.duplicate()

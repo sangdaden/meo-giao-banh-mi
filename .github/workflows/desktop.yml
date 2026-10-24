@@ -254,6 +254,9 @@ jobs:
           # File lưu có phiên bản (Q2): mở file lưu của bản trước, khóa sai kiểu, file mới hơn, file hỏng, khóa đã đăng ký
           timeout 300 ~/godot/godot --headless --path . -s tests/test_luu_game.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee luu_game.log
           grep -q "LUU GAME TEST OK" luu_game.log
+          # Nhật ký chơi thử (P3, P4): file nhật ký + lỗi godot.log trong user://logs, chỗ lúng túng > 8 giây, heatmap
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_nhat_ky.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee nhat_ky.log
+          grep -q "NHAT KY TEST OK" nhat_ky.log
           # W3: các bài thử đã có nhưng chưa chạy trong CI (rig Bơ, động tác, leo, nhà phố, Chó Mực, chợ, chi tiết phố, trò Hội mèo)
           timeout 300 ~/godot/godot --headless --path . -s tests/test_bo_rig.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee bo_rig.log
           grep -q "KẾT QUẢ: TẤT CẢ OK" bo_rig.log

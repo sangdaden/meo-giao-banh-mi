@@ -254,6 +254,9 @@ jobs:
           # File lưu có phiên bản (Q2): mở file lưu của bản trước, khóa sai kiểu, file mới hơn, file hỏng, khóa đã đăng ký
           timeout 300 ~/godot/godot --headless --path . -s tests/test_luu_game.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee luu_game.log
           grep -q "LUU GAME TEST OK" luu_game.log
+          # Đua mái nhà Chủ Nhật: lái Bơ bằng phím thật qua đủ 3 vòng (kẹt quá 6 s là đỏ)
+          timeout 600 ~/godot/godot --headless --path . -s tools/thu_dua_mai.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee dua_mai.log
+          grep -q "RACE FINISHED" dua_mai.log
           # Nhật ký chơi thử (P3, P4): file nhật ký + lỗi godot.log trong user://logs, chỗ lúng túng > 8 giây, heatmap
           timeout 300 ~/godot/godot --headless --path . -s tests/test_nhat_ky.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee nhat_ky.log
           grep -q "NHAT KY TEST OK" nhat_ky.log

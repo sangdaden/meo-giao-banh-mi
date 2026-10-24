@@ -88,6 +88,7 @@ func _ready() -> void:
 	add_child(_bg)
 	_summary = _build_summary()
 	add_child(_summary)
+	TrangWeb.bao("ket_ngay", self)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 

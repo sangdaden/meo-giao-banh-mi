@@ -781,9 +781,10 @@ static func _setup_input() -> void:
 	_action("jump", [KEY_SPACE], [JOY_BUTTON_A], [])
 	_action("sprint", [KEY_SHIFT], [JOY_BUTTON_RIGHT_SHOULDER, JOY_BUTTON_X], [])
 	_action("pause", [KEY_ESCAPE], [JOY_BUTTON_START], [])
-	# Ctrl+W đóng tab trên bản web nên có thêm phím C để chui
-	_action("crouch", [KEY_CTRL, KEY_C], [JOY_BUTTON_B], [])
-	_action("sneak", [KEY_ALT, KEY_Z], [JOY_BUTTON_LEFT_STICK], [])
+	# Bản web chỉ dùng C (chui) và Z (rón rén): Ctrl+W đóng tab, Alt mở menu trình duyệt. Bản PC giữ thêm Ctrl/Alt.
+	var web := OS.has_feature("web")
+	_action("crouch", [KEY_C] if web else [KEY_CTRL, KEY_C], [JOY_BUTTON_B], [])
+	_action("sneak", [KEY_Z] if web else [KEY_ALT, KEY_Z], [JOY_BUTTON_LEFT_STICK], [])
 	_action("deliver", [KEY_E], [JOY_BUTTON_Y], [])
 	_action("cam_left", [], [], [[JOY_AXIS_RIGHT_X, -1.0]])
 	_action("cam_right", [], [], [[JOY_AXIS_RIGHT_X, 1.0]])

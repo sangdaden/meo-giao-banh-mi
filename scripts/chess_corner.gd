@@ -353,7 +353,7 @@ func _shush(from: Vector3) -> void:
 	if float(DoKho.v("shush_stun", SHUSH_STUN)) > 0.0:
 		_stun_player(float(DoKho.v("shush_stun", SHUSH_STUN)))
 	_sfx("shush")
-	_toast("Suỵt! Rón rén thôi (giữ Alt), hai ông đang đánh cờ.", 2.0)
+	_toast("Suỵt! Rón rén thôi (giữ Z), hai ông đang đánh cờ.", 2.0)
 	chess_event.emit("suyt")
 
 

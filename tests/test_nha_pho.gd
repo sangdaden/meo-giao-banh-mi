@@ -50,7 +50,7 @@ func _run() -> void:
 
 	# Chỗ nhận bánh, chỗ đứng giao các đơn: một con mèo (hộp 0,3 x 0,3 x 0,6) đứng được, không kẹt trong đồ
 	for p in [City.BAKERY_POINT, City.BAKERY_POINT + Vector3(0, 0, 2.5), Vector3(-1, 0, -6), CityProps.CAFE_COUNTER - Vector3(0, 0.9, 0.7),
-			Vector3(30.6, 0, 25.3), Vector3(-19.5, 0, 22), CityProps.BE_NA_BIKE + Vector3(0, 0.9, 0), CityProps.SHOP_BACK_DOOR + Vector3(0, 0, 0.3)]:
+			Vector3(30.6, 0, 25.3), CityProps.BA_SAU_CHAIR + Vector3(0, 0, -0.9), CityProps.BE_NA_BIKE + Vector3(0, 0.9, 0), CityProps.SHOP_BACK_DOOR + Vector3(0, 0, 0.3)]:
 		_check(not _hits(space, Vector3(0.3, 0.3, 0.6), p + Vector3(0, 0.25, 0)), "đứng được ở %s" % p)
 
 	print("TEST NHA PHO %s" % ("OK" if fails == 0 else "FAIL (%d)" % fails))

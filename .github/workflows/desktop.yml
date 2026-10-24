@@ -251,6 +251,9 @@ jobs:
           # Ngày mưa hợp lý (người trú mưa, Bé Na nhận tận tay, áo mưa người lái) và xe dừng nhường con vật
           timeout 300 ~/godot/godot --headless --path . -s tests/test_ngay_mua.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee ngay_mua.log
           grep -q "NGAY MUA TEST OK" ngay_mua.log
+          # File lưu có phiên bản (Q2): mở file lưu của bản trước, khóa sai kiểu, file mới hơn, file hỏng, khóa đã đăng ký
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_luu_game.gd 2>&1 | grep -v 'mesh_storage\|Parameter "m"' | tee luu_game.log
+          grep -q "LUU GAME TEST OK" luu_game.log
           mkdir -p export
           ~/godot/godot --headless --path . --export-release "macOS" "export/$ZIP_NAME"
           unzip -l "export/$ZIP_NAME" | grep -q "_CodeSignature/CodeResources"

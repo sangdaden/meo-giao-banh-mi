@@ -30,6 +30,14 @@ Sang (21/10): game phải **dễ và thân thiện**. Mặc định là chế đ
 - Hành vi khác hẳn giữa hai chế độ thì hỏi `DoKho.hard()`. Test ép chế độ bằng `DoKho.force`.
 - Mỗi đơn chỉ có **một** việc bắt buộc là giao bánh. Việc phụ chỉ là thưởng, không bao giờ làm mất sao. Không có kiểu thua chặn người chơi.
 
+## File lưu: thêm khóa thì tăng phiên bản
+
+Tiến độ người chơi nằm trong `user://luu_game.cfg` (`GameState`), có số phiên bản ở `[luu_game] phien_ban`. Mở file cũ thì game tự chuyển lên bản mới và giữ bản sao `luu_game.cfg.v<N>.bak`.
+
+- Thêm, đổi tên hay đổi kiểu một khóa lưu (`GameState.set_global/set_day`): thêm/sửa dòng trong `GameState.SAVE_KEYS`, tăng `SAVE_VERSION` và thêm hàm `_len_v<N>()` ở cuối các bước chuyển đổi (khóa mới có mặc định thì bước để rỗng cũng được).
+- **Trước khi tăng số**, chạy `godot --headless --path . -s tests/test_luu_game.gd -- --ghi-mau` để giữ file mẫu của phiên bản cũ trong `tests/luu_game_cu/`. Không sửa các file mẫu đã có.
+- Không xóa khóa người chơi đã có; khóa bỏ đi thì chuyển dữ liệu sang khóa mới trong bước chuyển đổi. `tests/test_luu_game.gd` đỏ khi có khóa chưa đăng ký.
+
 ## Chữ cho người chơi: thêm bản tiếng Anh
 
 Game có hai ngôn ngữ (F3): tiếng Việt mặc định, English chọn ở Cài đặt > Ngôn ngữ hoặc nút góc trang chủ. Code vẫn viết chữ tiếng Việt như cũ; Label, Button, Label3D, tooltip tự dịch qua bảng `scripts/dich/en_*.gd` (khóa là câu Việt đúng như trong code, câu có `%s`/`%d` là mẫu).
@@ -107,7 +115,7 @@ Từ PR #133 (H1, 23/10) mỗi ngày có file riêng, HUD tách thành mảnh, b
 | Độ khó | `scripts/do_kho.gd` | "Thiết kế màn chơi" |
 | Bơ: điều khiển, động tác, rig | `scripts/player.gd`, `scripts/bo_paw.gd`, `tools/bo_game.py`, `tools/dong_tac_bo/` | "Bơ 22 xương"; nút cứu kẹt A2 |
 | Camera | `scripts/camera_rig.gd` | A1 "Camera không chui tường" |
-| Giao đơn, cách giao, chấm sao | `scripts/deliveries.gd`, `scripts/scoring.gd`, `scripts/game_state.gd` | "Năm cách giao bánh", "Sao, tiền boa và lưu game" |
+| Giao đơn, cách giao, chấm sao | `scripts/deliveries.gd`, `scripts/scoring.gd`, `scripts/game_state.gd` (file lưu có phiên bản: Q2) | "Năm cách giao bánh", "Sao, tiền boa và lưu game"; Q2 "File lưu có phiên bản" |
 | Bếp Cô Ba | `scripts/kitchen*.gd`, `scripts/ui/kitchen_hud.gd` | "Thiết kế lại màn bếp" |
 | Khu phố: vành phố, nhà, đồ phố | `scripts/vanh_pho.gd`, `scripts/nha_rap.gd`, `scripts/city*.gd`, `scripts/chi_tiet_pho.gd`, `scripts/pho_models.gd`, `scripts/blocks.gd` | "Thiết kế lại khu phố", "Bộ ráp nhà vào game", "Chi tiết phố vào game"; D2 giảm tam giác |
 | Xe máy, xe buýt, người qua đường | `scripts/traffic.gd`, `scripts/xe_buyt.gd`, `scripts/nguoi_qua_duong.gd` | "Xe máy ở ngã tư", "Thiết kế lại khu phố" |

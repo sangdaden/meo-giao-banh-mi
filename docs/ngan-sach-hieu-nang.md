@@ -25,6 +25,8 @@ Lưu ý: CI vẽ bằng CPU nên FPS ở đó không có ý nghĩa; số lệnh 
 | Tam giác (tổng, cả bóng) | ≤ 400 000 | 39 000–54 000 |
 | index.pck | ≤ 60 MB (Sang nâng 21/10/2026) | 5,6 MB |
 
+Ngày 24/10 (Q3 "Gói nhẹ bản web"): bỏ 58 model không dùng (bản nhẹ/bản xa người dân không ai gọi, 10 đồ bếp/đồ giỗ/đồ phố thừa): index.pck 58,7 → 52,7 MiB. Cách tìm: cho bot chơi đủ 7 ngày (thường + thử thách) và chạy cả bộ test dưới `strace -e openat`, file nào không bao giờ được mở thì soát tay xem code có gọi theo tên ghép không (âm thanh, mèo, nhà ráp theo cỡ, cầu thang theo cỡ đều gọi theo tên ghép nên giữ).
+
 Góc nhìn từ trên cao (`tham_khao_tren_cao`) chỉ in số để tham khảo, không chấm.
 
 Ngày 23/10 (D2 "Giảm tam giác phố"): trước khi giảm, góc nặng nhất (ngã tư) là 390 000 tam giác, trong đó lượt bóng 151 000. Sau khi giảm: mọi góc 160 000–253 000, ngã tư ≈ 251 000 (lượt bóng ≈ 64 000), nên còn chỗ khoảng 150 000 tam giác cho người, xe, khối tạm thay thật (G1). Ở đâu mất bao nhiêu thì đo bằng `tools/dem_tam_giac.gd` (xem dưới).

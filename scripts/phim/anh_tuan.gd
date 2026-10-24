@@ -16,10 +16,14 @@ static var photos := {}
 static func setup(main: Node) -> void:
 	if DisplayServer.get_name() == "headless" or not main.has_signal("order_delivered"):
 		return
+	# Hẹn giờ của SceneTree sống qua lúc đổi cảnh (vd. đơn 5 sang chung cư), nên giữ main bằng weakref:
+	# bắt thẳng main vào lambda thì Godot báo "Lambda capture at index 0 was freed" khi main đã bị xóa.
+	var ref: WeakRef = weakref(main)
 	main.order_delivered.connect(func(_i: int, _o: Dictionary):
 		main.get_tree().create_timer(AFTER).timeout.connect(func():
-			if is_instance_valid(main):
-				chup(main, GameState.day)))
+			var m: Node = ref.get_ref()
+			if m:
+				chup(m, GameState.day)))
 
 
 ## Chụp khung hình camera đang dùng (không có HUD) thành ảnh của ngày `day`.

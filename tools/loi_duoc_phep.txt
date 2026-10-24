@@ -15,3 +15,17 @@
 
 # tests/test_luu_game.gd cố ý mở một file lưu hỏng để kiểm game không sập.
 ^ERROR: ConfigFile parse error at user://test_luu_game\.cfg
+
+# Bot cả tuần chạy có màn hình ảo (xvfb, opengl3): máy CI không có card âm thanh, và driver GL
+# báo texture chưa giải phóng lúc thoát.
+^ERROR: Condition "status < 0" is true\. Returning: ERR_CANT_OPEN
+^ERROR: Texture with GL ID of \d+: leaked \d+ bytes\.
+
+# Lưới đường đi của bot (tests/bot_ca_tuan.gd tự nướng lúc chạy, game không dùng điều hướng):
+# vài cạnh chồng nhau khi nướng từ khối va chạm của phố.
+^ERROR: Navigation map synchronization error\.
+
+# Bản xuất (release, .exe chạy bằng wine) lúc đổi cảnh: Godot tự gỡ nối của Skeleton3D và thân Bơ
+# trong lúc xóa cảnh cũ, bản release không giữ tên hàm nên báo callable ''. Lỗi nội bộ engine,
+# không có trong bản chạy từ editor, không ảnh hưởng lúc chơi.
+^ERROR: Attempt to disconnect a nonexistent connection from '(Skeleton3D|Bo):<\w+#\d+>'\. Signal: '(skeleton_updated|tree_entered|tree_exiting)', callable: ''\.

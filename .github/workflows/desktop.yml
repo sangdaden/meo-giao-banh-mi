@@ -282,6 +282,9 @@ jobs:
           grep -q "AUTOTEST BEP OK" bep.log
           timeout 300 ~/godot/godot --headless --path . res://scenes/kitchen.tscn -- --autotest-rap-nhanh 2>&1 | python3 tools/loc_log.py | tee rap_nhanh.log
           grep -q "AUTOTEST RAP NHANH OK" rap_nhanh.log
+          # Phụ kiện ôm thân: dây quai sát da, chuông móc vòng cổ, nút buộc nằm trên đuôi, trên nhiều giống mèo
+          timeout 600 ~/godot/godot --headless --path . -s tests/test_phu_kien_om.gd 2>&1 | python3 tools/loc_log.py | tee phu_kien_om.log
+          grep -q "PHU KIEN OM TEST OK" phu_kien_om.log
           # Log sạch (KT2): lỗi Godot ngoài tools/loi_duoc_phep.txt làm đỏ (autotest từng ngày: bot-ca-tuan.yml)
           python3 tools/loc_log.py --kiem *.log
           mkdir -p export

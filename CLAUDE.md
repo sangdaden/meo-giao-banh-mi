@@ -6,6 +6,7 @@ README.md là hướng dẫn cho người chơi; file này là luật làm việ
 ## Ai làm gì
 
 - **Sang** là chủ dự án: duyệt phác thảo, duyệt và **tự gộp (merge) mọi PR**. Không ai khác gộp PR.
+- Sang duyệt PR bằng cách gắn nhãn **`duyet`**: workflow `tu-merge.yml` chờ mọi check của commit mới nhất xanh rồi tự merge. Claude không tự gắn hay gỡ nhãn này, và không tự merge.
 - Viết cho Sang bằng **tiếng Việt**, gọi "Sang", xưng "mình". Tên file, biến, commit cũng dùng tiếng Việt không dấu như code đang có (`thu_hai`, `ban_do_nho`, `DoKho.v`).
 - Nhiều luồng Claude chạy cùng lúc, mỗi luồng một nhánh `claude/...`, một PR. Không đẩy lên nhánh của luồng khác, không đẩy thẳng lên `main`.
 - Không đăng gì ra ngoài (itch.io, mạng xã hội, email) khi Sang chưa đồng ý. Không xin khóa API trong chat; khóa đi vào GitHub secret do Sang tự thêm.
@@ -98,6 +99,7 @@ Model: Blender chạy headless qua `pip install bpy` (đang dùng bpy 5.2). Mỗ
 | `itch.yml` | chỉ khi bấm Run workflow (hoặc tag `v*` khi biến `ITCH_TU_DONG` = `co`), xem `docs/itch.md` | Đẩy bản web/Windows/Mac lên itch.io; chỉ chạy khi Sang đồng ý. |
 | `so-anh.yml` | mỗi PR (trừ PR chỉ sửa `.md`, `docs/`) | Chụp cùng góc trên main và trên PR (mỗi ngày: trên cao, lò bánh, chỗ khách mỗi đơn; bếp; màn hình chính), khung đỏ quanh vùng khác. Trang xem ở artifact `so-anh`, bình luận trên PR khi có góc khác. Chỉ báo, không đỏ (`docs/so-anh.md`). |
 | `clip-doc.yml` | `main` đổi, hoặc bấm Run workflow | Quay 5 clip dọc 9:16 từ game thật (leo, giao, mưa trên mái, Mực, chạy phố) cho devlog, để ở artifact `clip-doc`. Không đăng gì; Sang chọn rồi tự đăng (`tools/clip_doc/README.md`). |
+| `tu-merge.yml` | Sang gắn nhãn `duyet` lên PR, và mỗi khi một workflow của PR chạy xong | Merge các PR có nhãn `duyet` khi mọi check xanh (đỏ thì chờ). Có secret `TU_MERGE_TOKEN` hoặc `GOP_MAIN_TOKEN` thì merge bằng token đó; không có thì merge bằng `GITHUB_TOKEN` rồi gọi lại các workflow của `main` (riêng bước thay zip `ban-moi-nhat` của `desktop.yml` chỉ chạy khi có token). |
 
 - Thêm test mới thì thêm một dòng chạy nó vào job macOS trong `desktop.yml` (cuối danh sách, trước bước kiểm log), dạng `timeout 300 ~/godot/godot ... 2>&1 | python3 tools/loc_log.py | tee <ten>.log` kèm `grep -q "<CHU OK>" <ten>.log`.
 - Log phải sạch (KT2): mọi `ERROR` / `SCRIPT ERROR` của Godot ngoài `tools/loi_duoc_phep.txt` làm đỏ CI (`tools/loc_log.py --kiem`, và trong bot cả tuần). Lỗi do code thì sửa code; chỉ thêm vào danh sách lỗi đã hiểu là vô hại, kèm lý do.

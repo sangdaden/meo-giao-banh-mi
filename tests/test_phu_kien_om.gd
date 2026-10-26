@@ -2,6 +2,7 @@ extends SceneTree
 ## Phụ kiện ôm thân (KhopPhuKien, Sang 26/10 "thay đồ bị sai"): trên nhiều giống mèo, dây quai các món có dây
 ## phải nằm sát da (mặt trong cách da <= 6 mm, không chìm quá 3 mm), chuông/lục lạc móc vào vòng cổ, nút buộc đồ đuôi
 ## nằm trên đuôi (cả mèo cụt đuôi). In "PHU KIEN OM TEST OK".
+## Thêm `-- --tat-ca` để soát đủ 19 giống × đực/cái (CI chạy 9 mèo đại diện cho nhanh).
 
 const MEO := ["bo_duc", "bo_cai", "tuyet_duc", "lantet_duc", "vobanh_cai", "thongoc_cai", "tamthe_cai", "chalua_duc", "khoaimon_duc"]
 
@@ -13,7 +14,13 @@ func _initialize() -> void:
 
 
 func _go() -> void:
-	for cat in MEO:
+	var meo: Array = MEO
+	if "--tat-ca" in OS.get_cmdline_user_args():
+		meo = []
+		for b in Outfit.BREEDS:
+			meo.append(b[0] + "_duc")
+			meo.append(b[0] + "_cai")
+	for cat in meo:
 		var breed: String = cat.get_slice("_", 0)
 		var sex: String = cat.get_slice("_", 1)
 		var sc: PackedScene = OutfitView.breed_scene(breed, sex)

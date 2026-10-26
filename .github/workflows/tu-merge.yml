@@ -1,0 +1,87 @@
+# Tự merge PR khi Sang gắn nhãn "duyet" (Sang chọn 26/10/2026).
+# Sang gắn nhãn duyet lên PR -> workflow chờ mọi check của commit mới nhất xong và xanh -> merge (merge commit).
+# Check nào đỏ thì không merge, để nguyên nhãn; sửa xong check xanh lại thì tự merge.
+# Muốn thôi merge: gỡ nhãn duyet trước khi check xong.
+# Có secret TU_MERGE_TOKEN (hoặc GOP_MAIN_TOKEN) thì merge bằng token đó, main đổi sẽ chạy CI như người merge.
+# Không có thì merge bằng GITHUB_TOKEN rồi gọi lại các workflow của main bằng workflow_dispatch.
+name: Tự merge khi có nhãn duyet
+
+on:
+  pull_request:
+    types: [labeled]
+  workflow_run:
+    workflows: ["Bản Windows và macOS (Releases)", "Bot tự chơi cả tuần", "Hiệu năng bản web", "Ảnh so sánh", "Tự gộp main vào PR"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+  checks: read
+  statuses: read
+
+concurrency:
+  group: tu-merge
+  cancel-in-progress: false
+
+jobs:
+  tu-merge:
+    name: Tự merge khi có nhãn duyet
+    if: github.event_name != 'pull_request' || github.event.label.name == 'duyet'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Merge các PR có nhãn duyet đã xanh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MERGE_TOKEN: ${{ secrets.TU_MERGE_TOKEN || secrets.GOP_MAIN_TOKEN }}
+          R: ${{ github.repository }}
+          CHAY_LAI: "gop-main.yml pages.yml desktop.yml bot-ca-tuan.yml hieu-nang.yml clip-doc.yml"
+          MOI_GAN: ${{ github.event_name == 'pull_request' && '1' || '0' }}
+        run: |
+          set -uo pipefail
+          TEN_JOB="Tự merge khi có nhãn duyet"
+          # Vừa gắn nhãn: chờ một chút để các check của commit mới nhất kịp xuất hiện.
+          [ "$MOI_GAN" = 1 ] && sleep 30
+
+          # Trạng thái check của một commit: xanh / cho / do
+          trang_thai() {
+            local sha=$1 runs st
+            runs=$(gh api "repos/$R/commits/$sha/check-runs?per_page=100" \
+              --jq "[.check_runs[] | select(.name != \"$TEN_JOB\")]") || { echo cho; return; }
+            if echo "$runs" | jq -e 'any(.[]; .status != "completed")' >/dev/null; then echo cho; return; fi
+            if echo "$runs" | jq -e 'any(.[]; (.conclusion | IN("success","skipped","neutral")) | not)' >/dev/null; then echo do; return; fi
+            st=$(gh api "repos/$R/commits/$sha/status" --jq 'if .total_count == 0 then "success" else .state end')
+            case "$st" in success) ;; pending) echo cho; return ;; *) echo do; return ;; esac
+            if [ "$(echo "$runs" | jq length)" = 0 ]; then echo khong; return; fi
+            echo xanh
+          }
+
+          prs=$(gh api "repos/$R/pulls?state=open&per_page=100" \
+            --jq '.[] | select(any(.labels[]; .name == "duyet")) | "\(.number) \(.head.sha)"')
+          [ -z "$prs" ] && { echo "Không có PR nào gắn nhãn duyet."; exit 0; }
+
+          da_merge=0
+          while read -r so sha; do
+            tt=$(trang_thai "$sha")
+            if [ "$tt" = khong ]; then
+              # Chưa thấy check nào: chờ thêm rồi xem lại (PR chỉ sửa .md có thể không có check).
+              sleep 90; tt=$(trang_thai "$sha"); [ "$tt" = khong ] && tt=xanh
+            fi
+            echo "PR #$so ($sha): $tt"
+            [ "$tt" = xanh ] || { echo "PR #$so: chưa merge ($tt)." >> "$GITHUB_STEP_SUMMARY"; continue; }
+
+            tok="${MERGE_TOKEN:-$GH_TOKEN}"
+            if GH_TOKEN="$tok" gh api -X PUT "repos/$R/pulls/$so/merge" -f merge_method=merge -f sha="$sha" >/dev/null; then
+              echo "PR #$so: đã merge." >> "$GITHUB_STEP_SUMMARY"
+              [ -z "${MERGE_TOKEN:-}" ] && da_merge=1
+            else
+              echo "::warning::PR #$so không merge được (đụng main hoặc có commit mới), sẽ thử lại khi check chạy xong."
+              echo "PR #$so: không merge được, chờ lượt sau." >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done <<< "$prs"
+
+          # Merge bằng GITHUB_TOKEN thì push lên main không tự chạy workflow: gọi lại bằng tay.
+          if [ "$da_merge" = 1 ]; then
+            for wf in $CHAY_LAI; do gh workflow run "$wf" -R "$R" --ref main || true; done
+          fi

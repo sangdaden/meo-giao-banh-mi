@@ -1,3 +1,103 @@
+// Người gác: bản web hay "đứng đen màn" khi trình duyệt mất phần đồ họa (WebGL context lost), khi game lỗi
+// (wasm abort) hoặc treo. Thay vì để màn đen, hiện bảng có nút Tải lại và một dòng mã lỗi để chụp gửi lại.
+// Game gửi nhịp mỗi giây qua window.meoNhip(cảnh) (scripts/trang_web.gd); im quá IM_LAU giây lúc tab đang mở là treo.
+(function () {
+  var IM_LAU = 25;
+  var TEXT = {
+    vi: { lost: "Trình duyệt vừa tắt phần đồ họa của game nên màn hình bị đen.", crash: "Game vừa gặp lỗi và dừng lại.",
+          hang: "Game không phản hồi đã %s giây.", reload: "Tải lại trang", wait: "Chờ thêm",
+          hint: "Chụp màn hình bảng này gửi cho người làm game giúp nhé." },
+    en: { lost: "The browser switched off the game's graphics, so the screen went black.", crash: "The game hit an error and stopped.",
+          hang: "The game has not responded for %s seconds.", reload: "Reload page", wait: "Keep waiting",
+          hint: "Please send a screenshot of this box to the developer." }
+  };
+  var start = Date.now();
+  var lastBeat = 0, scene = "", hiddenAt = 0, box = null, waiting = 0;
+
+  function lang() { var g = window.meoGame || {}; return g.lang === "en" ? "en" : "vi"; }
+  function gpu() {
+    try {
+      var c = document.createElement("canvas").getContext("webgl2") || document.createElement("canvas").getContext("webgl");
+      var e = c && c.getExtension("WEBGL_debug_renderer_info");
+      return e ? c.getParameter(e.UNMASKED_RENDERER_WEBGL) : "?";
+    } catch (err) { return "?"; }
+  }
+  function code(reason) {
+    var g = window.meoGame || {};
+    return [reason, "cảnh " + (scene || "?"), g.trang_thai || "?", Math.round((Date.now() - start) / 1000) + "s",
+      screen.width + "x" + screen.height + "@" + (window.devicePixelRatio || 1), gpu(), navigator.userAgent].join(" · ");
+  }
+  function show(reason, msg, canWait) {
+    var info = code(reason);
+    try { localStorage.setItem("meo-loi-cuoi", new Date().toISOString() + " · " + info); } catch (e) {}
+    console.error("[meo] " + info);
+    if (box) box.remove();
+    var t = TEXT[lang()];
+    box = document.createElement("div");
+    box.setAttribute("role", "alertdialog");
+    box.style.cssText = "position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;" +
+      "background:rgba(31,42,42,.85);font:16px system-ui,sans-serif;color:#1F2A2A;padding:16px";
+    var card = document.createElement("div");
+    card.style.cssText = "background:#FFF8EA;border:3px solid #1F2A2A;border-radius:18px;max-width:560px;padding:22px 24px;box-shadow:0 6px 0 #1F2A2A";
+    var h = document.createElement("div");
+    h.style.cssText = "font-weight:700;font-size:20px;margin-bottom:14px";
+    h.textContent = msg;
+    var row = document.createElement("div");
+    row.style.cssText = "display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px";
+    var re = document.createElement("button");
+    re.textContent = t.reload;
+    re.style.cssText = "font:600 16px system-ui,sans-serif;background:#D98E2B;color:#2A1A05;border:2px solid #1F2A2A;border-radius:999px;padding:8px 18px;cursor:pointer";
+    re.onclick = function () { location.reload(); };
+    row.appendChild(re);
+    if (canWait) {
+      var w = document.createElement("button");
+      w.textContent = t.wait;
+      w.style.cssText = "font:600 16px system-ui,sans-serif;background:transparent;border:2px solid #1F2A2A;border-radius:999px;padding:8px 16px;cursor:pointer";
+      w.onclick = function () { waiting = Date.now(); hide(); };
+      row.appendChild(w);
+    }
+    var small = document.createElement("div");
+    small.style.cssText = "font-size:12px;color:#5E6F6C;word-break:break-word";
+    small.textContent = t.hint + " " + info;
+    card.appendChild(h); card.appendChild(row); card.appendChild(small);
+    box.appendChild(card);
+    document.body.appendChild(box);
+  }
+  function hide() { if (box) { box.remove(); box = null; } }
+
+  window.meoNhip = function (s) {
+    lastBeat = Date.now();
+    if (s) scene = s;
+    if (box && box.getAttribute("data-hang")) hide();  // game chạy lại sau lúc treo
+  };
+  window.addEventListener("load", function () {
+    var c = document.querySelector("canvas");
+    if (c) c.addEventListener("webglcontextlost", function () { show("webgl-lost", TEXT[lang()].lost, false); }, false);
+  });
+  window.addEventListener("error", function (e) {
+    var m = String((e && (e.message || (e.error && e.error.message))) || "");
+    if (/RuntimeError|unreachable|out of bounds|Aborted|OOM|memory/i.test(m)) show("wasm: " + m.slice(0, 80), TEXT[lang()].crash, false);
+  });
+  window.addEventListener("unhandledrejection", function (e) {
+    var m = String((e && e.reason && (e.reason.message || e.reason)) || "");
+    if (/RuntimeError|unreachable|out of bounds|Aborted|OOM/i.test(m)) show("wasm: " + m.slice(0, 80), TEXT[lang()].crash, false);
+  });
+  // Tab ẩn thì trình duyệt ngừng vẽ, game cũng ngừng gửi nhịp: không tính khoảng đó là treo.
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) hiddenAt = Date.now();
+    else if (lastBeat) lastBeat = Math.max(lastBeat, Date.now());
+  });
+  setInterval(function () {
+    if (!lastBeat || document.hidden || (box && !box.getAttribute("data-hang"))) return;
+    var since = Math.max(lastBeat, waiting);
+    var s = Math.round((Date.now() - since) / 1000);
+    if (s >= IM_LAU && !box) {
+      show("hang", TEXT[lang()].hang.replace("%s", s), true);
+      box.setAttribute("data-hang", "1");
+    }
+  }, 1000);
+})();
+
 // Tự kiểm tra bản mới cho bản web (GitHub Pages, itch.io).
 // GitHub Actions thay __BUILD_VERSION__ bằng mã commit và ghi version.json cạnh index.html.
 // Mỗi phút trang hỏi version.json (không dùng bộ nhớ đệm). Thấy khác bản đang chạy thì chờ lúc an toàn

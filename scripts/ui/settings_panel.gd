@@ -78,6 +78,15 @@ func _ready() -> void:
 	_segment_row(left, "Góc nhìn (V)", "first_person", [["Thứ ba", false], ["Thứ nhất", true]], _apply_camera)
 	_slider_row(left, "Độ nhạy chuột", "sensitivity", _apply_camera)
 	_switch_row(left, "Đảo trục dọc", "invert_y")
+	_doi_phim_row(left)
+
+	# --- Hỗ trợ (B3): mặc định tắt, cho trẻ nhỏ và người ít chơi game (DoKho.ho_tro)
+	var h3 := _heading("Hỗ trợ")
+	h3.add_theme_constant_override("margin_top", 10)
+	left.add_child(h3)
+	_switch_row(left, "Giữ F: Bơ tự đi theo mũi tên", "ho_tro_tu_di")
+	_switch_row(left, "Chó Mực không đớp được Bơ", "ho_tro_muc")
+	_segment_row(left, "Tốc độ game", "ho_tro_toc_do", [["100%", 100], ["85%", 85], ["70%", 70]])
 
 	# --- Hình ảnh
 	right.add_child(_heading("Hình ảnh"))
@@ -153,6 +162,7 @@ func _refresh() -> void:
 func _apply_all() -> void:
 	_apply_graphics()
 	_apply_camera()
+	BanPhim.ap_dung()
 
 
 func _apply_graphics() -> void:
@@ -167,6 +177,19 @@ func _apply_lang() -> void:
 
 func _apply_camera() -> void:
 	GameSettings.apply_camera(get_tree())
+
+
+## F2: nút mở màn "Đổi phím và tay cầm" (scripts/ui/doi_phim_panel.gd), nằm đè lên Cài đặt.
+func _doi_phim_row(parent: Control) -> void:
+	var r := _row(parent, "Phím và tay cầm")
+	var b := T.button("Đổi phím...", "secondary", 48, 16)
+	b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	r.add_child(b)
+	var p := DoiPhimPanel.new()
+	p.visible = false
+	add_child(p)
+	p.closed.connect(func(): b.grab_focus())
+	b.pressed.connect(p.open)
 
 
 func _heading(text: String) -> MarginContainer:

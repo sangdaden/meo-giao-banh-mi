@@ -84,6 +84,11 @@ func _run() -> void:
 		DirAccess.remove_absolute(Outfit.PATH)
 	Outfit._loaded = false
 
+	print("Tải gói trên web")
+	# Máy chủ nén gzip thì trình duyệt đã giải nén; HTTPRequest giải nén lần nữa là hỏng, hiện "Mạng chậm"
+	_check(not GoiWeb.node()._http.accept_gzip, "để trình duyệt tự giải nén gói")
+	_check(GoiWeb.AUTO_RETRY >= 1 and GoiWeb.STALL_SEC > 0, "lỗi hay đứng yên thì tự tải lại trước khi báo")
+
 	for p in [src, tmp, GoiWeb._local("thu_ba")]:
 		DirAccess.remove_absolute(p)
 	print("GOI WEB TEST OK" if fails == 0 else "GOI WEB TEST FAIL (%d)" % fails)

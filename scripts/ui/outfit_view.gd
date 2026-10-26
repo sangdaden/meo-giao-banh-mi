@@ -103,16 +103,39 @@ static func attach(skel: Skeleton3D, id: String, breed := "bo", sex := "duc", li
 		path = DIR + "phu_kien_nhe/%s.glb" % id
 	var scene: Node3D = load(path).instantiate()
 	var compat := RenderingServer.get_rendering_device() == null
+	# Lượt 1: gom các bộ phận cùng vị trí gắn (hệ model) để KhopPhuKien ép dây, quai sát thân giống đang mặc
+	var parts := []
 	for mi: MeshInstance3D in scene.find_children("*", "MeshInstance3D", true, false):
 		var oi: Dictionary = info.get(str(mi.name), info.get(str(mi.get_parent().name), {}))
 		var sock: String = oi.get("sock", "back")
+		var xf := _socket_xform(sock, breed, sex)
+		if sock == "head":
+			xf.origin += xf.basis.y.normalized() * float(LIFT.get(id, 0.0))
+		var part := {"name": str(mi.name), "mi": mi, "oi": oi, "sock": sock, "mesh": mi.mesh, "xf": xf}
+		if oi.has("cloth"):
+			part.hinge = _v(oi.cloth.get("hinge", [0, 0.056, 0.12]))
+		parts.append(part)
+	var khop := KhopPhuKien.fit(skel, id, "%s_%s_%s" % [breed, sex, path], parts)
+	for part in parts:
+		var mi: MeshInstance3D = part.mi
+		var oi: Dictionary = part.oi
+		var sock: String = part.sock
+		var mesh: Mesh = part.mesh
+		if khop.has(part.name):
+			if khop[part.name].get("an", false):
+				continue
+			mesh = khop[part.name].mesh
+			if khop[part.name].has("hinge"):
+				oi = oi.duplicate(true)
+				var hg: Vector3 = khop[part.name].hinge
+				oi.cloth.hinge = [hg.x, hg.y, hg.z]
 		var bone := -1
 		for n in BONE.get(sock, BONE.back):
 			bone = skel.find_bone(n) if bone < 0 else bone
 		if bone < 0:
 			continue
 		if oi.has("lung"):
-			var sk := _skinned_copy(skel, mi.mesh, _socket_xform(sock, breed, sex), oi.lung == "bam", compat)
+			var sk := _skinned_copy(skel, mesh, part.xf, oi.lung == "bam", compat)
 			if sk:
 				_finish(sk.get_child(0), id, mi, oi)
 				sk.get_child(0).set_meta("lung", oi.lung)
@@ -122,15 +145,12 @@ static func attach(skel: Skeleton3D, id: String, breed := "bo", sex := "duc", li
 		att.bone_idx = bone
 		skel.add_child(att)
 		var holder := Node3D.new()
-		var xf := _socket_xform(sock, breed, sex)
-		if sock == "head":
-			xf.origin += xf.basis.y.normalized() * float(LIFT.get(id, 0.0))
-		holder.transform = skel.get_bone_global_rest(bone).affine_inverse() * xf
+		holder.transform = skel.get_bone_global_rest(bone).affine_inverse() * part.xf
 		att.add_child(holder)
 		var copy := MeshInstance3D.new()
-		copy.mesh = mi.mesh
+		copy.mesh = mesh
 		if compat:
-			copy.mesh = srgb_mesh(mi.mesh)
+			copy.mesh = srgb_mesh(mesh)
 		holder.add_child(copy)
 		_finish(copy, id, mi, oi)
 		out.append(att)

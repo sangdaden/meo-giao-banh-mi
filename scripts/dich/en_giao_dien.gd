@@ -465,4 +465,8 @@ const EN := {
 	"Mạng chậm quá, chưa tải xong.": "The connection is slow, still not loaded.",
 	"Thử lại": "Try again",
 	"Về trang chủ": "Main menu",
+	# scripts/ke_mark.gd (nút sang kênh Mark học AI)
+	"  Ghé kênh anh Mark": "  Visit Mark's channel",
+	"Anh Mark ở chung cư tầng 3 làm video về AI, ghé xem nha!": "Mark from the 3rd floor of the apartment block makes videos about AI. Go take a look!",
+	"Ghé kênh anh Mark": "Visit Mark's channel",
 }

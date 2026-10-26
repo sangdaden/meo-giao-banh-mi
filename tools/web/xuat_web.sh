@@ -30,3 +30,5 @@ python3 tools/goi_web/tach_goi.py "$out/index.pck"
 # Mã phiên bản để trang báo có bản mới (web/update-check.js)
 sed "s/__BUILD_VERSION__/${sha}/" web/update-check.js > "$out/update-check.js"
 echo "{\"version\": \"${sha}\"}" > "$out/version.json"
+# Đếm lượt chơi bằng Umami (Vũ Trụ Mark K1)
+cp web/do-luot.js "$out/do-luot.js"

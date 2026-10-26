@@ -36,3 +36,9 @@ Game báo chỗ đang đứng cho trang bằng `scripts/trang_web.gd` (`TrangWeb
 ## Phím trên bản web (TC1)
 
 Bản web không gán Ctrl (chui) và Alt (rón rén) vì Ctrl+W đóng tab, Alt mở menu trình duyệt: chui là **C**, rón rén là **Z**. Bản PC giữ cả Ctrl/Alt lẫn C/Z (`Main._setup_input`). Chữ nhắc phím trong game chỉ ghi C và Z.
+
+## Người gác: không để đứng màn đen
+
+Cũng trong `web/update-check.js`. Khi trình duyệt tắt phần đồ họa của game (WebGL context lost), khi game lỗi (wasm abort), hoặc khi game ngừng gửi nhịp quá 25 giây lúc tab đang mở, trang hiện bảng có nút **Tải lại trang** và một dòng mã lỗi (lý do, cảnh, thời gian chơi, màn hình, card đồ họa, trình duyệt) để người chơi chụp gửi lại. Mã lỗi cuối cùng cũng được giữ trong `localStorage` khóa `meo-loi-cuoi`.
+
+Game gửi nhịp mỗi giây bằng `TrangWeb.bat_nhip()` (gọi ở trang chủ). Treo cứng cả trang (vòng lặp vô hạn) thì trang cũng không chạy được nên không hiện bảng; lúc đó trình duyệt tự hỏi "Trang không phản hồi".

@@ -30,3 +30,19 @@ static func _ghi(trang_thai: String) -> void:
 		lang = str(nn.get("ma"))
 	JavaScriptBridge.eval("window.meoGame={trang_thai:%s,lang:%s};window.meoGameDoi&&window.meoGameDoi();"
 		% [JSON.stringify(trang_thai), JSON.stringify(lang)], true)
+
+
+## Nhịp tim cho "người gác" của trang (web/update-check.js): mỗi giây báo trang game còn chạy và đang ở cảnh nào.
+## Trang không nghe nhịp quá lâu (tab đang mở) thì hiện bảng "Game không phản hồi" có nút Tải lại thay vì để đứng đen.
+static func bat_nhip(tree: SceneTree) -> void:
+	if not OS.has_feature("web") or tree.root.has_node("TrangWebNhip"):
+		return
+	var t := Timer.new()
+	t.name = "TrangWebNhip"
+	t.wait_time = 1.0
+	t.process_mode = Node.PROCESS_MODE_ALWAYS
+	t.timeout.connect(func():
+		var canh := tree.current_scene.scene_file_path.get_file().get_basename() if tree.current_scene else ""
+		JavaScriptBridge.eval("window.meoNhip&&window.meoNhip(%s);" % JSON.stringify(canh), true))
+	tree.root.add_child.call_deferred(t)
+	t.autostart = true

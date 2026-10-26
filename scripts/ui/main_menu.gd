@@ -22,6 +22,7 @@ static func first_scene() -> String:
 
 
 func _ready() -> void:
+	TrangWeb.bat_nhip(get_tree())  # bản web: trang biết game còn chạy (web/update-check.js)
 	GameSettings.apply_graphics(get_tree())
 	var args := OS.get_cmdline_user_args()
 	if "--autotest" in args or "--autotest-bep" in args or "--demo-bep" in args \

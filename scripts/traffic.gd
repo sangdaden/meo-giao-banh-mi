@@ -157,7 +157,7 @@ var _mm_dark: MultiMesh
 var _mm_riders: Array[MultiMesh] = []
 var _mm_pillion: MultiMesh
 var _mm_lamps: MultiMesh
-var _heads: Array = []            ## [{crossing, ew, xf}] từng cột đèn
+var _heads: Array = []            ## [{crossing, ew, pos, face, so, shown}] từng cột đèn
 
 var _crossed := 0                 ## số lượt xe qua vạch dừng (để autotest kiểm tra)
 var _red_runs := 0                ## số lần xe vượt đèn đỏ: phải luôn bằng 0
@@ -217,27 +217,58 @@ func _build_lights() -> void:
 		]
 		for ap in approaches:
 			var base := Vector3(ap.corner.x, 0, ap.corner.y)
-			Blocks.solid_box(still, Vector3(0.14, 3.0, 0.14), base + Vector3(0, 1.5, 0), Color("#4A5654"), Blocks.LAYER_PROP)
 			var face: Vector3 = ap.face
-			var head := base + Vector3(0, 3.1, 0) + face * 0.12
-			var housing := Blocks.box(still, Vector3(0.34, 0.95, 0.24), head, Color("#2A302F"))
-			housing.basis = Basis.looking_at(-face)
-			_heads.append({"crossing": i, "ew": ap.ew, "pos": head + face * 0.13, "face": face})
+			# Cột đèn D1 (trang https://claude.ai/artifact/QfaygXEzM4AGMyFNogyzqc, Sang duyệt 27/10): ống mạ kẽm vạch vàng đen,
+			# hộp 3 bóng có lưỡi trai, bảng đếm giây. Va chạm vẫn là ống 0,14 m cũ; lòng bóng trong model tối, màu do đĩa MultiMesh.
+			Blocks.collider(still, Vector3(0.14, 3.0, 0.14), base + Vector3(0, 1.5, 0), Blocks.LAYER_PROP)
+			PhoModels.put(still, "../do_them/cot_den", base, atan2(face.x, face.z))
+			_heads.append({"crossing": i, "ew": ap.ew, "pos": base + Vector3(0, 3.1, 0) + face * 0.258, "face": face,
+				"so": _countdown(base + Vector3(0, 2.35, 0) + face * 0.212, face), "shown": -1})
 		# Vạch dừng trắng trên đường
 		Blocks.box(still, Vector3(0.3, 0.02, 4.6), Vector3(c.x - STOP_EW.x + 0.5, 0.012, 2.5), Color("#FFF8EA"))
 		Blocks.box(still, Vector3(0.3, 0.02, 4.6), Vector3(c.x + STOP_EW.x - 0.5, 0.012, -2.5), Color("#FFF8EA"))
 	Blocks.merge_static(still)
 
-	var lamp := SphereMesh.new()
-	lamp.radius = 0.1
-	lamp.height = 0.2
-	lamp.radial_segments = 8
-	lamp.rings = 4
-	_mm_lamps = _multimesh(lamp, _heads.size() * 3, true, true)
+	# Bóng đèn: đĩa phẳng nằm đúng lòng 3 bóng của model (đỏ trên, vàng giữa, xanh dưới)
+	var lamp := CylinderMesh.new()
+	lamp.top_radius = 0.095
+	lamp.bottom_radius = 0.095
+	lamp.height = 0.012
+	lamp.radial_segments = 16
+	lamp.rings = 1
+	_mm_lamps = _multimesh(lamp, _heads.size() * 3, true, true, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
 	for h in _heads.size():
 		var hd: Dictionary = _heads[h]
+		var b := Basis.looking_at(-hd.face) * Basis(Vector3.RIGHT, PI / 2.0)  # trục đĩa quay về phía xe tới
 		for k in 3:
-			_mm_lamps.set_instance_transform(h * 3 + k, Transform3D(Basis(), hd.pos + Vector3(0, 0.3 - k * 0.3, 0)))
+			_mm_lamps.set_instance_transform(h * 3 + k, Transform3D(b, hd.pos + Vector3(0, 0.3 - k * 0.3, 0)))
+
+
+## Số đếm giây trên bảng dưới hộp đèn (chỉ nhìn từ phía xe tới, gần mới vẽ).
+func _countdown(pos: Vector3, face: Vector3) -> Label3D:
+	var l := Label3D.new()
+	l.text = ""
+	l.font_size = 32
+	l.pixel_size = 0.006
+	l.outline_size = 0
+	l.double_sided = false
+	l.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	l.visibility_range_end = 22.0
+	add_child(l)
+	l.transform = Transform3D(Basis.looking_at(-face), pos)
+	return l
+
+
+## Còn bao nhiêu giây tới khi đèn của hướng này đổi màu.
+func light_left(crossing: int, ew: bool) -> float:
+	var c := fposmod(_t + PHASE_OFFSET[crossing], CYCLE)
+	var a := c if ew else fposmod(c - (GREEN_EW + YELLOW + ALL_RED), CYCLE)
+	var g := GREEN_EW if ew else GREEN_NS
+	if a < g:
+		return g - a
+	if a < g + YELLOW:
+		return g + YELLOW - a
+	return CYCLE - a
 
 
 func _update_lamps() -> void:
@@ -250,6 +281,12 @@ func _update_lamps() -> void:
 		for k in 3:
 			var col: Color = cols[k] if lit[k] else cols[k].darkened(0.82)
 			_mm_lamps.set_instance_color(h * 3 + k, col)
+		var n := mini(ceili(light_left(hd.crossing, hd.ew)), 99)
+		if n != hd.shown:
+			hd.shown = n
+			var so: Label3D = hd.so
+			so.text = "%02d" % n
+			so.modulate = cols[0] if lit[0] else (cols[1] if lit[1] else cols[2])
 
 
 # ---------------------------------------------------------------- xe máy

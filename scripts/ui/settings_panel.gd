@@ -79,6 +79,12 @@ func _ready() -> void:
 	_slider_row(left, "Độ nhạy chuột", "sensitivity", _apply_camera)
 	_switch_row(left, "Đảo trục dọc", "invert_y")
 	_doi_phim_row(left)
+	# DK1–DK3: cảm giác tay và camera
+	_switch_row(left, "Camera tự về sau lưng Bơ", "cam_sau_lung")
+	_slider_row(left, "Góc nhìn rộng (FOV)", "fov", _apply_camera, 60, 90)
+	_switch_row(left, "Giãn góc nhìn khi chạy nhanh", "fov_chay")
+	_switch_row(left, "Camera nảy khi đáp từ cao", "camera_nay")
+	_switch_row(left, "Rung tay cầm", "rung_tay_cam")
 
 	# --- Hỗ trợ (B3): mặc định tắt, cho trẻ nhỏ và người ít chơi game (DoKho.ho_tro)
 	var h3 := _heading("Hỗ trợ")
@@ -266,9 +272,11 @@ func _volume_row(parent: Control, text: String, bus: String) -> void:
 		v.text = str(int(s.value))
 
 
-func _slider_row(parent: Control, text: String, key: String, after := Callable()) -> void:
+func _slider_row(parent: Control, text: String, key: String, after := Callable(), lo := 0, hi := 100) -> void:
 	var r := _row(parent, text)
 	var s := _make_slider()
+	s.min_value = lo
+	s.max_value = hi
 	var v := _value_label()
 	r.add_child(s)
 	r.add_child(v)

@@ -26,6 +26,11 @@ const DEFAULTS := {
 	"ho_tro_tu_di": false,   # B3: giữ F ngoài phố tự đi theo mũi tên (DoKho.ho_tro)
 	"ho_tro_muc": false,     # B3: Chó Mực không đớp được Bơ
 	"ho_tro_toc_do": 100,    # B3: tốc độ game lúc chơi, phần trăm (100, 85, 70)
+	"cam_sau_lung": true,    # DK1: đang chạy mà buông chuột/cần thì camera tự về sau lưng Bơ
+	"fov": 70,               # DK3: góc nhìn rộng 60..90 độ
+	"fov_chay": true,        # DK3: chạy nhanh thì góc nhìn giãn nhẹ
+	"camera_nay": true,      # DK2: camera nảy nhẹ khi đáp từ cao hơn 2 m
+	"rung_tay_cam": true,    # DK2: rung tay cầm khi bị hất văng (scripts/cam_giac_tay.gd)
 }
 
 static var _data := {}
@@ -106,6 +111,11 @@ static func apply_camera(tree: SceneTree) -> void:
 		rig.mouse_sensitivity = lerpf(0.001, 0.007, float(get_value("sensitivity")) / 100.0)
 	if "invert_y" in rig:
 		rig.invert_y = get_value("invert_y")
+	if "auto_behind" in rig:
+		rig.auto_behind = get_value("cam_sau_lung")
+		rig.fov_base = clampf(float(get_value("fov")), 60.0, 90.0)
+		rig.fov_run = get_value("fov_chay")
+		rig.bump_on = get_value("camera_nay")
 
 
 ## Rig phát view_changed khi người chơi bấm V: lưu lại lựa chọn.

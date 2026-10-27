@@ -52,14 +52,7 @@ const NEIGHBOR_ROOF := 3.9
 const PIPE := Vector3(-0.08, NEIGHBOR_ROOF, -6.6)
 const PIPE_TOP := 10.8
 
-const WALL := Color("#D9C9A0")
-const WALL2 := Color("#C8B88E")
-const FLOOR := Color("#E6DCC4")
-const IRON := Color("#2B2F33")
-const AC := Color("#E4E7E2")
-const STEP := Color("#C9C3B3")
 const GUIDE := Color("#F6C945")  ## chữ/mũi tên chỉ đường
-const RAIL := Color(0.17, 0.18, 0.2, 0.45)  ## lan can song sắt: nhìn xuyên được
 ## Model gói G1 đã duyệt (Blender, phong cách D). Mỗi bộ phận là node "w_<bộ phận>".
 const M_VONG := preload("res://assets/models/chung_cu/vong.glb")
 const M_EM_BE := preload("res://assets/models/chung_cu/em_be.glb")
@@ -68,6 +61,11 @@ const M_GIA_PHOI := preload("res://assets/models/chung_cu/gia_phoi.glb")
 const M_ONG := preload("res://assets/models/chung_cu/ong_gay.glb")
 const M_MAY_LANH := preload("res://assets/models/chung_cu/may_lanh.glb")
 const M_MAY_LANH_RUNG := preload("res://assets/models/chung_cu/may_lanh_rung.glb")
+## Vỏ toà và nhà bên (D2, trang https://claude.ai/artifact/QfaygXEzM4AGMyFNogyzqc, Sang duyệt 27/10): model dựng đúng
+## toạ độ cảnh này (gốc 0), nguồn /mnt/project-files/cai-thien-2/khoi-tam-v2/scripts/do_khoi2.py. Va chạm vẫn là các hộp cũ.
+const VO_DAY := "../chung_cu/hoa_sua_day"
+const VO_THAP := "../chung_cu/hoa_sua_thap"
+const VO_NHA_BEN := "../chung_cu/nha_ong_ben"
 
 enum Lift { IDLE, COMING, OPEN_GROUND, CLOSING, RIDING, STUCK, OPEN_TOP }
 enum Baby { SLEEP, STIR, CRY }
@@ -267,6 +265,7 @@ func _in_stairwell() -> bool:
 func _stair_camera(delta: float) -> void:
 	if not _in_stairwell():
 		return
+	rig.auto_behind_hold = 0.2  # trong cầu thang camera tự nhìn hướng dễ leo, DK1 nhường
 	if not rig.first_person and rig.since_manual() > STAIR_CAM_WAIT:
 		var k := 1.0 - exp(-2.5 * delta)
 		rig.yaw = lerp_angle(rig.yaw, 0.0, k)
@@ -557,27 +556,25 @@ func _build_ground() -> void:
 
 func _build_building() -> void:
 	# Khối căn hộ đặc phía sau hành lang
+	# Vỏ dãy căn hộ (model D2): tường, cửa, cửa sổ, sàn và lan can hành lang, cột, mái, chuồng cọp B/D hông tây
+	PhoModels.put(self, VO_DAY, Vector3.ZERO)
 	var back_d := DEPTH - CORR
-	Blocks.solid_box(self, Vector3(W, FLOORS * FLOOR_H, back_d), Vector3(W / 2.0, FLOORS * FLOOR_H / 2.0, -CORR - back_d / 2.0), WALL)
+	Blocks.collider(self, Vector3(W, FLOORS * FLOOR_H, back_d), Vector3(W / 2.0, FLOORS * FLOOR_H / 2.0, -CORR - back_d / 2.0))
 	# Mái bằng: sàn, lan can, bồn nước
-	Blocks.solid_box(self, Vector3(W + 0.4, 0.3, DEPTH + 0.3), Vector3(W / 2.0, FLOORS * FLOOR_H + 0.15, -DEPTH / 2.0 + 0.1), FLOOR)
+	Blocks.collider(self, Vector3(W + 0.4, 0.3, DEPTH + 0.3), Vector3(W / 2.0, FLOORS * FLOOR_H + 0.15, -DEPTH / 2.0 + 0.1))
 	for i in 3:
 		DoThem.put(self, "bon_nuoc_inox__nam", Vector3(2.0 + i * 5.5, FLOORS * FLOOR_H + 0.3, -6.0))
-	Blocks.label(self, "CHUNG CƯ HOA SỮA", Vector3(W / 2.0, FLOORS * FLOOR_H - 0.5, 0.3), 60, Color("#8A3A2A"))
+	_board_text("CHUNG CƯ HOA SỮA", Vector3(W / 2.0, FLOORS * FLOOR_H + 0.68, 0.31), 42, Color("#8A3A2A"))  # bảng tên trên mái (model)
 	for f in FLOORS:
 		var y := f * FLOOR_H
 		if f > 0:
-			Blocks.solid_box(self, Vector3(W, 0.15, CORR), Vector3(W / 2.0, y - 0.075, -CORR / 2.0), FLOOR)
+			Blocks.collider(self, Vector3(W, 0.15, CORR), Vector3(W / 2.0, y - 0.075, -CORR / 2.0))
 			# Lan can hành lang (mặt nam) và đầu hồi phía tây
-			Blocks.solid_box(self, Vector3(W, 1.05, 0.06), Vector3(W / 2.0, y + 0.525, -0.03), RAIL)
-			Blocks.solid_box(self, Vector3(0.06, 1.05, CORR), Vector3(0.03, y + 0.525, -CORR / 2.0), RAIL)
-			Blocks.box(self, Vector3(W, 0.06, 0.1), Vector3(W / 2.0, y + 1.05, -0.03), IRON)  # tay vịn
+			Blocks.collider(self, Vector3(W, 1.05, 0.06), Vector3(W / 2.0, y + 0.525, -0.03))
+			Blocks.collider(self, Vector3(0.06, 1.05, CORR), Vector3(0.03, y + 0.525, -CORR / 2.0))
 		for u in UNITS:
 			var x0 := u * UNIT_W
-			var door_col: Color = [Color("#3E6E6E"), Color("#7A4E36"), Color("#4A5E7A")][(u + f) % 3]
-			Blocks.box(self, Vector3(0.9, 2.1, 0.05), Vector3(x0 + 0.85, y + 1.05, -CORR + 0.02), door_col)
 			Blocks.label(self, "%dB-%d" % [f + 1, u + 1], Vector3(x0 + 0.85, y + 2.4, -CORR + 0.4), 24, Color("#F4EAD2"))
-			Blocks.box(self, Vector3(1.3, 1.1, 0.05), Vector3(x0 + 2.7, y + 1.5, -CORR + 0.02), Color("#3D4A4A"))  # cửa sổ lá sách
 			if (u + f) % 2 == 0:  # kệ giày, chậu cây trước cửa (nhỏ, đi vòng được)
 				DoThem.solid(self, "ke_giay", Vector3(0.7, 0.75, 0.3), Vector3(x0 + 1.8, y + 0.375, -CORR + 0.18))
 			if (u * 3 + f) % 4 == 1:  # dây phơi đồ trên cao, chỉ để nhìn
@@ -585,7 +582,7 @@ func _build_building() -> void:
 		# Cột hành lang
 		for u in UNITS + 1:
 			var cx := clampf(u * UNIT_W, 0.15, W - 0.15)
-			Blocks.solid_box(self, Vector3(0.3, FLOOR_H, 0.3), Vector3(cx, y + FLOOR_H / 2.0, -0.15), FLOOR)
+			Blocks.collider(self, Vector3(0.3, FLOOR_H, 0.3), Vector3(cx, y + FLOOR_H / 2.0, -0.15))
 	# Xe đạp dựng ở hành lang tầng 4 (đi né)
 	DoThem.solid(self, "xe_dap", Vector3(1.6, 0.9, 0.4), Vector3(8.4, 9.45, -1.3), 0.0, Vector3(1, 0.9 / 1.02, 1))
 	# Võng em bé hành lang tầng 3 (thấp 0,6 m, Bơ đi dưới được)
@@ -610,29 +607,29 @@ func _build_building() -> void:
 func _build_tower() -> void:
 	var cx := (TX0 + TX1) / 2.0
 	var h := FLOORS * FLOOR_H + 1.0
-	Blocks.solid_box(self, Vector3(TX1 - TX0, h, 0.2), Vector3(cx, h / 2.0, TOWER_BACK - 0.1), WALL2)
+	# Vỏ khối thang (model D2): bông gió, bậc, chiếu nghỉ, vách, tường đông có ô cửa thang máy, mái đón cổng
+	PhoModels.put(self, VO_THAP, Vector3.ZERO)
+	Blocks.collider(self, Vector3(TX1 - TX0, h, 0.2), Vector3(cx, h / 2.0, TOWER_BACK - 0.1))
 	# Mặt nam: gạch bông gió (nhìn xuyên được, camera không né) + cổng tầng trệt x 17,3 → 18,9
-	var lattice := Color(WALL2, 0.35)
-	Blocks.solid_box(self, Vector3(0.5, h, 0.15), Vector3(TX0 + 0.25, h / 2.0, 0.075), lattice, Blocks.LAYER_PROP)
-	Blocks.solid_box(self, Vector3(0.5, h, 0.15), Vector3(TX1 - 0.25, h / 2.0, 0.075), lattice, Blocks.LAYER_PROP)
-	Blocks.solid_box(self, Vector3(1.6, h - 2.4, 0.15), Vector3(cx, 2.4 + (h - 2.4) / 2.0, 0.075), lattice, Blocks.LAYER_PROP)
-	Blocks.box(self, Vector3(2.0, 0.2, 0.6), Vector3(cx, 2.5, 0.3), FLOOR)
-	Blocks.label(self, "LÔ B · CẦU THANG", Vector3(cx, 2.9, 0.4), 30, Color("#8A3A2A"))
+	Blocks.collider(self, Vector3(0.5, h, 0.15), Vector3(TX0 + 0.25, h / 2.0, 0.075), Blocks.LAYER_PROP)
+	Blocks.collider(self, Vector3(0.5, h, 0.15), Vector3(TX1 - 0.25, h / 2.0, 0.075), Blocks.LAYER_PROP)
+	Blocks.collider(self, Vector3(1.6, h - 2.4, 0.15), Vector3(cx, 2.4 + (h - 2.4) / 2.0, 0.075), Blocks.LAYER_PROP)
+	_board_text("LÔ B · CẦU THANG", Vector3(cx, 2.8, 0.63), 15, Color("#F4EAD2"))  # bảng xanh trên mái đón cổng (model)
 	Blocks.label(self, "▼ CẦU THANG", Vector3(cx, 3.6, 0.8), 56, GUIDE)
 	for f in range(1, FLOORS):
 		Blocks.label(self, "Tầng %d" % (f + 1), Vector3(cx, f * FLOOR_H + 1.9, -0.6), 34, GUIDE)
 	Blocks.label(self, "◀ căn 5B-1", Vector3(TX0 - 1.0, (FLOORS - 1) * FLOOR_H + 1.2, -0.8), 34, GUIDE)
 	# Vách giữa hai vế thang (không nhảy tắt từ vế này sang vế kia)
-	Blocks.solid_box(self, Vector3(0.1, FLOORS * FLOOR_H, 2.4), Vector3(TX0 + 1.3, FLOORS * FLOOR_H / 2.0, -2.9), WALL2, Blocks.LAYER_PROP)  # lớp đồ: camera không bị vách ép sát
+	Blocks.collider(self, Vector3(0.1, FLOORS * FLOOR_H, 2.4), Vector3(TX0 + 1.3, FLOORS * FLOOR_H / 2.0, -2.9), Blocks.LAYER_PROP)  # lớp đồ: camera không bị vách ép sát
 	var rise := FLOOR_H / 2.0
 	for f in FLOORS:
 		var y := f * FLOOR_H
 		if f > 0:
-			Blocks.solid_box(self, Vector3(TX1 - TX0, 0.15, CORR), Vector3(cx, y - 0.075, -CORR / 2.0), FLOOR)
+			Blocks.collider(self, Vector3(TX1 - TX0, 0.15, CORR), Vector3(cx, y - 0.075, -CORR / 2.0))
 		if f == FLOORS - 1:
 			break
 		_flight(TX0 + 0.1, TX0 + 1.25, -CORR, -4.1, y, y + rise)          # vế A: đi về phía bắc
-		Blocks.solid_box(self, Vector3(2.4, 0.15, 1.4), Vector3(cx, y + rise - 0.075, -4.8), FLOOR)  # chiếu nghỉ
+		Blocks.collider(self, Vector3(2.4, 0.15, 1.4), Vector3(cx, y + rise - 0.075, -4.8))  # chiếu nghỉ
 		_flight(TX0 + 1.35, TX1 - 0.1, -4.1, -CORR, y + rise, y + FLOOR_H)  # vế B: quay về phía nam
 		# Thành vô hình mép đông vế B: giữ Bơ khỏi cạ vào mép cửa thang máy ở đầu vế (bị kẹt ở đó)
 		var guide := Blocks.solid_box(self, Vector3(0.1, FLOOR_H, 2.3), Vector3(TX1 - 0.2, y + rise + FLOOR_H / 2.0, -2.9), Color(0, 0, 0, 0), Blocks.LAYER_PROP)
@@ -649,17 +646,12 @@ func _build_tower() -> void:
 	Blocks.label(self, "Chui qua!", Vector3(bx, ly + 0.9, -4.6), 22, Color("#F4EAD2"))
 
 
-## Một vế thang: bậc thật để nhìn, va chạm là mặt dốc trơn (CharacterBody không tự bước lên bậc).
+## Một vế thang: bậc thật nằm trong model vỏ khối thang, va chạm là mặt dốc trơn (CharacterBody không tự bước lên bậc).
 func _flight(x0: float, x1: float, z0: float, z1: float, y0: float, y1: float) -> void:
 	var n := 9
 	var w := x1 - x0
 	var cx := (x0 + x1) / 2.0
-	var dz := (z1 - z0) / n
 	var dy := (y1 - y0) / n
-	for i in n:
-		var top := y0 + dy * (i + 1)
-		var zc := z0 + dz * (i + 0.5)
-		Blocks.box(self, Vector3(w, 0.2, absf(dz)), Vector3(cx, top - 0.1, zc), STEP)
 	var run := absf(z1 - z0)
 	var length := sqrt(run * run + (y1 - y0) * (y1 - y0))
 	var body := StaticBody3D.new()
@@ -688,8 +680,7 @@ func _build_west_wall() -> void:
 		var pos := Vector3(-0.3, top - hgt / 2.0, (z0 + z1) / 2.0)
 		var body: StaticBody3D
 		if kind == "cage":
-			body = Blocks.solid_box(self, size, pos, IRON, Blocks.LAYER_PROP)
-			Blocks.box(body, Vector3(0.05, hgt - 0.1, z1 - z0 - 0.2), Vector3(0.28, 0, 0), Color("#3D4A4A"))  # cửa sổ phía trong
+			body = Blocks.collider(self, size, pos, Blocks.LAYER_PROP)  # chuồng cọp nằm trong model vỏ dãy căn hộ
 		else:
 			# Cục nóng trong lồng sắt: nóc lồng (1,1 m trên chân pát) là mặt đứng; lưng máy áp vào tường
 			body = Blocks.collider(self, size, pos, Blocks.LAYER_PROP)
@@ -712,9 +703,6 @@ func _build_west_wall() -> void:
 			o.rotation.z = PI
 			o.position.x -= 0.1  # lật quanh trục ống, không phải quanh mép
 	Blocks.box(self, Vector3(0.12, 0.12, 0.3), PIPE + Vector3(0.05, pipe_len, 0), Color("#7A8A8E"))  # khúc cong vào tường
-	# Cửa sổ hông các tầng (để nhìn)
-	for f in FLOORS:
-		Blocks.box(self, Vector3(0.05, 1.0, 1.0), Vector3(-0.02, f * FLOOR_H + 1.5, -5.0), Color("#3D4A4A"))
 
 
 ## Nhà ống bên cạnh (2 tầng, mái bằng 3,9 m) cách hông chung cư 1,2 m: khe này bật tường được.
@@ -723,10 +711,10 @@ func _build_neighbor() -> void:
 	var x0 := -5.4
 	var x1 := -1.2
 	var cx := (x0 + x1) / 2.0
-	Blocks.solid_box(self, Vector3(x1 - x0, NEIGHBOR_ROOF, 7.5), Vector3(cx, NEIGHBOR_ROOF / 2.0, -4.25), Color("#E3B95E"))
-	Blocks.box(self, Vector3(x1 - x0 - 0.8, 2.3, 0.05), Vector3(cx, 1.15, -0.48), Color("#5E6F6C"))  # cửa cuốn
-	Blocks.solid_box(self, Vector3(x1 - x0, 0.12, 1.1), Vector3(cx, 2.74, 0.05), Color("#C8412F"), Blocks.LAYER_PROP)  # mái hiên
-	Blocks.solid_box(self, Vector3(x1 - x0, 0.5, 0.12), Vector3(cx, NEIGHBOR_ROOF + 0.25, -7.94), Color("#E3B95E"))  # tường mái phía sau
+	PhoModels.put(self, VO_NHA_BEN, Vector3.ZERO)  # model D2: mảnh trệt P2 vàng nghệ, cửa cuốn, mái hiên tôn đỏ
+	Blocks.collider(self, Vector3(x1 - x0, NEIGHBOR_ROOF, 7.5), Vector3(cx, NEIGHBOR_ROOF / 2.0, -4.25))
+	Blocks.collider(self, Vector3(x1 - x0, 0.12, 1.1), Vector3(cx, 2.74, 0.05), Blocks.LAYER_PROP)  # mái hiên
+	Blocks.collider(self, Vector3(x1 - x0, 0.5, 0.12), Vector3(cx, NEIGHBOR_ROOF + 0.25, -7.94))  # tường mái phía sau
 	for c in [Vector3(-4.4, 0.4, 1.3), Vector3(-3.4, 0.4, 1.3), Vector3(-3.4, 1.2, 1.3)]:
 		DoThem.solid(self, "../pho/thung_go", Vector3(0.8, 0.8, 0.8), c, c.x + c.y)
 	Blocks.label(self, "Khe 1,2 m: bật tường!", Vector3(-0.6, 1.6, 0.4), 22, Color("#F4EAD2"))
@@ -742,9 +730,9 @@ func _build_elevator() -> void:
 	for f in FLOORS:
 		var y := f * FLOOR_H
 		# Tường đông khối thang có ô cửa thang máy z −1,6 → −0,2
-		Blocks.solid_box(self, Vector3(0.15, FLOOR_H, 3.9), Vector3(TX1, y + FLOOR_H / 2.0, -3.65), WALL2)
-		Blocks.solid_box(self, Vector3(0.15, FLOOR_H - 2.2, 1.4), Vector3(TX1, y + 2.2 + (FLOOR_H - 2.2) / 2.0, -0.9), WALL2)
-		Blocks.solid_box(self, Vector3(0.15, FLOOR_H, 0.2), Vector3(TX1, y + FLOOR_H / 2.0, -0.1), WALL2)
+		Blocks.collider(self, Vector3(0.15, FLOOR_H, 3.9), Vector3(TX1, y + FLOOR_H / 2.0, -3.65))
+		Blocks.collider(self, Vector3(0.15, FLOOR_H - 2.2, 1.4), Vector3(TX1, y + 2.2 + (FLOOR_H - 2.2) / 2.0, -0.9))
+		Blocks.collider(self, Vector3(0.15, FLOOR_H, 0.2), Vector3(TX1, y + FLOOR_H / 2.0, -0.1))
 		# Cửa thang: tấm trượt sang nam khi mở
 		var sm := _model(M_THANG, self, Vector3(cx, y, -0.95), -PI / 2.0, ["khung_long", "kinh_long", "ray", "khung_cua", "canh_cua", "den_tang"])
 		_lift_leaves.append(sm.find_child("w_canh_cua", true, false))
@@ -758,7 +746,6 @@ func _build_elevator() -> void:
 		d.add_child(cs)
 		_lift_doors.append(d)
 	_lift_label = Blocks.label(self, "5", Vector3(TX1 - 0.3, 2.6, -0.9), 36, Color("#E8A33A"))
-	Blocks.box(self, Vector3(0.05, 0.25, 0.15), Vector3(TX1 - 0.1, 1.0, -1.85), Color("#E8A33A"))  # nút gọi
 	Blocks.label(self, "THANG MÁY · E gọi", Vector3(TX1 - 0.3, 1.5, -1.85), 20, Color("#F4EAD2"))
 	# Cabin: sàn + trần chuyển động, Bơ đứng trên sàn được chở theo
 	_cabin = AnimatableBody3D.new()
@@ -799,6 +786,14 @@ func _build_elevator() -> void:
 	ong.ready.connect(func(): ong.hold("res://assets/models/pho/chi_tiet/long_chim.glb", "hand.R", Vector3(0, -0.89, 0)), CONNECT_ONE_SHOT)
 	_ong_bay.visible = false
 	add_child(_ong_bay)
+
+
+## Chữ dán phẳng lên bảng của model vỏ (không quay theo camera), mặt chữ nhìn ra hẻm (+Z).
+func _board_text(text: String, pos: Vector3, size: int, color: Color) -> Label3D:
+	var l := Blocks.label(self, text, pos, size, color)
+	l.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+	l.outline_size = 0
+	return l
 
 
 ## Đặt một model .glb; keep: chỉ giữ các bộ phận này (tên không có "w_"), rỗng là giữ hết.

@@ -32,13 +32,18 @@ const IDLE_NAG := 15.0                     ## đứng yên chừng này thì Cô
 const START := Vector3(7.1, 0.2, 1.0)      ## Bơ bước ra từ cửa sau
 const DOOR := Vector3(7.1, 0, 0)
 const WINDOW := Vector3(4.0, 0, 0)         ## cửa sổ bếp: Cô Ba đưa bánh qua bậu
+const WINDOW_SPOT := Vector3(4.0, 0, 0.6)  ## vòng vàng dưới bậu: tới đây là Cô Ba đưa bánh
 const TREE := Vector3(7.0, 0, 5.1)
 const LU := Vector3(5.7, 0, 4.2)
 const SHED := Rect2(11.5, 0.0, 2.5, 4.0)   ## kho củi (x, z, rộng, sâu), nóc 1,8 m
-const SHED_TOP := 1.8
+const SHED_TOP := 1.8                      ## tường kho (mép mái thấp nhất, phía tường sau lò)
+## Mái tôn model kho_cui dốc lên về phía nam: đỉnh sóng tôn cao 1,98 m ở giữa kho, dốc 7,5 cm mỗi mét
+## (1,83 m sát tường sau lò → 2,13 m mép trước). Va chạm mái đi đúng mặt này để chân Bơ không lún vào tôn.
+const SHED_ROOF_MID := 1.98
+const SHED_SLOPE := 0.075
 const CRATES := [[Vector3(11.95, 0, 5.25), 1], [Vector3(12.65, 0, 4.65), 2], [Vector3(13.35, 0, 4.35), 3]]  ## [chỗ, số thùng chồng]
 const CRATE := 0.45                        ## thùng gỗ phố 0,8 m thu nhỏ còn 0,45 (mỗi bậc)
-const BASKET := Vector3(13.0, SHED_TOP, 1.5)
+const BASKET := Vector3(13.0, SHED_ROOF_MID + SHED_SLOPE * (1.5 - 2.0), 1.5)
 const BED := Rect2(3.0, 6.7, 7.6, 0.6)     ## bồn kiểng, cao 0,5 m
 const BA_GAC := Vector3(11.9, 0, 7.0)      ## gầm thùng 0,32 m, x 10,55 → 12,65 chui được
 const SACKS := Vector3(7.1, 0, 9.5)
@@ -119,6 +124,7 @@ var _say_t := 0.0
 var _learned: Control
 var _autotest := false
 var _co_ba_path: Array = []
+var _window_ring: MeshInstance3D           ## vòng vàng dưới cửa sổ bếp (trạm 5, tới lúc lấy bánh)
 
 
 func _ready() -> void:
@@ -233,11 +239,12 @@ func _begin(n: int) -> void:
 	if n == 5:
 		co_ba.visible = false   # vào trong bếp, ra cửa sổ
 		_co_ba_path.clear()
-		co_ba.position = WINDOW + Vector3(0, 0, -0.45)
+		co_ba.position = WINDOW + Vector3(0, 0, -0.75)   # lùi sau mặt tường (dày 0,3 m) cho chân khỏi thò ra ngoài
 		co_ba.rotation.y = 0.0
 		co_ba.visible = true
 		co_ba.play("vay")
 		hud.set_goal(WINDOW + Vector3(0, 1.4, 0.3))
+		_window_ring = _ring(WINDOW_SPOT)
 		hud.distance_pill.visible = true
 		hud.set_distance(player.global_position.distance_to(WINDOW), "Cửa sổ bếp")
 
@@ -296,7 +303,7 @@ func _station_sneak(p: Vector3) -> void:
 func _station_deliver(p: Vector3) -> void:
 	if not carrying:
 		hud.set_distance(p.distance_to(WINDOW), "Cửa sổ bếp")
-		if Vector2(p.x - WINDOW.x, p.z - 0.6).length() < 1.1:
+		if Vector2(p.x - WINDOW_SPOT.x, p.z - WINDOW_SPOT.z).length() < 1.1:
 			carrying = true
 			player.carrying = true
 			co_ba.play_once("cho_banh", "dung_yen")
@@ -305,6 +312,9 @@ func _station_deliver(p: Vector3) -> void:
 			hud.set_goal(CHU_TU + Vector3(0, 1.8, 0))
 			_say("5_cam", 5.0)
 			_paws.visible = false
+			if _window_ring:
+				_window_ring.queue_free()
+				_window_ring = null
 	else:
 		hud.set_distance(p.distance_to(GATE), "Chú Tư")
 		if _in_gate(p):
@@ -546,7 +556,8 @@ func _add_skip_button() -> void:
 
 # ---------------------------------------------------------------- dấu chân vàng
 
-## Dấu chân vàng tới đích của trạm n (một MultiMesh, như dấu chân trong bếp). Trạm 5 không có: chỉ có mũi tên đỏ.
+## Dấu chân vàng tới đích của trạm n (một MultiMesh, như dấu chân trong bếp). Trạm 5: dấu chân tới vòng vàng dưới
+## cửa sổ bếp (Sang 27/10: trước chỉ có mũi tên đỏ, đứng dưới cửa sổ không biết phải làm gì), lấy bánh rồi thì tắt.
 func _build_paws(n: int) -> void:
 	if _paws == null:
 		_paws = MultiMeshInstance3D.new()
@@ -570,11 +581,14 @@ func _build_paws(n: int) -> void:
 				[LU, TREE + Vector3(-1.9, 0, 0), TREE + Vector3(0, 0, 1.9), TREE + Vector3(1.9, 0, 0), TREE + Vector3(0, 0, -1.9), TREE + Vector3(-1.9, 0, 0)]
 		2:
 			route = [TREE + Vector3(1.9, 0, 0), Vector3(11.2, 0, 5.6), Vector3(11.95, CRATE, 5.25), Vector3(12.65, CRATE * 2, 4.65),
-				Vector3(13.35, CRATE * 3, 4.35), Vector3(13.2, SHED_TOP, 3.4), BASKET]
+				Vector3(13.35, CRATE * 3, 4.35), Vector3(13.2, SHED_ROOF_MID + SHED_SLOPE * (3.4 - 2.0), 3.4), BASKET]
 		3:
 			route = [Vector3(11.5, 0, 5.8), Vector3(11.5, 0, 6.2), Vector3(11.5, 0, 7.8), Vector3(11.3, 0, 8.6)]
 		4:
 			route = [Vector3(11.0, 0, 8.6), Vector3(8.4, 0, 8.2), Vector3(5.6, 0, 8.2), Vector3(3.6, 0, 8.4)]
+		5:
+			# Vòng phía tây bồn kiểng (x 3 → 10,6) tới vòng vàng dưới bậu cửa sổ
+			route = [Vector3(3.6, 0, 8.4), Vector3(2.4, 0, 7.7), Vector3(2.4, 0, 5.8), WINDOW_SPOT]
 	var xfs: Array = []
 	var step := 0.45
 	var side := 1.0
@@ -595,6 +609,23 @@ func _build_paws(n: int) -> void:
 	for i in xfs.size():
 		mm.set_instance_transform(i, xfs[i])
 	_paws.visible = xfs.size() > 0
+
+
+## Vòng vàng nằm trên nền (cùng màu dấu chân): chỗ đứng để Cô Ba đưa bánh.
+func _ring(at: Vector3) -> MeshInstance3D:
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.55
+	torus.outer_radius = 0.66
+	torus.rings = 24
+	torus.ring_segments = 6
+	var ring := MeshInstance3D.new()
+	ring.mesh = torus
+	ring.scale = Vector3(1, 0.25, 1)
+	ring.position = at + Vector3(0, 0.02, 0)
+	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	ring.material_override = Blocks.mat(PAW, true)
+	add_child(ring)
+	return ring
 
 
 ## Mặt đứng dưới một điểm trên đường dấu chân (thùng, mái kho, hay nền sân).
@@ -662,9 +693,14 @@ func _build_yard() -> void:
 	Blocks.invisible_wall(self, Vector3(16, 6, 4), Vector3(7, 3, 12.3))
 	Blocks.invisible_wall(self, Vector3(4, 6, 12), Vector3(16.3, 3, 5))
 	Blocks.invisible_wall(self, Vector3(0.4, 6, 12), Vector3(-0.6, 5, 5))
-	# Kho củi: nóc 1,8 m (mặt Bơ đứng), mái tôn sét, củi bên trong
-	_model(M_KHO_CUI, Vector3(SHED.position.x + SHED.size.x / 2.0, 0, SHED.size.y / 2.0))
-	Blocks.collider(self, Vector3(SHED.size.x, SHED_TOP, SHED.size.y), Vector3(SHED.position.x + SHED.size.x / 2.0, SHED_TOP / 2.0, SHED.size.y / 2.0))
+	# Kho củi: thân hộp cao 1,8 m, trên là tấm mái dốc theo mặt tôn (mặt Bơ đứng), củi bên trong
+	var shed_mid := Vector3(SHED.position.x + SHED.size.x / 2.0, 0, SHED.size.y / 2.0)
+	_model(M_KHO_CUI, shed_mid)
+	Blocks.collider(self, Vector3(SHED.size.x, SHED_TOP, SHED.size.y), shed_mid + Vector3(0, SHED_TOP / 2.0, 0))
+	var tilt := -atan(SHED_SLOPE)
+	var roof := Blocks.collider(self, Vector3(SHED.size.x + 0.3, 0.3, SHED.size.y / cos(tilt) + 0.3), shed_mid)
+	roof.rotation.x = tilt
+	roof.position.y = SHED_ROOF_MID - 0.15 / cos(tilt)
 	# Cây khế: va chạm ở thân và bồn gốc, tán không chặn
 	_model(M_KHE, TREE)
 	Blocks.collider(self, Vector3(0.9, 0.25, 0.9), TREE + Vector3(0, 0.125, 0))
@@ -758,6 +794,9 @@ func _autotest_run() -> void:
 	_put(BASKET + Vector3(0.3, 0.2, 0.3))
 	await _frames(90)
 	ok = _expect(ok, notes, station == 3, "đẩy rổ tre rơi → trạm 3")
+	# Mái tôn dốc: Bơ đứng đúng mặt tôn (model 1,83 → 2,13 m), không lún vào mái như va chạm phẳng 1,8 m cũ
+	var roof_y := SHED_ROOF_MID + SHED_SLOPE * (player.global_position.z - SHED.size.y / 2.0)
+	ok = _expect(ok, notes, absf(player.global_position.y - roof_y) < 0.06, "đứng trên mái tôn, không lún (y=%.2f, mái %.2f)" % [player.global_position.y, roof_y])
 	# Chui: giữ C dưới gầm thùng ba gác rồi ra phía nam
 	Input.action_press("crouch")
 	_put(Vector3(11.5, 0.05, 6.0))

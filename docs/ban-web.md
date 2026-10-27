@@ -4,8 +4,10 @@
 
 | Link | Là bản nào | Đổi khi nào |
 |---|---|---|
-| **https://sangdaden.github.io/meo-giao-banh-mi/** | **Ổn định**, gửi cho người chơi thử | Chỉ khi Sang bấm nút (dưới đây) hoặc gắn tag `v*` |
-| **https://sangdaden.github.io/meo-giao-banh-mi/moi-nhat/** | **Mới nhất** của nhánh `main`, có thể còn lỗi | Tự đổi mỗi lần `main` đổi (vài phút sau khi gộp PR) |
+| **https://meo.markhocai.com/** | **Ổn định**, gửi cho người chơi thử | Chỉ khi Sang bấm nút (dưới đây) hoặc gắn tag `v*` |
+| **https://meo.markhocai.com/moi-nhat/** | **Mới nhất** của nhánh `main`, có thể còn lỗi | Tự đổi mỗi lần `main` đổi (vài phút sau khi gộp PR) |
+
+Tên miền riêng `meo.markhocai.com` (27/10/2026): bản ghi CNAME `meo` → `sangdaden.github.io` ở Namecheap, ô Custom domain trong Settings > Pages, đã bật Enforce HTTPS. Link `sangdaden.github.io/meo-giao-banh-mi/` cũ tự chuyển sang tên miền mới. Lưu game trên web gắn với tên miền, nên người đã chơi ở link cũ sẽ bắt đầu lại từ đầu.
 
 Hai bản **lưu game riêng**: chơi ở `/moi-nhat/` không đụng tiến độ ở link gốc (bản mới nhất có thể đổi file lưu mà bản ổn định chưa đọc được).
 

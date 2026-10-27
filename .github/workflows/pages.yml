@@ -1,7 +1,7 @@
 # Bản web trên GitHub Pages, hai link (PH2, xem docs/ban-web.md):
-#   https://sangdaden.github.io/meo-giao-banh-mi/           bản ỔN ĐỊNH cho người chơi thử: chỉ đổi khi Sang bấm
+#   https://meo.markhocai.com/           bản ỔN ĐỊNH cho người chơi thử: chỉ đổi khi Sang bấm
 #                                                            "Run workflow" với ô "Đưa main lên link ổn định", hoặc gắn tag v*
-#   https://sangdaden.github.io/meo-giao-banh-mi/moi-nhat/  bản MỚI NHẤT: tự đổi mỗi lần main đổi
+#   https://meo.markhocai.com/moi-nhat/  bản MỚI NHẤT: tự đổi mỗi lần main đổi
 # Bản ổn định được giữ ở release "web-on-dinh" (file web-on-dinh.zip), mỗi lần main đổi thì lấy lại để đăng cùng.
 # Cần bật một lần: Settings > Pages > Source: GitHub Actions.
 name: Bản web (GitHub Pages)
@@ -80,7 +80,7 @@ jobs:
           fi
           (cd build/on-dinh && zip -qr "../web-$tag.zip" .)
           cp "build/web-$tag.zip" build/web-on-dinh.zip
-          notes="Bản web ổn định đang ở https://sangdaden.github.io/meo-giao-banh-mi/ : $tag, commit ${GITHUB_SHA::7} ($(date -u +'%d/%m/%Y %H:%M') UTC).
+          notes="Bản web ổn định đang ở https://meo.markhocai.com/ : $tag, commit ${GITHUB_SHA::7} ($(date -u +'%d/%m/%Y %H:%M') UTC).
           Mỗi file web-<tag>.zip là một bản ổn định cũ; trả về bản cũ bằng ô \"tra_lai\" khi chạy workflow Bản web (docs/ban-web.md)."
           if gh release view "$REL" >/dev/null 2>&1; then
             gh release edit "$REL" --notes "$notes"

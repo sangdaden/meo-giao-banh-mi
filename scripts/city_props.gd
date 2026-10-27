@@ -57,6 +57,9 @@ const BE_NA_BIKE := Vector3(25.2, 0, -15.6)      ## xe máy đậu dưới ban c
 const BE_NA_BALCONY := Vector3(25.2, 6.0, -16.2) ## sàn ban công tầng 3
 const CAFE_COUNTER := Vector3(5.4, 0.9, 6.3)     ## mặt quầy Chị Mây
 const SHOP_BACK_DOOR := Vector3(32.3, 0, 16.7)   ## cửa sau tiệm xe nhìn ra hẻm khối 6
+## Bảng hiệu vòng 3 của quán trong truyện đặt ra trước mặt tiền chừng này (m), che bảng cũ dính trong model nhà
+const BANG_TRUYEN_RA := 0.55       # bảng hiệu vòng 3 của quán trong truyện đứng trước bảng cũ (0,42) và song sắt (0,5) của model
+const BANG_CAFE_RA := 1.25         # cà phê Mây: trước lan can ban công (1,16)
 const CHESS_CORNER := Vector3(-29.0, 0, 8.5)     ## tâm bàn cờ góc công viên khối 4 (chess_corner.gd, đơn 3 Thứ Ba)
 
 ## Làn xe đẩy hàng rong (traffic.gd): vỉa hè khối 3 và khối 6 nhìn ra đường lớn, tránh cột điện (31, 6) và chồng thùng khối 3
@@ -497,6 +500,8 @@ static func _lo_banh(parent: Node3D, x0: float, x1: float, z0: float, depth: flo
 		var sign := Tiem.make("bang_hieu_go")
 		parent.add_child(sign)
 		sign.position = Vector3(x1 - 1.3, 2.3, face_z + 0.02)  # cạnh cửa, dưới bảng lớn và mái hiên
+	# Bảng hiệu vòng 3 "BÁNH MÌ CÔ BA" che bảng cũ của model, đáy ngay trên mái hiên
+	NhaRap.put_sign(parent, "bang_lo_banh_52", Transform3D(Basis.from_scale(Vector3(w / 5.2, 1, 1)), Vector3(x0, 0, face_z + BANG_TRUYEN_RA)))
 
 
 ## Cà phê Mây (khối 5, dãy bắc). Quầy ngoài vỉa hè và bàn ghế do cafe() đặt.
@@ -506,6 +511,8 @@ static func _cafe_may(parent: Node3D, x0: float, x1: float, z0: float, depth: fl
 	Blocks.collider(parent, Vector3(w - 0.15, 7.0, depth), Vector3((x0 + x1) / 2.0, 3.5, z0 + depth / 2.0))
 	if PlayMode.day != "thu_nam":  # Thứ Năm trưa quán Mây cuốn bạt lên, chỗ đó là gác lửng (scripts/thu_nam.gd)
 		awning(parent, w, Vector3((x0 + x1) / 2.0, 2.9, z0 - 0.5), "mai_hien_xanh", -1.0)
+	# Bảng hiệu vòng 3 hình đám mây, mặt nhìn ra đường phía bắc (-z): quay 180°, gốc bảng ở mép x1
+	NhaRap.put_sign(parent, "bang_cafe_may_60", Transform3D(Basis(Vector3.UP, PI) * Basis.from_scale(Vector3(w / 6.0, 1, 1)), Vector3(x1, 0, z0 - BANG_CAFE_RA)))
 
 
 ## Chung cư Hoa Sữa 5 tầng (cao 15 m) cả dãy bắc khối 3. Hành lang chung nhìn ra hẻm giữa khối (phía nam),
@@ -551,6 +558,7 @@ static func _tiem_xe(parent: Node3D, x0: float, x1: float, z0: float, depth: flo
 	Blocks.collider(parent, Vector3(right_w, ground_h, 0.2), Vector3(x1 - right_w / 2.0, ground_h / 2.0, z0 + 0.1))
 	Blocks.collider(parent, Vector3(door_w, ground_h - 2.2, 0.2), Vector3(door_x, 2.2 + (ground_h - 2.2) / 2.0, z0 + 0.1))
 	awning(parent, w, Vector3(cx, 2.9, z1 + 0.5), "mai_hien_xanh", 1.0)
+	NhaRap.put_sign(parent, "bang_tiem_xe_55", Transform3D(Basis.from_scale(Vector3(w / 5.5, 1, 1)), Vector3(x0, 0, z1 + BANG_TRUYEN_RA)))  # bảng vòng 3
 	# Đồ trong tiệm, chừa lối đi giữa x 31,4..33,2 từ cửa sau ra mặt tiền
 	for bz in [zc - 1.2, zc + 1.8]:
 		var bike := Blocks.collider(parent, Vector3(0.5, 0.9, 1.6), Vector3(30.5, 0.45, bz), Blocks.LAYER_PROP)  # xe máy dựng chân chống

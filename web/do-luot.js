@@ -8,9 +8,10 @@
 // Thử trên máy: thêm ?do=thu vào địa chỉ, sự kiện in ra console và lưu ở window.__do, không gửi đi đâu.
 (function () {
   var MA_WEB = "675f1509-0d09-44bb-98de-9d4c51aaadd9"; // Website ID Umami của markhocai.com
-  var TEN_MIEN = "sangdaden.github.io";
+  // Tên miền riêng meo.markhocai.com (Sang chọn 27/10/2026) đi qua GitHub Pages; link github.io cũ tự chuyển sang
+  var TEN_MIEN = ["sangdaden.github.io", "meo.markhocai.com"];
   var thu = /[?&]do=thu(&|$)/.test(location.search);
-  var bat = !!MA_WEB && location.hostname === TEN_MIEN && navigator.doNotTrack !== "1";
+  var bat = !!MA_WEB && TEN_MIEN.indexOf(location.hostname) >= 0 && navigator.doNotTrack !== "1";
   // Link gốc là bản ổn định, /moi-nhat/ là bản main (docs/ban-web.md)
   var ban = /\/moi-nhat\//.test(location.pathname) ? "moi-nhat" : "on-dinh";
   var hang = [];
@@ -33,7 +34,7 @@
   s.defer = true;
   s.src = "https://cloud.umami.is/script.js";
   s.setAttribute("data-website-id", MA_WEB);
-  s.setAttribute("data-domains", TEN_MIEN);
+  s.setAttribute("data-domains", TEN_MIEN.join(","));
   s.setAttribute("data-tag", "meo-giao-banh-mi");
   s.setAttribute("data-do-not-track", "true");
   s.onload = function () {

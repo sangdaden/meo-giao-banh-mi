@@ -160,8 +160,12 @@
   },
   "thu_nam": {
    "files": [
+    "assets/models/chung_cu/hoa_sua_day.glb",
+    "assets/models/chung_cu/hoa_sua_thap.glb",
+    "assets/models/chung_cu/nha_ong_ben.glb",
     "assets/models/do_them/bat_cuon.glb",
     "assets/models/do_them/gia_cuc_nong.glb",
+    "assets/models/do_them/gia_cuc_nong_gac.glb",
     "assets/models/do_them/mai_ton_khe.glb",
     "assets/models/do_them/tu_bao_kinh.glb",
     "assets/models/thu_nam/bich_da.glb",
@@ -229,6 +233,7 @@
     "assets/models/thu_bay/bang_dang_mau_mau_chup_nam.png",
     "assets/models/thu_bay/bang_dang_mau_mau_chup_vay.png",
     "assets/models/thu_bay/bui_co.glb",
+    "assets/models/thu_bay/cho_ngu_trua.glb",
     "assets/models/thu_bay/chum_bong_giay.glb",
     "assets/models/thu_bay/ke_lon.glb",
     "assets/models/thu_bay/khay_oc.glb",
@@ -248,6 +253,8 @@
     "assets/models/thu_bay/ro_tre.glb",
     "assets/models/thu_bay/thiep_moi.glb",
     "assets/models/thu_bay/thu_moi.glb",
+    "assets/models/thu_bay/to_bao_bay.glb",
+    "assets/models/thu_bay/to_bao_cuon.glb",
     "assets/models/thu_bay/vong_dich_lon.glb"
    ]
   },

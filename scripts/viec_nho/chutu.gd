@@ -14,11 +14,11 @@ func begin() -> void:
 	ordered = true
 	return_to = day.person_spot("chutu")
 	return_name = "Chú Tư"
-	_paper = trinket(Vector3(0.34, 0.03, 0.26), Color("#E8E2D0"))
+	_paper = prop("to_bao_bay")  # tờ báo "PHỐ NHỎ" mở hé bay trong gió (D3)
 	add_child(_paper)
 	for s in STAGES:
 		add_target(surface(get_world_3d(), s.x, s.y) + Vector3(0, 0.02, 0), null, 0.8, 0.6)
-	carry_with(func(): return trinket(Vector3(0.26, 0.03, 0.2), Color("#E8E2D0")))
+	carry_with(func(): return prop("to_bao_cuon", false))  # cuộn tròn cho Bơ ngậm
 	_fly_to(0)
 	_sfx("paper_slip")
 

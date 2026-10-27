@@ -127,6 +127,12 @@ func _ready() -> void:
 	film.pressed.connect(func(): Phim.mo_dau(get_tree(), "menu"))
 	add_child(film)
 	add_child(_lang_button())
+	# Cửa sang kênh Mark học AI: Mark ở chung cư tầng 3, cùng khu phố (Vũ Trụ Mark K2)
+	var mark := T.button(KeMark.NUT, "secondary", 40, 15)
+	mark.tooltip_text = KeMark.LOI
+	T.place(mark, 0.0, 1.0, Rect2(632, -60, 230, 40))
+	mark.pressed.connect(func(): KeMark.mo("menu"))
+	add_child(mark)
 
 	wardrobe = WardrobePanel.new()
 	wardrobe.visible = false

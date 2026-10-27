@@ -332,11 +332,8 @@ func _build_loft() -> void:
 	# Cục nóng đứng trên giá sắt chạm đất: nhảy quá đà từ thùng thì đụng giá, không lọt xuống gầm
 	var a: Vector3 = LOFT_STEPS[2]
 	Blocks.collider(self, Vector3(0.8, a.y, 0.5), Vector3(a.x, a.y / 2.0, a.z), Blocks.LAYER_PROP)
-	for dx in [-0.36, 0.36]:
-		for dz in [-0.2, 0.2]:
-			Blocks.box(self, Vector3(0.04, a.y - 0.28, 0.04), Vector3(a.x + dx, (a.y - 0.28) / 2.0, a.z + dz), Color("#4A4F55"))
-	for y in [0.5, a.y - 0.3]:
-		Blocks.box(self, Vector3(0.76, 0.04, 0.44), Vector3(a.x, y, a.z), Color("#4A4F55"))
+	# Giá sắt V lỗ sơn chống gỉ cao 1,76 m + xô hứng nước (D4, trang https://claude.ai/artifact/QfaygXEzM4AGMyFNogyzqc), lưng giáp tường
+	DoThem.put(self, "gia_cuc_nong_gac", Vector3(a.x, 0, a.z), PI)
 	DoThem.put(self, "bat_cuon", Vector3(7.0, 3.05 - 0.945, 6.9), PI)  # bạt mái hiên cuốn tròn sát tường, pát bắt vào tường (+Z)
 	may = Nguoi.make("may", "viec_rieng")
 	may.position = MAY_LOFT

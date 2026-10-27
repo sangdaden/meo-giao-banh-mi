@@ -14,11 +14,11 @@ Làm việc trên repo (luật độ khó, ngân sách, cách chạy test, bản
 
 ## Chơi ngay trên trình duyệt
 
-**https://sangdaden.github.io/meo-giao-banh-mi/** (bản ổn định cho người chơi thử)
+**https://meo.markhocai.com/** (bản ổn định cho người chơi thử)
 
 Mở bằng Chrome, Edge hoặc Firefox trên máy tính. Lần đầu tải khoảng 65 MB. Bấm vào khung game để camera bắt chuột; Esc trả chuột lại. Trên trình duyệt, chui là **C**, rón rén là **Z**.
 
-Bản mới nhất của nhánh `main` (đổi sau mỗi lần gộp PR, có thể còn lỗi, lưu game riêng): **https://sangdaden.github.io/meo-giao-banh-mi/moi-nhat/**. Link gốc chỉ đổi khi Sang đưa bản mới lên; cách làm ở [docs/ban-web.md](docs/ban-web.md). Bản web dùng renderer Compatibility (WebGL 2) nên ánh sáng hơi khác bản chạy trong Godot.
+Bản mới nhất của nhánh `main` (đổi sau mỗi lần gộp PR, có thể còn lỗi, lưu game riêng): **https://meo.markhocai.com/moi-nhat/**. Link gốc chỉ đổi khi Sang đưa bản mới lên; cách làm ở [docs/ban-web.md](docs/ban-web.md). Bản web dùng renderer Compatibility (WebGL 2) nên ánh sáng hơi khác bản chạy trong Godot.
 
 Khi có bản mới, trang hiện dải "Có bản mới" ở màn hình chính hoặc bảng kết quả cuối ca, không bao giờ giữa lúc đang chơi, và chỉ tải lại khi bấm **Tải bản mới** (`web/update-check.js`).
 

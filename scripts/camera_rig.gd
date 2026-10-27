@@ -25,6 +25,14 @@ signal view_changed(first_person: bool)
 @export var high_y := 1.2
 @export var high_pitch := -0.6
 @export var high_wait := 1.2
+## DK1: Bơ đang chạy mà người chơi buông chuột/cần behind_wait giây thì camera từ từ quay ra sau lưng Bơ.
+## Chạy chéo về phía camera (lệch hơn behind_max_angle) thì thôi, khỏi quay ngoắt hay xoay vòng khi đi ngang.
+@export var behind_wait := 1.5
+@export var behind_speed := 0.7
+@export var behind_min_speed := 2.5
+@export var behind_max_angle := 1.2
+## DK3: chạy nhanh thì góc nhìn giãn thêm chừng này độ (Cài đặt tắt được)
+@export var fov_run_add := 7.0
 
 var target: Node3D
 var yaw := 0.0
@@ -32,6 +40,14 @@ var pitch := -0.32
 var invert_y := false             ## đảo trục dọc chuột/cần (menu Cài đặt gán)
 var first_person := false: set = set_first_person
 var _manual_ms := -100000         ## lần cuối người chơi tự xoay (chuột hoặc cần)
+var auto_behind := true           ## DK1, Cài đặt "Camera tự về sau lưng Bơ"
+var auto_behind_hold := 0.0       ## cảnh tự lái camera (cầu thang chung cư) đặt > 0 để tạm nhường, tự giảm
+var fov_base := 70.0              ## DK3, Cài đặt "Góc nhìn rộng"
+var fov_run := true               ## DK3, giãn góc nhìn khi chạy nhanh
+var bump_on := true               ## DK2, Cài đặt "Camera nảy khi đáp từ cao"
+var _behind_w := 0.0
+var _bump := 0.0                  ## camera hạ xuống bao nhiêu mét (lò xo, xem nay())
+var _bump_v := 0.0
 
 var arm: SpringArm3D
 var camera: Camera3D
@@ -50,9 +66,11 @@ func _ready() -> void:
 	cutter = CatVatChe.new(get_parent())
 	add_child(cutter)
 	camera = Camera3D.new()
-	camera.fov = 70.0
+	camera.fov = fov_base
 	camera.far = 300.0
 	arm.add_child(camera)
+	if target:
+		add_child(CamGiacTay.new(self))  # DK2: bụi khi đáp/phanh, rung tay cầm
 	if target:
 		global_position = target.global_position + Vector3.UP * look_height
 	_apply_view()
@@ -118,7 +136,10 @@ func _process(delta: float) -> void:
 				p.y = clampf(lerpf(global_position.y, goal.y, 1.0 - exp(-air_follow_y * delta)), goal.y - air_lag_max, goal.y + air_lag_max)
 			global_position = p
 			_ease_pitch_high(delta)
+			_ease_behind(delta)
+		_ease_fov(delta)
 	rotation = Vector3(pitch, yaw, 0)
+	_step_bump(delta)
 	if target and not first_person:
 		_update_arm(delta)
 	else:
@@ -199,3 +220,48 @@ func _update_arm(delta: float) -> void:
 
 func _is_high() -> bool:
 	return target.global_position.y >= high_y and target.has_method("is_on_floor") and target.is_on_floor()
+
+
+## DK1: đang chạy, buông chuột/cần một lúc thì yaw trôi dần về hướng Bơ chạy (vào êm, không giật).
+func _ease_behind(delta: float) -> void:
+	auto_behind_hold = maxf(auto_behind_hold - delta, 0.0)
+	if not auto_behind or auto_behind_hold > 0.0 or since_manual() < behind_wait \
+			or not ("velocity" in target) or str(target.get("climb")) != "":
+		_behind_w = 0.0
+		return
+	var v: Vector3 = target.velocity
+	var diff := angle_difference(yaw, atan2(-v.x, -v.z))
+	if Vector2(v.x, v.z).length() < behind_min_speed or absf(diff) > behind_max_angle:
+		_behind_w = move_toward(_behind_w, 0.0, delta * 3.0)
+		return
+	_behind_w = move_toward(_behind_w, 1.0, delta * 1.5)
+	yaw += diff * (1.0 - exp(-behind_speed * _behind_w * delta))
+
+
+## DK3: góc nhìn theo cài đặt, giãn thêm khi Bơ chạy nhanh (góc thứ nhất giãn một nửa cho đỡ chóng mặt).
+func _ease_fov(delta: float) -> void:
+	var k := 0.0
+	if fov_run and "velocity" in target and str(target.get("stance")) == "sprint":
+		var ws: float = target.get("walk_speed")
+		var ss: float = target.get("sprint_speed")
+		var h := Vector2(target.velocity.x, target.velocity.z).length()
+		k = clampf((h - ws) / maxf(ss - ws, 0.1), 0.0, 1.0)
+	var want := fov_base + fov_run_add * k * (0.5 if first_person else 1.0)
+	camera.fov = lerpf(camera.fov, want, 1.0 - exp(-4.0 * delta))
+
+
+## DK2: camera nảy nhẹ xuống rồi về khi Bơ đáp từ cao. amount 0..1.
+func nay(amount: float) -> void:
+	if bump_on:
+		_bump_v -= 1.8 * clampf(amount, 0.0, 1.0) * (0.5 if first_person else 1.0)
+
+
+func _step_bump(delta: float) -> void:
+	if _bump == 0.0 and _bump_v == 0.0:
+		return
+	_bump_v += (-90.0 * _bump - 11.0 * _bump_v) * delta
+	_bump = clampf(_bump + _bump_v * delta, -0.25, 0.25)
+	if absf(_bump) < 0.001 and absf(_bump_v) < 0.01:
+		_bump = 0.0
+		_bump_v = 0.0
+	arm.position = basis.inverse() * (Vector3.UP * _bump)

@@ -301,7 +301,7 @@ def do_game():
         if ONLY and sl not in ONLY: continue
         reset(); V.GAME_CHU = []
         V.make(key, wd)
-        meta = export(name, 1600 if key in V.HERO else 900, None, dict(kieu='bang', ten=key if key in V.HERO else key, rong=wd,
+        meta = export(name, 1100 if key in V.HERO else 650, None, dict(kieu='bang', ten=key if key in V.HERO else key, rong=wd,
                       tiem=None if key in V.HERO else next(t for t, lst in bo_rap.BANG.items() if any(nm == key for nm, _ in lst))))
         chu[name] = V.GAME_CHU; V.GAME_CHU = None
         json.dump(meta, open(os.path.join(OUT, name + '.json'), 'w'), ensure_ascii=False, indent=1)

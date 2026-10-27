@@ -106,9 +106,9 @@ func _ready() -> void:
 	_add_action("chup_anh", KEY_P, -1)
 	_build_people()
 	add_to_group("ban_do_nho")  # ghim người nhờ việc trên bản đồ nhỏ: ban_do_pins()
-	var nap := ViecNho.trinket(Vector3(0.9, 0.02, 0.6), Color("#B9826A"), "box")
+	var nap := ViecNho.prop("cho_ngu_trua")  # tấm bìa, khăn sọc, đôi dép (D3)
 	add_child(nap)
-	nap.global_position = ViecNho.surface(get_world_3d(), NAP_SPOT.x, NAP_SPOT.y)
+	_lay_nap(nap)
 	pigeons = BoCau.new()
 	pigeons.player = player
 	add_child(pigeons)
@@ -132,6 +132,15 @@ func _ready() -> void:
 
 
 ## main.start_game() gọi khi vào ngày (lúc này file lưu đã sẵn, kể cả file riêng của tự kiểm tra).
+## Đặt chỗ ngủ trưa lên mái hiên khi va chạm của phố đã vào thế giới (gọi ngay trong _ready thì tia dò rơi xuống mặt đường).
+func _lay_nap(nap: Node3D) -> void:
+	nap.global_position = Vector3(NAP_SPOT.x, 0.0, NAP_SPOT.y)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	if is_instance_valid(nap):
+		nap.global_position = ViecNho.surface(get_world_3d(), NAP_SPOT.x, NAP_SPOT.y)
+
+
 func begin() -> void:
 	hud = main.get("hud")
 	photo.hud = hud

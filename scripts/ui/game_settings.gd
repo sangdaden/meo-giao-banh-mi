@@ -22,6 +22,10 @@ const DEFAULTS := {
 	"khoanh_khac": 0,        # khoảnh khắc giao bánh (scripts/khoanh_khac_giao.gd): 0 đầy đủ, 1 ngắn, 2 tắt
 	"ngon_ngu": "vi",        # "vi" hoặc "en" (autoload NgonNgu, scripts/ngon_ngu.gd)
 	"meo_chi_duong": true,   # lạc lâu thì mèo hàng xóm ra dẫn đường (scripts/meo_hang_xom.gd)
+	"ban_phim": {},          # phím người chơi đã đổi (scripts/ban_phim.gd), chỉ phần khác mặc định
+	"ho_tro_tu_di": false,   # B3: giữ F ngoài phố tự đi theo mũi tên (DoKho.ho_tro)
+	"ho_tro_muc": false,     # B3: Chó Mực không đớp được Bơ
+	"ho_tro_toc_do": 100,    # B3: tốc độ game lúc chơi, phần trăm (100, 85, 70)
 }
 
 static var _data := {}
@@ -41,7 +45,7 @@ static func set_value(key: String, value: Variant) -> void:
 
 static func reset() -> void:
 	var lang = get_value("ngon_ngu")
-	_data = DEFAULTS.duplicate()
+	_data = DEFAULTS.duplicate(true)
 	_data["ngon_ngu"] = lang  # khôi phục mặc định không đổi ngôn ngữ
 	save()
 
@@ -57,7 +61,7 @@ static func _ensure() -> void:
 	if _loaded:
 		return
 	_loaded = true
-	_data = DEFAULTS.duplicate()
+	_data = DEFAULTS.duplicate(true)
 	var cf := ConfigFile.new()
 	if cf.load(PATH) == OK:
 		for k in DEFAULTS:

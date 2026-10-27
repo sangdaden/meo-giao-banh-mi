@@ -131,6 +131,7 @@ func _ready() -> void:
 		add_child(n)
 		day_nodes.append(n)
 	ConVat.setup(player, self)  # phím Q ở mọi ngày: Bơ kêu meo, con vật gần đó đáp lại (scripts/con_vat.gd)
+	add_child(TuDiPho.new())  # B3: hỗ trợ "giữ F tự đi theo mũi tên" (Cài đặt > Hỗ trợ, mặc định tắt)
 	ChaoMao.balconies(self)  # K4: chim chào mào thật trong vài lồng ban công gần đường lớn (scripts/chao_mao.gd)
 
 	stamps = StampsScript.new()

@@ -231,6 +231,9 @@ func _chase(delta: float) -> void:
 	if flat.length() < bite_reach and to_player.y < 0.65:
 		velocity.x = 0
 		velocity.z = 0
+		if DoKho.ho_tro("ho_tro_muc"):
+			_set_state(State.BARK)  # B3 "Mực không bắt": đuổi kịp chỉ đứng sủa vẫy đuôi
+			return
 		_set_state(State.BITE)
 		bit_player.emit()
 		return

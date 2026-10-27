@@ -264,5 +264,5 @@ static func keycap(text: String, size := 14) -> PanelContainer:
 	k.add_theme_stylebox_override("panel", box(PAPER, 7, 7, INK, 2, 3, Color("#9C8E70")))
 	k.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	k.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	k.add_child(label(text, size, INK, "bold"))
+	k.add_child(label(BanPhim.chu_phim(text), size, INK, "bold"))  # F2: theo phím người chơi đã đổi
 	return k

@@ -150,3 +150,24 @@ static func v(key: String, hard_value: Variant) -> Variant:
 	if hard() or not EASY.has(key):
 		return hard_value
 	return EASY[key]
+
+
+# ---------------------------------------------------------------- B3: tùy chọn hỗ trợ (Cài đặt > Hỗ trợ)
+# Mặc định tắt cả, không phụ thuộc Thong thả / Thử thách. Người chơi tự bật cho trẻ nhỏ, người ít chơi game.
+#   ho_tro_tu_di: giữ F (tay cầm D-pad →) ngoài phố thì Bơ tự đi theo mũi tên (scripts/tu_di_pho.gd)
+#   ho_tro_muc:   Chó Mực đuổi kịp chỉ đứng sủa vẫy đuôi, không đớp (scripts/dog.gd)
+#   ho_tro_toc_do: tốc độ game lúc đang chơi, phần trăm (100, 85, 70; scripts/ban_phim.gd đặt Engine.time_scale)
+
+## Bài tự kiểm tra ép một tùy chọn hỗ trợ: {"ho_tro_muc": true}. Rỗng = theo Cài đặt.
+static var force_ho_tro := {}
+
+
+static func ho_tro(key: String) -> bool:
+	if force_ho_tro.has(key):
+		return bool(force_ho_tro[key])
+	return bool(GameSettings.get_value(key))
+
+
+static func toc_do_game() -> float:
+	var p: int = int(force_ho_tro.get("ho_tro_toc_do", GameSettings.get_value("ho_tro_toc_do")))
+	return clampf(p / 100.0, 0.5, 1.0)

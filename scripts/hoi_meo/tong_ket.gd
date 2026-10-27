@@ -196,6 +196,11 @@ func _end_credits() -> void:
 	var home := _button("Về màn hình chính")
 	home.pressed.connect(func(): to_menu.emit())
 	v.add_child(home)
+	# Cửa sang kênh Mark học AI (Vũ Trụ Mark K2)
+	v.add_child(_text(KeMark.LOI, 16))
+	var mark := _button(KeMark.NUT.strip_edges())
+	mark.pressed.connect(func(): KeMark.mo("het_tuan"))
+	v.add_child(mark)
 	_end_box = center
 
 

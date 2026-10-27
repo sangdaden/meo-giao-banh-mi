@@ -21,6 +21,12 @@ run chung.menu --quit-after 600 &
 run chung.tap res://scenes/day_choi.tscn -- --autotest-tap &
 run chung.mo_dau res://scenes/phim.tscn -- --phim=mo_dau --phim-test &
 run chung.ket_tuan res://scenes/phim.tscn -- --phim=ket_tuan --phim-test &
+# Bếp Cô Ba: ngày nào cũng vào bếp (Cả ca, Chỉ làm bếp) mà bot giao đơn của nhiều ngày đi thẳng ra phố,
+# nên ghi riêng bếp từng ngày và tính là đồ chung. Thiếu dòng này đồ bếp từng rơi vào gói Thứ Ba,
+# bản web vào bếp ngày khác là sập ("memory access out of bounds", 27/10/2026).
+for d in thu_hai thu_ba thu_tu thu_nam thu_sau thu_bay chu_nhat; do
+  run "chung.bep.$d" -- --autotest-bep --ngay=$d &
+done
 wait
 bad=$(grep -L "OK" "$out"/ngay.*.log)
 [ -n "$bad" ] && echo "Chưa thấy OK, xem lại: $bad"

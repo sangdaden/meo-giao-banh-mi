@@ -14,6 +14,8 @@ const FILLERS := {
 
 ## Model từ chừng này tam giác trở lên thì đổ bóng bằng bản thô (shadow_mesh)
 const SHADOW_MIN_TRIS := 1500
+## Model nhẹ hơn mức trên mà nhiều đồ vụn (báo, sách) cũng đổ bóng bằng bản thô: sạp báo có kệ sách tháng (C1) bớt bù tam giác bóng
+const SHADOW_ROUGH_ALWAYS := ["sap_bao"]
 
 static var _meshes := {}
 static var _mat: StandardMaterial3D
@@ -77,7 +79,7 @@ static func shadow_mesh(model: String) -> Mesh:
 		var n := 0
 		for i in src.get_surface_count():
 			n += src.surface_get_array_index_len(i) / 3
-		var rough: ArrayMesh = Blocks.shadow_mesh(src) if n >= SHADOW_MIN_TRIS else null
+		var rough: ArrayMesh = Blocks.shadow_mesh(src) if n >= SHADOW_MIN_TRIS or model in SHADOW_ROUGH_ALWAYS else null
 		_meshes[key] = rough if rough and rough.get_surface_count() > 0 and rough.surface_get_array_index_len(0) < n * 3 * 0.9 else null
 	return _meshes[key]
 

@@ -144,6 +144,7 @@ Từ PR #133 (H1, 23/10) mỗi ngày có file riêng, HUD tách thành mảnh, b
 | Con vật chung: phím Q, "Bạn bốn chân" | `scripts/con_vat.gd` (`ConVat`: con vật vào nhóm `"con_vat"` + `on_called(pos)`, `ConVat.meet(id)`), `scripts/ui/ban_bon_chan.gd` | "Cơ chế chung con vật" |
 | Con vật mới V1–V6 (gà, cá, vịt, bướm, thạch sùng, chuột Tí) | `scripts/con_vat_moi/` (`ConVatMoi.LICH` theo ngày, `MoHinhConVat.put` nạp model), `assets/models/con_vat/` | "Con vật mới vào game" |
 | Đổi phím, tay cầm, tùy chọn hỗ trợ (F2 B3) | `scripts/ban_phim.gd` (autoload `DieuKhien`, class `BanPhim`: bảng `PHIM`, phím mới cho người chơi đổi thì thêm dòng cuối), `scripts/ui/doi_phim_panel.gd`, `scripts/tu_di_pho.gd`; hỗ trợ đọc bằng `DoKho.ho_tro("...")` | "Đổi phím, tay cầm và hỗ trợ" |
+| Kệ sách của tháng trên sạp báo Chú Tư (Vũ Trụ Mark C1) | `tools/khu_pho/ke_sach_thang.py` (model, gắn vào `sap_bao` khi xuất), `scripts/ke_sach_thang.gd` (dòng nhắc tên sách). Đổi sách tháng: sửa màu bìa, chữ thẻ, `SACH`, rồi `python3 tools/khu_pho/xuat_game.py assets/models/pho sap_bao` | "Brainstorm chuyên sâu cải thiện vũ trụ" |
 
 ## Tránh đụng nhau giữa các PR
 

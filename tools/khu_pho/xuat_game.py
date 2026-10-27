@@ -58,6 +58,7 @@ def _g_corr(w, l, mat, loc, rot=(0, 0, 0), period=.076, amp=.012, thick=.006, na
 
 kit.cyl, kit.torus, kit.ball, kit.box, kit.corrugated = _g_cyl, _g_torus, _g_ball, _g_box, _g_corr
 cyl, torus, ball, box, corrugated = _g_cyl, _g_torus, _g_ball, _g_box, _g_corr
+import ke_sach_thang  # noqa: E402  (nhập sau khi thay hàm của kit để món này cũng dùng bản nhẹ)
 
 
 def reset():
@@ -252,6 +253,7 @@ def sap_bao_game():
                 box((.18, .021, .04), (-.6 + k * .3, .30, 1.26 + r_ * .4), M(rnd.choice(['#C8412F', '#2457A0', '#222222']), .7), 0)
         for k in range(6): box((.38, .3, .03), (-.6 + k * .24, -.05, .96 + (k % 2) * .02), M(rnd.choice(cols), .9), 0, rot=(0, 0, rnd.uniform(-.2, .2)))
         text('BÁO', .22, (0, -.36, .5), M(C['white'], .5), extrude=.006)
+        k = ke_sach_thang.ke_sach(); k.location = (.3, -.14, .945)   # C1: kệ sách của tháng ở nửa phải quầy
     return g
 
 
@@ -300,7 +302,7 @@ SON = '#FFFFFE'   # màu đánh dấu phần sơn xe (xe_may_son)
 
 # Trần số tam giác: quá thì giảm lưới (collapse), giữ khối chính.
 TARGET = dict(nha_G=4000, nha_C=3500, chung_cu=12000, nha_ba_sau=8000, cay_xanh=900, xe_may_son=900, xe_may_do=900, xe_may_den=900, xe_may_xanh=900, xe_may_trang=900,
-              ba_gac=1200, ban_nang=1100, sap_bao=900, o_cho=700)
+              ba_gac=1200, ban_nang=1100, sap_bao=1500, o_cho=700)
 BUILDING_TARGET = 2500
 SPECIAL_TARGET = 7000
 PROP_TARGET = 600

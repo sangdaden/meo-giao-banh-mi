@@ -119,6 +119,7 @@ var _released := false
 var _sneak_amt := 0.0
 var _slide_amt := 0.0
 var _head_off := Vector3.ZERO     ## dời xương đầu (hệ model: +Y lên, +Z ra trước)
+var _neck_was_moved := false      ## khung trước ngực và khăn đang dời theo đầu (chui, rón rén)
 var _head_roll := 0.0
 var _ear_spread := 0.0
 var _tail_fluff := 0.0
@@ -303,6 +304,9 @@ const TAIL_BONES := ["tail_1", "tail_2", "tail_3", "tail_4"]
 ## Độ cứng lò xo từng đốt đuôi: gốc cứng, chóp mềm nên chóp đuôi đi trễ và phất theo sau
 const TAIL_STIFF := [90.0, 60.0, 42.0, 30.0]
 const TAIL_DAMP := 0.55
+## Khi đầu hạ (chui, rón rén): ngực hạ theo bao nhiêu phần, xương khăn theo bao nhiêu phần độ hạ còn lại của đầu
+const CHEST_FOLLOW := 0.6
+const SCARF_FOLLOW := 0.6
 ## 4 chân (trước trái, trước phải, sau trái, sau phải), mỗi chân 3 xương từ vai/háng xuống bàn chân
 const LEG_CHAINS := [["upperarm_FL", "forearm_FL", "paw_FL"], ["upperarm_FR", "forearm_FR", "paw_FR"],
 	["thigh_BL", "shin_BL", "paw_BL"], ["thigh_BR", "shin_BR", "paw_BR"]]
@@ -1587,6 +1591,15 @@ func _apply_bones() -> void:
 		_skel.set_bone_pose_position(ri, _skel.get_bone_rest(ri).origin + _root_off)
 	_pose("hips", Vector3.RIGHT, _hips_pitch)
 	_pose("chest", Vector3.RIGHT, _chest_pitch)
+	# Hạ/đẩy đầu khi chui, rón rén: ngực đi theo một phần (CHEST_FOLLOW) để cổ, khăn và lông cổ
+	# (khăn bó vào xương ngực nhiều nhất) cùng hạ, phần còn lại dồn cho đầu; xương khăn đi theo đầu
+	# thêm một chút. Trước đây chỉ đầu hạ nên khăn nổi lơ lửng trên gáy, cổ bị kéo méo.
+	# Chỉ đặt vị trí ngực, khăn khi đang dời (và một khung trả về chỗ cũ), để động tác (ngồi, liếm) tự lo phần còn lại
+	var ci: int = _bone_idx["chest"]
+	var chest_off := _head_off * CHEST_FOLLOW if ci >= 0 else Vector3.ZERO
+	var neck_moved := not chest_off.is_zero_approx()
+	if ci >= 0 and (neck_moved or _neck_was_moved):
+		_skel.set_bone_pose_position(ci, _skel.get_bone_rest(ci).origin + _rest_basis_of_parent(ci).inverse() * chest_off)
 	for i in _leg_rig.size():
 		_leg_ik(i)
 	for i in _fp_paws.size():
@@ -1595,9 +1608,11 @@ func _apply_bones() -> void:
 	_pose_q("head", Quaternion(Vector3.UP, _head_yaw.x + _off_head.x) * Quaternion(Vector3.RIGHT, _head_pitch.x + _off_head.y) * Quaternion(Vector3.FORWARD, _head_roll))
 	var hi: int = _bone_idx["head"]
 	if hi >= 0:
-		var parent := _skel.get_bone_parent(hi)
-		var pb := _skel.get_bone_global_rest(parent).basis if parent >= 0 else Basis()
-		_skel.set_bone_pose_position(hi, _skel.get_bone_rest(hi).origin + pb.inverse() * _head_off)
+		_skel.set_bone_pose_position(hi, _skel.get_bone_rest(hi).origin + _rest_basis_of_parent(hi).inverse() * (_head_off - chest_off))
+	var si: int = _bone_idx["scarf"]
+	if si >= 0 and (neck_moved or _neck_was_moved):
+		_skel.set_bone_pose_position(si, _skel.get_bone_rest(si).origin + _rest_basis_of_parent(si).inverse() * (_head_off - chest_off) * SCARF_FOLLOW)
+	_neck_was_moved = neck_moved
 	for i in 2:
 		var side := -1.0 if i == 0 else 1.0
 		var flick := sin(_ear_flick[i] * PI) * 0.5
@@ -1620,6 +1635,11 @@ func _apply_bones() -> void:
 		_skel.set_bone_pose_scale(ti, Vector3(f, 1.0, f))
 	_apply_clip()
 	_update_tui3()
+
+
+func _rest_basis_of_parent(idx: int) -> Basis:
+	var p := _skel.get_bone_parent(idx)
+	return _skel.get_bone_global_rest(p).basis if p >= 0 else Basis()
 
 
 ## IK hai đoạn cho một chân trong mặt phẳng dọc thân: cổ chân đặt đúng đích (chỗ đứng nghỉ + _foot),

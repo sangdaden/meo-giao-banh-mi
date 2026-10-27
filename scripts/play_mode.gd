@@ -147,6 +147,7 @@ static func start(tree: SceneTree, m: Mode, which := 0, which_day := "") -> void
 		day = which_day
 	GameState.day = day  # màn bếp ghi sao_bep vào mục của ngày này
 	mode = m
+	TrangWeb.dem("meo-vao-ngay", {"ngay": day, "che_do": Mode.keys()[m]})  # bản web: đếm lượt chơi (web/do-luot.js)
 	order = which
 	continuous = false  # start_day bật lại sau khi gọi start
 	GameState.from_kitchen = false

@@ -22,7 +22,15 @@ static func bao_ngon_ngu(ma: String) -> void:
 		JavaScriptBridge.eval("(window.meoGame=window.meoGame||{}).lang=%s;window.meoGameDoi&&window.meoGameDoi();" % JSON.stringify(ma), true)
 
 
+## Đếm một sự kiện (web/do-luot.js gửi Umami, Vũ Trụ Mark K1). Bản PC không làm gì.
+static func dem(ten: String, du_lieu := {}) -> void:
+	if OS.has_feature("web"):
+		JavaScriptBridge.eval("window.meoDo&&window.meoDo(%s,%s);" % [JSON.stringify(ten), JSON.stringify(du_lieu)], true)
+
+
 static func _ghi(trang_thai: String) -> void:
+	if trang_thai == "ket_ngay":
+		dem("meo-ket-ngay", {"ngay": PlayMode.day})
 	var lang := "vi"
 	var tree := Engine.get_main_loop() as SceneTree
 	var nn: Node = tree.root.get_node_or_null("/root/NgonNgu") if tree else null

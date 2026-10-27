@@ -89,6 +89,15 @@ func _run() -> void:
 	_check(not GoiWeb.node()._http.accept_gzip, "để trình duyệt tự giải nén gói")
 	_check(GoiWeb.AUTO_RETRY >= 1 and GoiWeb.STALL_SEC > 0, "lỗi hay đứng yên thì tự tải lại trước khi báo")
 
+	print("Chia gói (tools/goi_web/goi.json)")
+	# Ngày nào cũng vào bếp: đồ bếp nằm trong gói một ngày thì bản web vào bếp ngày khác là sập (27/10/2026)
+	var goi = JSON.parse_string(FileAccess.get_file_as_string("res://tools/goi_web/goi.json"))
+	var lac: Array = []
+	for g: String in goi.goi:
+		if g != "tu_do":
+			lac += (goi.goi[g].files as Array).filter(func(x: String) -> bool: return x.begins_with(KitchenModels.DIR.trim_prefix("res://")))
+	_check(lac.is_empty(), "đồ bếp nằm trong index.pck, không trong gói ngày %s" % str(lac.slice(0, 3)))
+
 	for p in [src, tmp, GoiWeb._local("thu_ba")]:
 		DirAccess.remove_absolute(p)
 	print("GOI WEB TEST OK" if fails == 0 else "GOI WEB TEST FAIL (%d)" % fails)

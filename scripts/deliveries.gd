@@ -256,7 +256,7 @@ func _build_tu(parent: Node3D, i: int, p: Vector3, shirt: Color, title: String) 
 	_tu_paper_pos = pos + Vector3(-0.05, 1.15, 0.38)
 	# Sạp báo (model sap_bao): tủ báo sát mặt tiền bên cạnh ghế, bảng kẹp báo dựa tường (mặt tiền ở z = -7)
 	var stand := Blocks.collider(parent, Vector3(1.7, 0.95, 0.7), p + Vector3(1.4, 0.475, -0.6), Blocks.LAYER_PROP)
-	PhoModels.put(stand, "sap_bao", Vector3(0, -0.475, -0.0))
+	PhoModels.put(stand, "sap_bao", Vector3(0, -0.475, -0.0)).add_to_group("sap_bao")  # KeSachThang
 	Blocks.collider(parent, Vector3(1.6, 2.25, 0.1), p + Vector3(1.4, 1.125, -0.96), Blocks.LAYER_PROP)
 	Blocks.label(parent, title, pos + Vector3(0, 1.9, 0), 40)
 

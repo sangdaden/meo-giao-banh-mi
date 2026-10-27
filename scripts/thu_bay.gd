@@ -534,7 +534,7 @@ func _build_people() -> void:
 			n.add_collision(Vector3(0.5, 1.6, 0.35), Vector3(0, 0.8, 0))
 		if id == "chutu":
 			var stand := Blocks.collider(self, Vector3(1.7, 0.95, 0.7), Vector3(0.4, 0.475, -6.6), Blocks.LAYER_PROP)
-			PhoModels.put(stand, "sap_bao", Vector3(0, -0.475, 0))
+			PhoModels.put(stand, "sap_bao", Vector3(0, -0.475, 0)).add_to_group("sap_bao")  # KeSachThang
 		if id == "chithu":
 			# Võng và em bé ngủ: model chung cư (chung_cu/vong.glb, em_be.glb), chỉ giữ em bé ngủ, đưa về giữa võng
 			var vong: Node3D = load("res://assets/models/chung_cu/vong.glb").instantiate()

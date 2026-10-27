@@ -267,6 +267,7 @@ func _in_stairwell() -> bool:
 func _stair_camera(delta: float) -> void:
 	if not _in_stairwell():
 		return
+	rig.auto_behind_hold = 0.2  # trong cầu thang camera tự nhìn hướng dễ leo, DK1 nhường
 	if not rig.first_person and rig.since_manual() > STAIR_CAM_WAIT:
 		var k := 1.0 - exp(-2.5 * delta)
 		rig.yaw = lerp_angle(rig.yaw, 0.0, k)

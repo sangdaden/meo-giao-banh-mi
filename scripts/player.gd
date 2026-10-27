@@ -19,6 +19,7 @@ signal bumped(kind: String)              ## va "person" | "cart" | "stall" (ch�
 signal fragile_damaged(remaining: int)
 signal clip_finished(clip_name: String)    ## động tác Blender chạy một lần (play_clip) đã xong
 signal called(pos: Vector3)                 ## ngồi kêu meo gọi khách (Q, Thứ Sáu), xem sit_call()
+signal knocked(strength: float)             ## bị hất văng (xe tông, Mực đớp, va sạp chợ): DK2 rung tay cầm
 
 @export_group("Chạy")
 @export var walk_speed := 5.0
@@ -1813,3 +1814,4 @@ func knockback(from: Vector3, strength := 9.0, stun := 0.45) -> void:
 	velocity = away * strength + Vector3.UP * 4.5
 	_stun = stun
 	_pop = Vector3(1.3, 0.7, 1.3)
+	knocked.emit(strength)

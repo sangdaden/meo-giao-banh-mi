@@ -509,4 +509,9 @@ const EN := {
 	"Giữ %s": "Hold %s",
 	"Bơ tự đi theo mũi tên": "Bơ walks along the arrow by itself",
 	"Cần trái": "Left stick",
+	"Camera tự về sau lưng Bơ": "Camera follows behind Bơ",
+	"Góc nhìn rộng (FOV)": "Field of view (FOV)",
+	"Giãn góc nhìn khi chạy nhanh": "Widen view when sprinting",
+	"Camera nảy khi đáp từ cao": "Camera bounce on big landings",
+	"Rung tay cầm": "Controller vibration",
 }

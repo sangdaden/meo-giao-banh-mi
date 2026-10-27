@@ -288,6 +288,9 @@ jobs:
           # Đổi phím, tay cầm, tùy chọn hỗ trợ (F2 B3)
           timeout 300 ~/godot/godot --headless --path . -s tests/test_ban_phim.gd 2>&1 | python3 tools/loc_log.py | tee ban_phim.log
           grep -q "BAN PHIM TEST OK" ban_phim.log
+          # Cảm giác tay và camera (DK1–DK3): camera về sau lưng, bụi đáp/phanh, camera nảy, rung, FOV
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_cam_giac_tay.gd 2>&1 | python3 tools/loc_log.py | tee cam_giac_tay.log
+          grep -q "CAM GIAC TAY OK" cam_giac_tay.log
           # Log sạch (KT2): lỗi Godot ngoài tools/loi_duoc_phep.txt làm đỏ (autotest từng ngày: bot-ca-tuan.yml)
           python3 tools/loc_log.py --kiem *.log
           mkdir -p export

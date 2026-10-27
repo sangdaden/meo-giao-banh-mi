@@ -17,6 +17,10 @@ extends Node
 const MANIFEST := "res://goi_web.json"
 const DIR := "user://goi/"
 const PREFETCH_DELAY := 20.0
+## Gói đang tải mà đứng yên chừng này giây (mạng rớt giữa chừng) thì hủy, tải lại
+const STALL_SEC := 15.0
+## Tải lỗi hay đứng yên thì tự tải lại chừng này lần rồi mới hiện "Mạng chậm" cho người chơi chọn
+const AUTO_RETRY := 2
 ## Ngày có nhiều mèo đủ giống (mèo Thứ Bảy, Hội mèo): cần cả tủ đồ
 const TU_DO_DAYS := ["thu_bay", "chu_nhat"]
 
@@ -31,6 +35,9 @@ var _http: HTTPRequest
 var _current := ""
 var _waits: Array = []  # [gói cần, callable, màn chờ]
 var _failed := {}
+var _tries := 0  # số lần đã tự tải lại gói đang tải
+var _last_bytes := -1
+var _still := 0.0  # số giây gói đang tải chưa nhận thêm byte (chỉ đếm khi game chạy, ẩn tab không tính)
 
 
 ## Danh sách gói của bản đang chạy ({} khi không có gói, như bản desktop).
@@ -106,6 +113,12 @@ static func node() -> GoiWeb:
 func _ready() -> void:
 	_http = HTTPRequest.new()
 	_http.use_threads = false
+	# Trình duyệt tự giải nén khi máy chủ gửi gói nén gzip (GitHub Pages có thể làm vậy) nhưng vẫn để lại
+	# header Content-Encoding; HTTPRequest mà thấy header đó thì giải nén lần nữa và hỏng (RESULT_BODY_DECOMPRESS_FAILED),
+	# nên màn chờ hiện "Mạng chậm" dù mạng tốt. Để trình duyệt lo phần nén.
+	_http.accept_gzip = false
+	# Mỗi khung hình đọc tối đa một khúc: khúc to cho máy yếu (ít khung hình/giây) tải nhanh hơn
+	_http.download_chunk_size = 1 << 20
 	_http.request_completed.connect(_on_completed)
 	add_child(_http)
 	DirAccess.make_dir_recursive_absolute(DIR)
@@ -154,11 +167,19 @@ func _next() -> void:
 	if _queue.is_empty():
 		return
 	_current = _queue.pop_front()
+	_tries = 0
+	_start()
+
+
+## Tải gói `_current` (lấy từ user://goi/ nếu đã có).
+func _start() -> void:
 	var path := _local(_current)
 	if FileAccess.file_exists(path) and _size(path) == int(manifest()[_current].size):
 		_mount(path)
 		return
 	_http.download_file = path + ".tai"
+	_last_bytes = -1
+	_still = 0.0
 	var err := _http.request(_url(_current))
 	if err != OK:
 		_fail()
@@ -173,6 +194,15 @@ func _on_completed(result: int, code: int, _headers: PackedStringArray, _body: P
 	else:
 		push_warning("GoiWeb: tải gói %s lỗi (result %d, HTTP %d)" % [_current, result, code])
 		DirAccess.remove_absolute(path + ".tai")
+		_retry_or_fail()
+
+
+## Lỗi mạng: tự tải lại vài lần, vẫn lỗi thì báo người chơi (nút Thử lại / Về trang chủ).
+func _retry_or_fail() -> void:
+	if _tries < AUTO_RETRY:
+		_tries += 1
+		_start.call_deferred()
+	else:
 		_fail()
 
 
@@ -215,12 +245,24 @@ func _check_waits() -> void:
 			(w[1] as Callable).call()
 
 
-func _process(_delta: float) -> void:
-	if _current == "" or _waits.is_empty():
+func _process(delta: float) -> void:
+	if _current == "" or _http.get_http_client_status() == HTTPClient.STATUS_DISCONNECTED:
+		return
+	var got := _http.get_downloaded_bytes()
+	if got != _last_bytes:
+		_last_bytes = got
+		_still = 0.0
+	else:
+		_still += minf(delta, 0.25)
+	if _still > STALL_SEC:
+		push_warning("GoiWeb: gói %s đứng yên %d giây ở %d byte, tải lại" % [_current, int(STALL_SEC), got])
+		_http.cancel_request()
+		DirAccess.remove_absolute(_local(_current) + ".tai")
+		_retry_or_fail()
 		return
 	for w in _waits:
 		if _current in w[0] and is_instance_valid(w[2]):
-			(w[2] as ManChoTai).set_progress(_current, _http.get_downloaded_bytes(), int(manifest()[_current].size))
+			(w[2] as ManChoTai).set_progress(_current, got, int(manifest()[_current].size))
 
 
 ## Đang tải gói nào, được bao nhiêu byte (màn chờ đọc).

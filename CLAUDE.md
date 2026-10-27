@@ -142,6 +142,7 @@ Từ PR #133 (H1, 23/10) mỗi ngày có file riêng, HUD tách thành mảnh, b
 | Ngôn ngữ, bản tiếng Anh | `scripts/ngon_ngu.gd` (autoload `NgonNgu`), `scripts/dich/` | F3 "Bản tiếng Anh" |
 | Con vật chung: phím Q, "Bạn bốn chân" | `scripts/con_vat.gd` (`ConVat`: con vật vào nhóm `"con_vat"` + `on_called(pos)`, `ConVat.meet(id)`), `scripts/ui/ban_bon_chan.gd` | "Cơ chế chung con vật" |
 | Con vật mới V1–V6 (gà, cá, vịt, bướm, thạch sùng, chuột Tí) | `scripts/con_vat_moi/` (`ConVatMoi.LICH` theo ngày, `MoHinhConVat.put` nạp model), `assets/models/con_vat/` | "Con vật mới vào game" |
+| Đổi phím, tay cầm, tùy chọn hỗ trợ (F2 B3) | `scripts/ban_phim.gd` (autoload `DieuKhien`, class `BanPhim`: bảng `PHIM`, phím mới cho người chơi đổi thì thêm dòng cuối), `scripts/ui/doi_phim_panel.gd`, `scripts/tu_di_pho.gd`; hỗ trợ đọc bằng `DoKho.ho_tro("...")` | "Đổi phím, tay cầm và hỗ trợ" |
 
 ## Tránh đụng nhau giữa các PR
 

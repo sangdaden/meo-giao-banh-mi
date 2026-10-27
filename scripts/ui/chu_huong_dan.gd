@@ -21,6 +21,8 @@ const PHIM_CHUNG := [
 const PHIM_GOI := [["Q", "kêu meo · con vật gần đó đáp lại"]]
 ## Nút cứu kẹt (scripts/cuu_ket.gd), luôn ở cuối bảng.
 const PHIM_CUU_KET := [["Giữ R", "về chỗ an toàn khi bị kẹt"]]
+## Tùy chọn hỗ trợ "Tự đi theo mũi tên" (scripts/tu_di_pho.gd), chỉ hiện khi đã bật ở Cài đặt > Hỗ trợ.
+const PHIM_TU_DI := [["Giữ F", "Bơ tự đi theo mũi tên"]]
 ## Dòng riêng mặc định khi ngày không khai "help": ngày giao bánh thường.
 const PHIM_GIAO := [["E", "giao bánh"]]
 const GHI_CHU_CHUNG := "Mũi tên đỏ trên đầu Bơ luôn chỉ về phía khách."
@@ -49,7 +51,8 @@ static func bang(day: Dictionary) -> Array:
 	if rieng.is_empty():
 		rieng = PHIM_GIAO
 	var goi: Array = [] if rieng.any(func(r): return r[0] == "Q") else PHIM_GOI
-	return PHIM_CHUNG + rieng + goi + PHIM_CUU_KET
+	var tu_di: Array = PHIM_TU_DI if DoKho.ho_tro("ho_tro_tu_di") else []
+	return PHIM_CHUNG + rieng + goi + tu_di + PHIM_CUU_KET
 
 
 ## Ghi chú dưới bảng "Cách chơi" của một ngày, kèm dòng tay cầm.

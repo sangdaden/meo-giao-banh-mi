@@ -285,6 +285,9 @@ jobs:
           # Phụ kiện ôm thân: dây quai sát da, chuông móc vòng cổ, nút buộc nằm trên đuôi, trên nhiều giống mèo
           timeout 600 ~/godot/godot --headless --path . -s tests/test_phu_kien_om.gd 2>&1 | python3 tools/loc_log.py | tee phu_kien_om.log
           grep -q "PHU KIEN OM TEST OK" phu_kien_om.log
+          # Đổi phím, tay cầm, tùy chọn hỗ trợ (F2 B3)
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_ban_phim.gd 2>&1 | python3 tools/loc_log.py | tee ban_phim.log
+          grep -q "BAN PHIM TEST OK" ban_phim.log
           # Cửa sang kênh Mark học AI (Vũ Trụ Mark K1, K2): link gắn nguồn, nút ở màn hình chính và màn hết tuần
           timeout 300 ~/godot/godot --headless --path . -s tests/test_ke_mark.gd 2>&1 | python3 tools/loc_log.py | tee ke_mark.log
           grep -q "KE MARK TEST OK" ke_mark.log

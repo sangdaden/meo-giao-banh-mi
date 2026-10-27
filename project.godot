@@ -16,6 +16,7 @@ config/icon="res://icon.svg"
 Sound="*res://scripts/sound.gd"
 NgonNgu="*res://scripts/ngon_ngu.gd"
 NhatKy="*res://scripts/nhat_ky.gd"
+DieuKhien="*res://scripts/ban_phim.gd"
 
 [display]
 

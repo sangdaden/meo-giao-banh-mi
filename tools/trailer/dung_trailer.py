@@ -93,7 +93,7 @@ def build(src, music, out, w=1920, h=1080, game_gain=0.0):
                  f"borderw={int(h * 0.006)}:bordercolor=0x2B2420:x=(w-text_w)/2:y=h*0.30:alpha='{fade_alpha(TITLE_AT, END + 5, 0.6)}'")
     draws.append(f"drawtext=fontfile='{FONT_TEXT}':text='Chơi miễn phí trên web':fontsize={int(h * 0.045)}:fontcolor=0xFFF8EA:"
                  f"x=(w-text_w)/2:y=h*0.55:alpha='{fade_alpha(LINK_AT, END + 5, 0.5)}'")
-    draws.append(f"drawtext=fontfile='{FONT_TEXT}':text='sangdaden.github.io/meo-giao-banh-mi':fontsize={int(h * 0.038)}:"
+    draws.append(f"drawtext=fontfile='{FONT_TEXT}':text='meo.markhocai.com':fontsize={int(h * 0.038)}:"
                  f"fontcolor=0x2B2420:box=1:boxcolor=0xF2B45A:boxborderw={int(h * 0.016)}:x=(w-text_w)/2:y=h*0.64:"
                  f"alpha='{fade_alpha(LINK_AT + 0.4, END + 5, 0.5)}'")
     hold = max(0.0, END - t)  # giữ khung cuối của cảnh kết dưới tên game tới hết nhạc

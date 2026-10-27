@@ -23,6 +23,24 @@ và 5 nhà mốc (`moc/`) lấy nguyên từ gói P2.
 Mỗi mảnh có hai bề mặt: `pho_mausac` (màu đỉnh) và `son` (tường, game thay bằng một trong 10 màu sơn).
 Gốc ở góc trái mặt tiền, mặt tiền tại z = 0 nhìn ra +z. Trệt cao 3,4 m, mỗi lầu 3,1 m, sâu 7,3 m.
 
+## Bảng hiệu vòng 3
+
+Sang duyệt 27/10 (trang https://claude.ai/artifact/J8eJA7aPV4B5hBVsiCxhGq): bảng cao 1,2 m, mỗi quán một cỡ chữ,
+hình nghề nổi 3D, bảng dọc chìa ra phố, và 4 bảng riêng cho quán trong truyện (lò bánh Cô Ba, cà phê Mây, tiệm xe
+Anh Hùng, tạp hóa Cô Hai). Hình bảng ở `bang_v3.py` (bảng `GEN`, cỡ chữ `CO`, các hàm quán truyện), chạy bằng `run_bang_v3.py`.
+
+```sh
+cd tools/nha_rap
+# 21 bảng x 4 bề ngang + 4 bảng quán truyện, mỗi bảng một .glb (khung, hình, bảng dọc) và chu.json (4 góc mỗi dòng chữ)
+LITE=1 python3 run_bang_v3.py game /tmp/bang3
+python3 atlas_chu_v3.py /tmp/bang3/chu.json ../../assets/textures/nha_rap/chu_bang.png /tmp/bang3/chu_uv.json
+cp /tmp/bang3/bang_*.glb ../../assets/models/nha_rap/bang/
+python3 ghep_bang_v3.py /tmp/bang3 /tmp/bang3/chu_uv.json ../../assets/models/nha_rap/nha_rap.json
+```
+
+Bảng quán thường do `NhaRap._sign` gắn; bảng quán truyện do `NhaRap.put_sign` gắn trong `scripts/city_props.gd`
+và `scripts/shop_tap_hoa.gd`. Ảnh soát trong game: `tools/chup_bang_hieu.gd`.
+
 ## Nhà vành phố
 
 `tools/vanh_pho/nha_vanh_p2.py` (cùng `vanh.py`, `vp_lib.py` của gói P1) dựng lại nhà vành phố theo kiểu P2:

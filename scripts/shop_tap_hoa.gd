@@ -81,8 +81,9 @@ static func build(parent: Node3D, x0: float, x1: float, z0: float, depth: float)
 	_solid(parent, Vector3(door.y - door.x, GROUND_H - 1.4, 0.2), Vector3((door.x + door.y) / 2.0, 1.4 + (GROUND_H - 1.4) / 2.0, zb - 0.1), WALL.darkened(0.1), has_model)
 	if not has_model:
 		Blocks.box(parent, Vector3(w - 0.4, 0.02, depth - 0.2), Vector3(cx, 0.03, zc), Color("#CFC6B2"))  # nền gạch bông
-		Blocks.label(parent, "TẠP HÓA CÔ HAI", Vector3(cx, 3.6, z0 - 0.2), 52, Color("#C8412F"))
 	CityProps.awning(parent, w, Vector3(cx, 2.9, z0 - 0.5), "mai_hien_xanh", -1.0)
+	# Bảng hiệu vòng 3 "TẠP HÓA CÔ HAI" (vỉ trứng nổi, bảng dọc), mặt nhìn ra phía bắc (-z)
+	NhaRap.put_sign(parent, "bang_tap_hoa_co_hai_44", Transform3D(Basis(Vector3.UP, PI) * Basis.from_scale(Vector3(w / 4.4, 1, 1)), Vector3(x1, 0, z0 - CityProps.BANG_TRUYEN_RA)))
 	# Kệ sắt 5 tầng (ke_cao 1,2 × 0,4 × 2 m) dọc vách trái: leo được, các tầng cách nhau ~0,45 m
 	for k in 3:
 		_shelf(parent, Vector3(x0 + 0.42, 0, z0 + 1.2 + k * 1.2), PI / 2.0)

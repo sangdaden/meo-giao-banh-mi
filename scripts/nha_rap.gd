@@ -1,13 +1,15 @@
 class_name NhaRap
 ## Bộ ráp nhà theo tầng P2 (Sang duyệt 22/10 10:19, trang https://claude.ai/artifact/8N5AF4xQaQ6HwjgDxR5qrr bản 2):
 ## 8 kiểu trệt, 6 kiểu lầu, 5 kiểu mái, 4 bề ngang 3,2 / 4,0 / 4,8 / 6,0 m, 10 màu sơn, 21 bảng hiệu riêng từng tiệm.
+## Bảng hiệu vòng 3 (Sang duyệt 27/10, trang https://claude.ai/artifact/J8eJA7aPV4B5hBVsiCxhGq): bảng cao 1,2 m, chữ to,
+## mỗi quán một cỡ chữ, hình nghề nổi 3D và bảng dọc chìa ra phố; thêm 4 bảng riêng cho quán trong truyện (put_sign).
 ## Bàn giao: /mnt/project-files/thiet-ke-lai-khu-pho/p2-bo-rap-nha/BAN-GIAO.md. Mảnh xuất bằng tools/nha_rap (README ở đó).
 ##
 ## - Mỗi căn ghép trệt + lầu + mái thành một mesh màu đỉnh (mặt tường "son" đổi sang màu sơn của căn), dùng chung
 ##   PhoModels.material() nên Blocks.merge_static gộp theo ô 24 m và tự làm LOD như nhà cũ.
 ## - Mảnh trệt bản game không có bạt riêng: mái hiên 2,9 m liền dãy của CityProps.awning vẫn là chỗ Bơ chạy, trú mưa.
 ##   Vì thế bảng hiệu là mảnh riêng, nâng lên trên mái hiên (đáy 3,02 m) và đẩy ra trước mặt lầu 1 (ban công, chuồng cọp).
-##   Chữ bảng hiệu là ảnh atlas (tools/nha_rap/atlas_chu.py, đúng phông từng bảng) dán lên tấm phẳng trước bảng.
+##   Chữ bảng hiệu là ảnh atlas (tools/nha_rap/atlas_chu_v3.py, đúng phông và cỡ từng bảng) dán lên tấm phẳng trước bảng.
 ## - Họ nhà (HO) giữ số lầu + kiểu mái của mẫu nhà lấp cũ ở cùng ô, để độ cao mái dãy nam khối 1–3 (đường sân thượng
 ##   Thứ Tư), lối leo, bám mép các ngày khác như cũ. Mặt mái cho SanThuong lấy từ profile mái của bộ ráp (roof_profile).
 ## - Đồ gắn tường P4 (số nhà, máy lạnh, chậu ban công, lồng chim, dây phơi, bảng hiệu dọc) đặt ở điểm gắn gan_* của mảnh,
@@ -36,11 +38,6 @@ const HO := {
 }
 ## Mái ở các dãy không thuộc đường sân thượng Thứ Tư: chọn tự do (cùng số lầu với mẫu cũ), trọng số
 const MAI_TU_DO := {"san_thuong": 3, "tum": 2, "ton": 2, "luoi": 2, "ngoi": 1}
-## Lầu nhô ra trước mặt tiền ít (bảng hiệu dọc chìa ra được, không đụng ban công)
-const FLAT_LAU := ["cua_chop", "lo_gia", "tuong_kin"]
-## Chữ bảng hiệu dọc theo kiểu tiệm
-const DOC := {"tap_hoa": "TẠP HÓA", "quan_pho": "PHỞ", "sua_dt": "ĐIỆN THOẠI", "tiem_may": "TIỆM MAY",
-	"tiem_thuoc": "NHÀ THUỐC", "gui_xe": "GIỮ XE", "hot_toc": "HỚT TÓC"}
 const WALL_CELL := 8.0
 const WALL_VIEW := 22.0
 const TEXT_CELL := 24.0
@@ -504,21 +501,31 @@ static func _front(s: Dictionary) -> float:
 
 static func _sign(parent: Node3D, s: Dictionary, xf: Transform3D) -> void:
 	var name := "%s_%d" % [s.bang, roundi(s.w * 10)]
+	put_sign(parent, name, xf * Transform3D(Basis.IDENTITY, Vector3(0, 0, _front(s) - 0.02)))
+
+
+## Đặt một bảng hiệu vòng 3 (khung + hình + bảng dọc là lưới màu đỉnh, chữ dán atlas) với gốc ở góc trái mặt sau bảng,
+## mặt bảng nhìn +z của xf. Đáy thấp nhất của bảng nâng tới SIGN_BOTTOM (ngay trên mái hiên 2,96 m).
+## Quán trong truyện (lò bánh, quán Mây, tiệm xe, tạp hóa Cô Hai) gọi thẳng hàm này từ CityProps / ShopTapHoa.
+static func put_sign(parent: Node3D, name: String, xf: Transform3D, bottom := SIGN_BOTTOM) -> MeshInstance3D:
 	var info: Dictionary = meta().bang[name]
-	var lift := Vector3(0, SIGN_BOTTOM - float(info.min[1]), _front(s) - 0.02)
+	var at := xf * Transform3D(Basis.IDENTITY, Vector3(0, bottom - float(info.min[1]), 0))
 	var mi := MeshInstance3D.new()
 	mi.name = "BangHieu"
 	mi.mesh = _sign_mesh(name)
 	mi.material_override = PhoModels.material()
-	# bảng nằm sát mặt tiền trên mái hiên: bóng gần như không thấy, bớt ~4k tam giác bóng ở ngã tư
+	# bảng nằm sát mặt tiền trên mái hiên: bóng gần như không thấy, bớt tam giác bóng ở ngã tư
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	mi.transform = xf * Transform3D(Basis.IDENTITY, lift)
+	mi.transform = at
 	parent.add_child(mi)
 	for t: Dictionary in info.chu:
-		var uv: Array = t.uv
-		var z: float = float(t.z) + lift.z
-		_quad(xf, Vector3(t.x[0], t.y[0] + lift.y, z), Vector3(t.x[1], t.y[0] + lift.y, z),
-			Vector3(t.x[1], t.y[1] + lift.y, z), Vector3(t.x[0], t.y[1] + lift.y, z), uv)
+		var p: Array = t.p
+		_quad(at, _v(p[0]), _v(p[1]), _v(p[2]), _v(p[3]), t.uv)
+	return mi
+
+
+static func _v(a: Array) -> Vector3:
+	return Vector3(a[0], a[1], a[2])
 
 
 static func _sign_mesh(name: String) -> ArrayMesh:
@@ -531,7 +538,8 @@ static func _sign_mesh(name: String) -> ArrayMesh:
 	return out
 
 
-## Tấm chữ a-b-c-d (ngược chiều kim đồng hồ nhìn từ trước) trong hệ căn nhà, uv [u0, v0, u1, v1] của atlas
+## Tấm chữ a-b-c-d (dưới-trái, dưới-phải, trên-phải, trên-trái nhìn từ phía chữ) trong hệ của bảng, uv [u0, v0, u1, v1] của atlas.
+## Chữ mặt trước và chữ hai mặt bảng dọc dùng chung: pháp tuyến lấy theo chính tấm chữ.
 static func _quad(xf: Transform3D, a: Vector3, b: Vector3, c: Vector3, d: Vector3, uv: Array) -> void:
 	var p := xf * ((a + c) / 2.0)
 	var key := "%d:%d" % [floori(p.x / TEXT_CELL), floori(p.z / TEXT_CELL)]
@@ -540,7 +548,7 @@ static func _quad(xf: Transform3D, a: Vector3, b: Vector3, c: Vector3, d: Vector
 		st.begin(Mesh.PRIMITIVE_TRIANGLES)
 		_texts[key] = st
 	var t: SurfaceTool = _texts[key]
-	var n := (xf.basis * Vector3.BACK).normalized()
+	var n := (xf.basis * (b - a).cross(d - a)).normalized()
 	var pts := [[a, Vector2(uv[0], uv[3])], [b, Vector2(uv[2], uv[3])], [c, Vector2(uv[2], uv[1])],
 		[a, Vector2(uv[0], uv[3])], [c, Vector2(uv[2], uv[1])], [d, Vector2(uv[0], uv[1])]]
 	for q: Array in pts:
@@ -579,9 +587,7 @@ static func _wall_items(s: Dictionary, xf: Transform3D, rng: RandomNumberGenerat
 		elif roll < 0.85 and kind in ["ban_cong", "lo_gia"]:
 			var sx := minf(1.0, (w - 0.5) / 3.53)
 			_item("day_phoi", xf, Vector3(w / 2.0, y0 + 0.8, 0.45), sx)
-	# Bảng hiệu dọc chìa ra vỉa hè: tiệm có lầu 1 phẳng (không ban công), đáy trên mái hiên
-	if s.bang != "" and not lau.is_empty() and lau[0] in FLAT_LAU and rng.randf() < 0.6:
-		_item("bang_doc", xf, Vector3(w - 0.08, 3.05, 0.425 + 0.05))
+	# Bảng dọc chìa ra phố nay là một phần của bảng hiệu vòng 3 (mỗi nghề một dáng), không đặt bảng dọc P4 nữa
 
 
 ## Thêm một món P4 vào ô 8 m. pos trong hệ căn nhà (trước khi giãn x), sx giãn riêng món theo x.

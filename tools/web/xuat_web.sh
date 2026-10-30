@@ -32,3 +32,5 @@ sed "s/__BUILD_VERSION__/${sha}/" web/update-check.js > "$out/update-check.js"
 echo "{\"version\": \"${sha}\"}" > "$out/version.json"
 # Đếm lượt chơi bằng Umami (Vũ Trụ Mark K1)
 cp web/do-luot.js "$out/do-luot.js"
+# Chơi trên điện thoại (G3): xoay ngang, toàn màn hình, thêm vào màn hình chính
+cp web/di-dong.js web/manifest.json web/icon-192.png web/icon-512.png "$out/"

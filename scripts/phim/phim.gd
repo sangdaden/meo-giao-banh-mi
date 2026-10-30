@@ -352,7 +352,7 @@ func _build_ui() -> void:
 	UiTheme.place(_skip_box, 1.0, 1.0, Rect2(-300, -46, 270, 34))
 	_skip_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_ui.add_child(_skip_box)
-	var hint := UiTheme.label("Giữ phím cách để bỏ qua", 15, Color(UiTheme.PAPER, 0.75), "bold")
+	var hint := UiTheme.label("Chạm giữ màn hình để bỏ qua" if CamUng.bat else "Giữ phím cách để bỏ qua", 15, Color(UiTheme.PAPER, 0.75), "bold")
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_skip_box.add_child(hint)
 	var track_bg := ColorRect.new()

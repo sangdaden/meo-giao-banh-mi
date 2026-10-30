@@ -110,11 +110,18 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 	elif event is InputEventMouseMotion and (Input.mouse_mode == Input.MOUSE_MODE_CAPTURED \
 			or event.button_mask & (MOUSE_BUTTON_MASK_LEFT | MOUSE_BUTTON_MASK_RIGHT)):
-		_manual_ms = Time.get_ticks_msec()
-		var lim := _pitch_limits()
-		var dy: float = -event.relative.y if invert_y else event.relative.y
-		yaw -= event.relative.x * mouse_sensitivity
-		pitch = clampf(pitch - dy * mouse_sensitivity, lim.x, lim.y)
+		if event.device == InputEvent.DEVICE_ID_EMULATION and CamUng.bat:
+			return  # chuột giả từ ngón tay: nút cảm ứng tự xoay camera (scripts/cam_ung.gd)
+		xoay(event.relative, mouse_sensitivity)
+
+
+## Xoay camera theo một lần kéo (chuột, hoặc vuốt màn hình cảm ứng).
+func xoay(relative: Vector2, sensitivity: float) -> void:
+	_manual_ms = Time.get_ticks_msec()
+	var lim := _pitch_limits()
+	var dy: float = -relative.y if invert_y else relative.y
+	yaw -= relative.x * sensitivity
+	pitch = clampf(pitch - dy * sensitivity, lim.x, lim.y)
 
 
 func _process(delta: float) -> void:

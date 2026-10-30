@@ -36,6 +36,7 @@ func _ready() -> void:
 	theme = T.make_theme()
 	T.full_rect(self)
 	TrangWeb.bao("menu", self)  # bản web: lúc này mới được báo có bản mới
+	TrangWeb.tai_xong()  # bản web: đếm lượt tải xong (phễu người chơi P1)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	var sound := get_node_or_null("/root/Sound")
 	if sound and sound.has_method("music"):

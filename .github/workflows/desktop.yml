@@ -297,6 +297,9 @@ jobs:
           # Kệ sách của tháng trên sạp báo Chú Tư (Vũ Trụ Mark C1): model có kệ, đi gần sạp thì nhắc tên sách một lần
           timeout 300 ~/godot/godot --headless --path . -s tests/test_ke_sach_thang.gd 2>&1 | python3 tools/loc_log.py | tee ke_sach_thang.log
           grep -q "KE SACH THANG TEST OK" ke_sach_thang.log
+          # Lưu ảnh tuần (Vũ Trụ Mark B1) và phễu người chơi bản web (P1)
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_anh_tuan_luu.gd 2>&1 | python3 tools/loc_log.py | tee anh_tuan_luu.log
+          grep -q "ANH TUAN LUU TEST OK" anh_tuan_luu.log
           # Log sạch (KT2): lỗi Godot ngoài tools/loi_duoc_phep.txt làm đỏ (autotest từng ngày: bot-ca-tuan.yml)
           python3 tools/loc_log.py --kiem *.log
           mkdir -p export

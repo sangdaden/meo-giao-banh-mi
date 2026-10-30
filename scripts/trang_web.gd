@@ -28,6 +28,22 @@ static func dem(ten: String, du_lieu := {}) -> void:
 		JavaScriptBridge.eval("window.meoDo&&window.meoDo(%s,%s);" % [JSON.stringify(ten), JSON.stringify(du_lieu)], true)
 
 
+## Phễu người chơi (Vũ Trụ Mark P1): màn hình chính hiện lần đầu trong phiên. Trang tự thêm số giây từ lúc mở.
+static var _da_tai := false
+
+static func tai_xong() -> void:
+	if not _da_tai:
+		_da_tai = true
+		dem("meo-tai-xong")
+
+
+## Theo đơn đang giao để trang biết người chơi bỏ ngang ở đơn mấy (meo-bo-ngang). main.gd gọi sau khi dựng.
+static func theo_don(main: Node) -> void:
+	if OS.has_feature("web") and main.has_signal("order_picked_up"):
+		main.order_picked_up.connect(func(i: int, _o: Dictionary):
+			JavaScriptBridge.eval("window.meoDon&&window.meoDon(%d);" % i, true))
+
+
 static func _ghi(trang_thai: String) -> void:
 	if trang_thai == "ket_ngay":
 		dem("meo-ket-ngay", {"ngay": PlayMode.day})

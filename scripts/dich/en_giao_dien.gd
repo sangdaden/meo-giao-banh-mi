@@ -510,9 +510,9 @@ const EN := {
 	"Bơ tự đi theo mũi tên": "Bơ walks along the arrow by itself",
 	"Cần trái": "Left stick",
 	# scripts/ke_mark.gd (nút sang kênh Mark học AI)
-	"  Ghé kênh anh Mark": "  Visit Mark's channel",
-	"Anh Mark ở chung cư tầng 3 làm video về AI, ghé xem nha!": "Mark from the 3rd floor of the apartment block makes videos about AI. Go take a look!",
-	"Ghé kênh anh Mark": "Visit Mark's channel",
+	"  Ghé kênh anh Mark": "  Read Mark's stories",
+	"Anh Mark ở chung cư tầng 3 làm video về AI, ghé xem nha!": "Mark from the 3rd floor writes stories about great books and science, in English too. Take a look!",
+	"Ghé kênh anh Mark": "Read Mark's stories",
 	"Camera tự về sau lưng Bơ": "Camera follows behind Bơ",
 	"Góc nhìn rộng (FOV)": "Field of view (FOV)",
 	"Giãn góc nhìn khi chạy nhanh": "Widen view when sprinting",

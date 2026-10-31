@@ -616,6 +616,9 @@ func _build_tower() -> void:
 	Blocks.collider(self, Vector3(1.6, h - 2.4, 0.15), Vector3(cx, 2.4 + (h - 2.4) / 2.0, 0.075), Blocks.LAYER_PROP)
 	_board_text("LÔ B · CẦU THANG", Vector3(cx, 2.8, 0.63), 15, Color("#F4EAD2"))  # bảng xanh trên mái đón cổng (model)
 	Blocks.label(self, "▼ CẦU THANG", Vector3(cx, 3.6, 0.8), 56, GUIDE)
+	# Poster kênh anh Mark (Vũ Trụ Mark G1) trên tường căn 1B-4, giữa cửa và cửa sổ, ngay đường Bơ đi tới cổng thang.
+	# Đáy giấy cao 0,4 m (ngang mắt Bơ), dưới dây phơi đồ
+	DauVetMark.poster(self, Vector3(3 * UNIT_W + 1.7, 0.4 + 0.425, -CORR + 0.01), 0.0)
 	for f in range(1, FLOORS):
 		Blocks.label(self, "Tầng %d" % (f + 1), Vector3(cx, f * FLOOR_H + 1.9, -0.6), 34, GUIDE)
 	Blocks.label(self, "◀ căn 5B-1", Vector3(TX0 - 1.0, (FLOORS - 1) * FLOOR_H + 1.2, -0.8), 34, GUIDE)

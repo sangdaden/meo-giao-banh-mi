@@ -54,6 +54,18 @@ func _ready() -> void:
 	visible = false
 
 
+## Nút Quay lại của Android (app riêng, project.godot tắt quit_on_go_back): như bấm Esc, mở menu tạm dừng / đóng bảng.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		for down in [true, false]:
+			var e := InputEventKey.new()
+			e.physical_keycode = KEY_ESCAPE
+			e.keycode = KEY_ESCAPE
+			e.pressed = down
+			_gia_phim.append(e)
+			Input.parse_input_event(e)
+
+
 func _process(_delta: float) -> void:
 	var muon := bat and _dang_choi()
 	if muon != _hien:

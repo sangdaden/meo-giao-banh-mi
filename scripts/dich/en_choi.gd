@@ -325,4 +325,5 @@ const EN := {
 	"Thạch sùng chỉ chỗ bám kế tiếp: nhảy lên chỗ nó đang bám!": "The gecko shows the next foothold: jump up to where it is clinging!",
 	"[E] Đưa bánh cho Bé Na": "[E] Give the bread to Bé Na",
 	"Sách tháng 11 của khu phố: Tư duy nhanh và chậm (Kahneman)": "The neighborhood's book for November: Thinking, Fast and Slow (Kahneman)",
+	"Anh Mark tầng 3 làm video về AI, ghé markhocai.com xem nha!": "Mark from the 3rd floor makes videos about AI. Drop by markhocai.com!",
 }

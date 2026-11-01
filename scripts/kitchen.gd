@@ -2027,6 +2027,8 @@ func _build_room(room: Node3D) -> void:
 	KM.place(room, "cay_can", CHUA + Vector3(0.0, 0, -0.42), 90)
 	KM.place(room, "cu_cai", CHUA + Vector3(-0.12, 0, -0.32), 70)
 	KM.place(room, "hu_men", NHOI + Vector3(0.42, 0, -0.18))
+	# Ti vi cũ chiếu Bit (Vũ Trụ Mark G1) trên tường sau giữa ống khói lò và lịch: máy quay cố định thấy rõ, Cô Ba không che
+	DauVetMark.ti_vi(room, Vector3(0.95, 0.85, -1.75 + 0.26), 0.0)
 
 
 func _station(id: String, title: String, use: Vector3, work: Vector3) -> void:

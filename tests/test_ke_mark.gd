@@ -44,6 +44,8 @@ func _run() -> void:
 	_check("utm_source=meo-giao-banh-mi" in l and "utm_medium=game" in l, "link có nguồn là game")
 	_check(l.ends_with("utm_content=menu"), "link ghi chỗ bấm")
 	_check(KeMark.link("het tuan").ends_with("utm_content=het%20tuan"), "chỗ bấm được mã hóa")
+	_check(KeMark.link("menu", true).begins_with(KeMark.URL_EN + "?utm_source=meo-giao-banh-mi"), "bản tiếng Anh dẫn về Vũ Trụ Khác bản EN (D4)")
+	_check(not KeMark.la_en(), "mặc định là tiếng Việt")
 
 	print("Tiếng Anh")
 	for chu in [KeMark.NUT, KeMark.NUT.strip_edges(), KeMark.LOI]:

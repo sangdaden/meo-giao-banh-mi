@@ -99,7 +99,6 @@ Model: Blender chạy headless qua `pip install bpy` (đang dùng bpy 5.2). Mỗ
 | `gop-main.yml` | `main` đổi, PR mở hoặc đẩy thêm | Tự gộp `main` vào các PR đang mở, báo PR đụng (`docs/gop-main.md`). |
 | `itch.yml` | chỉ khi bấm Run workflow (hoặc tag `v*` khi biến `ITCH_TU_DONG` = `co`), xem `docs/itch.md` | Đẩy bản web/Windows/Mac lên itch.io; chỉ chạy khi Sang đồng ý. |
 | `so-anh.yml` | mỗi PR (trừ PR chỉ sửa `.md`, `docs/`) | Chụp cùng góc trên main và trên PR (mỗi ngày: trên cao, lò bánh, chỗ khách mỗi đơn; bếp; màn hình chính), khung đỏ quanh vùng khác. Trang xem ở artifact `so-anh`, bình luận trên PR khi có góc khác. Chỉ báo, không đỏ (`docs/so-anh.md`). |
-| `clip-doc.yml` | `main` đổi, hoặc bấm Run workflow | Quay 5 clip dọc 9:16 từ game thật (leo, giao, mưa trên mái, Mực, chạy phố) cho devlog, để ở artifact `clip-doc`. Không đăng gì; Sang chọn rồi tự đăng (`tools/clip_doc/README.md`). |
 | `tu-merge.yml` | PR được gắn nhãn `duyet` (Sang gắn, hoặc luồng Claude gắn sau khi Sang duyệt trên chat), và mỗi khi một workflow của PR chạy xong | Merge các PR có nhãn `duyet` khi mọi check xanh (đỏ thì chờ). Có secret `TU_MERGE_TOKEN` hoặc `GOP_MAIN_TOKEN` thì merge bằng token đó; không có thì merge bằng `GITHUB_TOKEN` rồi gọi lại các workflow của `main` (riêng bước thay zip `ban-moi-nhat` của `desktop.yml` chỉ chạy khi có token). |
 
 - Thêm test mới thì thêm một dòng chạy nó vào job macOS trong `desktop.yml` (cuối danh sách, trước bước kiểm log), dạng `timeout 300 ~/godot/godot ... 2>&1 | python3 tools/loc_log.py | tee <ten>.log` kèm `grep -q "<CHU OK>" <ten>.log`.
@@ -166,3 +165,17 @@ Từ PR #133 (H1, 23/10) mỗi ngày có file riêng, HUD tách thành mảnh, b
 
 - Thư mục dùng chung của dự án `/mnt/project-files/`: phác thảo, bản giao (`BAN-GIAO.md`), kế hoạch (`thiet-ke-man/`, `cai-thien/KE-HOACH.md`). Đây không phải repo; file nặng (render, .blend) để ở đó, không đưa vào git.
 - Trang duyệt (artifact) đã duyệt là nguồn đúng cho hình dáng, màu, số đo. Khi code khác trang duyệt, sửa code hoặc hỏi Sang, không tự đổi thiết kế.
+
+## Luật GitHub an toàn (Sang chốt 30/10/2026)
+
+Tài khoản sangdaden từng bị GitHub khóa hai lần (28/10 và 30/10), nhiều khả năng vì dùng GitHub chứa video cho Metricool và vì hoạt động tự động dồn dập. Mọi phiên Claude làm việc với repo này phải theo các luật sau.
+
+- **G1. Không để media trên GitHub cho dịch vụ ngoài.** Không dùng raw.githubusercontent, releases, GitHub Pages (kể cả tên miền riêng) hay jsDelivr làm nơi chứa video, ảnh cho Metricool hay mạng xã hội. Media tải thẳng lên Metricool hoặc Google Drive.
+- **G2. Một người, một tài khoản.** Đang bị khóa thì không tạo tài khoản mới, không thử đăng nhập nhiều lần, chỉ kháng nghị trong một ticket.
+- **G3. Mỗi lúc chỉ một luồng đẩy code.** Các luồng khác giữ thay đổi thành file patch trong thư mục dự án. Mỗi giờ tối đa 1 PR mới, mỗi ngày khoảng 10 lần đẩy.
+- **G4. 48 giờ yên lặng sau khi mở khóa.** Chỉ Sang dọn dẹp bằng tay. Không phiên Claude, lịch hẹn hay đẩy code nào trong thời gian này.
+- **G5. Lịch hẹn đụng GitHub phải giãn ra.** Khi bị khóa thì tạm dừng hết. Sau khi mở lại, bật từng cái, mỗi ngày một cái, không để hai lịch đẩy code trong cùng một giờ.
+- **G6. Actions chỉ để build, test, deploy.** Không render clip mạng xã hội trong Actions. Bot tự chơi chỉ chạy khi có PR, không chạy theo giờ. Dùng `concurrency` với `cancel-in-progress: true`, giữ artifact 1–3 ngày.
+- **G7. Repo chỉ chứa code và asset game cần thiết.** `*.mp4`, `*.mov` và thư mục render xem trước nằm trong `.gitignore`. File trên 10 MB phải hỏi Sang trước.
+
+Clip dọc (PH4) không còn quay trên Actions (G6): chạy `tools/clip_doc/lam_clip.sh` trên máy Claude hoặc máy Sang, rồi tải clip thẳng lên Metricool hoặc Google Drive.

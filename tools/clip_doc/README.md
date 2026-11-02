@@ -24,7 +24,7 @@ python3 tools/clip_doc/dung_clip.py /tmp/clip-doc/avi /tmp/clip-doc
 Ra `<clip>.mp4` (1080x1920, H.264, AAC, -16 LUFS), ảnh bìa `<clip>.jpg` và `index.html` để xem cả bộ.
 Thư mục ra để **ngoài project** (clip không được vào `index.pck`).
 
-CI: workflow `clip-doc.yml` chạy mỗi lần `main` đổi (và nút Run workflow, chọn được clip), để clip ở artifact `clip-doc` 30 ngày.
+Không quay trên CI nữa (luật G6, 30/10/2026): chạy lệnh trên ở máy Claude hoặc máy Sang, rồi tải clip thẳng lên Metricool hoặc Google Drive, không đưa clip lên GitHub (G1).
 
 ## Sửa clip
 

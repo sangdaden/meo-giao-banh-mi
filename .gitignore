@@ -7,3 +7,7 @@ export/
 *.tmp
 __pycache__/
 bot_ca_tuan/
+
+# Media không vào repo (luật G7)
+*.mp4
+*.mov

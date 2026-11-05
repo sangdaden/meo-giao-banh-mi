@@ -326,4 +326,9 @@ const EN := {
 	"[E] Đưa bánh cho Bé Na": "[E] Give the bread to Bé Na",
 	"Sách tháng 11 của khu phố: Tư duy nhanh và chậm (Kahneman)": "The neighborhood's book for November: Thinking, Fast and Slow (Kahneman)",
 	"Anh Mark tầng 3 làm video về AI, ghé markhocai.com xem nha!": "Mark from the 3rd floor makes videos about AI. Drop by markhocai.com!",
+	"Giao": "Give",
+	"Meo": "Meow",
+	"Tự đi": "Auto",
+	"Làm": "Do",
+	"Chạm giữ màn hình để bỏ qua": "Touch and hold to skip",
 }

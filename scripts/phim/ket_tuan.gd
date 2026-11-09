@@ -97,7 +97,7 @@ func _story() -> void:
 	bo.place(B(-0.5, -2.4), _yaw(-60))
 	bo.go(B(2.2, -1.55), 3.4)
 	p.cut(B(-0.6, -5.6, 1.5), B(2.4, -1.0, 1.1), 30)
-	p.say("Cô Ba", "Về rồi đó hả! Cô nghe nói con được huy chương!", 3.8, "coba_hello")
+	p.say("Cô Ba", "Về rồi đó hả! Con mèo giữ bí mật giỏi nhất xóm!", 3.8, "coba_hello")  # chuyện tuần R2
 	if not await _w(4.4, g):
 		return
 	p.fade(1.0, 0.5)
@@ -132,7 +132,7 @@ func _story() -> void:
 	bo.pose("ngoi_yen")
 	p.cut(B(-0.75, -0.6, 1.3), B(-0.15, 1.9, 1.35), 30)
 	p.move(B(-0.35, -0.6, 1.25), B(0.85, 1.9, 1.15), 30, 7.0)
-	p.say("Cô Ba", "Treo chỗ này cho cả xóm thấy nè.", 3.2, "coba_ok")
+	p.say("Cô Ba", "Bảng của ông Sáu treo trên cửa, thiệp của cả xóm treo cạnh Bơ.", 3.6, "coba_ok")
 	if not await _w(1.2, g):
 		return
 	# huy chương rời cổ Bơ, lên móc giữa bảng

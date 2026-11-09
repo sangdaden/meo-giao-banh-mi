@@ -80,6 +80,8 @@ const LINES := {
 	"5_cam": "Mũi tên đỏ trên đầu chỉ chỗ khách. Tới vòng vàng thì bấm E đưa bánh.",
 	"5_nag": "Cổng sau ở góc bên kia kìa, coi mũi tên đỏ đó.",
 	"5_chutu": "Bánh còn nóng hổi! Cảm ơn Bơ nha.",
+	# chuyện tuần R2: người đầu tiên biết bí mật nháy mắt với Bơ (scripts/chuyen/kich_ban.gd)
+	"5_chutu_2": "Mèo mới của Cô Ba hả? Tới đúng tuần này là hay lắm à nghen.",
 	"5_ok": "Giao kịp giờ, còn dư giờ, bánh còn nguyên là đủ ba sao đó.",
 	"ket": "Xong bài rồi! Lò nóng rồi đó, vô làm mẻ bánh đầu tiên với cô nha.",
 }
@@ -342,6 +344,8 @@ func _on_delivered(_kind: String) -> void:
 	_say_as("Chú Tư", LINES["5_chutu"], 3.0)
 	hud.show_toast("★ ★ ★", 2.5)
 	get_tree().create_timer(0.1 if _autotest else 3.0).timeout.connect(func():
+		_say_as("Chú Tư", LINES["5_chutu_2"], 3.6)
+		await get_tree().create_timer(0.1 if _autotest else 3.6).timeout
 		_say("5_ok", 4.5)
 		get_tree().create_timer(0.1 if _autotest else 4.5).timeout.connect(_finish))
 

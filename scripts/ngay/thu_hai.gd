@@ -7,6 +7,7 @@ const DATA := {
 	"nodes": [
 		"res://scripts/muc_tuan.gd",
 		"res://scripts/meo_hang_xom.gd",
+		"res://scripts/chuyen/chuyen.gd",  # chuyện tuần "Bí mật cho Cô Ba" (R2), tự gỡ ở ngày không có trong kịch bản
 	],
 	"title": "Mẻ bánh đầu tiên",
 	"blurb": "Làm bánh trong bếp Cô Ba rồi giao 5 đơn. Đơn cuối phải lách qua Chó Mực ở hẻm 42.",

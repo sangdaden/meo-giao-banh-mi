@@ -54,7 +54,7 @@ var san: SanThuong
 var cats := {}                ## id -> MeoNpc
 var contests: Array[TroThi] = []
 var medals := {}              ## id trò -> {title, rank, note}
-var phase := "sang"           ## sang | hoi | trao | tong_ket
+var phase := "sang"           ## sang | hoi | trao | bat_ngo | tong_ket
 var current := -1
 var _decor: Node3D
 var _stage: Node3D
@@ -340,7 +340,8 @@ func _process(delta: float) -> void:
 		"trao":
 			_ceremony_t += delta
 			if _ceremony_t > (1.0 if _autotest else 5.0):
-				_finish_week()
+				phase = "bat_ngo"  # buổi bất ngờ mừng lò bánh 30 năm (chuyện tuần R2), xong mới tổng kết
+				BatNgo.chay(self, _finish_week)
 		"tong_ket":
 			if _autotest and _summary and _summary.is_finished():
 				var ok := medals.size() == 5 and medals.values().all(func(m): return int(m.rank) >= 1 and int(m.rank) <= 4)

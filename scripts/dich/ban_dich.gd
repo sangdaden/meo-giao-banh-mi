@@ -16,6 +16,7 @@ const BANG := [
 	preload("res://scripts/dich/en_bep.gd"),
 	preload("res://scripts/dich/en_ngay.gd"),
 	preload("res://scripts/dich/en_hoi_meo.gd"),
+	preload("res://scripts/dich/en_chuyen.gd"),
 ]
 
 ## Chữ có dấu tiếng Việt: dùng để dò câu chưa dịch.

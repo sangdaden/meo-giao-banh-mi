@@ -9,6 +9,7 @@ const DATA := {
 	"nodes": ["res://scripts/thu_tu.gd"],
 	"title": "Mưa chiều",
 	"blurb": "Mưa lớn, đường ngập dần. Đi đường sân thượng, giữ thăng bằng trên ván, tránh xe tạt nước và đàn bồ câu.",
+	"moi": "Mưa lớn, đường ngập dần: đi đường sân thượng, giữ thăng bằng trên ván, núp mưa dưới mái hiên.",  # GC5: màn kết ngày trước nhắc ngày này có gì mới
 	"intro": "Cô Ba: \"Mưa lớn rồi Bơ ơi, bánh cô bọc ni-lông kỹ rồi. Đường lớn sắp ngập, lên sân thượng mà đi cho khô nha!\"",
 	"time_mult": 1.0,
 	"extras": {"rain": true, "rooftop": true, "pigeons": true},

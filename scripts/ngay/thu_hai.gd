@@ -7,6 +7,7 @@ const DATA := {
 	"nodes": [
 		"res://scripts/muc_tuan.gd",
 		"res://scripts/meo_hang_xom.gd",
+		"res://scripts/bo_theo_ngay.gd",  # U2: đứng yên thì Bơ làm động tác riêng của ngày
 	],
 	"title": "Mẻ bánh đầu tiên",
 	"blurb": "Làm bánh trong bếp Cô Ba rồi giao 5 đơn. Đơn cuối phải lách qua Chó Mực ở hẻm 42.",

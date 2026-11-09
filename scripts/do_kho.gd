@@ -132,6 +132,7 @@ const EASY := {
 	"rac_vun_em": 10.0,          # ăn xong thì quen hơi Bơ: 10 s đi sát không bay (Thử thách 4)
 	"chao_mao_r": 4.0,           # đứng cách lồng chào mào 4 m (cộng độ cao lồng) bấm Q là chim hót đáp (Thử thách 2,5)
 	"chim_ban_cong": 3,          # số lồng ban công có chim thật (cả hai chế độ 3)
+	"dung_yen_giay": 6.0,        # U2: đứng yên 6 s thì Bơ làm động tác riêng của ngày (cả hai chế độ 6; chỗ riêng ngắn hơn theo tỉ lệ)
 }
 
 

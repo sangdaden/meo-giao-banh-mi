@@ -402,6 +402,7 @@ func _build_puddles() -> void:
 
 ## Tạnh mưa: tắt hạt mưa, Chú Tư dọn bạt.
 func _clear_sky(instant: bool) -> void:
+	AmThanhNgay.phat_rieng("", "street", 0.0 if instant else 3.0)  # AT2: tạnh mưa thì về tiếng phố
 	if thoi_tiet:
 		for n in ["rain", "splash"]:
 			var p: GPUParticles3D = thoi_tiet.get(n)

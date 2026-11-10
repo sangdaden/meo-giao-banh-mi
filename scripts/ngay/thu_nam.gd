@@ -21,4 +21,6 @@ const DATA := {
 	# Bảng "Cách chơi" trong menu Esc: phím chung + các dòng này (scripts/ui/chu_huong_dan.gd)
 	"help": [["E", "giao bánh"], ["Space", "bám mép, leo lên · lùi ra để buông"], ["Space", "đạp tường trong khe hẹp"], ["Q", "kêu meo gọi khách"]],
 	"help_note": "Nhảy về phía mép tường là Bơ tự bám. Đơn 5 lên tầng 5 chung cư: đi cầu thang, đợi thang máy hay leo ngoài tường đều được.",
+	# Âm thanh của ngày (AT2, scripts/am_thanh_ngay.gd): phố buổi trưa, xe cộ đông
+	"amb": "street",
 }

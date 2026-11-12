@@ -3,7 +3,7 @@ extends Node
 ## Giữ khung hình đều trên máy yếu: đo FPS, nếu thấp hơn mục tiêu một lúc thì hạ dần từng bậc
 ## (giảm độ phân giải 3D, rút ngắn tầm bóng đổ, cuối cùng tắt bóng). Không bao giờ nâng lại
 ## trong lượt chơi và không ghi vào cài đặt của người chơi, nên vào lại màn là thử lại từ đầu.
-## Chỉ bật trên bản web (máy nào cũng có thể mở trình duyệt); bản PC chỉnh tay trong Cài đặt.
+## Chỉ bật trên bản web và app Android (máy nào cũng có thể mở trình duyệt / điện thoại yếu); bản PC chỉnh tay trong Cài đặt.
 ## Thử trên máy tính: chạy với tham số -- --giu-fps
 
 const WARMUP := 3.0     ## giây đầu bỏ qua (nạp shader, dựng cảnh)
@@ -18,7 +18,7 @@ var _sun: DirectionalLight3D
 
 
 static func wanted() -> bool:
-	return OS.has_feature("web") or "--giu-fps" in OS.get_cmdline_user_args()
+	return OS.has_feature("web") or OS.has_feature("android") or "--giu-fps" in OS.get_cmdline_user_args()
 
 
 func setup(sun: DirectionalLight3D) -> void:

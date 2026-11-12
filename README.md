@@ -18,6 +18,8 @@ Làm việc trên repo (luật độ khó, ngân sách, cách chạy test, bản
 
 Mở bằng Chrome, Edge hoặc Firefox trên máy tính. Lần đầu tải khoảng 65 MB. Bấm vào khung game để camera bắt chuột; Esc trả chuột lại. Trên trình duyệt, chui là **C**, rón rén là **Z**.
 
+**Trên điện thoại, máy tính bảng:** mở cùng link bằng Chrome (Android) hoặc Safari (iPhone), xoay ngang máy. Ngón trái kéo để đi (đẩy sát mép là chạy nhanh), ngón phải vuốt để xoay camera, các nút tròn bên phải là Nhảy, Giao, Chui, Meo, Tự đi (trong bếp: Làm, Tự đi). Muốn có biểu tượng như ứng dụng: Chrome chọn menu ⋮ > **Thêm vào màn hình chính**, Safari chọn nút Chia sẻ > **Thêm vào MH chính**; mở từ biểu tượng đó thì game chiếm cả màn hình.
+
 Bản mới nhất của nhánh `main` (đổi sau mỗi lần gộp PR, có thể còn lỗi, lưu game riêng): **https://meo.markhocai.com/moi-nhat/**. Link gốc chỉ đổi khi Sang đưa bản mới lên; cách làm ở [docs/ban-web.md](docs/ban-web.md). Bản web dùng renderer Compatibility (WebGL 2) nên ánh sáng hơi khác bản chạy trong Godot.
 
 Khi có bản mới, trang hiện dải "Có bản mới" ở màn hình chính hoặc bảng kết quả cuối ca, không bao giờ giữa lúc đang chơi, và chỉ tải lại khi bấm **Tải bản mới** (`web/update-check.js`).

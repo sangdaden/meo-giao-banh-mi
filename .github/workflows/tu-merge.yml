@@ -36,7 +36,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           MERGE_TOKEN: ${{ secrets.TU_MERGE_TOKEN || secrets.GOP_MAIN_TOKEN }}
           R: ${{ github.repository }}
-          CHAY_LAI: "gop-main.yml pages.yml desktop.yml bot-ca-tuan.yml hieu-nang.yml clip-doc.yml"
+          CHAY_LAI: "gop-main.yml pages.yml desktop.yml bot-ca-tuan.yml hieu-nang.yml"
           MOI_GAN: ${{ github.event_name == 'pull_request' && '1' || '0' }}
         run: |
           set -uo pipefail

@@ -4,21 +4,25 @@
 # ten_thu_muc_luu: đặt thì bản này lưu game riêng (user://) để không đụng file lưu của bản khác cùng tên miền
 # (bản /moi-nhat/ dùng "meo-giao-banh-mi-moi-nhat", bản ổn định ở link gốc để trống như cũ).
 # Cần biến GODOT (mặc định ~/godot/godot) và GITHUB_SHA (mã bản, ghi vào version.json cho web/update-check.js).
+# BAN_DEMO=co: bản demo chỉ có Thứ Hai + Thứ Ba (W2; Days.demo đọc ProjectSettings "meo/ban_demo").
 set -euo pipefail
 out="$1"
 luu="${2:-}"
 godot="${GODOT:-$HOME/godot/godot}"
 sha="${GITHUB_SHA:-$(git rev-parse HEAD)}"
-if [ -n "$luu" ]; then
+if [ -n "$luu" ] || [ "${BAN_DEMO:-}" = co ]; then
   cp project.godot /tmp/project.godot.goc
   trap 'cp /tmp/project.godot.goc project.godot' EXIT
-  python3 - "$luu" <<'PY'
+  python3 - "$luu" "${BAN_DEMO:-}" <<'PY'
 import sys
 p = "project.godot"
 s = open(p, encoding="utf-8").read()
-them = 'config/use_custom_user_dir=true\nconfig/custom_user_dir_name="%s"\n' % sys.argv[1]
-assert "[application]\n" in s
-s = s.replace("[application]\n", "[application]\n\n" + them, 1)
+if sys.argv[1]:
+    them = 'config/use_custom_user_dir=true\nconfig/custom_user_dir_name="%s"\n' % sys.argv[1]
+    assert "[application]\n" in s
+    s = s.replace("[application]\n", "[application]\n\n" + them, 1)
+if sys.argv[2] == "co":
+    s = s.rstrip("\n") + "\n\n[meo]\n\nban_demo=true\n"
 open(p, "w", encoding="utf-8").write(s)
 PY
 fi

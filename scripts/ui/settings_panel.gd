@@ -109,6 +109,7 @@ func _ready() -> void:
 	_segment_row(right, "Khoảnh khắc giao bánh", "khoanh_khac", [["Đầy đủ", 0], ["Ngắn", 1], ["Tắt", 2]])
 	_switch_row(right, "Mèo chỉ đường khi lạc", "meo_chi_duong")
 	_switch_row(right, "Chế độ thử thách (giờ gấp, phạt nặng)", "thu_thach")
+	_switch_row(right, "Mở hết các ngày (cho người chơi thử)", "mo_het_ngay")
 	_segment_row(right, "Ngôn ngữ · Language", "ngon_ngu", [["Tiếng Việt", "vi"], ["English", "en"]], _apply_lang)
 
 	var foot := HBoxContainer.new()

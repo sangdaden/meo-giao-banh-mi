@@ -21,6 +21,7 @@ class_name Days
 ##   delivery shelf | shutter | loft | scene, errand_item "da": Thứ Năm (scripts/thu_nam.gd)
 ## Khóa của một ngày:
 ##   title, blurb, intro, time_mult, extras, orders; orders_hard (nếu có) thay cho orders ở Chế độ thử thách
+##   moi: một câu "ngày này có gì mới", màn kết ngày trước nhắc (GC5, scripts/ui/nhac_ket_ngay.gd)
 ##   mode: "free" (ngày tự do không đơn, Thứ Bảy) | "festival"; favours: việc nhờ của ngày tự do
 ##   nodes: script node riêng của ngày, main.gd thêm vào cảnh phố (node tự gỡ nếu không phải ngày của nó).
 ##          Node có thể có: begin() (ngày tự do bắt đầu), resume_day() -> bool (quay về giữa ngày từ cảnh khác).
@@ -30,8 +31,12 @@ class_name Days
 
 ## Thứ tự các ngày trong tuần
 const ORDER := ["thu_hai", "thu_ba", "thu_tu", "thu_nam", "thu_sau", "thu_bay", "chu_nhat"]
-## Bản chơi thử: mở sẵn mọi ngày đã làm. false thì ngày sau chỉ mở khi đã chơi xong ngày trước.
-const PLAYTEST_UNLOCK_ALL := true
+## GC1: bản phát hành mở ngày theo thứ tự (ngày sau mở khi đã chơi xong ngày trước ít nhất một lần).
+## Người chơi thử bật Cài đặt > "Mở hết các ngày" (GameSettings "mo_het_ngay") hoặc chạy với cờ -- --mo-het-ngay.
+const PLAYTEST_UNLOCK_ALL := false
+## W2: bản demo chỉ có các ngày này (cộng màn dạy chơi). Bật bằng ProjectSettings "meo/ban_demo"
+## (tools/web/xuat_web.sh với BAN_DEMO=co), tính năng xuất "demo", hoặc cờ -- --demo.
+const DEMO_DAYS := ["thu_hai", "thu_ba"]
 
 ## Tên hiển thị của ghi chú món
 const NOTE_NAMES := {"khong_ot": "không ớt", "them_pate": "thêm pate", "nhieu_do_chua": "nhiều đồ chua"}
@@ -112,9 +117,28 @@ static func orders(id: String) -> Array:
 	return get_day(id).orders
 
 
-## Ngày đã làm xong phần chơi (có đơn, hoặc ngày tự do không đơn như Thứ Bảy).
+## Ngày đã làm xong phần chơi (có đơn, hoặc ngày tự do không đơn như Thứ Bảy). Bản demo: chỉ DEMO_DAYS.
 static func playable(id: String) -> bool:
+	if demo() and not id in DEMO_DAYS and id in ORDER:
+		return false
 	return not data(id).get("orders", []).is_empty() or is_free(id)
+
+
+## Bản demo Thứ Hai + Thứ Ba (W2).
+static func demo() -> bool:
+	return bool(ProjectSettings.get_setting("meo/ban_demo", false)) or OS.has_feature("demo") \
+		or "--demo" in OS.get_cmdline_user_args()
+
+
+## Ngày có trong bản đầy đủ nhưng bản demo khóa lại.
+static func full_only(id: String) -> bool:
+	return demo() and id in ORDER and not id in DEMO_DAYS
+
+
+## Người chơi thử: mở hết các ngày đã làm (Cài đặt hoặc cờ -- --mo-het-ngay).
+static func unlock_all() -> bool:
+	return PLAYTEST_UNLOCK_ALL or bool(GameSettings.get_value("mo_het_ngay")) \
+		or "--mo-het-ngay" in OS.get_cmdline_user_args()
 
 
 ## Ngày tự do: không đơn giao, không đồng hồ (Thứ Bảy dạo phố, scripts/thu_bay.gd).
@@ -127,14 +151,25 @@ static func favours(id: String) -> Array:
 	return data(id).get("favours", [])
 
 
-## Ngày chơi được và đã mở: bản chơi thử mở hết; không thì phải chơi hết ngày trước ít nhất một lần.
+## Ngày chơi được và đã mở: Thứ Hai luôn mở; ngày sau mở khi ngày chơi được liền trước đã chơi xong một lần
+## (cả ca hoặc chỉ giao). "Mở hết các ngày" thì mở mọi ngày đã làm. Ngày ngoài tuần luôn mở.
 static func unlocked(id: String) -> bool:
 	if not playable(id):
 		return false
 	var i := ORDER.find(id)
-	if PLAYTEST_UNLOCK_ALL or i <= 0:
+	if i <= 0 or unlock_all():
 		return true
-	return int(GameState.get_day("so_lan_choi", 0, ORDER[i - 1])) > 0
+	var prev := previous_playable(id)
+	return prev == "" or int(GameState.get_day("so_lan_choi", 0, prev)) > 0
+
+
+## Ngày chơi được liền trước id trong tuần ("" nếu không có), bỏ qua ngày chưa làm.
+static func previous_playable(id: String) -> String:
+	var i := ORDER.find(id)
+	for j in range(i - 1, -1, -1):
+		if playable(ORDER[j]):
+			return ORDER[j]
+	return ""
 
 
 ## Ngày kế tiếp trong tuần ("" nếu là Chủ Nhật).

@@ -8,6 +8,7 @@ const DATA := {
 	"nodes": ["res://scripts/thu_nam.gd"],
 	"title": "Lên tầng năm",
 	"blurb": "Trưa oi, cả ngày leo trèo: bám mép lên nóc tủ báo, đạp tường qua khe hông tiệm xe, rồi leo chung cư lên tầng 5 cho Bé Na.",
+	"moi": "Leo trèo cả ngày: bám mép, bật tường trong khe hẹp, leo ống nước lên tầng 5 cho Bé Na.",  # GC5: màn kết ngày trước nhắc ngày này có gì mới
 	"intro": "Cô Ba: \"Trưa nay nóng quá Bơ ơi. Đơn chót lên tận tầng năm cho Bé Na, leo nổi không con?\"",
 	"time_mult": 1.0,
 	"extras": {"climb_all_day": true, "noon": true},
@@ -21,4 +22,6 @@ const DATA := {
 	# Bảng "Cách chơi" trong menu Esc: phím chung + các dòng này (scripts/ui/chu_huong_dan.gd)
 	"help": [["E", "giao bánh"], ["Space", "bám mép, leo lên · lùi ra để buông"], ["Space", "đạp tường trong khe hẹp"], ["Q", "kêu meo gọi khách"]],
 	"help_note": "Nhảy về phía mép tường là Bơ tự bám. Đơn 5 lên tầng 5 chung cư: đi cầu thang, đợi thang máy hay leo ngoài tường đều được.",
+	# Âm thanh của ngày (AT2, scripts/am_thanh_ngay.gd): phố buổi trưa, xe cộ đông
+	"amb": "street",
 }

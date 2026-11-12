@@ -132,6 +132,8 @@ const EASY := {
 	"rac_vun_em": 10.0,          # ăn xong thì quen hơi Bơ: 10 s đi sát không bay (Thử thách 4)
 	"chao_mao_r": 4.0,           # đứng cách lồng chào mào 4 m (cộng độ cao lồng) bấm Q là chim hót đáp (Thử thách 2,5)
 	"chim_ban_cong": 3,          # số lồng ban công có chim thật (cả hai chế độ 3)
+	# Chỗ nằm ưa thích (U1, scripts/cho_nam.gd)
+	"cho_nam_giay": 3.0,         # nằm trong vệt nắng 3 s là ghi vào Sổ (Thử thách 6)
 }
 
 

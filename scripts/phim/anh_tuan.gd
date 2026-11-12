@@ -4,10 +4,14 @@ class_name AnhTuan
 ## Thứ Bảy dùng ảnh Sang chụp bằng phím P (Sổ hàng xóm) nếu có; Chủ Nhật là ảnh chung Hội mèo.
 ## Ảnh 256×192 ghi ra user://anh_tuan/<ngày>.jpg (bản web: ổ lưu của trình duyệt) và giữ trong bộ nhớ phiên.
 ##
+## U3: ngày nào Sang tự chụp bằng phím P (ChupAnh) thì ảnh đó thay ảnh tự động, ảnh chụp sau cùng được giữ;
+## ngày đó ghi vào khóa chung "anh_tuan_tu_chup" để lần chơi sau ảnh tự động không đè lên.
+##
 ## main.gd chỉ cần AnhTuan.setup(self) sau khi dựng camera.
 
 const DIR := "user://anh_tuan"
 const SIZE := Vector2i(256, 192)
+const SAVE_KEY := "anh_tuan_tu_chup"
 const AFTER := 0.35   ## chụp sau khi giao chừng này giây: Bơ đang trong dáng giao, khách đang nhận
 
 static var photos := {}
@@ -22,8 +26,25 @@ static func setup(main: Node) -> void:
 	main.order_delivered.connect(func(_i: int, _o: Dictionary):
 		main.get_tree().create_timer(AFTER).timeout.connect(func():
 			var m: Node = ref.get_ref()
-			if m:
+			if m and not tu_chup(GameState.day):
 				chup(m, GameState.day)))
+
+
+## true nếu ảnh của ngày là ảnh Sang tự chụp (ảnh tự động không đè).
+static func tu_chup(day: String) -> bool:
+	return day in (GameState.get_global(SAVE_KEY, []) as Array)
+
+
+## Ảnh tự chụp bằng phím P lên bảng tuần cho ngày `day`.
+static func keep_tu_chup(day: String, img: Image) -> void:
+	if day == "" or img == null or img.is_empty():
+		return
+	keep(day, img)
+	if not tu_chup(day):
+		var list: Array = (GameState.get_global(SAVE_KEY, []) as Array).duplicate()
+		list.append(day)
+		GameState.set_global(SAVE_KEY, list)
+		GameState.write_save()
 
 
 ## Chụp khung hình camera đang dùng (không có HUD) thành ảnh của ngày `day`.

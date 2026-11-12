@@ -8,6 +8,7 @@ const DATA := {
 	"title": "Hội mèo",
 	"mode": "festival",
 	"blurb": "Sáng mang khay bánh mì mini tới công viên. Tối Hội mèo: đua mái nhà, nhảy thùng, trốn tìm, giao tiếp sức, thi trang phục. Không ai thua!",
+	"moi": "Hội mèo ở công viên: đua mái nhà, nhảy thùng, trốn tìm, thi trang phục. Không ai thua!",  # GC5: màn kết ngày trước nhắc ngày này có gì mới
 	"intro": "Cô Ba: \"Tối nay hội mèo đó Bơ! Mình làm khay bánh mì mini mang tới góp vui nha.\"",
 	"time_mult": 1.0,
 	"extras": {"festival": true},

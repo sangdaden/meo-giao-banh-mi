@@ -8,6 +8,7 @@ const DATA := {
 	"nodes": ["res://scripts/thu_nam.gd"],
 	"title": "Lên tầng năm",
 	"blurb": "Trưa oi, cả ngày leo trèo: bám mép lên nóc tủ báo, đạp tường qua khe hông tiệm xe, rồi leo chung cư lên tầng 5 cho Bé Na.",
+	"moi": "Leo trèo cả ngày: bám mép, bật tường trong khe hẹp, leo ống nước lên tầng 5 cho Bé Na.",  # GC5: màn kết ngày trước nhắc ngày này có gì mới
 	"intro": "Cô Ba: \"Trưa nay nóng quá Bơ ơi. Đơn chót lên tận tầng năm cho Bé Na, leo nổi không con?\"",
 	"time_mult": 1.0,
 	"extras": {"climb_all_day": true, "noon": true},

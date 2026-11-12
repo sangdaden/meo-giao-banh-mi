@@ -72,6 +72,7 @@ func _setup() -> void:
 		return
 	ui = HudChuyenScript.new()
 	add_child(ui)
+	add_child(DoChuyen.new())  # thư ở miệng Bơ, báo Chú Tư, bảng đồng (scripts/chuyen/do_chuyen.gd)
 	main.order_delivered.connect(_on_delivered)
 	main.order_picked_up.connect(_on_picked_up)
 	var oi: int = int(main.get("order_index"))

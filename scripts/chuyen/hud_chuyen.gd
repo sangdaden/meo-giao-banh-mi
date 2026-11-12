@@ -157,7 +157,12 @@ func noi(ai: String, cau: String, kind: String, anh := "") -> void:
 	_pic.visible = anh != "" and ResourceLoader.exists(path)
 	if _pic.visible:
 		_pic.texture = load(path)
-		_pic.custom_minimum_size = Vector2(300, 190) if anh == "tranh_lon" else Vector2(200, 142)
+		if anh == "tranh_lon":
+			_pic.custom_minimum_size = Vector2(300, 190)
+		elif anh.begins_with("bao_"):
+			_pic.custom_minimum_size = Vector2(150, 200)  # trang nhất báo, khổ đứng
+		else:
+			_pic.custom_minimum_size = Vector2(200, 142)
 	_txt.custom_minimum_size.x = 340.0 if _pic.visible else 560.0
 
 

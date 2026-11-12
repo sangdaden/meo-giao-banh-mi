@@ -312,6 +312,9 @@ jobs:
           # Chuyện tuần "Bí mật cho Cô Ba" (R2): kịch bản đủ câu Việt + Anh, thư Hùng–Mây, phụ đề
           timeout 300 ~/godot/godot --headless --path . -s tests/test_chuyen.gd 2>&1 | python3 tools/loc_log.py | tee chuyen.log
           grep -q "CHUYEN TEST OK" chuyen.log
+          # Bơ phản ứng theo ngày (U2): đứng yên thì Bơ làm động tác riêng của ngày, bấm phím là ngắt
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_bo_theo_ngay.gd 2>&1 | python3 tools/loc_log.py | tee bo_theo_ngay.log
+          grep -q "BO THEO NGAY TEST OK" bo_theo_ngay.log
           # Log sạch (KT2): lỗi Godot ngoài tools/loi_duoc_phep.txt làm đỏ (autotest từng ngày: bot-ca-tuan.yml)
           python3 tools/loc_log.py --kiem *.log
           mkdir -p export

@@ -309,6 +309,9 @@ jobs:
           # Lưu ảnh tuần (Vũ Trụ Mark B1) và phễu người chơi bản web (P1)
           timeout 300 ~/godot/godot --headless --path . -s tests/test_anh_tuan_luu.gd 2>&1 | python3 tools/loc_log.py | tee anh_tuan_luu.log
           grep -q "ANH TUAN LUU TEST OK" anh_tuan_luu.log
+          # Chuyện tuần "Bí mật cho Cô Ba" (R2): kịch bản đủ câu Việt + Anh, thư Hùng–Mây, phụ đề
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_chuyen.gd 2>&1 | python3 tools/loc_log.py | tee chuyen.log
+          grep -q "CHUYEN TEST OK" chuyen.log
           # Chỗ nằm ưa thích (U1) và chụp ảnh mọi ngày (U3): vệt nắng ghi vào sổ, đồng hồ dừng khi chụp
           timeout 300 ~/godot/godot --headless --path . -s tests/test_cho_nam.gd 2>&1 | python3 tools/loc_log.py | tee cho_nam.log
           grep -q "CHO NAM TEST OK" cho_nam.log

@@ -47,7 +47,7 @@ static var save_from_newer := false
 ##   2. tăng SAVE_VERSION và thêm một hàm _len_v<N>() vào cuối danh sách bước bên dưới (bước rỗng cũng được),
 ##   3. chạy `godot --headless --path . -s tests/test_luu_game.gd -- --ghi-mau` TRƯỚC khi tăng số
 ##      để giữ một file mẫu của phiên bản cũ trong tests/luu_game_cu/.
-const SAVE_VERSION := 2
+const SAVE_VERSION := 3
 const VERSION_SECTION := "luu_game"
 const VERSION_KEY := "phien_ban"
 ## Mọi khóa trong file lưu: tên → [kiểu, "chung" hay "ngay", phiên bản thêm vào].
@@ -70,8 +70,9 @@ const SAVE_KEYS := {
 	"ban_bon_chan": [TYPE_ARRAY, "chung", 0],
 	"muc_quen": [TYPE_ARRAY, "chung", 0],
 	"ngu_trua_muc": [TYPE_INT, "chung", 0],
-	"cho_nam": [TYPE_ARRAY, "chung", 2],
-	"anh_tuan_tu_chup": [TYPE_ARRAY, "chung", 2],
+	"thu_hung_may": [TYPE_ARRAY, "chung", 2],  # chuyện tuần L3: bước thư Hùng–Mây đã qua (scripts/chuyen/chuyen.gd)
+	"cho_nam": [TYPE_ARRAY, "chung", 3],
+	"anh_tuan_tu_chup": [TYPE_ARRAY, "chung", 3],
 	# [<mã ngày>]: điểm, kỷ lục, đồ nhặt của từng ngày
 	"tem": [TYPE_ARRAY, "ngay", 0],
 	"sao_cao_nhat": [TYPE_INT, "ngay", 0],
@@ -143,6 +144,7 @@ static func migrate(cf: ConfigFile) -> void:
 		match v:
 			0: _len_v1(cf)
 			1: _len_v2(cf)
+			2: _len_v3(cf)
 		v += 1
 		cf.set_value(VERSION_SECTION, VERSION_KEY, v)
 	_clean(cf)
@@ -182,9 +184,14 @@ static func _len_v1(cf: ConfigFile) -> void:
 			cf.set_value("chung", "ban_bon_chan", (list as Array) + ["muc"])
 
 
-## 1 → 2 (U1, U3): thêm "cho_nam" (chỗ nằm ưa thích đã tìm) và "anh_tuan_tu_chup" (ngày có ảnh tự chụp
-## trên bảng tuần), cả hai mặc định rỗng. Ai đã ngủ trên mái tôn Thứ Bảy thì chưa biết được, nên không bù.
+## 1 → 2: thêm khóa thu_hung_may (chuyện tuần, thư Hùng–Mây), mặc định rỗng nên không cần chuyển gì.
 static func _len_v2(_cf: ConfigFile) -> void:
+	pass
+
+
+## 2 → 3 (U1, U3): thêm "cho_nam" (chỗ nằm ưa thích đã tìm) và "anh_tuan_tu_chup" (ngày có ảnh tự chụp
+## trên bảng tuần), cả hai mặc định rỗng. Ai đã ngủ trên mái tôn Thứ Bảy thì chưa biết được, nên không bù.
+static func _len_v3(_cf: ConfigFile) -> void:
 	pass
 
 

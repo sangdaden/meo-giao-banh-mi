@@ -22,4 +22,6 @@ const DATA := {
 	# Bảng "Cách chơi" trong menu Esc: phím chung + các dòng này (scripts/ui/chu_huong_dan.gd)
 	"help": [["E", "giao bánh, nhận túi trứng"], ["Tab", "xem đủ phiếu đơn (món, ghi chú)"]],
 	"help_note": "Túi trứng dễ vỡ: đừng nhảy từ chỗ cao xuống, đừng va người hay xe đẩy. Qua chợ đông thì đi chậm.",
+	# Âm thanh của ngày (AT2, scripts/am_thanh_ngay.gd): chợ sáng: ngoài chợ là phố sáng, vào chợ market.gd đổi sang "market"
+	"amb": "morning",
 }

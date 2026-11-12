@@ -20,6 +20,7 @@ from scipy.signal import butter, lfilter, sosfilt
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from bark import bark_v2  # noqa: E402
 from voice import say  # noqa: E402
+from do_lufs import lufs, muc_cua  # noqa: E402
 
 SR = 44100
 OUT = os.path.join(os.path.dirname(__file__), "..", "..", "assets", "audio")
@@ -147,7 +148,8 @@ def pan(x, p):
 # ---------------------------------------------------------------- ghi file
 
 def save(name, x, kind="wav", peak=0.89, q=5):
-    x = norm(x, peak)
+    if peak is not None:
+        x = norm(x, peak)
     os.makedirs(OUT, exist_ok=True)
     data = (np.clip(x, -1, 1) * 32767).astype("<i2")
     ch = 1 if data.ndim == 1 else data.shape[1]
@@ -162,6 +164,24 @@ def save(name, x, kind="wav", peak=0.89, q=5):
         subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", wav_path, "-c:a", "libvorbis", "-q:a", str(q), ogg], check=True)
         os.remove(wav_path)
     print("  ", name, kind, "%.2fs" % (len(x) / SR))
+
+
+def save_lufs(name, x, target):
+    """AT3: nhạc, jingle, tiếng nền chỉnh theo độ to cảm nhận (LUFS, tools/sound/do_lufs.py) thay vì theo đỉnh,
+    để đổi bài, đổi ngày không bị to nhỏ thất thường. Đỉnh vượt -1 dBFS thì nén mềm phần đỉnh rồi đo lại."""
+    x = np.asarray(x, dtype=np.float64)
+    for _ in range(4):
+        x = x * 10 ** ((target - lufs(x, SR)) / 20)
+        m = np.abs(x).max()
+        lim = 10 ** (-1.0 / 20)
+        if m <= lim:
+            break
+        knee = lim * 0.7  # trên ngưỡng gối thì ép mềm bằng tanh, dưới giữ nguyên
+        over = np.abs(x) > knee
+        x[over] = np.sign(x[over]) * (knee + (lim - knee) * np.tanh((np.abs(x[over]) - knee) / (lim - knee)))
+    # nhạc dài: q3 (~110 kbps) đủ trong cho nhạc tổng hợp mà gói web nhẹ hơn; tiếng nền q4 như cũ
+    save(name, x, "ogg", peak=None, q=3 if name.startswith("music_") else 4)
+    print("     %.1f LUFS (chuẩn %.1f)" % (lufs(x, SR), target))
 
 
 def loopify(x, length):
@@ -257,9 +277,13 @@ def shaker(dur=0.09):
 
 # ---------------------------------------------------------------- bộ nối nhạc
 
-def song(bpm, bars, chords, melody, inst, parts, length_bars=None, steps_per_bar=8):
+def song(bpm, bars, chords, melody, inst, parts, length_bars=None, steps_per_bar=8, loop=True):
     """melody: chuỗi theo ô móc đơn (8 ô/ô nhịp), '~' giữ nốt, '-' nghỉ.
-    chords: danh sách hợp âm mỗi ô nhịp, ví dụ ['D3 F#3 A3', ...]."""
+    chords: danh sách hợp âm mỗi ô nhịp, ví dụ ['D3 F#3 A3', ...].
+    parts["double"] = (nhạc cụ, độ to, hệ số tần số): chơi lại giai điệu bằng nhạc cụ khác (vd chuông cao một quãng tám).
+    loop=False: trả cả đuôi vang 4 s phía sau, để arrange() nối nhiều đoạn rồi mới cắt vòng lặp."""
+    toks = melody.split()
+    assert len(toks) == bars * steps_per_bar, "giai điệu có %d ô, cần %d" % (len(toks), bars * steps_per_bar)
     beat = 60 / bpm
     bar = beat * 4
     total = bar * bars
@@ -272,7 +296,6 @@ def song(bpm, bars, chords, melody, inst, parts, length_bars=None, steps_per_bar
         mix_at(R, x, start, gain * np.sin(a))
 
     # giai điệu
-    toks = melody.split()
     step = bar / steps_per_bar
     i = 0
     while i < len(toks):
@@ -289,7 +312,14 @@ def song(bpm, bars, chords, melody, inst, parts, length_bars=None, steps_per_bar
             x = inst(note(name), dur + 0.6, slide)
             k = min(int(dur * SR), len(x))
             x[k:] *= np.linspace(1, 0, len(x) - k) ** 2
-            put(x, i * step, parts.get("melody", 0.5), 0.1)
+            if parts.get("melody", 0.5) > 0:
+                put(x, i * step, parts.get("melody", 0.5), 0.1)
+            if "double" in parts:
+                inst2, g2, mult = parts["double"]
+                y = inst2(note(name) * mult, dur + 0.6, slide)
+                k = min(int(dur * SR), len(y))
+                y[k:] *= np.linspace(1, 0, len(y) - k) ** 2
+                put(y, i * step, g2, -0.25)
         i += 1
     for b in range(bars):
         notes = chords[b % len(chords)].split()
@@ -325,7 +355,33 @@ def song(bpm, bars, chords, melody, inst, parts, length_bars=None, steps_per_bar
     mixed = stereo(L, R)
     rev = parts.get("reverb", 0.25)
     mixed = np.stack([reverb(mixed[:, 0], rev, 1.0), reverb(mixed[:, 1], rev, 1.07)], axis=1)
+    if not loop:
+        return mixed
     return np.stack([loopify(mixed[:, 0], total), loopify(mixed[:, 1], total)], axis=1)
+
+
+def arrange(bpm, form, sections, inst, base):
+    """AT1: nối nhiều đoạn (A, A', B, B'...) thành một bài dài lặp liền.
+    sections: tên -> (hợp âm, giai điệu, phần thay đổi so với `base`); form: thứ tự đoạn, vd "A A2 B B2 A".
+    Mỗi đoạn 8 ô nhịp; đuôi vang của đoạn trước chồng lên đầu đoạn sau, đuôi đoạn cuối vòng về đầu bài."""
+    bar = 60 / bpm * 4
+    names = form.split()
+    total = sum(len(sections[n][1].split()) // 8 for n in names) * bar
+    out = np.zeros((int((total + 5) * SR), 2))
+    t = 0.0
+    for n in names:
+        chords, mel, diff = sections[n]
+        bars = len(mel.split()) // 8
+        parts = dict(base)
+        parts.update(diff)
+        for k in [k for k, v in diff.items() if v is None]:
+            parts.pop(k)
+        x = song(bpm, bars, chords, mel, inst, parts, loop=False)
+        i = int(round(t * SR))
+        m = min(len(x), len(out) - i)
+        out[i:i + m] += x[:m]
+        t += bars * bar
+    return np.stack([loopify(out[:, 0], total), loopify(out[:, 1], total)], axis=1)
 
 
 def tranh(f, dur, slide):
@@ -342,37 +398,144 @@ def staccato(f, dur, slide):
 
 # ---------------------------------------------------------------- nhạc nền
 
+# AT1 (11/2026): mỗi bài 90–120 s, có đoạn A (giai điệu chính) và B (hợp âm khác, giai điệu khác),
+# thêm A2/B2 (biến thể: thêm chuông đôi, đổi câu kết) và đoạn nghỉ (bớt trống) để nghe lâu không nhàm.
+# Đoạn A của bốn bài cũ giữ nguyên giai điệu bản 15–22 s, người chơi quen tai vẫn nhận ra.
+
 def music_menu():
-    mel = ("B4 ~ D5 ~ E5 ~ D5 ~  B4 ~ A4 ~ G4 ~ ~ ~  G4 ~ A4 ~ B4 ~ /E5 ~  D5 ~ ~ ~ A4 ~ ~ ~ "
-           "B4 ~ D5 ~ G5 ~ E5 D5  /E5 ~ D5 ~ B4 ~ ~ ~  A4 ~ B4 ~ D5 ~ E5 D5  /A4 ~ ~ ~ - - - -")
-    return song(88, 8, ["G2 B3 D4 G4", "E2 G3 B3 E4", "C2 E3 G3 C4", "D2 F#3 A3 D4"], mel, tranh,
-                {"melody": 0.55, "pad": 0.12, "bass": 0.3, "bass_pattern": [(0, 1, 2), (2, 1, 2)],
-                 "shaker": 0.05, "reverb": 0.5})
+    """Sol trưởng, 88 BPM, đàn tranh ngũ cung. A A2 B B2 A3 = 40 ô nhịp ≈ 109 s."""
+    ca = ["G2 B3 D4 G4", "E2 G3 B3 E4", "C2 E3 G3 C4", "D2 F#3 A3 D4"]
+    cb = ["C2 E3 G3 C4", "D2 F#3 A3 D4", "B1 D3 F#3 B3", "E2 G3 B3 E4",
+          "A1 E3 A3 C4", "D2 F#3 A3 D4", "G2 B3 D4 G4", "D2 F#3 A3 C4"]
+    ma = ("B4 ~ D5 ~ E5 ~ D5 ~  B4 ~ A4 ~ G4 ~ ~ ~  G4 ~ A4 ~ B4 ~ /E5 ~  D5 ~ ~ ~ A4 ~ ~ ~ "
+          "B4 ~ D5 ~ G5 ~ E5 D5  /E5 ~ D5 ~ B4 ~ ~ ~  A4 ~ B4 ~ D5 ~ E5 D5  /A4 ~ ~ ~ - - - -")
+    b4 = "E5 ~ ~ ~ G5 ~ E5 D5  /E5 ~ ~ ~ D5 ~ A4 ~  B4 ~ D5 ~ /E5 ~ D5 B4  E5 ~ ~ ~ ~ ~ - -  "
+    mb = b4 + "A4 ~ B4 ~ D5 ~ E5 ~  /A5 ~ ~ ~ G5 ~ E5 D5  D5 ~ B4 ~ G4 ~ ~ ~  A4 ~ ~ ~ - - - -"
+    mb2 = b4 + "A4 ~ B4 ~ D5 ~ /E5 ~  G5 ~ ~ ~ E5 ~ D5 ~  B4 ~ A4 ~ G4 ~ ~ ~  - - - - D5 ~ ~ ~"
+    secs = {
+        "A": (ca, ma, {}),
+        "A2": (ca, ma, {"double": (bell, 0.06, 2.0), "shaker": 0.07}),
+        "B": (cb, mb, {"arp": 0.07}),
+        "B2": (cb, mb2, {"arp": 0.07, "double": (tranh, 0.18, 0.5)}),
+        "A3": (ca, ma, {"bass": None, "pad": 0.16}),
+    }
+    return arrange(88, "A A2 B B2 A3", secs, tranh,
+                   {"melody": 0.55, "pad": 0.12, "bass": 0.3, "bass_pattern": [(0, 1, 2), (2, 1, 2)],
+                    "shaker": 0.05, "reverb": 0.5})
 
 
 def music_delivery():
-    mel = ("F#5 ~ A5 F#5 E5 ~ D5 ~  E5 ~ A4 ~ B4 D5 E5 ~  F#5 ~ A5 ~ B5 A5 F#5 ~  E5 D5 B4 ~ D5 ~ - -  "
-           "F#5 ~ A5 F#5 E5 ~ D5 ~  E5 ~ F#5 A5 B5 ~ A5 ~  F#5 E5 D5 ~ B4 ~ D5 E5  D5 ~ - B4 A4 ~ - -")
-    return song(126, 8, ["D2 F#3 A3 D4", "A2 E3 A3 C#4", "B2 F#3 B3 D4", "G2 G3 B3 D4"], mel, tranh,
-                {"melody": 0.5, "bass": 0.32, "stab": 0.16, "kick": 0.4, "snare": 0.28, "hat": 0.12,
-                 "shaker": 0.06, "reverb": 0.22})
+    """Rê trưởng, 126 BPM, vui. A A2 B B2 nghỉ A2 B2 = 56 ô nhịp ≈ 107 s."""
+    ca = ["D2 F#3 A3 D4", "A2 E3 A3 C#4", "B2 F#3 B3 D4", "G2 G3 B3 D4"]
+    cb = ["G2 G3 B3 D4", "A2 E3 A3 C#4", "F#2 F#3 A3 C#4", "B2 F#3 B3 D4",
+          "G2 G3 B3 D4", "E2 E3 G3 B3", "A2 E3 A3 C#4", "A2 E3 G3 C#4"]
+    ma = ("F#5 ~ A5 F#5 E5 ~ D5 ~  E5 ~ A4 ~ B4 D5 E5 ~  F#5 ~ A5 ~ B5 A5 F#5 ~  E5 D5 B4 ~ D5 ~ - -  "
+          "F#5 ~ A5 F#5 E5 ~ D5 ~  E5 ~ F#5 A5 B5 ~ A5 ~  F#5 E5 D5 ~ B4 ~ D5 E5  D5 ~ - B4 A4 ~ - -")
+    b4 = "D5 ~ G5 ~ B5 ~ A5 G5  A5 ~ ~ ~ E5 ~ C#5 ~  F#5 ~ A5 ~ C#6 ~ B5 A5  B5 ~ ~ ~ F#5 ~ D5 ~  "
+    mb = b4 + "G5 ~ B5 ~ D6 ~ B5 G5  E5 ~ G5 ~ B5 ~ A5 G5  A5 ~ ~ E5 F#5 ~ G5 ~  A5 ~ ~ ~ - - E5 ~"
+    mb2 = b4 + "G5 ~ B5 ~ D6 ~ E6 D6  B5 ~ G5 ~ E5 ~ G5 ~  A5 G5 F#5 E5 D5 ~ E5 ~  A4 ~ ~ ~ - - - -"
+    mn = ("F#5 ~ ~ ~ ~ ~ ~ ~  E5 ~ ~ ~ ~ ~ ~ ~  F#5 ~ ~ ~ A5 ~ ~ ~  E5 ~ ~ ~ ~ ~ ~ ~  "
+          "F#5 ~ ~ ~ ~ ~ ~ ~  A5 ~ ~ ~ B5 ~ ~ ~  A5 ~ ~ ~ F#5 ~ ~ ~  E5 ~ ~ ~ - - - -")
+    secs = {
+        "A": (ca, ma, {}),
+        "A2": (ca, ma, {"double": (bell, 0.05, 2.0)}),
+        "B": (cb, mb, {"stab": None, "arp": 0.07}),
+        "B2": (cb, mb2, {"stab": None, "arp": 0.07, "double": (staccato, 0.12, 0.5)}),
+        "N": (ca, mn, {"kick": None, "snare": None, "hat": None, "stab": None, "pad": 0.12, "arp": 0.1,
+                       "bass_pattern": [(0, 1, 2), (2, 1, 2)]}),
+    }
+    return arrange(126, "A A2 B B2 N A2 B2", secs, tranh,
+                   {"melody": 0.5, "bass": 0.32, "stab": 0.16, "kick": 0.4, "snare": 0.28, "hat": 0.12,
+                    "shaker": 0.06, "reverb": 0.22})
 
 
 def music_chase():
-    mel = ("A4 C5 E5 A4 C5 E5 D5 C5  A4 C5 E5 G5 E5 D5 C5 D5  C5 ~ A4 ~ C5 D5 E5 ~  D5 ~ G4 ~ D5 ~ E5 ~  "
-           "A5 G5 E5 D5 E5 G5 A5 ~  G5 E5 D5 C5 D5 E5 C5 ~  F5 ~ E5 ~ C5 ~ A4 C5  D5 ~ B4 ~ G4 ~ E5 ~")
-    return song(150, 8, ["A2 A3 C4 E4", "A2 A3 C4 E4", "F2 F3 A3 C4", "G2 G3 B3 D4"], mel, staccato,
-                {"melody": 0.45, "bass": 0.5,
-                 "bass_pattern": [(k * 0.5, 2 if k % 4 == 3 else 1, 0.45) for k in range(8)],
-                 "kick": 0.55, "kick_beats": [0, 1, 2, 3], "snare": 0.35, "hat": 0.15, "reverb": 0.15})
+    """La thứ, 150 BPM, gấp. A A2 B B2 A(nghỉ) A2 B B2 = 64 ô nhịp ≈ 102 s."""
+    ca = ["A2 A3 C4 E4", "A2 A3 C4 E4", "F2 F3 A3 C4", "G2 G3 B3 D4"]
+    cb = ["F2 F3 A3 C4", "G2 G3 B3 D4", "E2 E3 G3 B3", "A2 A3 C4 E4",
+          "F2 F3 A3 C4", "G2 G3 B3 D4", "E2 E3 G#3 B3", "E2 E3 G#3 B3"]
+    ma = ("A4 C5 E5 A4 C5 E5 D5 C5  A4 C5 E5 G5 E5 D5 C5 D5  C5 ~ A4 ~ C5 D5 E5 ~  D5 ~ G4 ~ D5 ~ E5 ~  "
+          "A5 G5 E5 D5 E5 G5 A5 ~  G5 E5 D5 C5 D5 E5 C5 ~  F5 ~ E5 ~ C5 ~ A4 C5  D5 ~ B4 ~ G4 ~ E5 ~")
+    mb = ("C5 ~ A4 C5 F5 ~ E5 C5  D5 ~ B4 D5 G5 ~ F5 D5  E5 ~ B4 E5 G5 ~ E5 B4  A4 C5 E5 A5 G5 E5 C5 A4  "
+          "F5 E5 F5 A5 C6 ~ A5 F5  G5 F5 G5 B5 D6 ~ B5 G5  E5 ~ G#5 ~ B5 ~ G#5 ~  E5 D5 C5 B4 G#4 ~ B4 ~")
+    secs = {
+        "A": (ca, ma, {}),
+        "A2": (ca, ma, {"double": (bell, 0.04, 2.0)}),
+        "B": (cb, mb, {"pad": 0.08}),
+        "B2": (cb, mb, {"pad": 0.08, "double": (staccato, 0.15, 0.5)}),
+        "N": (ca, ma, {"melody": 0.3, "snare": None, "kick_beats": [0, 2]}),
+    }
+    return arrange(150, "A A2 B B2 N A2 B B2", secs, staccato,
+                   {"melody": 0.45, "bass": 0.5,
+                    "bass_pattern": [(k * 0.5, 2 if k % 4 == 3 else 1, 0.45) for k in range(8)],
+                    "kick": 0.55, "kick_beats": [0, 1, 2, 3], "snare": 0.35, "hat": 0.15, "reverb": 0.15})
 
 
 def music_kitchen():
-    mel = ("A4 ~ C5 A4 G4 ~ F4 ~  A4 ~ D5 ~ C5 A4 ~ ~  G4 ~ A4 ~ C5 ~ D5 C5  A4 ~ G4 ~ ~ ~ - -  "
-           "A4 ~ C5 A4 G4 ~ F4 G4  A4 ~ C5 ~ D5 ~ F5 ~  D5 C5 A4 ~ G4 ~ A4 ~  G4 ~ ~ ~ - - - -")
-    return song(100, 8, ["F2 A3 C4 F4", "D2 F3 A3 D4", "Bb1 F3 Bb3 D4", "C2 E3 G3 C4"], mel, mari,
-                {"melody": 0.6, "bass": 0.35, "bass_pattern": [(0, 1, 1), (1.5, 1, 0.5), (2, 2, 1), (3, 1, 1)],
-                 "arp": 0.1, "kick": 0.3, "hat": 0.08, "swing": True, "shaker": 0.04, "reverb": 0.3})
+    """Fa trưởng, 100 BPM, marimba lắc lư. A A2 B B2 A3 = 40 ô nhịp = 96 s."""
+    ca = ["F2 A3 C4 F4", "D2 F3 A3 D4", "Bb1 F3 Bb3 D4", "C2 E3 G3 C4"]
+    cb = ["Bb1 F3 Bb3 D4", "C2 E3 G3 C4", "A1 E3 A3 C4", "D2 F3 A3 D4",
+          "G1 G3 Bb3 D4", "C2 E3 G3 Bb3", "F2 A3 C4 F4", "C2 E3 G3 C4"]
+    ma = ("A4 ~ C5 A4 G4 ~ F4 ~  A4 ~ D5 ~ C5 A4 ~ ~  G4 ~ A4 ~ C5 ~ D5 C5  A4 ~ G4 ~ ~ ~ - -  "
+          "A4 ~ C5 A4 G4 ~ F4 G4  A4 ~ C5 ~ D5 ~ F5 ~  D5 C5 A4 ~ G4 ~ A4 ~  G4 ~ ~ ~ - - - -")
+    b4 = "D5 ~ F5 D5 C5 ~ Bb4 ~  C5 ~ E5 ~ G5 ~ E5 C5  A4 ~ C5 ~ E5 ~ C5 A4  D5 ~ ~ ~ A4 ~ ~ ~  "
+    mb = b4 + "Bb4 ~ D5 ~ G5 ~ F5 D5  E5 ~ G5 ~ Bb5 ~ G5 E5  F5 ~ C5 ~ A4 ~ C5 ~  G4 ~ ~ ~ - - - -"
+    mb2 = b4 + "G5 ~ F5 D5 Bb4 ~ D5 ~  C5 ~ E5 G5 ~ ~ E5 ~  F5 ~ A5 ~ G5 F5 E5 D5  C5 ~ ~ ~ - - - -"
+    secs = {
+        "A": (ca, ma, {}),
+        "A2": (ca, ma, {"double": (bell, 0.04, 2.0), "shaker": 0.06}),
+        "B": (cb, mb, {"arp": None, "pad": 0.08}),
+        "B2": (cb, mb2, {"arp": None, "pad": 0.08, "double": (tranh, 0.2, 1.0)}),
+        "A3": (ca, ma, {"kick": None, "hat": None}),
+    }
+    return arrange(100, "A A2 B B2 A3", secs, mari,
+                   {"melody": 0.6, "bass": 0.35, "bass_pattern": [(0, 1, 1), (1.5, 1, 0.5), (2, 2, 1), (3, 1, 1)],
+                    "arp": 0.1, "kick": 0.3, "hat": 0.08, "swing": True, "shaker": 0.04, "reverb": 0.3})
+
+
+def music_mua():
+    """AT2 Thứ Tư mưa chiều: Mi thứ, 96 BPM, đàn tranh thưa, pad ấm, trống rất nhẹ; nghe như ngồi dưới mái hiên.
+    A(không trống) A2 B B2 A = 40 ô nhịp = 100 s."""
+    ca = ["C2 E3 G3 B3", "B1 D3 F#3 A3", "E2 G3 B3 D4", "A1 C3 E3 G3"]
+    cb = ["A1 C3 E3 G3", "D2 F#3 A3 C4", "G2 B3 D4 F#4", "C2 E3 G3 B3",
+          "A1 C3 E3 G3", "B1 D#3 F#3 A3", "E2 G3 B3 D4", "E2 G3 B3 D4"]
+    ma = ("E5 ~ ~ ~ G5 ~ E5 ~  D5 ~ ~ ~ B4 ~ ~ ~  E5 ~ G5 ~ A5 ~ G5 E5  /A4 ~ ~ ~ ~ ~ - -  "
+          "E5 ~ ~ ~ G5 ~ B5 ~  A5 ~ ~ ~ F#5 ~ D5 ~  E5 ~ D5 ~ B4 ~ G4 ~  A4 ~ ~ ~ - - - -")
+    mb = ("C5 ~ E5 ~ A5 ~ G5 ~  F#5 ~ ~ ~ D5 ~ C5 ~  B4 ~ D5 ~ G5 ~ F#5 ~  E5 ~ ~ ~ ~ ~ - -  "
+          "C5 ~ E5 ~ A5 ~ B5 ~  A5 ~ F#5 ~ D#5 ~ B4 ~  E5 ~ ~ ~ G5 ~ ~ ~  B4 ~ ~ ~ - - - -")
+    secs = {
+        "A": (ca, ma, {"kick": None, "hat": None}),
+        "A2": (ca, ma, {}),
+        "B": (cb, mb, {"arp": 0.05}),
+        "B2": (cb, mb, {"arp": 0.05, "double": (bell, 0.05, 2.0)}),
+    }
+    return arrange(96, "A A2 B B2 A", secs, tranh,
+                   {"melody": 0.5, "pad": 0.16, "bass": 0.26, "bass_pattern": [(0, 1, 1.5), (2, 1, 1.5)],
+                    "kick": 0.18, "kick_beats": [0, 2.5], "hat": 0.05, "shaker": 0.07, "reverb": 0.45})
+
+
+def music_hoi():
+    """AT2 Chủ Nhật Hội mèo (buổi tối): Đô trưởng ngũ cung, 112 BPM, rộn ràng kiểu hội, chuông đôi, trống chẵn.
+    A A2 B B2 nghỉ(chỉ trống + chuông) A2 = 48 ô nhịp ≈ 103 s."""
+    ca = ["C2 E3 G3 C4", "A1 E3 A3 C4", "F2 A3 C4 F4", "G2 G3 B3 D4"]
+    cb = ["F2 A3 C4 F4", "G2 G3 B3 D4", "E2 E3 G3 B3", "A1 E3 A3 C4",
+          "D2 F3 A3 D4", "G2 G3 B3 D4", "C2 E3 G3 C4", "G2 G3 B3 F4"]
+    ma = ("E5 ~ G5 ~ A5 G5 E5 ~  C5 ~ D5 E5 ~ ~ C5 ~  A4 ~ C5 ~ D5 ~ E5 G5  D5 ~ ~ ~ - - G4 ~  "
+          "E5 ~ G5 ~ A5 ~ C6 ~  A5 G5 E5 ~ D5 ~ C5 ~  D5 ~ E5 ~ G5 ~ E5 D5  C5 ~ ~ ~ - - - -")
+    mb = ("A5 ~ ~ G5 A5 ~ C6 ~  B5 ~ G5 ~ D5 ~ ~ ~  G5 ~ E5 ~ B4 ~ E5 G5  A5 ~ ~ ~ E5 ~ ~ ~  "
+          "F5 ~ A5 ~ D6 ~ C6 A5  B5 ~ ~ ~ G5 ~ D5 ~  E5 ~ G5 ~ C6 ~ G5 E5  D5 ~ ~ ~ G4 ~ ~ ~")
+    mn = ("C6 ~ ~ ~ ~ ~ ~ ~  A5 ~ ~ ~ ~ ~ ~ ~  C6 ~ ~ ~ D6 ~ ~ ~  B5 ~ ~ ~ ~ ~ ~ ~  "
+          "C6 ~ ~ ~ ~ ~ ~ ~  E6 ~ ~ ~ D6 ~ ~ ~  C6 ~ ~ ~ A5 ~ ~ ~  G5 ~ ~ ~ - - - -")
+    secs = {
+        "A": (ca, ma, {}),
+        "A2": (ca, ma, {"double": (bell, 0.06, 2.0)}),
+        "B": (cb, mb, {"arp": 0.07}),
+        "B2": (cb, mb, {"arp": 0.07, "double": (staccato, 0.14, 0.5)}),
+        "N": (ca, mn, {"melody": 0.0, "double": (bell, 0.12, 1.0), "stab": None, "bass": None, "pad": 0.1}),
+    }
+    return arrange(112, "A A2 B B2 N A2", secs, tranh,
+                   {"melody": 0.5, "bass": 0.3, "stab": 0.12, "kick": 0.38, "snare": 0.26, "hat": 0.1,
+                    "shaker": 0.08, "reverb": 0.3})
 
 
 def jingle_win():
@@ -1350,6 +1513,203 @@ def market_ambience():
     return np.stack([loopify(buf[:, 0], dur), loopify(buf[:, 1], dur)], axis=1)
 
 
+# ---------------------------------------------------------------- AT2: tiếng nền theo ngày (11/2026)
+
+def _amb_buf(total):
+    buf = np.zeros((int(total * SR), 2))
+
+    def add(st, y, g):
+        if y.ndim == 1:
+            y = stereo(y, y)
+        i = int(st * SR)
+        if i >= len(buf):
+            return
+        n = min(len(y), len(buf) - i)
+        buf[i:i + n] += y[:n] * g
+    return buf, add
+
+
+def _loop_st(buf, dur, bed=None):
+    """Tiếng lẻ (xe, chim...) cắt vòng bằng loopify; nền liên tục (mưa, ù phố) `bed` thì nối vòng bằng chồng mờ
+    phần dư lên đầu (không cộng thẳng, kẻo vài giây đầu to gấp đôi)."""
+    out = np.stack([loopify(buf[:, 0], dur), loopify(buf[:, 1], dur)], axis=1)
+    if bed is not None:
+        n = int(dur * SR)
+        k = min(len(bed) - n, int(4 * SR))
+        loop = bed[:n].copy()
+        w = np.sin(np.linspace(0, np.pi / 2, k))[:, None]
+        loop[:k] = bed[:k] * w + bed[n:n + k] * np.sqrt(np.maximum(1 - w * w, 0))
+        out += loop
+    return out
+
+
+def rain_ambience():
+    """Thứ Tư mưa chiều: mưa rào đều (rì rào dải rộng, hai bên lệch nhau), hạt mưa lộp độp gần,
+    mái tôn gõ lách tách kim loại, ống xối chảy ồ ồ, xe máy chạy rẽ nước, một tràng sấm xa. 40 s lặp liền."""
+    dur = 40.0
+    total = dur + 6
+    buf, add = _amb_buf(total)
+    t = t_of(total)
+    bed = np.zeros_like(buf)
+    swell = 0.85 + 0.15 * np.sin(2 * np.pi * t / 13.3) * np.sin(2 * np.pi * t / 5.7)
+    for ch in (0, 1):
+        hiss = filt(noise(total), "band", (400, 9000)) * 0.16
+        body = filt(noise(total), "band", (150, 1200)) * 0.12
+        bed[:, ch] += (hiss + body) * swell
+    # hạt mưa gần: tiếng 'tộp' ngắn, ngẫu nhiên khắp nơi
+    for _ in range(900):
+        d = rng.uniform(0.008, 0.02)
+        tt = t_of(d)
+        f = rng.uniform(1200, 4500)
+        drop = np.sin(2 * np.pi * f * tt * (1 + 2 * tt / d)) * np.exp(-tt * 300)
+        add(rng.uniform(0, dur), pan(drop, rng.uniform(-1, 1)), rng.uniform(0.02, 0.07))
+    # mái tôn: từng hạt chạm tôn là tiếng 'tinh' kim loại có vang ngắn, dồn bên phải (mái hiên cạnh đường)
+    for _ in range(420):
+        d = 0.12
+        tt = t_of(d)
+        f = rng.uniform(2200, 5200)
+        ping = (np.sin(2 * np.pi * f * tt) + 0.5 * np.sin(2 * np.pi * f * 2.71 * tt)) * np.exp(-tt * rng.uniform(35, 60))
+        add(rng.uniform(0, dur), pan(ping, rng.uniform(0.1, 0.9)), rng.uniform(0.012, 0.03))
+    tin = filt(noise(total), "band", (2500, 6000)) * 0.035 * swell  # rào rào trên tôn
+    bed[:, 1] += tin
+    bed[:, 0] += tin * 0.4
+    # ống xối: nước chảy ồ ồ, bên trái
+    gurgle = filt(noise(total), "band", (250, 900)) * (0.7 + 0.3 * np.sin(2 * np.pi * 3.1 * t) ** 2)
+    bed[:, 0] += gurgle * 0.05
+    bed[:, 1] += gurgle * 0.015
+    for st, d, f, dr, g in [(6, 5, 38, 1, 0.22), (25, 5, 44, -1, 0.2)]:  # xe máy rẽ nước
+        add(st, motorbike(d, f, dr), g)
+        sw = filt(noise(d), "band", (600, 5000)) * np.exp(-((t_of(d) - d / 2) / (d / 5)) ** 2)
+        add(st, pan(sw, dr * 0.2), 0.12)
+    # sấm xa: ì ầm trầm, lên chậm rồi tắt dần
+    d = 6.0
+    tt = t_of(d)
+    rumble = filt(brown(d), "low", 140) * np.minimum(tt / 0.8, 1) * np.exp(-tt * 0.6)
+    rumble *= 1 + 0.5 * np.sin(2 * np.pi * 1.3 * tt) ** 2
+    add(15.0, pan(rumble, -0.2), 0.55)
+    return _loop_st(buf, dur, bed)
+
+
+def chieu_ambience():
+    """Thứ Sáu chiều tà (đám giỗ, tiệm xe): phố dịu xuống, ve sầu rả rích, chim về tổ chiêm chiếp thưa,
+    chuông gió trước hiên, chén bát lách cách trong nhà giỗ, xe máy về nhà, chuông chùa xa. 40 s lặp liền."""
+    dur = 40.0
+    total = dur + 6
+    buf, add = _amb_buf(total)
+    t = t_of(total)
+    hum = filt(brown(total), "low", 200) * 0.14
+    bed = stereo(hum, np.roll(hum, 5000))
+    # ve sầu: tiếng rè cao ~4,5 kHz rung nhanh, to nhỏ thành từng đợt, hai con hai bên
+    for p, f0, per, ph0 in [(-0.6, 4400, 9.0, 0.0), (0.55, 5100, 11.5, 2.0)]:
+        buzz = np.sin(2 * np.pi * f0 * t + 0.4 * np.sin(2 * np.pi * 180 * t))
+        buzz *= (0.5 + 0.5 * np.sin(2 * np.pi * 90 * t)) ** 2
+        env = np.clip(np.sin(2 * np.pi * t / per + ph0), 0, 1) ** 1.5
+        bed += pan(filt(buzz, "band", (3500, 6500)) * env, p) * 0.035
+    # chim về tổ: tiếng chiếp ngắn, thưa
+    for _ in range(12):
+        add(rng.uniform(0, dur), pan(bird(), rng.uniform(-0.8, 0.8)), rng.uniform(0.03, 0.05))
+    # chuông gió: vài ống kim loại gõ nhau
+    for st0 in (3.0, 17.0, 31.0):
+        for k in range(rng.integers(3, 6)):
+            f = rng.choice([1568, 1760, 2093, 2349, 2637])
+            add(st0 + k * rng.uniform(0.15, 0.4), pan(bell(f, 2.2, 1.6), 0.4), 0.03)
+    # chén bát nhà giỗ: tiếng sứ 'cạch' ngắn, sáng
+    for st in rng.uniform(0, dur, 14):
+        d = 0.15
+        tt = t_of(d)
+        f = rng.uniform(2800, 4200)
+        clink = (np.sin(2 * np.pi * f * tt) + 0.6 * np.sin(2 * np.pi * f * 1.48 * tt)) * np.exp(-tt * 40)
+        add(st, pan(clink, rng.uniform(-0.5, -0.1)), rng.uniform(0.02, 0.05))
+    for st, d, f, dr, g in [(8, 5, 36, 1, 0.25), (22, 4.5, 42, -1, 0.2), (35, 4, 39, 1, 0.18)]:
+        add(st, motorbike(d, f, dr), g)
+    add(12.0, pan(filt(reverb(bell(196, 7.0, 0.5), 0.6, 1.5), "low", 1800), -0.3), 0.08)  # chuông chùa xa
+    return _loop_st(buf, dur, bed)
+
+
+def hoi_ambience():
+    """Chủ Nhật Hội mèo buổi tối: dế kêu, rì rầm người xem hội xa, trống lân và chập chõa vọng lại,
+    mèo kêu khe khẽ quanh sân, gió đưa lá. 40 s lặp liền."""
+    dur = 40.0
+    total = dur + 6
+    buf, add = _amb_buf(total)
+    t = t_of(total)
+    hum = filt(brown(total), "low", 220) * 0.12
+    murmur = filt(noise(total), "band", (300, 2200)) * 0.05 * (0.8 + 0.2 * np.sin(2 * np.pi * t / 9.0))
+    bed = stereo(hum + murmur, hum + np.roll(murmur, 6000))
+    # dế: chuỗi 'ri ri' ~4 kHz, mỗi tiếng 3 xung
+    for p, f0, gap in [(-0.7, 4200, 0.72), (0.65, 3900, 0.9)]:
+        st = rng.uniform(0, 0.5)
+        while st < dur:
+            for k in range(3):
+                d = 0.018
+                tt = t_of(d)
+                add(st + k * 0.03, pan(np.sin(2 * np.pi * f0 * tt) * np.sin(np.pi * tt / d), p), 0.025)
+            st += gap * rng.uniform(0.9, 1.1)
+    # trống lân xa: 'tùng tùng cắc' theo nhịp, hai đợt; chập chõa 'xèng' ở phách mạnh
+    for st0, bars in [(4.0, 6), (24.0, 5)]:
+        beat = 60 / 112
+        for b in range(bars * 4):
+            tt0 = st0 + b * beat
+            add(tt0, pan(filt(kick(0.3), "low", 400), 0.3), 0.18 if b % 4 in (0, 2) else 0.1)
+            if b % 2 == 1:
+                add(tt0 + beat / 2, pan(filt(snare(0.15, True), "band", (400, 2500)), 0.3), 0.06)
+            if b % 4 == 0:
+                d = 0.9
+                tt = t_of(d)
+                cym = filt(noise(d), "band", (3000, 9000)) * np.exp(-tt * 5)
+                add(tt0, pan(filt(cym, "low", 6000), 0.35), 0.05)
+    # mèo kêu khe khẽ quanh sân (tiếng meo của game, nhỏ, đổi cao độ)
+    for st in rng.uniform(0, dur, 5):
+        m = meow(rng.integers(2))
+        add(st, pan(filt(reverb(m, 0.3), "low", 3500), rng.uniform(-0.8, 0.8)), rng.uniform(0.04, 0.07))
+    # gió đưa lá
+    for st in (10.0, 33.0):
+        d = 4.0
+        tt = t_of(d)
+        add(st, pan(filt(noise(d), "band", (1200, 6000)) * np.sin(np.pi * tt / d) ** 2, -0.2), 0.05)
+    return _loop_st(buf, dur, bed)
+
+
+def san_sau_ambience():
+    """Màn dạy chơi ở sân sau nhà Cô Ba: yên, chim hót, gà cục tác, lá xào xạc, vòi nước nhỏ giọt,
+    phố ù rất xa sau bức tường. 30 s lặp liền."""
+    dur = 30.0
+    total = dur + 5
+    buf, add = _amb_buf(total)
+    hum = filt(brown(total), "low", 160) * 0.08
+    bed = stereo(hum, np.roll(hum, 4000))
+    for _ in range(22):
+        st = rng.uniform(0, dur)
+        p = rng.uniform(-0.9, 0.9)
+        for k in range(rng.integers(1, 3)):
+            add(st + k * rng.uniform(0.2, 0.5), pan(bird(), p), rng.uniform(0.04, 0.07))
+    # gà cục tác: chuỗi 'cục cục' trầm rồi một tiếng 'tác' cao kéo dài
+    def cluck(f, d):
+        tt = t_of(d)
+        ff = f * (1 + 0.15 * np.sin(np.pi * tt / d))
+        ph = phase_of(ff)
+        src = sum(np.sin(k * ph) / k for k in range(1, 14))
+        return filt(src, "band", (500, 2400)) * adsr(len(tt), 0.01, 0.03, 0.6, 0.04)
+    for st0, p in [(5.0, 0.6), (19.0, 0.45)]:
+        for k in range(4):
+            add(st0 + k * 0.22, pan(cluck(rng.uniform(380, 450), 0.09), p), 0.07)
+        add(st0 + 0.95, pan(cluck(700, 0.45), p), 0.07)
+    # lá xào xạc theo gió
+    for st in (2.0, 13.0, 24.0):
+        d = rng.uniform(3, 4.5)
+        tt = t_of(d)
+        add(st, pan(filt(noise(d), "band", (1500, 7000)) * np.sin(np.pi * tt / d) ** 2, rng.uniform(-0.6, 0.6)), 0.025)
+    # vòi nước nhỏ giọt vào thau
+    st = 0.3
+    while st < dur:
+        d = 0.06
+        tt = t_of(d)
+        f = rng.uniform(900, 1300) * (1 + 1.2 * tt / d)
+        add(st, pan(np.sin(phase_of(f)) * np.exp(-tt * 70), -0.5), 0.05)
+        st += rng.uniform(1.1, 1.6)
+    return _loop_st(buf, dur, bed)
+
+
 def build():
     jobs = {
         # nhạc nền (lặp)
@@ -1461,6 +1821,13 @@ def build():
         "chao_mao_chiep": (chao_mao_chiep, "wav"),
         # Kết ca Thong thả (NC3)
         "jingle_ket": (jingle_ket, "ogg"),
+        # AT2: nhạc và tiếng nền theo ngày (khóa "music"/"amb" trong scripts/ngay/<mã>.gd)
+        "music_mua": (music_mua, "ogg"),
+        "music_hoi": (music_hoi, "ogg"),
+        "amb_mua": (rain_ambience, "ogg"),
+        "amb_chieu": (chieu_ambience, "ogg"),
+        "amb_hoi": (hoi_ambience, "ogg"),
+        "amb_san_sau": (san_sau_ambience, "ogg"),
     }
     jobs.update(build_voice_jobs())  # Cô Ba, khách, hai ông đánh cờ
     global rng
@@ -1470,9 +1837,11 @@ def build():
             continue
         rng = np.random.default_rng(zlib.crc32(name.encode()))  # mỗi file một hạt riêng: làm lại file nào cũng ra y hệt
         x = fn()
-        loud = {"music": 0.8, "amb": 0.7, "jingle": 0.85}
-        peak = next((v for k, v in loud.items() if name.startswith(k)), 0.89)
-        save(name, x, kind, peak, q=4 if name.startswith(("music", "amb")) else 5)
+        target = muc_cua(name)
+        if target is not None:
+            save_lufs(name, x, target)
+        else:
+            save(name, x, kind, 0.89, q=5)
 
 
 if __name__ == "__main__":

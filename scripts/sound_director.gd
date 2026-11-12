@@ -66,8 +66,7 @@ func _watch_state() -> void:
 			Sound.music("menu")
 			Sound.ambience("street")
 		main.State.PLAY:
-			Sound.music("delivery")
-			Sound.ambience("morning")  # Thứ Hai là ca sáng: chim sẻ, chổi tre, rao bánh mì
+			AmThanhNgay.phat(PlayMode.day)  # khóa "music"/"amb" của ngày (AT2), mặc định giao bánh + phố sáng
 		main.State.END:
 			var total := 0
 			for s in main.results:
@@ -193,7 +192,7 @@ func _dog(delta: float) -> void:
 	var hunting: bool = dog.state in [dog.State.CHASE, dog.State.BITE, dog.State.BARK]
 	if hunting != _dog_awake:
 		_dog_awake = hunting
-		Sound.music("chase" if hunting else "delivery", 0.6)
+		Sound.music("chase" if hunting else AmThanhNgay.nhac(PlayMode.day), 0.6)
 	var dist: float = dog.global_position.distance_to(main.player.global_position)
 	# Ngáy khi ngủ gật trong ca canh hẻm, chỉ nghe khi mèo lại gần
 	var snoring: bool = dog.awake and dog.state == dog.State.SLEEP and dist < SNORE_RANGE

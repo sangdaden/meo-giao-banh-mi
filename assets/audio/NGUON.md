@@ -8,12 +8,18 @@ Khi thêm tiếng lấy từ nơi khác, ghi thêm một dòng vào bảng cuố
 
 ## Nhạc nền (lặp liền, .ogg)
 
+Từ 11/2026 (AT1) mỗi bài dài 90–120 s, ghép từ các đoạn 8 ô nhịp: A (giai điệu chính, giữ như bản ngắn cũ), A2 (thêm chuông đôi), B (hợp âm và giai điệu khác), B2 (đổi câu kết), đoạn nghỉ (bớt trống). Hàm `arrange()` trong `synth.py`.
+Độ to (AT3): nhạc và jingle -18 LUFS, tiếng nền -24 LUFS, `synth.py` tự chỉnh khi ghi, `tools/sound/do_lufs.py` đo và workflow `am-thanh.yml` kiểm mỗi PR đụng âm thanh.
+Ngày nào dùng bài nào: khóa `"music"`/`"amb"` trong `scripts/ngay/<mã>.gd` (đọc qua `scripts/am_thanh_ngay.gd`).
+
 | File | Dùng ở | Mô tả | Nguồn |
 |---|---|---|---|
-| music_menu.ogg | màn bắt đầu | Sol trưởng, 88 BPM, giai điệu ngũ cung kiểu đàn tranh có luyến, nền pad nhẹ | tự tổng hợp, CC0 |
-| music_delivery.ogg | lúc giao bánh | Rê trưởng, 126 BPM, vui, gảy dây + bass nảy + trống nhẹ | tự tổng hợp, CC0 |
-| music_chase.ogg | đơn 5, Chó Mực thức | La thứ, 150 BPM, gấp, trống 4 phách | tự tổng hợp, CC0 |
-| music_kitchen.ogg | màn bếp | Fa trưởng, 100 BPM, đàn gõ kiểu marimba, nhịp lắc lư | tự tổng hợp, CC0 |
+| music_menu.ogg | màn bắt đầu, màn dạy chơi | Sol trưởng, 88 BPM, giai điệu ngũ cung kiểu đàn tranh có luyến, nền pad nhẹ. A A2 B B2 A3, 109 s | tự tổng hợp, CC0 |
+| music_delivery.ogg | lúc giao bánh (mặc định mọi ngày) | Rê trưởng, 126 BPM, vui, gảy dây + bass nảy + trống nhẹ. A A2 B B2 nghỉ A2 B2, 107 s | tự tổng hợp, CC0 |
+| music_chase.ogg | Chó Mực thức đuổi | La thứ, 150 BPM, gấp, trống 4 phách. A A2 B B2 nghỉ A2 B B2, 102 s | tự tổng hợp, CC0 |
+| music_kitchen.ogg | màn bếp | Fa trưởng, 100 BPM, đàn gõ kiểu marimba, nhịp lắc lư. A A2 B B2 A3, 96 s | tự tổng hợp, CC0 |
+| music_mua.ogg | Thứ Tư mưa chiều | Mi thứ, 96 BPM, đàn tranh thưa, pad ấm, trống rất nhẹ. A A2 B B2 A, 100 s | tự tổng hợp, CC0 |
+| music_hoi.ogg | Chủ Nhật tối Hội mèo | Đô trưởng ngũ cung, 112 BPM, rộn ràng, chuông đôi. A A2 B B2 nghỉ A2, 103 s | tự tổng hợp, CC0 |
 | jingle_win.ogg | kết thúc, từ 10/15 sao | hợp âm rải đi lên + chuông | tự tổng hợp, CC0 |
 | jingle_lose.ogg | kết thúc, dưới 10 sao (chỉ chế độ Thử thách) | bốn nốt đi xuống, nhẹ nhàng | tự tổng hợp, CC0 |
 | jingle_ket.ogg | kết thúc chế độ Thong thả khi chưa đủ 10/15 sao, bếp chưa xong | bốn nốt Sol trưởng nhẹ, đệm êm + chuông nhỏ, không buồn | tự tổng hợp, CC0 |
@@ -26,6 +32,10 @@ Khi thêm tiếng lấy từ nơi khác, ghi thêm một dòng vào bảng cuố
 | amb_morning.ogg | 40 giây phố buổi sáng (Thứ Hai): chim sẻ ríu rít, chổi tre quét vỉa hè, gà gáy xa, ít xe, rao bánh mì xa | tự tổng hợp, CC0 |
 | amb_market.ogg | 40 giây chợ sáng (Thứ Ba): rì rầm mua bán nhiều giọng, bốn tiếng rao, cân đĩa, túi nilon, chặt thớt, xe máy xa | tự tổng hợp, CC0 |
 | amb_kitchen.ogg | 20 giây bếp: tủ lạnh ù, đồng hồ treo tường, xe máy xa ngoài đường | tự tổng hợp, CC0 |
+| amb_mua.ogg | 40 giây mưa rào (Thứ Tư): rì rào hai bên, hạt mưa lộp độp, mái tôn lách tách, ống xối chảy, xe máy rẽ nước, sấm xa | tự tổng hợp, CC0 |
+| amb_chieu.ogg | 40 giây chiều tà (Thứ Sáu): ve sầu, chim về tổ, chuông gió, chén bát nhà giỗ, xe máy về nhà, chuông chùa xa | tự tổng hợp, CC0 |
+| amb_hoi.ogg | 40 giây tối Hội mèo (Chủ Nhật): dế, rì rầm người xem, trống lân và chập chõa xa, mèo kêu khẽ, gió đưa lá | tự tổng hợp, CC0 |
+| amb_san_sau.ogg | 30 giây sân sau lò bánh (màn dạy chơi): chim hót, gà cục tác, lá xào xạc, vòi nước nhỏ giọt | tự tổng hợp, CC0 |
 
 ## Hiệu ứng (.wav, ngắn)
 

@@ -737,7 +737,7 @@ func _update_sound() -> void:
 	var p := player.global_position
 	var inside := CityProps.MARKET_ZONE.grow(1.0).has_point(Vector2(p.x, p.z))
 	if inside != _in_market and Sound.has_method("ambience"):
-		Sound.call("ambience", "market" if inside else "morning")
+		Sound.call("ambience", "market" if inside else AmThanhNgay.nen(PlayMode.day))
 	_in_market = inside
 	var rattle := false
 	if traffic:

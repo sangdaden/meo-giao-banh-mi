@@ -81,6 +81,22 @@ func _run() -> void:
 	_check(not Chuyen.thu_toi(1) and int(GameState.get_global("vi_tien_boa", 0)) == vi0 + Chuyen.THU_BOA, "giao lại không cộng thêm")
 	_check(GameState.SAVE_KEYS.has(Chuyen.THU_KEY), "khóa lưu đã đăng ký")
 
+	print("Đồ 3D (scripts/chuyen/do_chuyen.gd)")
+	_check(DoChuyen.thu_dang_mang() == 2, "đang mang thư 2 của Mây")
+	for m in ["thiep_30", "la_thu_hung", "la_thu_may", "bang_dong"]:
+		_check(ResourceLoader.exists(DoChuyen.MODEL % m), "có model " + m)
+	for d: String in Days.ORDER:
+		_check(ResourceLoader.exists(DoChuyen.BAO % d), "có trang nhất báo " + d)
+	var tp := DoChuyen.thiep("thiep_trong_8")
+	var doi := 0
+	for mi: MeshInstance3D in tp.find_children("*", "MeshInstance3D", true, false):
+		for i in mi.mesh.get_surface_count():
+			var om := mi.get_surface_override_material(i) as StandardMaterial3D
+			if om and om.albedo_texture and om.albedo_texture.resource_path.ends_with("thiep_trong_8.jpg"):
+				doi += 1
+	_check(doi == 1, "thiệp đổi mặt trong theo số chữ ký")
+	tp.free()
+
 	print("Giao diện")
 	var ui: CanvasLayer = HudChuyen.new()
 	root.add_child(ui)

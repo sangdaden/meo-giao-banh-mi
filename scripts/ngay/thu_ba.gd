@@ -8,6 +8,7 @@ const DATA := {
 	"nodes": ["res://scripts/market.gd", "res://scripts/con_vat_moi/con_vat_moi.gd"],
 	"title": "Chợ đông",
 	"blurb": "Chợ tạm chiếm đường lớn, hàng rong chặn hẻm. Có đơn mua trứng về lò và đơn cho hai ông đánh cờ.",
+	"moi": "Chợ sáng chiếm đường lớn, góc cờ tướng phải rón rén, túi trứng mong manh mang về lò.",  # GC5: màn kết ngày trước nhắc ngày này có gì mới
 	"intro": "Cô Ba: \"Bữa nay chợ đông lắm Bơ ơi. Lò hết trứng rồi, ghé Cô Hai mua giùm cô một túi nha!\"",
 	"time_mult": 1.0,
 	"extras": {"market": true, "chess_corner": true, "shop_tap_hoa": true, "dog_sleeps_at_alley_mouth": true},
@@ -21,4 +22,6 @@ const DATA := {
 	# Bảng "Cách chơi" trong menu Esc: phím chung + các dòng này (scripts/ui/chu_huong_dan.gd)
 	"help": [["E", "giao bánh, nhận túi trứng"], ["Tab", "xem đủ phiếu đơn (món, ghi chú)"]],
 	"help_note": "Túi trứng dễ vỡ: đừng nhảy từ chỗ cao xuống, đừng va người hay xe đẩy. Qua chợ đông thì đi chậm.",
+	# Âm thanh của ngày (AT2, scripts/am_thanh_ngay.gd): chợ sáng: ngoài chợ là phố sáng, vào chợ market.gd đổi sang "market"
+	"amb": "morning",
 }

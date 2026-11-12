@@ -9,6 +9,7 @@ const DATA := {
 	"nodes": ["res://scripts/thu_sau.gd"],
 	"title": "Đám giỗ Bà Sáu",
 	"blurb": "Chiều tan tầm: gọi khách bằng tiếng meo, cầu nâng tiệm xe, rồi chạy nhiều chuyến bánh cho đám giỗ nhà Bà Sáu.",
+	"moi": "Kêu meo gọi khách, cầu nâng tiệm xe và nhiều chuyến bánh cho đám giỗ nhà Bà Sáu.",  # GC5: màn kết ngày trước nhắc ngày này có gì mới
 	"intro": "Cô Ba: \"Chiều nay giỗ ông nhà Bà Sáu, cô làm thêm cả mâm bánh. Bơ chạy mấy chuyến giùm cô nha, thằng Mực bữa nay thức hoài đó!\"",
 	"time_mult": 1.0,
 	"extras": {"evening": true, "gio": true, "dog_alert": true},
@@ -31,4 +32,6 @@ const DATA := {
 	# Bảng "Cách chơi" trong menu Esc: phím chung + các dòng này (scripts/ui/chu_huong_dan.gd)
 	"help": [["E", "giao bánh"], ["Q", "ngồi kêu meo gọi khách"], ["Space", "đạp tường qua khe hông tiệm xe"], ["E", "thả chả cá ở đầu hẻm 42 cho Mực ngủ say"]],
 	"help_note": "Chiều nay Chó Mực thức hoài: qua hẻm 42 thì giữ Z rón rén, bị đuổi thì nhảy lên chỗ cao. Đơn giỗ chạy nhiều chuyến, mỗi chuyến có giờ riêng.",
+	# Âm thanh của ngày (AT2, scripts/am_thanh_ngay.gd): chiều tà: ve sầu, chuông gió, chén bát nhà giỗ
+	"amb": "chieu",
 }

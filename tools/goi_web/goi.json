@@ -103,7 +103,9 @@
     "assets/models/thu_tu/ong_xoi.glb",
     "assets/models/thu_tu/rem_cuon.glb",
     "assets/models/thu_tu/xo_du.glb",
-    "assets/textures/chan_troi/chan_troi_mua.png"
+    "assets/textures/chan_troi/chan_troi_mua.png",
+    "assets/audio/amb_mua.ogg",
+    "assets/audio/music_mua.ogg"
    ]
   },
   "thu_nam": {
@@ -159,7 +161,8 @@
     "assets/models/thu_sau/long_tiem.glb",
     "assets/models/thu_sau/lop_to.glb",
     "assets/models/thu_sau/may_nen_khi.glb",
-    "assets/models/thu_sau/voi_hoi.glb"
+    "assets/models/thu_sau/voi_hoi.glb",
+    "assets/audio/amb_chieu.ogg"
    ]
   },
   "thu_bay": {
@@ -236,7 +239,9 @@
     "assets/models/skin/phu_kien/nobuom.glb",
     "assets/models/skin/phu_kien/phaovit.glb",
     "assets/models/skin/phu_kien/vonghoa.glb",
-    "assets/textures/chan_troi/chan_troi_toi.png"
+    "assets/textures/chan_troi/chan_troi_toi.png",
+    "assets/audio/amb_hoi.ogg",
+    "assets/audio/music_hoi.ogg"
    ]
   }
  }

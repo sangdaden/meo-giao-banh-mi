@@ -129,6 +129,10 @@ static func build(hud: Node, rows: Array, summary := {}) -> Control:
 	var pl := T.label(praise, 16, T.CREAM, "bold")
 	pl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	left.add_child(pl)
+	# GC5: món đang để dành còn thiếu bao nhiêu, ngày mai có gì mới (scripts/ui/nhac_ket_ngay.gd)
+	var nhac := NhacKetNgay.build(GameState.day if PlayMode.continuous else "")
+	if nhac:
+		left.add_child(nhac)
 
 	var panel := PanelContainer.new()
 	panel.add_theme_stylebox_override("panel", T.box(PAPER, 26, 24, INK, 4, 8))
@@ -199,7 +203,9 @@ static func build(hud: Node, rows: Array, summary := {}) -> Control:
 	v.add_child(foot)
 	# Chơi liền các ngày: Enter sang ngày kế, Chơi lại ca thành nút phụ, Về menu về thẳng trang chủ.
 	var first: Button
-	if PlayMode.continuous:
+	# Bản demo hết Thứ Ba: không có ngày kế, nút chính là Về menu.
+	var demo_end := Days.demo() and GameState.day == Days.DEMO_DAYS[-1]
+	if PlayMode.continuous and not demo_end:
 		var next := T.button("  " + PlayMode.next_label(), "primary", 58, 20)
 		next.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		next.pressed.connect(func(): PlayMode.go_next_day(hud.get_tree()))
@@ -207,13 +213,19 @@ static func build(hud: Node, rows: Array, summary := {}) -> Control:
 		foot.add_child(next)
 		first = next
 	var again := T.button("  Chơi lại ca", "secondary" if PlayMode.continuous else "primary", 58, 20)
+	var home_first := PlayMode.continuous and demo_end
 	again.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	again.pressed.connect(func(): hud.restart_pressed.emit())
 	if not PlayMode.continuous:
 		hud._add_key_hint(again, "Enter", T.ON_CRUST)
 		first = again
 	foot.add_child(again)
-	var home := T.button("Về menu", "secondary", 58, 20)
+	var home := T.button("Về menu", "primary" if home_first else "secondary", 58, 20)
+	if home_first:
+		home.text = "  Về menu"
+		home.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		hud._add_key_hint(home, "Enter", T.ON_CRUST)
+		first = home
 	if PlayMode.continuous:
 		home.pressed.connect(func(): PlayMode.go_home(hud.get_tree()))
 	else:

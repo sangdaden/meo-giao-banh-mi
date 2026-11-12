@@ -9,6 +9,7 @@ const DATA := {
 	"nodes": ["res://scripts/thu_tu.gd"],
 	"title": "Mưa chiều",
 	"blurb": "Mưa lớn, đường ngập dần. Đi đường sân thượng, giữ thăng bằng trên ván, tránh xe tạt nước và đàn bồ câu.",
+	"moi": "Mưa lớn, đường ngập dần: đi đường sân thượng, giữ thăng bằng trên ván, núp mưa dưới mái hiên.",  # GC5: màn kết ngày trước nhắc ngày này có gì mới
 	"intro": "Cô Ba: \"Mưa lớn rồi Bơ ơi, bánh cô bọc ni-lông kỹ rồi. Đường lớn sắp ngập, lên sân thượng mà đi cho khô nha!\"",
 	"time_mult": 1.0,
 	"extras": {"rain": true, "rooftop": true, "pigeons": true},
@@ -22,4 +23,7 @@ const DATA := {
 	# Bảng "Cách chơi" trong menu Esc: phím chung + các dòng này (scripts/ui/chu_huong_dan.gd)
 	"help": [["E", "giao bánh"]],
 	"help_note": "Mưa lớn, đường ngập dần: leo lên sân thượng mà đi. Trên ván hẹp Bơ tự đi chậm, đừng giữ Shift kẻo chao. Tránh xe tạt nước và đàn bồ câu.",
+	# Âm thanh của ngày (AT2, scripts/am_thanh_ngay.gd): mưa rào trên mái tôn; tạnh mưa ở đơn 5 thì thu_tu.gd đổi về "street"
+	"music": "mua",
+	"amb": "mua",
 }

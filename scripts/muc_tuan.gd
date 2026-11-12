@@ -731,7 +731,7 @@ func wake_up() -> void:
 	var rig: Node = player.get("camera_rig")
 	if rig and "distance" in rig and _cam_dist > 0.0:
 		_tween_cam(rig, _cam_dist, 0.8)
-	_music("delivery", 1.0)
+	_music(AmThanhNgay.nhac(PlayMode.day), 1.0)
 	var mb := dog.get_node_or_null("MucBan")
 	if mb and _ctl != "sniff":
 		mb.set_physics_process(true)

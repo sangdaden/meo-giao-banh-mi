@@ -439,4 +439,11 @@ const EN := {
 	"líu lo": "tweet tweedle",
 	"Chào mào hót đáp lại Bơ: líu lo!": "The bulbul sings back to Bơ: tweet tweedle!",
 	"Con mèo này hót đối với chim tui được nè!": "This cat can sing along with my bird!",
+	"Bếp Cô Ba, 5 đơn quanh khu phố và Chó Mực canh hẻm 42.": "Cô Ba's kitchen, 5 orders around the block and Mực the dog guarding alley 42.",
+	"Chợ sáng chiếm đường lớn, góc cờ tướng phải rón rén, túi trứng mong manh mang về lò.": "The morning market fills the main road, tiptoe past the chess corner, carry a fragile bag of eggs back to the bakery.",
+	"Mưa lớn, đường ngập dần: đi đường sân thượng, giữ thăng bằng trên ván, núp mưa dưới mái hiên.": "Heavy rain and rising water: take the rooftops, balance on planks, shelter under the awnings.",
+	"Leo trèo cả ngày: bám mép, bật tường trong khe hẹp, leo ống nước lên tầng 5 cho Bé Na.": "A day of climbing: grab ledges, wall-jump up narrow gaps, climb the drainpipe to the 5th floor for Bé Na.",
+	"Kêu meo gọi khách, cầu nâng tiệm xe và nhiều chuyến bánh cho đám giỗ nhà Bà Sáu.": "Meow to call customers, ride the repair shop lift and run many trips for Bà Sáu's memorial feast.",
+	"Không đồng hồ: giúp hàng xóm trong Sổ hàng xóm, chụp ảnh, làm bạn với Chó Mực.": "No clock: help the neighbours in the Neighbour book, take photos, make friends with Mực the dog.",
+	"Hội mèo ở công viên: đua mái nhà, nhảy thùng, trốn tìm, thi trang phục. Không ai thua!": "The Cat Festival in the park: rooftop race, crate jumps, hide-and-seek, a costume contest. Nobody loses!",
 }

@@ -303,6 +303,9 @@ jobs:
           # Chơi bằng cảm ứng (G3): cần đi, nút Nhảy/Giao/Làm, vuốt xoay camera, ngón giữ cần không thành cú bấm chuột
           timeout 300 ~/godot/godot --headless --path . -s tests/test_cam_ung.gd 2>&1 | python3 tools/loc_log.py | tee cam_ung.log
           grep -q "CAM UNG TEST OK" cam_ung.log
+          # GC1 GC5 W2: mở ngày theo thứ tự, thẻ nhắc màn kết ngày, bản demo Thứ Hai + Thứ Ba
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_mo_ngay.gd 2>&1 | python3 tools/loc_log.py | tee mo_ngay.log
+          grep -q "MO NGAY TEST OK" mo_ngay.log
           # Chuyện tuần "Bí mật cho Cô Ba" (R2): kịch bản đủ câu Việt + Anh, thư Hùng–Mây, phụ đề
           timeout 300 ~/godot/godot --headless --path . -s tests/test_chuyen.gd 2>&1 | python3 tools/loc_log.py | tee chuyen.log
           grep -q "CHUYEN TEST OK" chuyen.log

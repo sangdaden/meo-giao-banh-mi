@@ -8,6 +8,7 @@ const DATA := {
 	"title": "Hội mèo",
 	"mode": "festival",
 	"blurb": "Sáng mang khay bánh mì mini tới công viên. Tối Hội mèo: đua mái nhà, nhảy thùng, trốn tìm, giao tiếp sức, thi trang phục. Không ai thua!",
+	"moi": "Hội mèo ở công viên: đua mái nhà, nhảy thùng, trốn tìm, thi trang phục. Không ai thua!",  # GC5: màn kết ngày trước nhắc ngày này có gì mới
 	"intro": "Cô Ba: \"Tối nay hội mèo đó Bơ! Mình làm khay bánh mì mini mang tới góp vui nha.\"",
 	"time_mult": 1.0,
 	"extras": {"festival": true},
@@ -17,4 +18,8 @@ const DATA := {
 	# Bảng "Cách chơi" trong menu Esc: phím chung + các dòng này (scripts/ui/chu_huong_dan.gd)
 	"help": [["E", "giao khay bánh · tìm bạn, chuyền tiếp sức"], ["Enter", "chọn trò ở bảng Bà Mướp"]],
 	"help_note": "Sáng giao khay bánh, không tính giờ. Tối Hội mèo có năm trò thi, ai tham gia cũng có huy chương, không ai thua.",
+	# Âm thanh của ngày (AT2, scripts/am_thanh_ngay.gd): sáng giao khay như mọi ngày; tối Hội mèo (chu_nhat.gd
+	# gọi AmThanhNgay.phat(day, "toi")): nhạc hội, tiếng nền dế, trống lân xa, mèo kêu khe khẽ
+	"music_toi": "hoi",
+	"amb_toi": "hoi",
 }

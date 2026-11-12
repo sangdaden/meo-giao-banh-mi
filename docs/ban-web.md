@@ -44,3 +44,22 @@ Bản web không gán Ctrl (chui) và Alt (rón rén) vì Ctrl+W đóng tab, Alt
 Cũng trong `web/update-check.js`. Khi trình duyệt tắt phần đồ họa của game (WebGL context lost), khi game lỗi (wasm abort), hoặc khi game ngừng gửi nhịp quá 25 giây lúc tab đang mở, trang hiện bảng có nút **Tải lại trang** và một dòng mã lỗi (lý do, cảnh, thời gian chơi, màn hình, card đồ họa, trình duyệt) để người chơi chụp gửi lại. Mã lỗi cuối cùng cũng được giữ trong `localStorage` khóa `meo-loi-cuoi`.
 
 Game gửi nhịp mỗi giây bằng `TrangWeb.bat_nhip()` (gọi ở trang chủ). Treo cứng cả trang (vòng lặp vô hạn) thì trang cũng không chạy được nên không hiện bảng; lúc đó trình duyệt tự hỏi "Trang không phản hồi".
+
+## Vỏ trang (PH3)
+
+`web/vo_trang.html` thay vỏ HTML mặc định của Godot (`export_presets.cfg` > `html/custom_html_shell`): Bơ chạy theo thanh tải,
+số MB đã tải, mẹo chơi VI/EN đổi mỗi 5,5 giây, thẻ chia sẻ `og:`/`twitter:` (tên, mô tả). Ngôn ngữ theo lần chọn trước trong
+game (localStorage `meo-ngon-ngu`), lần đầu theo trình duyệt. Không có `og:image` vì luật G1 (không để GitHub chứa ảnh cho mạng xã hội).
+
+Đổi ảnh Bơ trên thanh tải (ví dụ khi model Bơ đổi):
+
+```
+xvfb-run -a godot --path . --rendering-driver opengl3 -s tools/chup_bo_tai.gd -- /tmp/bo_tai
+python3 tools/web/lam_bo_tai.py /tmp/bo_tai     # nhúng dải 8 khung vào web/vo_trang.html
+```
+
+## Bản demo Thứ Hai + Thứ Ba (W2)
+
+`Days.demo()` bật khi ProjectSettings `meo/ban_demo` = true (hoặc cờ `-- --demo`): chỉ Thứ Hai, Thứ Ba (và màn dạy chơi) chơi được,
+các ngày sau ghi "Bản đầy đủ", hết Thứ Ba màn kết ngày báo hết bản demo. Xuất web demo: `BAN_DEMO=co tools/web/xuat_web.sh <thư_mục>`.
+Đẩy lên itch: Run workflow "Đẩy lên itch.io" với `ban_demo` = `co` (web + Windows; macOS bỏ qua). Chỉ chạy khi Sang đồng ý.

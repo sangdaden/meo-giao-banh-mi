@@ -114,6 +114,7 @@ func _ready() -> void:
 	add_child(rig)
 	player.camera_rig = rig
 	AnhTuan.setup(self)  # ảnh mỗi ngày cho bảng "Tuần của Bơ" (cảnh kết tuần)
+	TrangWeb.theo_don(self)  # bản web: đơn đang giao, để đếm chỗ bỏ ngang (P1)
 	residents.setup(player)
 
 	dog = DogScript.new()

@@ -199,6 +199,8 @@ func _bat_dau() -> void:
 
 	# Câu nói của khách, giọng ú ớ theo câu
 	var cau := CAU_TRE if late else (str(KHACH[kid][2]) if KHACH.has(kid) else CAU_CHUNG)
+	if not late:  # câu cảm ơn riêng của ngày trong chuyện tuần (O3, scripts/chuyen/kich_ban.gd)
+		cau = Chuyen.cau_giao(str(main.day.get("id", "")), int(c.index), cau)
 	_chu = _nhan(cau, 34, UiTheme.INK, UiTheme.PAPER)
 	_chu.global_position = _dau + Vector3.UP * (SAO_TREN + 0.3)
 	_chu.modulate.a = 0.0

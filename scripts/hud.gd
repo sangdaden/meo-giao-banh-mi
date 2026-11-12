@@ -381,6 +381,7 @@ func show_results(rows: Array, summary := {}) -> void:
 		c.queue_free()
 	end_screen.add_child(_build_results(rows, summary))
 	end_screen.visible = true
+	TrangWeb.dem("meo-sao-ngay", {"ngay": PlayMode.day, "sao": summary.get("stars", 0), "sao_max": summary.get("stars_max", 0)})
 	TrangWeb.bao("ket_ngay", self)
 	T.wire_clicks(end_screen)
 

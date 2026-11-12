@@ -196,12 +196,25 @@ func _end_credits() -> void:
 	var home := _button("Về màn hình chính")
 	home.pressed.connect(func(): to_menu.emit())
 	v.add_child(home)
+	# Ảnh 7 ngày để khoe (Vũ Trụ Mark B1)
+	var anh := _button("Lưu ảnh tuần")
+	anh.pressed.connect(func(): _luu_anh(anh))
+	v.add_child(anh)
 	# Cửa sang kênh Mark học AI (Vũ Trụ Mark K2)
 	v.add_child(_text(KeMark.LOI, 16))
 	var mark := _button(KeMark.NUT.strip_edges())
 	mark.pressed.connect(func(): KeMark.mo("het_tuan"))
 	v.add_child(mark)
 	_end_box = center
+
+
+func _luu_anh(nut: Button) -> void:
+	nut.disabled = true
+	var img := await AnhTuanLuu.ghep(self, {"week_stars": week_stars, "week_stars_max": week_stars_max,
+		"neighbour_pages": neighbour_pages})
+	var bao := AnhTuanLuu.luu(img)
+	nut.text = bao if bao != "" else "Chưa lưu được ảnh"
+	nut.disabled = false
 
 
 func is_finished() -> bool:

@@ -259,6 +259,7 @@ func finish(then: Callable) -> void:
 	if done:
 		return
 	done = true
+	TrangWeb.dem("meo-phim", {"phim": which, "ket": "bo-qua" if _skip_used else "xem-het"})  # bản web: phễu P1
 	if test:
 		print("PHIM %s OK" % which.to_upper())
 		get_tree().quit(0)
@@ -299,6 +300,7 @@ func _process(delta: float) -> void:
 		_skip_bar.scale.x = _skip_t / SKIP_HOLD
 		if _skip_t >= SKIP_HOLD:
 			_skip_t = 0.0
+			_skip_used = true
 			if script_node.has_method("skip"):
 				script_node.skip()
 

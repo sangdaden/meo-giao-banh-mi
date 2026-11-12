@@ -531,4 +531,15 @@ const EN := {
 	"Tuần mới · %s": "New week · %s",
 	"Ngày mai · %s: %s": "Tomorrow · %s: %s",
 	"Bản demo · %s": "Demo (Mon + Tue) · %s",
+	# Lưu ảnh tuần (Vũ Trụ Mark B1)
+	"Lưu ảnh tuần": "Save week photo",
+	"Đã tải ảnh tuần về máy.": "Week photo downloaded.",
+	"Đã lưu ảnh tuần vào thư mục Ảnh.": "Week photo saved to your Pictures folder.",
+	"Chưa lưu được ảnh": "Couldn't save the photo",
+	"Tuần của Bơ": "Bơ's week",
+	"Mèo Giao Bánh Mì": "Mèo Giao Bánh Mì",
+	"Chơi miễn phí trên trình duyệt: meo.markhocai.com": "Play free in your browser: meo.markhocai.com",
+	"%d/%d sao": "%d/%d stars",
+	"Sổ hàng xóm: %d trang": "Neighbour book: %d pages",
+	"Mèo giao bánh của tuần": "Delivery cat of the week",
 }

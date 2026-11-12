@@ -1,0 +1,32 @@
+# AT3: chuẩn độ to của nhạc và tiếng nền (tools/sound/do_lufs.py).
+# Chỉ chạy khi PR đụng tới file âm thanh hoặc công cụ tạo âm thanh. Nhạc/jingle -18 LUFS, tiếng nền -24 LUFS,
+# lệch quá 1 LU là đỏ; bài nhạc nền phải dài 90–120 s (AT1). Không cần Godot, chỉ Python.
+name: Độ to âm thanh
+
+on:
+  pull_request:
+    paths:
+      - "assets/audio/**"
+      - "tools/sound/**"
+      - ".github/workflows/am-thanh.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: am-thanh-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  do:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Cài numpy, scipy, soundfile
+        run: pip install numpy scipy soundfile
+      - name: Đo LUFS
+        run: |
+          python3 tools/sound/do_lufs.py | tee lufs.log
+          grep -q "LUFS OK" lufs.log

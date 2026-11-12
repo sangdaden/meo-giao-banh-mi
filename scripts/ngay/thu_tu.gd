@@ -23,4 +23,7 @@ const DATA := {
 	# Bảng "Cách chơi" trong menu Esc: phím chung + các dòng này (scripts/ui/chu_huong_dan.gd)
 	"help": [["E", "giao bánh"]],
 	"help_note": "Mưa lớn, đường ngập dần: leo lên sân thượng mà đi. Trên ván hẹp Bơ tự đi chậm, đừng giữ Shift kẻo chao. Tránh xe tạt nước và đàn bồ câu.",
+	# Âm thanh của ngày (AT2, scripts/am_thanh_ngay.gd): mưa rào trên mái tôn; tạnh mưa ở đơn 5 thì thu_tu.gd đổi về "street"
+	"music": "mua",
+	"amb": "mua",
 }

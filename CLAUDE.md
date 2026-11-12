@@ -100,6 +100,7 @@ Model: Blender chạy headless qua `pip install bpy` (đang dùng bpy 5.2). Mỗ
 | `itch.yml` | chỉ khi bấm Run workflow (hoặc tag `v*` khi biến `ITCH_TU_DONG` = `co`), xem `docs/itch.md` | Đẩy bản web/Windows/Mac lên itch.io; chỉ chạy khi Sang đồng ý. |
 | `so-anh.yml` | mỗi PR (trừ PR chỉ sửa `.md`, `docs/`) | Chụp cùng góc trên main và trên PR (mỗi ngày: trên cao, lò bánh, chỗ khách mỗi đơn; bếp; màn hình chính), khung đỏ quanh vùng khác. Trang xem ở artifact `so-anh`, bình luận trên PR khi có góc khác. Chỉ báo, không đỏ (`docs/so-anh.md`). |
 | `tu-merge.yml` | PR được gắn nhãn `duyet` (Sang gắn, hoặc luồng Claude gắn sau khi Sang duyệt trên chat), và mỗi khi một workflow của PR chạy xong | Merge các PR có nhãn `duyet` khi mọi check xanh (đỏ thì chờ). Có secret `TU_MERGE_TOKEN` hoặc `GOP_MAIN_TOKEN` thì merge bằng token đó; không có thì merge bằng `GITHUB_TOKEN` rồi gọi lại các workflow của `main` (riêng bước thay zip `ban-moi-nhat` của `desktop.yml` chỉ chạy khi có token). |
+| `am-thanh.yml` | PR đụng `assets/audio/`, `tools/sound/` | Đo độ to nhạc (-18 LUFS), tiếng nền (-24 LUFS) và độ dài bài nhạc (90–120 s); lệch quá 1 LU là đỏ (AT3). |
 
 - Thêm test mới thì thêm một dòng chạy nó vào job macOS trong `desktop.yml` (cuối danh sách, trước bước kiểm log), dạng `timeout 300 ~/godot/godot ... 2>&1 | python3 tools/loc_log.py | tee <ten>.log` kèm `grep -q "<CHU OK>" <ten>.log`.
 - Log phải sạch (KT2): mọi `ERROR` / `SCRIPT ERROR` của Godot ngoài `tools/loi_duoc_phep.txt` làm đỏ CI (`tools/loc_log.py --kiem`, và trong bot cả tuần). Lỗi do code thì sửa code; chỉ thêm vào danh sách lỗi đã hiểu là vô hại, kèm lý do.
@@ -128,7 +129,7 @@ Từ PR #133 (H1, 23/10) mỗi ngày có file riêng, HUD tách thành mảnh, b
 | Người dân có xương | `scripts/nguoi.gd`, `scripts/residents.gd`, `tools/nguoi_game.py` | "Người dân vào game" |
 | Chó Mực | `scripts/dog.gd`, `scripts/muc_ban.gd` | "Chó Mực ở hẻm 42" |
 | Ánh sáng, thời tiết, đèn tối | `scripts/anh_sang.gd`, `scripts/thoi_tiet.gd`, `scripts/den_toi.gd`, `scripts/giu_fps.gd` | "Hoàn thiện hình ảnh Thứ Hai"; D1 màu chiều tà |
-| Âm thanh, giọng | `scripts/sound*.gd`, `scripts/bong_thoai.gd`, `tools/sound/`, `assets/audio/` (nguồn ghi ở `NGUON.md`) | "Âm thanh và nhạc"; E1 giọng ú ớ |
+| Âm thanh, giọng | `scripts/sound*.gd`, `scripts/bong_thoai.gd`, `tools/sound/`, `assets/audio/` (nguồn ghi ở `NGUON.md`); nhạc/tiếng nền theo ngày: khóa `"music"`/`"amb"` trong file ngày, đọc qua `scripts/am_thanh_ngay.gd`; độ to chuẩn -18/-24 LUFS (`tools/sound/do_lufs.py`) | "Âm thanh và nhạc"; E1 giọng ú ớ; AT1–AT3 "Nhạc dài và âm thanh theo ngày" |
 | Thứ Ba: chợ, góc cờ, tạp hóa | `scripts/market.gd`, `scripts/chess_corner.gd`, `scripts/shop_tap_hoa.gd` | "Chợ sáng", "Góc cờ tướng", "Tạp hóa và túi trứng" |
 | Thứ Tư (mưa, bồ câu, sân thượng) | `scripts/thu_tu*.gd`, `scripts/bo_cau.gd`, `scripts/san_thuong.gd`, `scripts/thang_bang.gd` | "Thứ Tư trong game" |
 | Thứ Năm (leo chung cư) | `scripts/thu_nam.gd`, `scripts/chung_cu.gd` | "Màn leo chung cư" |

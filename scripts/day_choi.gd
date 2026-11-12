@@ -166,6 +166,7 @@ func _ready() -> void:
 	if snd:
 		player.jumped.connect(func(): snd.play("jump", 0.0, randf_range(0.96, 1.06)))
 		player.landed.connect(func(): snd.play("land"))
+		AmThanhNgay.phat_rieng("menu", "san_sau")  # AT2: nhạc êm của trang chủ + tiếng sân sau (chim, gà, lá, vòi nước)
 	GameSettings.apply_graphics(get_tree())
 	GameSettings.apply_camera(get_tree())
 	GameSettings.watch_camera(get_tree())

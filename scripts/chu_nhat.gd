@@ -139,6 +139,7 @@ func begin_after_orders() -> void:
 
 func _start_festival() -> void:
 	_swap_sky("pho_toi")
+	AmThanhNgay.phat(PlayMode.day, "toi")  # nhạc hội + tiếng nền tối hội (khóa music_toi/amb_toi, scripts/ngay/chu_nhat.gd)
 	# Thẻ khách buổi sáng và phần HUD của đơn giao không dùng tới buổi tối
 	for l: Label3D in main.find_children("*", "Label3D", true, false):
 		if l.text.begins_with("1. Bà Mướp"):

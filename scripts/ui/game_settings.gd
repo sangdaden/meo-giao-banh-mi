@@ -31,6 +31,8 @@ const DEFAULTS := {
 	"fov_chay": true,        # DK3: chạy nhanh thì góc nhìn giãn nhẹ
 	"camera_nay": true,      # DK2: camera nảy nhẹ khi đáp từ cao hơn 2 m
 	"rung_tay_cam": true,    # DK2: rung tay cầm khi bị hất văng (scripts/cam_giac_tay.gd)
+	"mo_het_ngay": false,    # GC1: người chơi thử mở hết các ngày đã làm (Days.unlock_all)
+	"mo_khoa_da_xem": "",    # GC1: các ngày đã hiện hiệu ứng "Mới mở" ở Chọn màn, cách nhau bằng dấu phẩy
 }
 
 static var _data := {}

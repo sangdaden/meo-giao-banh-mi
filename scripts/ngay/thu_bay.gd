@@ -10,6 +10,7 @@ const DATA := {
 	"nodes": ["res://scripts/thu_bay.gd"],
 	"title": "Dạo phố",
 	"blurb": "Không có đồng hồ: đi giúp hàng xóm, chụp ảnh, và làm bạn với Chó Mực.",
+	"moi": "Không đồng hồ: giúp hàng xóm trong Sổ hàng xóm, chụp ảnh, làm bạn với Chó Mực.",  # GC5: màn kết ngày trước nhắc ngày này có gì mới
 	"intro": "Cô Ba: \"Thứ Bảy rồi, cô cho Bơ nghỉ! Cầm cuốn sổ này đi chơi một vòng, ai cần gì thì giúp người ta nha.\"",
 	"mode": "free",
 	"time_mult": 1.0,

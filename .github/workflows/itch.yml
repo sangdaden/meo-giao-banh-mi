@@ -21,6 +21,11 @@ on:
         type: choice
         default: tat-ca
         options: [tat-ca, web, windows, mac]
+      ban_demo:
+        description: "Bản demo chỉ Thứ Hai + Thứ Ba (W2): web và Windows; macOS bỏ qua vì sửa .app làm hỏng chữ ký"
+        type: choice
+        default: khong
+        options: [khong, co]
   push:
     tags: ["v*"]
 
@@ -35,6 +40,7 @@ env:
   GODOT_VERSION: "4.3"
   BAN: ${{ github.event.inputs.ban || github.ref_name }}
   KENH: ${{ github.event.inputs.kenh || 'tat-ca' }}
+  BAN_DEMO: ${{ github.event.inputs.ban_demo || 'khong' }}
 
 jobs:
   itch:
@@ -88,6 +94,8 @@ jobs:
         if: env.KENH == 'tat-ca' || env.KENH == 'web'
         run: |
           # Tag thì xuất đúng mã của tag; chạy tay thì xuất mã nhánh đang chọn
+          # Bản demo (W2): Days.demo() đọc ProjectSettings "meo/ban_demo"
+          if [ "$BAN_DEMO" = co ]; then printf '\n[meo]\n\nban_demo=true\n' >> project.godot; fi
           ~/godot/godot --headless --path . --import || true
           mkdir -p dist/web
           ~/godot/godot --headless --path . --export-release "Web" dist/web/index.html
@@ -121,6 +129,17 @@ jobs:
           ls -la dist
           [ "$KENH" = mac ] || test -s dist/MeoGiaoBanhMi-windows.zip
           [ "$KENH" = windows ] || test -s dist/MeoGiaoBanhMi-macos.zip
+          if [ "$BAN_DEMO" = co ]; then
+            # Bản demo: override.cfg cạnh file .exe bật ProjectSettings "meo/ban_demo" (Godot tự đọc khi mở game)
+            if [ -f dist/MeoGiaoBanhMi-windows.zip ]; then
+              printf '[meo]\n\nban_demo=true\n' > override.cfg
+              zip -q dist/MeoGiaoBanhMi-windows.zip override.cfg
+            fi
+            if [ -f dist/MeoGiaoBanhMi-macos.zip ]; then
+              echo "::warning::Bản demo chưa có cho macOS (thêm file vào .app làm hỏng chữ ký), không đẩy kênh mac."
+              rm dist/MeoGiaoBanhMi-macos.zip
+            fi
+          fi
 
       - name: Cài butler
         if: steps.cfg.outputs.day == 'co'

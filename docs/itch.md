@@ -46,6 +46,7 @@ Thiếu một trong hai thì workflow vẫn chạy được nhưng chỉ xuất 
 1. Tab **Actions** → **Đẩy lên itch.io** → **Run workflow**.
 2. `ban`: để `ban-moi-nhat` (bản mới nhất của main) hoặc gõ một tag như `v0.2.0`.
 3. `kenh`: `tat-ca`, hoặc chỉ `web` / `windows` / `mac`.
+   `ban_demo`: `co` thì đẩy bản demo Thứ Hai + Thứ Ba (web và Windows; macOS bị bỏ qua). Xem `docs/ban-web.md`.
 4. Chạy xong (khoảng 5–10 phút), mở trang itch → **Edit game**. Lần đầu: ở file kênh `web`, tick **This file will be played in the browser**, bấm Save. Những lần sau itch tự giữ.
 
 Số phiên bản hiện trên itch: tên tag, hoặc `năm.tháng.ngày-mãcommit` khi lấy `ban-moi-nhat`.

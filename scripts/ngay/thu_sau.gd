@@ -9,6 +9,7 @@ const DATA := {
 	"nodes": ["res://scripts/thu_sau.gd"],
 	"title": "Đám giỗ Bà Sáu",
 	"blurb": "Chiều tan tầm: gọi khách bằng tiếng meo, cầu nâng tiệm xe, rồi chạy nhiều chuyến bánh cho đám giỗ nhà Bà Sáu.",
+	"moi": "Kêu meo gọi khách, cầu nâng tiệm xe và nhiều chuyến bánh cho đám giỗ nhà Bà Sáu.",  # GC5: màn kết ngày trước nhắc ngày này có gì mới
 	"intro": "Cô Ba: \"Chiều nay giỗ ông nhà Bà Sáu, cô làm thêm cả mâm bánh. Bơ chạy mấy chuyến giùm cô nha, thằng Mực bữa nay thức hoài đó!\"",
 	"time_mult": 1.0,
 	"extras": {"evening": true, "gio": true, "dog_alert": true},

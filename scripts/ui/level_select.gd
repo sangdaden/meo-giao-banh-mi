@@ -5,16 +5,15 @@ extends Control
 ## chỉ bếp, chỉ giao, một đơn là chơi tập, xong không sang ngày kế.
 ## Bên trái là bảy ngày trong tuần (theo trang thiết kế màn chơi), bên phải là các cách chơi của ngày đang chọn.
 ## Ngày đã làm (Days.playable) có: cả ca, chỉ bếp, chỉ giao (mọi đơn của ngày), hoặc giao một đơn. Ngày chưa làm hiện "Sắp có".
-## Dữ liệu ngày và đơn lấy từ scripts/days.gd. Bản chơi thử mở sẵn mọi ngày đã làm (Days.PLAYTEST_UNLOCK_ALL).
+## Dữ liệu ngày và đơn lấy từ scripts/days.gd. GC1: ngày mở theo thứ tự (Days.unlocked); ngày vừa mở hiện
+## "Mới mở!" nhấp nháy một lần (GameSettings "mo_khoa_da_xem"). Cài đặt "Mở hết các ngày" cho người chơi thử.
+## Bản demo (Days.demo) ghi "Bản đầy đủ" ở các ngày sau Thứ Ba.
 ## Sao và kỷ lục đọc từ file lưu (GameState), mỗi ngày một mục.
 
 signal closed
 
 const T = preload("res://scripts/ui/ui_theme.gd")
 const Main = preload("res://scripts/main.gd")
-
-## Ngày chưa làm xong nhưng đã có cảnh chơi thử riêng.
-const PREVIEW := ["thu_nam"]
 
 var _day := "thu_hai"
 var _day_buttons := {}  # mã ngày -> Button
@@ -103,8 +102,7 @@ func _select(day: String, grab := true) -> void:
 		c.queue_free()
 	if Days.unlocked(day):
 		_build_day(day)
-	elif day == "thu_nam":
-		_build_thursday()
+		_mark_seen(day)
 	else:
 		_build_soon(day)
 	T.wire_clicks(self)
@@ -147,12 +145,16 @@ func _day_button(day: String, theme_name: String) -> Button:
 	v.add_child(_co_chu(T.label(theme_name, 14, T.MUTED, "bold"), 11))
 	if playable:
 		var best := int(GameState.get_day("sao_cao_nhat", -1, day))
-		if best >= 0:
+		if just_unlocked(day):
+			var p := _pill("Mới mở!", T.RED, T.PAPER)
+			h.add_child(p)
+			_pulse(p, b)
+		elif best >= 0:
 			h.add_child(_pill("%d/15 sao" % best, T.AMBER, T.ON_CRUST))
 		else:
 			h.add_child(_pill("Mới", T.LEAF, T.PAPER))
-	elif day in PREVIEW:
-		h.add_child(_pill("Chơi thử", T.LEAF, T.PAPER))
+	elif Days.full_only(day):
+		h.add_child(_pill("Bản đầy đủ", T.SAND, T.MUTED))
 	elif Days.playable(day):
 		h.add_child(_pill("Chưa mở", T.SAND, T.MUTED))
 	else:
@@ -333,25 +335,6 @@ func _order_button(id: String, i: int, o: Dictionary) -> Button:
 	return b
 
 
-# ---------------------------------------------------------------- Thứ Năm chưa mở: vẫn cho leo thử cảnh chung cư
-
-func _build_thursday() -> void:
-	_detail.add_child(T.label("Thứ Năm · Lên tầng năm", 30, T.INK, "display"))
-	var desc := T.label("Mang 2 ổ trứng lên căn 5B-1 cho Bé Na. Đi cầu thang (chui giá phơi đồ, rón rén qua em bé ngủ), "
-		+ "đợi thang máy, hay leo ngoài tường: bật tường trong khe hẹp, bám mép (Space), leo ống nước.", 15, T.MUTED, "body")
-	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_detail.add_child(desc)
-	var best := Scoring.best_stars(0, "thu_nam")
-	var play := _mode_button("thu_nam", "Leo chung cư", "Kỷ lục %d/3 sao" % best if best > 0 else "Chưa leo lần nào",
-		"primary", PlayMode.Mode.ORDER, func(): PlayMode.start_chung_cu(get_tree()))
-	play.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	_detail.add_child(play)
-	var note := T.label("Đây là riêng cảnh chung cư (đơn 5). Cả ngày Thứ Năm mở khi chơi xong Thứ Tư.", 14, T.MUTED, "bold")
-	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_detail.add_child(note)
-	_first_focus = play
-
-
 # ---------------------------------------------------------------- ngày chưa làm
 
 func _build_soon(day: String) -> void:
@@ -367,12 +350,19 @@ func _build_soon(day: String) -> void:
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
 	v.add_theme_constant_override("separation", 6)
 	card.add_child(v)
-	var big := T.label("Chưa mở" if Days.playable(day) else "Sắp có", 52, T.MUTED, "display")
+	var big_text := "Bản đầy đủ" if Days.full_only(day) else ("Chưa mở" if Days.playable(day) else "Sắp có")
+	var big := T.label(big_text, 52, T.MUTED, "display")
 	big.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(big)
-	var prev: String = Days.ORDER[maxi(Days.ORDER.find(day) - 1, 0)]
-	var sub := T.label("Chơi xong %s để mở ngày này." % GameState.DAY_NAMES[prev] if Days.playable(day) else "Ngày này đang được làm.", 17, T.MUTED, "bold")
+	var prev := Days.previous_playable(day)
+	var sub_text := "Ngày này đang được làm."
+	if Days.full_only(day):
+		sub_text = "Bản demo có Thứ Hai và Thứ Ba. Ngày này có trong bản đầy đủ."
+	elif Days.playable(day) and prev != "":
+		sub_text = "Chơi xong %s để mở ngày này." % GameState.DAY_NAMES[prev]
+	var sub := T.label(sub_text, 17, T.MUTED, "bold")
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(sub)
 	_detail.add_child(card)
 	var go := T.button("  Chơi Thứ Hai", "primary", 60, 20)
@@ -380,6 +370,36 @@ func _build_soon(day: String) -> void:
 	go.pressed.connect(_select.bind("thu_hai"))
 	_detail.add_child(go)
 	_first_focus = go
+
+
+# ---------------------------------------------------------------- GC1: ngày vừa mở
+
+## Ngày đã mở theo thứ tự (không phải Thứ Hai, không do "Mở hết các ngày") mà chưa hiện "Mới mở!" lần nào.
+static func just_unlocked(day: String) -> bool:
+	if Days.ORDER.find(day) <= 0 or Days.unlock_all() or not Days.unlocked(day):
+		return false
+	if int(GameState.get_day("so_lan_choi", 0, day)) > 0:
+		return false
+	return not day in str(GameSettings.get_value("mo_khoa_da_xem")).split(",", false)
+
+
+## Đã xem ngày vừa mở: lần mở Chọn màn sau không nhấp nháy nữa.
+static func _mark_seen(day: String) -> void:
+	if not just_unlocked(day):
+		return
+	var seen := str(GameSettings.get_value("mo_khoa_da_xem")).split(",", false)
+	seen.append(day)
+	GameSettings.set_value("mo_khoa_da_xem", ",".join(seen))
+
+
+## Nhãn "Mới mở!" phồng xẹp, nút ngày lóe sáng một lần: báo ngày vừa mở khóa.
+func _pulse(pill: Control, b: Button) -> void:
+	pill.resized.connect(func(): pill.pivot_offset = pill.size / 2.0)
+	var tw := pill.create_tween().set_loops(4)
+	tw.tween_property(pill, "scale", Vector2(1.18, 1.18), 0.32).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(pill, "scale", Vector2.ONE, 0.32).set_trans(Tween.TRANS_SINE)
+	b.modulate = Color(1.6, 1.45, 1.0)
+	b.create_tween().tween_property(b, "modulate", Color.WHITE, 1.4).set_delay(0.2)
 
 
 ## Chữ dài hơn chỗ (nhất là bản tiếng Anh) thì tự thu cỡ, nhỏ nhất `nho`; vẫn dài thì cắt "…".

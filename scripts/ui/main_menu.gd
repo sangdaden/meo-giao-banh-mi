@@ -119,7 +119,7 @@ func _ready() -> void:
 
 	add_child(_showcase())
 
-	var ver := T.label("Bản chơi thử · %s" % ("web" if OS.has_feature("web") else "Windows"), 14, T.MUTED, "bold")
+	var ver := T.label(("Bản demo · %s" if Days.demo() else "Bản chơi thử · %s") % ("web" if OS.has_feature("web") else "Windows"), 14, T.MUTED, "bold")
 	T.place(ver, 0.0, 1.0, Rect2(72, -40, 400, 24))
 	add_child(ver)
 	# Xem lại phim mở đầu (C1, Sang 23/10)

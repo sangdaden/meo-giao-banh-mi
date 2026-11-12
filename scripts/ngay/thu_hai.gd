@@ -10,6 +10,7 @@ const DATA := {
 	],
 	"title": "Mẻ bánh đầu tiên",
 	"blurb": "Làm bánh trong bếp Cô Ba rồi giao 5 đơn. Đơn cuối phải lách qua Chó Mực ở hẻm 42.",
+	"moi": "Bếp Cô Ba, 5 đơn quanh khu phố và Chó Mực canh hẻm 42.",  # GC5: màn kết ngày trước nhắc ngày này có gì mới
 	"intro": "Cô Ba: \"Sáng nay 5 đơn nha Bơ. Đơn chót qua hẻm 42, nhớ rón rén kẻo thằng Mực nó thức!\"",
 	"time_mult": 1.0,
 	"extras": {},

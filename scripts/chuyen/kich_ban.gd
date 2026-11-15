@@ -228,7 +228,7 @@ const NGAY := {
 				{"k": "l5", "ai": "Chú Năm", "c": "Con gái chú nè! Lan ơi, đây là Bơ đó.", "dk": "lan"},
 				{"k": "l5", "ai": "Chị Lan", "c": "Con đem hoa Đà Lạt về mừng cô Ba nè.", "dk": "lan"},
 				{"k": "tranh", "ai": "Bé Na", "c": "Cô Ba coi nè, mèo ở giữa đó!"},
-				{"k": "bimat", "ai": "Chú Tư", "c": "Số đặc biệt, tặng cô!"},
+				{"k": "bimat", "ai": "Chú Tư", "c": "Số đặc biệt, tặng cô!", "anh": "bao_dac_biet"},
 				{"k": "toast", "ai": "", "c": "LÒ BÁNH CÔ BA 30 NĂM: CẢ XÓM CẢM ƠN!"},
 				{"k": "thu", "ai": "", "c": "Anh Hùng và Chị Mây ngồi cạnh nhau, chia nhau miếng bánh bông lan hình ổ bánh mì."},
 				{"k": "l1", "ai": "", "c": "Mực nằm dưới chân Bà Sáu, đuôi đập đập xuống đất."},

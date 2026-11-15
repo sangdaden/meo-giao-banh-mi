@@ -824,7 +824,7 @@ func _physics_process(delta: float) -> void:
 
 ## Thử thách: đồng hồ chung của các chuyến giỗ chạy cả lúc về lò lấy chuyến sau.
 func _update_shared(delta: float) -> void:
-	if not _shared_on:
+	if not _shared_on or ChupAnh.dang_chup:  # đang chụp ảnh (U3): đồng hồ chung cũng dừng
 		return
 	_shared_left = maxf(_shared_left - delta, 0.0)
 	if _current >= 0 and player.carrying and orders[_current].get("gio_group", false):

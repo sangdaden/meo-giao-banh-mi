@@ -19,6 +19,8 @@ const PHIM_CHUNG := [
 ]
 ## Phím Q gọi con vật (scripts/con_vat.gd), có ở mọi ngày; ngày tự khai dòng Q thì dùng dòng của ngày.
 const PHIM_GOI := [["Q", "kêu meo · con vật gần đó đáp lại"]]
+## Phím P chụp ảnh (scripts/chup_anh.gd, U3), có ở mọi ngày ngoài phố; ngày tự khai dòng P thì dùng dòng của ngày.
+const PHIM_CHUP := [["P", "chụp ảnh · đồng hồ dừng lúc chụp"]]
 ## Nút cứu kẹt (scripts/cuu_ket.gd), luôn ở cuối bảng.
 const PHIM_CUU_KET := [["Giữ R", "về chỗ an toàn khi bị kẹt"]]
 ## Tùy chọn hỗ trợ "Tự đi theo mũi tên" (scripts/tu_di_pho.gd), chỉ hiện khi đã bật ở Cài đặt > Hỗ trợ.
@@ -51,8 +53,9 @@ static func bang(day: Dictionary) -> Array:
 	if rieng.is_empty():
 		rieng = PHIM_GIAO
 	var goi: Array = [] if rieng.any(func(r): return r[0] == "Q") else PHIM_GOI
+	var chup: Array = [] if rieng.any(func(r): return r[0] == "P") else PHIM_CHUP
 	var tu_di: Array = PHIM_TU_DI if DoKho.ho_tro("ho_tro_tu_di") else []
-	return PHIM_CHUNG + rieng + goi + tu_di + PHIM_CUU_KET
+	return PHIM_CHUNG + rieng + goi + chup + tu_di + PHIM_CUU_KET
 
 
 ## Ghi chú dưới bảng "Cách chơi" của một ngày, kèm dòng tay cầm.

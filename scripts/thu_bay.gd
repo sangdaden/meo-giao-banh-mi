@@ -448,7 +448,7 @@ func _check_nap(delta: float) -> void:
 				_napped = true
 				player.stop_clip()
 				_sky_step()
-				toast("Bơ thức dậy, trời đã ngả sang chiều hơn.", 2.5)
+				toast("Bơ thức dậy, trời đã ngả sang chiều hơn." + ("\n" + ChoNam.found_text("t7_mai_ton") if ChoNam.ghi("t7_mai_ton") else ""), 3.0)
 	else:
 		if _nap > 0.0:
 			player.stop_clip()

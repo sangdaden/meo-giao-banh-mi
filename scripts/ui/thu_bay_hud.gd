@@ -20,6 +20,7 @@ var _grid: GridContainer
 var _cover: TextureRect
 var _book_title: Label
 var _ban: BanBonChan
+var _cho_nam: ChoNamTrang
 var _choice: Control
 var _choice_cb: Callable
 var _choice_picked: Array = []
@@ -158,6 +159,8 @@ func _build_book() -> Control:
 	pages.add_child(_grid)
 	_ban = BanBonChan.new()
 	pages.add_child(_ban)
+	_cho_nam = ChoNamTrang.new()  # U1: trang "Chỗ nằm ưa thích" (scripts/cho_nam.gd)
+	pages.add_child(_cho_nam)
 	return dim
 
 
@@ -182,6 +185,7 @@ func _fill_book() -> void:
 		"Tìm thẻ tên đồng bị rơi" if muc_open else "Trang đặc biệt · giúp %d người rồi hỏi Bà Sáu" % int(DoKho.v("muc_chapter_after", 3)),
 		"Mực đi theo Bơ"))
 	_ban.refresh()
+	_cho_nam.refresh()
 
 
 func _page_card(id: String, who: String, place: String, task: String, gift: String) -> Control:

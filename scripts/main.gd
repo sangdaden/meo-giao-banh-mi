@@ -163,6 +163,8 @@ func _ready() -> void:
 	hud.enable_minimap(true)
 	add_to_group("ban_do_nho")  # ghim lò bánh và các đơn trên bản đồ nhỏ: ban_do_pins()
 	deliveries.setup(player, dog, hud, "--autotest" in OS.get_cmdline_user_args())
+	ChoNam.setup(player, self)  # U1: chỗ nằm ưa thích mỗi ngày, nằm sưởi nắng thì ghi vào Sổ (scripts/cho_nam.gd)
+	ChupAnh.setup(self, func() -> bool: return state == State.PLAY and not _leaving)  # U3: phím P chụp ảnh mọi ngày
 
 	GameSettings.apply_graphics(get_tree())
 	GameSettings.apply_camera(get_tree())
@@ -326,7 +328,7 @@ func restart() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if state != State.PLAY or _leaving or orders.is_empty():
+	if state != State.PLAY or _leaving or orders.is_empty() or ChupAnh.dang_chup:  # đang chụp ảnh: đồng hồ dừng
 		return
 	if _autotest:
 		_autotest_step()

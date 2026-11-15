@@ -31,7 +31,7 @@ const PHIM := [
 	["interact", "Làm (bếp)", "bep", KEY_E, [KEY_ENTER, KEY_KP_ENTER, "chuot"], JOY_BUTTON_B, [], []],
 	["tu_di", "Tự đi tới trạm (bếp)", "bep", KEY_TAB, [], JOY_BUTTON_Y, [], []],
 	["so_hang_xom", "Sổ hàng xóm", "thu_bay", KEY_TAB, [], JOY_BUTTON_BACK, [], []],
-	["chup_anh", "Chụp ảnh", "thu_bay", KEY_P, [], -1, [], []],
+	["chup_anh", "Chụp ảnh", "pho", KEY_P, [], -1, [], []],
 ]
 
 ## Đổi phím: GameSettings "ban_phim" = {hành động: {"phim": keycode, "nut": joy button}} (chỉ phần khác mặc định).

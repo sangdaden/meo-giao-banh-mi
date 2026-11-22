@@ -201,6 +201,8 @@ func say(who: String, text: String, secs := 3.5, sfx := "") -> void:
 	_sub_tw.tween_callback(_sub.hide)
 	if sfx != "":
 		sound(sfx)
+	if GiongThat.ma(who, text) != "":  # câu có giọng thật (ElevenLabs, scripts/giong_that.gd)
+		GiongUO.noi(who, text)
 
 
 ## Chữ lớn giữa màn hình (tên game, "Thứ Hai"), hiện rồi tan.

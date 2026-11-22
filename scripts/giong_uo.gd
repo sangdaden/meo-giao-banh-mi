@@ -74,6 +74,10 @@ static func noi(who: String, text: String, at: Node3D = null) -> void:
 	var m := _manager()
 	if m == null:
 		return
+	if GiongThat.phat(m, who, text, at):  # câu có giọng thật (ElevenLabs) thì phát file ghi sẵn
+		m._talks.erase(who)
+		return
+	GiongThat.dung(who)
 	var syl := syllables(text)
 	if syl.is_empty():
 		return
@@ -99,12 +103,15 @@ static func ai(n: Node) -> String:
 
 
 static func dung(who: String) -> void:
+	GiongThat.dung(who)
 	if _mgr and is_instance_valid(_mgr):
 		_mgr._talks.erase(who)
 
 
 ## Có ai đang nói không (để test).
 static func dang_noi(who := "") -> bool:
+	if GiongThat.dang_noi(who):
+		return true
 	if _mgr == null or not is_instance_valid(_mgr):
 		return false
 	return not _mgr._talks.is_empty() if who == "" else _mgr._talks.has(who)

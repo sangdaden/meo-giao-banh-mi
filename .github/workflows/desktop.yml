@@ -318,6 +318,9 @@ jobs:
           # Chỗ nằm ưa thích (U1) và chụp ảnh mọi ngày (U3): vệt nắng ghi vào sổ, đồng hồ dừng khi chụp
           timeout 300 ~/godot/godot --headless --path . -s tests/test_cho_nam.gd 2>&1 | python3 tools/loc_log.py | tee cho_nam.log
           grep -q "CHO NAM TEST OK" cho_nam.log
+          # Giọng thật ElevenLabs: file nạp được, câu còn đúng trong code, câu lạ vẫn nói ú ớ
+          timeout 300 ~/godot/godot --headless --path . -s tests/test_giong_that.gd 2>&1 | python3 tools/loc_log.py | tee giong_that.log
+          grep -q "TEST GIONG THAT OK" giong_that.log
           # Log sạch (KT2): lỗi Godot ngoài tools/loi_duoc_phep.txt làm đỏ (autotest từng ngày: bot-ca-tuan.yml)
           python3 tools/loc_log.py --kiem *.log
           mkdir -p export

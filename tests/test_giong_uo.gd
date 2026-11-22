@@ -62,7 +62,7 @@ func _run() -> void:
 	await create_timer(2.5).timeout
 	_check(not GiongUO.dang_noi("Cô Ba"), "nói xong câu thì dừng")
 	GiongUO.noi("Ông Tám", "Ê con mèo này!", residents.coba)
-	GiongUO.noi("Ông Tám", "Suỵt!")
+	GiongUO.noi("Ông Tám", "Khoan!")  # câu không có giọng thật (Suỵt! đã có: GiongThat)
 	_check(GiongUO._mgr._talks["Ông Tám"].syl.size() == 1, "nói câu mới thì bỏ câu cũ")
 
 	if fails == 0:

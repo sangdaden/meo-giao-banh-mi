@@ -91,7 +91,7 @@ static func start_tutorial(tree: SceneTree, then := "select") -> void:
 	tap_then = then
 	continuous = false
 	tree.paused = false
-	tree.change_scene_to_file(TAP_SCENE)
+	GoiWeb.go(tree, TAP_SCENE, GoiWeb.for_play())  # bản web: màn dạy chơi dùng đồ trong gói "pho"
 
 
 ## Xong hay bỏ qua màn dạy chơi.

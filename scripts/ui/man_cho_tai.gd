@@ -1,17 +1,42 @@
 class_name ManChoTai
 extends CanvasLayer
 ## Màn chờ của bản web khi đang tải gói đồ của một ngày hay tủ đồ (scripts/goi_web.gd).
-## Thẻ giấy gói bánh giữa màn hình: dòng chữ, thanh tải, số MB; lỗi mạng thì có nút Thử lại / Về trang chủ.
+## Thẻ giấy gói bánh giữa màn hình: dòng chữ, thanh tải, phần trăm và số MB, một mẹo chơi đổi mỗi vài giây
+## (PD-4: chờ trên 4G không giống bị treo); lỗi mạng thì có nút Thử lại / Về trang chủ.
 
 const T = preload("res://scripts/ui/ui_theme.gd")
 
 signal retry
+
+## Mẹo chơi lúc chờ (giống vỏ trang web/vo_trang.html). Bản cảm ứng dùng TIPS_TOUCH, không nói phím.
+const TIPS := [
+	"WASD để đi, Shift chạy nhanh, Space nhảy. Nhảy lên mái hiên để đi tắt.",
+	"Bấm E khi tới gần khách để giao bánh. Mũi tên đỏ luôn chỉ đường.",
+	"Chó Mực ngủ gật ở hẻm 42: giữ Z để rón rén cho êm chân.",
+	"Kẹt chỗ nào thì giữ R để về chỗ an toàn. Lạc lâu thì mèo hàng xóm ra dẫn đường.",
+	"Giao trễ cũng không sao: chỉ bớt sao, không ai bị thua.",
+	"Tiền boa mở mũ, khăn, kính và giống mèo mới trong Tủ đồ.",
+	"Bấm Q để kêu meo gọi các con vật quanh phố.",
+	"Esc để tạm dừng và xem Cách chơi.",
+]
+const TIPS_TOUCH := [
+	"Chạm nửa trái màn hình để đi, đẩy sát mép là chạy nhanh. Vuốt nửa phải để xoay nhìn.",
+	"Tới gần khách thì bấm nút Giao. Mũi tên đỏ luôn chỉ đường.",
+	"Gầm xe, gầm bàn thấp quá thì bấm nút Chui.",
+	"Bấm nút Meo để gọi các con vật quanh phố.",
+	"Lạc đường thì bật Tự đi ở Cài đặt > Hỗ trợ, rồi giữ nút Tự đi.",
+	"Giao trễ cũng không sao: chỉ bớt sao, không ai bị thua.",
+	"Tiền boa mở mũ, khăn, kính và giống mèo mới trong Tủ đồ.",
+]
+const TIP_SEC := 5.5
 
 var packs: Array[String] = []
 var _title: Label
 var _bar: ProgressBar
 var _mb: Label
 var _buttons: HBoxContainer
+var _tip: Label
+var _tip_i := 0
 var _got := {}
 
 
@@ -47,6 +72,20 @@ func _ready() -> void:
 	_mb = T.label("", 16, T.MUTED)
 	_mb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(_mb)
+	_tip = T.label("", 17, T.INK, "body")
+	_tip.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_tip.custom_minimum_size = Vector2(460, 48)
+	col.add_child(_tip)
+	_tip_i = randi() % _tips().size()
+	_show_tip()
+	var tick := Timer.new()
+	tick.wait_time = TIP_SEC
+	tick.autostart = true
+	tick.timeout.connect(func():
+		_tip_i += 1
+		_show_tip())
+	add_child(tick)
 	_buttons = HBoxContainer.new()
 	_buttons.alignment = BoxContainer.ALIGNMENT_CENTER
 	_buttons.add_theme_constant_override("separation", 12)
@@ -64,6 +103,15 @@ func _ready() -> void:
 		PlayMode.go_home(get_tree()))
 	_buttons.add_child(home)
 	set_progress("", 0, 0)
+
+
+func _tips() -> Array:
+	return TIPS_TOUCH if CamUng.bat else TIPS
+
+
+func _show_tip() -> void:
+	var list := _tips()
+	_tip.text = tr("Mẹo") + ": " + tr(list[_tip_i % list.size()])
 
 
 func _text() -> String:
@@ -85,7 +133,7 @@ func set_progress(pack: String, got: int, _size: int) -> void:
 		have += size if GoiWeb.loaded(p) else int(_got.get(p, 0))
 	_bar.max_value = maxf(total, 1)
 	_bar.value = have
-	_mb.text = "%.1f / %.1f MB" % [have / 1048576.0, total / 1048576.0]
+	_mb.text = "%d%% · %.1f / %.1f MB" % [int(100.0 * have / maxf(total, 1)), have / 1048576.0, total / 1048576.0]
 
 
 func show_error() -> void:

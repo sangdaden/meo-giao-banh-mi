@@ -58,12 +58,12 @@ Chi tiết và cách đo: `docs/ngan-sach-hieu-nang.md`. Workflow `hieu-nang.yml
 | Tam giác mỗi khung (cả bóng) | ≤ 400 000 (ngã tư đang ~394k, gần chạm trần) |
 | Lệnh vẽ | ≤ 350 |
 | Vật thể nhìn thấy | ≤ 450 |
-| `index.pck` | ≤ 60 MB |
+| `index.pck` (bản web, sau khi tách gói) | ≤ 20 MB (19 MiB, PD-4 22/11); đồ chơi nằm trong `goi/` |
 
 - **Thêm gì phải bớt bù.** PR thêm model ra phố phải ghi số tam giác trước/sau ở góc nặng nhất.
 - Đồ đứng yên gộp qua `Blocks.merge_static`, dùng chung vật liệu (màu đỉnh). Đồ động đặt `visibility_range_end`. Mảng sát đất tắt bóng. Không thêm OmniLight/SpotLight ngoài phố.
 - Ảnh chụp thử, ảnh render không để trong thư mục project (hoặc thêm `.gdignore`), kẻo bị đóng vào `index.pck`.
-- Bản web tách gói (Q1): đồ riêng từng ngày và giống mèo nằm trong `goi/<tên>.pck`, tải khi vào ngày (`scripts/goi_web.gd`). Đổi cảnh vào một ngày thì đi qua `PlayMode.start` / `GoiWeb.go`, đừng `change_scene_to_file` thẳng. Thêm đồ mới cho một ngày thì chạy `tools/goi_web/ghi_file_mo.sh` rồi `lap_goi.py` để đồ đó vào gói (quên thì đồ nằm trong `index.pck`, không hỏng gì).
+- Bản web tách gói (Q1, PD-4): `index.pck` chỉ đủ hiện trang chủ; đồ chơi Thứ Hai, bếp, màn dạy chơi, phim mở đầu nằm trong `goi/pho.pck` (trang chủ tải ngầm), đồ chung các ngày sau trong `goi/sau.pck`, đồ riêng từng ngày và giống mèo trong `goi/<tên>.pck`, tải khi vào cảnh (`scripts/goi_web.gd`, màn chờ có % và mẹo). Đổi cảnh vào một ngày hay một cảnh chơi mới (phim, màn dạy chơi) thì đi qua `PlayMode.start` / `GoiWeb.go`, đừng `change_scene_to_file` thẳng từ trang chủ. Thêm đồ mới cho một ngày thì chạy `tools/goi_web/ghi_file_mo.sh` rồi `lap_goi.py` để đồ đó vào gói (quên thì đồ nằm trong `index.pck`, không hỏng gì).
 
 ## Chạy game và test
 

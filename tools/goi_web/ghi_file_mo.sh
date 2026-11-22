@@ -18,6 +18,9 @@ run ngay.thu_tu.ngap -- --autotest --ngay=thu_tu --ngap &
 run ngay.thu_hai.en -- --autotest --lang=en &
 # Cảnh chung: trang chủ, màn dạy chơi, hai phim
 run chung.menu --quit-after 600 &
+# PD-4: trang chủ hiện lên khi gói "pho" còn đang tải ngầm, nên ghi cả các bảng mở được từ trang chủ
+run menu.bang -s tools/goi_web/mo_trang_chu.gd &
+run menu.en --quit-after 600 -- --lang=en &
 run chung.tap res://scenes/day_choi.tscn -- --autotest-tap &
 run chung.mo_dau res://scenes/phim.tscn -- --phim=mo_dau --phim-test &
 run chung.ket_tuan res://scenes/phim.tscn -- --phim=ket_tuan --phim-test &

@@ -59,6 +59,8 @@ func _run() -> void:
 	_check(not FileAccess.file_exists("res://goi_thu/banh.txt"), "chưa nạp thì chưa thấy file trong gói")
 
 	called[0] = false
+	GoiWeb.node()  # PD-4: node tải gói gắn vào cây trễ một nhịp
+	await _frames(1)
 	GoiWeb.then(["thu_ba"] as Array[String], func(): called[0] = true)
 	_check(_screens() == 1 and not called[0], "đang nạp thì hiện màn chờ, chưa gọi tiếp")
 	await _frames(10)
@@ -94,11 +96,44 @@ func _run() -> void:
 	var goi = JSON.parse_string(FileAccess.get_file_as_string("res://tools/goi_web/goi.json"))
 	var lac: Array = []
 	for g: String in goi.goi:
-		if g != "tu_do":
+		if not g in ["tu_do", GoiWeb.CORE]:
 			lac += (goi.goi[g].files as Array).filter(func(x: String) -> bool: return x.begins_with(KitchenModels.DIR.trim_prefix("res://")))
-	_check(lac.is_empty(), "đồ bếp nằm trong index.pck, không trong gói ngày %s" % str(lac.slice(0, 3)))
+	_check(lac.is_empty(), "đồ bếp nằm trong index.pck hay gói \"pho\", không trong gói ngày %s" % str(lac.slice(0, 3)))
+	# PD-4: trang chủ hiện khi chỉ có index.pck, nên đồ trang chủ dùng không được nằm trong gói nào
+	var menu_files := ["assets/models/bo.glb", "assets/audio/music_menu.ogg", "assets/fonts/Baloo2-ExtraBold.ttf"]
+	var trong_goi: Array = []
+	for g: String in goi.goi:
+		trong_goi += (goi.goi[g].files as Array).filter(func(x: String) -> bool: return x in menu_files)
+	_check(trong_goi.is_empty(), "đồ trang chủ nằm trong index.pck %s" % str(trong_goi))
+	_check(goi.goi.has(GoiWeb.CORE) and goi.goi.has(GoiWeb.LATER), "có gói \"pho\" và \"sau\"")
 
-	for p in [src, tmp, GoiWeb._local("thu_ba")]:
+	print("Gói pho / sau (PD-4)")
+	var thu_ba_local := GoiWeb._local("thu_ba")
+	GoiWeb._manifest = {
+		"pho": {"file": "goi/pho.pck", "size": 10, "md5": "aaaaaaaaaaaaaaaa"},
+		"sau": {"file": "goi/sau.pck", "size": 10, "md5": "bbbbbbbbbbbbbbbb"},
+		"thu_ba": {"file": "goi/thu_ba.pck", "size": 10, "md5": "cccccccccccccccc"},
+	}
+	GoiWeb._done.clear()
+	_check(Array(GoiWeb.for_day("thu_hai")) == ["pho"], "Thứ Hai chỉ cần gói pho")
+	_check(Array(GoiWeb.for_day("thu_ba")) == ["pho", "sau", "thu_ba"], "Thứ Ba cần pho, sau và gói thu_ba")
+	_check(Array(GoiWeb.for_play()) == ["pho"], "màn dạy chơi, phim mở đầu cần gói pho")
+	_check(Array(GoiWeb.for_play(true)) == ["pho", "sau"], "phim kết tuần cần thêm gói sau")
+	GoiWeb._done["pho"] = true
+	_check(GoiWeb.for_play().is_empty(), "pho đã nạp thì vào thẳng")
+	GoiWeb._manifest = {}
+	GoiWeb._done.clear()
+	_check(GoiWeb.for_day("thu_ba").is_empty() and GoiWeb.for_play(true).is_empty(), "bản desktop không chờ gói nào")
+	var cho := ManChoTai.new()
+	cho.packs = ["pho"] as Array[String]
+	root.add_child(cho)
+	await _frames(2)
+	_check(cho._tip.text.begins_with("Mẹo: ") and cho._tip.text.length() > 12, "màn chờ có mẹo chơi")
+	cho.set_progress("pho", 0, 0)
+	_check(cho._mb.text.begins_with("0% · "), "màn chờ có phần trăm: " + cho._mb.text)
+	cho.queue_free()
+
+	for p in [src, tmp, thu_ba_local]:
 		DirAccess.remove_absolute(p)
 	print("GOI WEB TEST OK" if fails == 0 else "GOI WEB TEST FAIL (%d)" % fails)
 	quit(0 if fails == 0 else 1)

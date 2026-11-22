@@ -18,8 +18,10 @@ concurrency:
 
 env:
   GODOT_VERSION: "4.3"
-  # Dung lượng tối đa của index.pck (MB). index.wasm là engine, cố định khoảng 35 MB.
-  PCK_MAX_MB: "60"
+  # Dung lượng tối đa của index.pck sau khi tách gói (MiB, 1 MiB = 1 048 576 byte). index.wasm là engine,
+  # cố định khoảng 35 MB (nén còn 8 MB). PD-4 (Sang 22/11/2026): lần đầu vào trên 4G phải thấy trang chủ sớm,
+  # nên index.pck ≤ 20 MB, tức 19 MiB. Đồ chơi nằm trong goi/*.pck (docs/ngan-sach-hieu-nang.md).
+  PCK_MAX_MB: "19"
   LANG: C.UTF-8
   LC_ALL: C.UTF-8
 

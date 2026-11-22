@@ -1,14 +1,17 @@
-"""Q1 "Gói nhẹ bản web": chia đồ trong assets/ thành gói tải sau, ghi tools/goi_web/goi.json.
+"""Q1 "Gói nhẹ bản web" + PD-4 "index.pck ≤ 20 MB": chia đồ trong assets/ thành gói tải sau, ghi tools/goi_web/goi.json.
 
 Dùng: python3 tools/goi_web/lap_goi.py <thư mục log của ghi_file_mo.sh>
 
-Luật chia:
+Luật chia (mỗi file một chỗ):
+- index.pck: file trang chủ mở được (log chung.menu, menu.*), và file bot không bao giờ mở (gọi theo tên ghép,
+  đường hiếm: để lại cho chắc). Trang chủ hiện lên khi chỉ có index.pck.
 - tu_do: mọi giống mèo bản đủ (assets/models/skin/giong/). Chỉ cần khi mở Tủ đồ, khi Bơ mặc giống khác
   hay là mèo cái, và ngày có nhiều mèo (Thứ Bảy, Chủ Nhật). Mèo hàng xóm trên web dùng bản nhẹ giong_nhe/.
-- <mã ngày> (thu_ba ... chu_nhat): file chỉ được mở khi bot chơi đúng ngày đó, không mở ở ngày khác,
-  không mở ở trang chủ, màn dạy chơi hay phim. Thứ Hai không có gói: người chơi mới vào thẳng Thứ Hai.
-- Còn lại nằm trong index.pck.
-scripts/goi_web.gd tải gói của ngày trước khi vào ngày (màn chờ), rồi tải nốt các gói khác ở nền.
+- pho: đồ để chơi Thứ Hai: phố Thứ Hai, bếp (mọi ngày), màn dạy chơi, phim mở đầu. Trang chủ tải gói này
+  ở nền ngay khi hiện; mọi ngày đều cần nó.
+- <mã ngày> (thu_ba ... chu_nhat): file chỉ ngày đó mở, như Q1.
+- sau: file từ hai ngày Thứ Ba–Chủ Nhật trở lên cùng mở (hay phim kết tuần), Thứ Hai không mở.
+scripts/goi_web.gd tải gói cần trước khi vào cảnh (màn chờ có % và mẹo chơi), rồi tải nốt các gói khác ở nền.
 """
 import glob, json, os, re, sys
 
@@ -42,21 +45,31 @@ def main():
             m = re.match(r'path[^=]*="res://(.*)"', line)
             if m:
                 imported[m.group(1)] = imp[:-7]
-    day_used = {d: set() for d in DAYS}
-    common = set()
+    logs_set = {}
     for fn in glob.glob(os.path.join(logs, '*.txt')):
-        name = os.path.basename(fn)[:-4]
-        s = opened(fn, root, imported)
-        if name.startswith('ngay.'):
-            day_used[name.split('.')[1]] |= s
-        else:
-            common |= s
+        logs_set[os.path.basename(fn)[:-4]] = opened(fn, root, imported)
+    def union(pred):
+        return set().union(*[v for k, v in logs_set.items() if pred(k)])
+    menu = union(lambda k: k == 'chung.menu' or k.startswith('menu.'))
+    first = union(lambda k: k.startswith('ngay.thu_hai') or k.startswith('chung.bep.') or k in ('chung.tap', 'chung.mo_dau'))
+    later = {d: union(lambda k, d=d: k == 'ngay.' + d or k.startswith('ngay.' + d + '.')) for d in DAYS[1:]}
+    shared = union(lambda k: k == 'chung.ket_tuan')
     assets = sorted(p for p in glob.glob('assets/**/*', recursive=True)
                     if os.path.isfile(p) and not p.endswith(('.import', '.md', '.txt')))
-    goi = {'tu_do': [p for p in assets if p.startswith(TU_DO)]}
-    for d in DAYS[1:]:
-        others = common.union(*[day_used[o] for o in DAYS if o != d])
-        goi[d] = [p for p in assets if p in day_used[d] and p not in others and not p.startswith(TU_DO)]
+    goi = {k: [] for k in ['tu_do'] + DAYS[1:] + ['sau', 'pho']}
+    for p in assets:
+        if p.startswith(TU_DO):
+            goi['tu_do'].append(p)
+        elif p in menu:
+            continue
+        elif p in first:
+            goi['pho'].append(p)
+        else:
+            days = [d for d in DAYS[1:] if p in later[d]]
+            if len(days) == 1 and p not in shared:
+                goi[days[0]].append(p)
+            elif days or p in shared:
+                goi['sau'].append(p)
     out = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'goi.json')
     json.dump({'goi': {k: {'files': v} for k, v in goi.items()}}, open(out, 'w'), indent=1, ensure_ascii=False)
     for k, v in goi.items():

@@ -23,7 +23,7 @@ Lưu ý: CI vẽ bằng CPU nên FPS ở đó không có ý nghĩa; số lệnh 
 | Lệnh vẽ (tổng) | ≤ 350 | 116–273 |
 | Vật thể nhìn thấy | ≤ 450 | 116–273 |
 | Tam giác (tổng, cả bóng) | ≤ 400 000 | 39 000–54 000 |
-| index.pck | ≤ 60 MB (Sang nâng 21/10/2026) | 5,6 MB |
+| index.pck (bản web, sau khi tách gói) | ≤ 20 MB, tức 19 MiB (PD-4, Sang 22/11/2026; trước đó 60 MB) | 5,6 MB |
 
 Ngày 24/10 (Q3 "Gói nhẹ bản web"): bỏ 58 model không dùng (bản nhẹ/bản xa người dân không ai gọi, 10 đồ bếp/đồ giỗ/đồ phố thừa): index.pck 58,7 → 52,7 MiB. Cách tìm: cho bot chơi đủ 7 ngày (thường + thử thách) và chạy cả bộ test dưới `strace -e openat`, file nào không bao giờ được mở thì soát tay xem code có gọi theo tên ghép không (âm thanh, mèo, nhà ráp theo cỡ, cầu thang theo cỡ đều gọi theo tên ghép nên giữ).
 
@@ -73,6 +73,12 @@ Bản web không tải hết một lần. `index.pck` chỉ chứa trang chủ, 
 `scripts/goi_web.gd` tải gói của ngày trước khi vào (màn chờ có thanh tải, lỗi mạng có nút Thử lại), giữ gói trong `user://goi/` để lần sau khỏi tải, rồi 20 giây sau khi vào ngày tải nốt các gói còn lại ở nền. Bản desktop không tách.
 
 Số ngày 24/10: index.pck 52,7 → 30,3 MiB (55,2 → 31,8 MB). Lần đầu mở trang tải index.wasm 35,4 MB + index.pck 31,8 MB = 67 MB (trước 91 MB, tức bớt ~26%); ở 20 Mbit/s là khoảng 27 giây thay vì 36 giây. Gói ngày 0,2–3,9 MB, tủ đồ 11,9 MB.
+
+**PD-4 (22/11/2026): index.pck ≤ 20 MB.** Đo CG2 (iPhone 13, 4G 9 Mbit/s): người mới vào phải chờ 36–44 giây vì index.pck 40 MB. Nay `index.pck` chỉ còn đồ trang chủ dùng (cả các bảng Chọn màn, Cài đặt, Tủ đồ: `tools/goi_web/mo_trang_chu.gd`) và đồ bot không bao giờ mở; thêm hai gói:
+- `goi/pho.pck` (~23 MiB): phố Thứ Hai, bếp mọi ngày, màn dạy chơi, phim mở đầu. Trang chủ tải ngầm ngay khi hiện (`GoiWeb.fetch_core`); mọi cảnh chơi cần nó (`GoiWeb.for_day`, `GoiWeb.for_play`).
+- `goi/sau.pck` (~3 MiB): đồ hai ngày Thứ Ba–Chủ Nhật trở lên cùng dùng, và phim kết tuần.
+
+Số 22/11 (máy chủ thử nén gzip như Pages, 4G giả lập, Chromium vẽ bằng CPU): index.pck 40,7 → 13,4 MiB; hiện trang chủ 52 → 29 giây (tải xong wasm + pck 44 → 20 giây, phần còn lại là máy thử khởi động engine). Bấm Bắt đầu khi gói pho chưa xong thì màn chờ hiện phần trăm, số MB và một mẹo chơi đổi mỗi 5,5 giây (bản cảm ứng có mẹo riêng). Vỏ trang `web/vo_trang.html` cũng hiện phần trăm. Lần sau vào lại, các gói đã nằm trong bộ nhớ trình duyệt nên không chờ.
 
 Chia lại gói khi thêm đồ cho một ngày:
 ```

@@ -154,6 +154,7 @@ func _ready() -> void:
 			if not wardrobe.visible and showcase_cat.cat:
 				showcase_cat.cat.set_breed(Outfit.breed()))
 
+	GoiWeb.fetch_core()  # bản web (PD-4): tải ngầm đồ chơi Thứ Hai trong lúc người chơi xem trang chủ
 	if GoiWeb.pending("tu_do") and GoiWeb.wears_skin():
 		GoiWeb.node().pack_loaded.connect(_on_pack_loaded)  # bản web: Bơ trong tủ kính mặc lại giống khi gói tủ đồ về
 		GoiWeb.fetch("tu_do")

@@ -47,14 +47,14 @@ static func mo_dau(tree: SceneTree, then := "tuan") -> void:
 	which = "mo_dau"
 	after = then
 	tree.paused = false
-	tree.change_scene_to_file(SCENE)
+	GoiWeb.go(tree, SCENE, GoiWeb.for_play())  # bản web: đồ phim nằm trong gói "pho"
 
 
 static func ket_tuan(tree: SceneTree, summary: Dictionary) -> void:
 	which = "ket_tuan"
 	data = summary
 	tree.paused = false
-	tree.change_scene_to_file(SCENE)
+	GoiWeb.go(tree, SCENE, GoiWeb.for_play(true))  # bản web: thêm gói "sau" (đồ các ngày sau)
 
 
 ## Phim mở đầu tự chiếu khi bắt đầu tuần đầu tiên (chưa có ngày lưu) và khi bấm Chơi mới.

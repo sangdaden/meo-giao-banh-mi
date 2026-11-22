@@ -1,7 +1,10 @@
 class_name GoiWeb
 extends Node
-## Q1 "Gói nhẹ bản web": bản web chỉ tải index.pck (trang chủ, màn dạy chơi, bếp, Thứ Hai và đồ dùng chung);
-## đồ riêng của từng ngày và tủ đồ mèo nằm trong gói goi/<tên>.pck cạnh index.html, tải khi cần.
+## Q1 "Gói nhẹ bản web": bản web chỉ tải index.pck rồi hiện trang chủ; đồ chơi nằm trong gói goi/<tên>.pck
+## cạnh index.html, tải khi cần (PD-4: index.pck ≤ 20 MB để người tới từ điện thoại 4G thấy trang chủ sớm):
+## - "pho": phố Thứ Hai, bếp, màn dạy chơi, phim mở đầu. Trang chủ tải gói này ở nền ngay khi hiện (fetch_core).
+## - "sau": đồ chung của Thứ Ba–Chủ Nhật và phim kết tuần.
+## - <mã ngày> cho Thứ Ba–Chủ Nhật, "tu_do" cho 38 giống mèo bản đủ.
 ##
 ## - PlayMode gọi GoiWeb.go(tree, cảnh, GoiWeb.for_day(ngày)) thay cho change_scene_to_file: thiếu gói thì hiện
 ##   màn chờ "Đang mang đồ ra phố…" cho tới khi tải xong rồi mới đổi cảnh. Vào ngày rồi thì tải nốt các gói
@@ -23,6 +26,9 @@ const STALL_SEC := 15.0
 const AUTO_RETRY := 2
 ## Ngày có nhiều mèo đủ giống (mèo Thứ Bảy, Hội mèo): cần cả tủ đồ
 const TU_DO_DAYS := ["thu_bay", "chu_nhat"]
+## PD-4: gói đồ chơi Thứ Hai (mọi cảnh chơi đều cần) và gói đồ chung của các ngày sau
+const CORE := "pho"
+const LATER := "sau"
 
 signal pack_loaded(pack: String)
 
@@ -60,14 +66,29 @@ static func loaded(pack: String) -> bool:
 	return not pending(pack)
 
 
-## Các gói còn thiếu để chơi ngày `day`.
+## Các gói còn thiếu để chơi ngày `day` (bếp hay phố).
 static func for_day(day: String) -> Array[String]:
-	var out: Array[String] = []
+	var out := for_play(day != "thu_hai")
 	if pending(day):
 		out.append(day)
 	if pending("tu_do") and (day in TU_DO_DAYS or wears_skin()):
 		out.append("tu_do")
 	return out
+
+
+## Các gói còn thiếu để vào một cảnh chơi không thuộc ngày nào (màn dạy chơi, phim mở đầu; later: phim kết tuần).
+static func for_play(later := false) -> Array[String]:
+	var out: Array[String] = []
+	if pending(CORE):
+		out.append(CORE)
+	if later and pending(LATER):
+		out.append(LATER)
+	return out
+
+
+## Trang chủ gọi: tải ngầm gói "pho" để lúc bấm Chơi thường đã có sẵn.
+static func fetch_core() -> void:
+	fetch(CORE)
 
 
 ## Bơ đang mặc giống khác hay là mèo cái (model trong gói tủ đồ).
@@ -106,7 +127,8 @@ static func node() -> GoiWeb:
 		_node = GoiWeb.new()
 		_node.name = "GoiWeb"
 		_node.process_mode = Node.PROCESS_MODE_ALWAYS
-		(Engine.get_main_loop() as SceneTree).root.add_child(_node)
+		# Gắn trễ một nhịp: trang chủ gọi lúc cảnh đầu tiên đang dựng, gắn ngay thì Godot từ chối (PD-4)
+		(Engine.get_main_loop() as SceneTree).root.add_child.call_deferred(_node)
 	return _node
 
 
@@ -133,7 +155,11 @@ func wait(packs: Array[String], done: Callable) -> void:
 		for p in packs:
 			_failed.erase(p)
 			_enqueue(p, true))
-	get_tree().root.add_child(screen)
+	var root := (Engine.get_main_loop() as SceneTree).root
+	if is_inside_tree():
+		root.add_child(screen)
+	else:
+		root.add_child.call_deferred(screen)  # vừa tạo lúc cảnh đầu tiên đang dựng (PD-4)
 	_waits.append([packs, done, screen])
 	for i in range(packs.size() - 1, -1, -1):
 		_enqueue(packs[i], true)
@@ -153,7 +179,7 @@ func _enqueue(pack: String, front: bool) -> void:
 
 
 func _prefetch_later() -> void:
-	get_tree().create_timer(PREFETCH_DELAY, true).timeout.connect(func():
+	(Engine.get_main_loop() as SceneTree).create_timer(PREFETCH_DELAY, true).timeout.connect(func():
 		for p: String in manifest():
 			if not _failed.has(p):
 				_enqueue(p, false))

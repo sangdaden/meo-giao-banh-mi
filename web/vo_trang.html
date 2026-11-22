@@ -4,7 +4,7 @@
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0">
 		<!-- PH3: vỏ trang riêng của bản web (export_presets.cfg html/custom_html_shell).
-		     Bơ chạy theo thanh tải, mẹo chơi VI/EN đổi mỗi vài giây, thẻ chia sẻ (og/twitter).
+		     Bơ chạy theo thanh tải (phần trăm + MB, PD-4), mẹo chơi VI/EN đổi mỗi vài giây, thẻ chia sẻ (og/twitter).
 		     Ảnh Bơ: tools/chup_bo_tai.gd chụp từ model trong game, tools/web/lam_bo_tai.py nhúng vào đây.
 		     Không có og:image: luật G1 (CLAUDE.md) không để GitHub Pages chứa ảnh cho mạng xã hội. -->
 		<title>Mèo Giao Bánh Mì</title>
@@ -237,7 +237,7 @@ const engine = new Engine(GODOT_CONFIG);
 	var CHU = {
 		vi: {
 			phu: 'Bơ đang chạy ra lò bánh Cô Ba…',
-			tai: 'Đang tải %a / %b MB',
+			tai: 'Đang tải %p% · %a / %b MB',
 			taiChua: 'Đang tải…',
 			xong: 'Sắp xong, Bơ đang buộc khăn…',
 			meo: 'Mẹo',
@@ -258,7 +258,7 @@ const engine = new Engine(GODOT_CONFIG);
 		},
 		en: {
 			phu: 'Bơ is running to Cô Ba’s bakery…',
-			tai: 'Loading %a / %b MB',
+			tai: 'Loading %p% · %a / %b MB',
 			taiChua: 'Loading…',
 			xong: 'Almost there, Bơ is tying his scarf…',
 			meo: 'Tip',
@@ -364,7 +364,7 @@ const engine = new Engine(GODOT_CONFIG);
 			if (current > 0 && total > 0) {
 				tien(current / total);
 				so.textContent = current >= total ? t.xong
-					: t.tai.replace('%a', (current / 1048576).toFixed(0)).replace('%b', (total / 1048576).toFixed(0));
+					: t.tai.replace('%p', Math.floor(100 * current / total)).replace('%a', (current / 1048576).toFixed(0)).replace('%b', (total / 1048576).toFixed(0));
 			}
 		},
 	}).then(function () {

@@ -542,4 +542,18 @@ const EN := {
 	"%d/%d sao": "%d/%d stars",
 	"Sổ hàng xóm: %d trang": "Neighbour book: %d pages",
 	"Mèo giao bánh của tuần": "Delivery cat of the week",
+	# PD-4: mẹo chơi trên màn chờ tải gói (scripts/ui/man_cho_tai.gd)
+	"WASD để đi, Shift chạy nhanh, Space nhảy. Nhảy lên mái hiên để đi tắt.": "WASD to move, Shift to sprint, Space to jump. Jump onto awnings for shortcuts.",
+	"Bấm E khi tới gần khách để giao bánh. Mũi tên đỏ luôn chỉ đường.": "Press E near a customer to deliver. The red arrow always shows the way.",
+	"Chó Mực ngủ gật ở hẻm 42: giữ Z để rón rén cho êm chân.": "Mực the dog naps in alley 42: hold Z to sneak past quietly.",
+	"Kẹt chỗ nào thì giữ R để về chỗ an toàn. Lạc lâu thì mèo hàng xóm ra dẫn đường.": "Stuck somewhere? Hold R to go back to a safe spot. Lost for a while? A neighbour cat comes to show the way.",
+	"Giao trễ cũng không sao: chỉ bớt sao, không ai bị thua.": "Being late is fine: you only get fewer stars, nobody loses.",
+	"Tiền boa mở mũ, khăn, kính và giống mèo mới trong Tủ đồ.": "Tips unlock hats, scarves, glasses and new cat breeds in the Wardrobe.",
+	"Bấm Q để kêu meo gọi các con vật quanh phố.": "Press Q to meow and call the animals around the street.",
+	"Esc để tạm dừng và xem Cách chơi.": "Esc to pause and read How to play.",
+	"Chạm nửa trái màn hình để đi, đẩy sát mép là chạy nhanh. Vuốt nửa phải để xoay nhìn.": "Touch the left half of the screen to move, push to the edge to sprint. Swipe the right half to look around.",
+	"Tới gần khách thì bấm nút Giao. Mũi tên đỏ luôn chỉ đường.": "Near a customer, tap Give. The red arrow always shows the way.",
+	"Gầm xe, gầm bàn thấp quá thì bấm nút Chui.": "Too low to pass under a car or table? Tap Crawl.",
+	"Bấm nút Meo để gọi các con vật quanh phố.": "Tap Meow to call the animals around the street.",
+	"Lạc đường thì bật Tự đi ở Cài đặt > Hỗ trợ, rồi giữ nút Tự đi.": "Lost? Turn on Auto walk in Settings > Assist, then hold Auto.",
 }

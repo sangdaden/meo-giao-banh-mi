@@ -113,3 +113,19 @@ nguyên âm. Không dùng mẫu âm thanh bên ngoài, không ElevenLabs; tự l
 `tools/giong_uo/xuat_mau.gd`. Các câu thu sẵn cũ (coba_*, thanks_*, scold_*) đã bỏ.
 
 Tiếng .wav nhập vào Godot nén QOA (`compress/mode=2` trong file `.import`, khoảng 1/5 dung lượng, bản web vẫn phát được). File .wav mới cũng đặt `compress/mode=2`.
+
+## Giọng thật nhân vật (assets/audio/giong/, .ogg)
+
+Từ 22/11/2026: 33 câu nghe nhiều nhất do **ElevenLabs** (model eleven_v4) đọc, tạo trên tài khoản trả phí (gói Creator) của Sang, nên được dùng thương mại theo điều khoản ElevenLabs. **Không phải CC0**: không tách ra phát hành riêng. Bảng câu và mã file: `GiongThat.CAU` trong `scripts/giong_that.gd`; câu không có trong bảng vẫn nói bằng giọng ú ớ tự tổng hợp (`scripts/giong_uo.gd`, CC0). Mỗi file đã cắt khoảng lặng, cân -16 LUFS bằng `tools/giong_that/chuyen_ogg.sh`.
+
+| Nhân vật | Giọng ElevenLabs (voice id) | Số câu |
+|---|---|---|
+| Cô Ba | Phuong Loan (EMReIZ5lTnliUU7kH10X) | 13 |
+| Chú Tư | Lý Hải (7hsfEc7irDn6E8br0qfw) | 2 |
+| Bé Na | Ánh Minh (Xi7XXVTwHkrvxPd6M7td), thêm [childlike voice] | 2 |
+| Chị Mây | Bé Hồng Ân (zIusdI28yOZPwIBus0aI) | 2 |
+| Anh Hùng | TuHauVoice (TqkkccUg3tobDj5LbKlt) | 2 |
+| Bà Sáu | Huyen (foH7s9fX31wFFH2yqrFa), thêm [elderly voice] | 3 |
+| Cô Hai | Kieu Linh (qByVAGjXwGlkcRDJoiHg) | 1 |
+| Ông Bảy | Phạm Hùng (M1eOJnaNVAbMVhDoXfRb) | 4 |
+| Ông Tám | Ngoc Ngan (qLk6yIwQI3GT5JfYLzBU) | 4 |

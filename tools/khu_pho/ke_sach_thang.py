@@ -1,15 +1,19 @@
 """Kệ sách của tháng trên sạp báo Chú Tư (Vũ Trụ Mark C1). Phác thảo Sang duyệt 27/10/2026:
 https://claude.ai/artifact/3v6iZDmt6tvSwJMsXjifAY (bản phác và ảnh render: /mnt/project-files/vu-tru-mark-dot-1/c1-sach-thang/).
 
-Giá gỗ, sách dựng ngả 14°, thẻ "THÁNG 11", hai cuốn nằm chồng. Bìa lấy màu và dải bút chì của bìa thu nhỏ bên Vũ Trụ Khác
-(Thinking, Fast and Slow), tự vẽ lại. xuat_game.py gắn món này lên quầy sạp báo (sap_bao_game) nên không có .glb riêng.
-Đổi sách tháng sau: đổi MAU bìa và chữ thẻ ở đây, SACH trong scripts/ke_sach_thang.gd, rồi
+Giá gỗ, sách dựng ngả 14°, thẻ tháng, hai cuốn nằm chồng. Bìa lấy màu và hình của bìa thu nhỏ bên Vũ Trụ Khác, tự vẽ lại.
+Tháng 11/2026: Thinking, Fast and Slow (bút chì, HINH = 'but_chi'). Tháng 12/2026 (Sang chọn 25/11): Why We Sleep
+(nền xanh đêm, trăng khuyết vàng và sao, HINH = 'trang'). xuat_game.py gắn món này lên quầy sạp báo (sap_bao_game) nên không có .glb riêng.
+Đổi sách tháng sau: đổi MAU bìa, HINH và THANG ở đây, SACH trong scripts/ke_sach_thang.gd (thêm câu tiếng Anh vào scripts/dich/en_choi.gd), rồi
 python3 tools/khu_pho/xuat_game.py assets/models/pho sap_bao
 """
 import math
 from kit import *
 
-MAU = dict(bia='#1A1A1A', bia2='#3A3320', vang='#F5C518', giay='#EFE6CF', go='#B07C46', go_dam='#8A5A30',
+THANG = 'THÁNG 12'
+HINH = 'trang'   # hình giữa bìa: 'trang' (trăng khuyết + sao) hoặc 'but_chi'
+# Tháng 11 (Thinking, Fast and Slow): bia='#1A1A1A', bia2='#3A3320', vang='#F5C518'
+MAU = dict(bia='#081C37', bia2='#1F3A75', vang='#F5C542', giay='#EFE6CF', go='#B07C46', go_dam='#8A5A30',
            do='#C8412F', hong='#E79A9A', chi='#4A4A4A', kem='#FFF8EA', xanh_sap='#2E7C80')
 
 # Kích thước (mét thật) trước khi phóng TO: cả món phóng 1,3 lần (sách thành 23 x 34 cm, cỡ sách trưng bày)
@@ -35,6 +39,9 @@ def sach_dung(tach=0.0):
         box((.13, .002, .006), (-.015, y, SH / 2 - .078), M(MAU['vang'], .5), 0, name='vach')
         # dải tên tác giả (kem) ở chân bìa
         box((.08, .002, .012), (-.035, y, -SH / 2 + .03), M(MAU['kem'], .7), 0, name='tac_gia')
+        if HINH == 'trang':
+            trang_sao(y)
+            return g
         # bút chì nằm chéo giữa bìa: thân vàng, đầu gỗ, ngòi chì, tẩy hồng, khoen bạc
         b = group('but_chi', (0, y - .006, -.01), 0)
         b.rotation_euler = (0, math.radians(-35), 0)
@@ -44,6 +51,18 @@ def sach_dung(tach=0.0):
             cyl(.0025, .008, (.089, 0, 0), M(MAU['chi'], .5), rot=(0, math.pi / 2, 0), n=6, r2=.0005, bv=0, name='ngoi')
             cyl(.0095, .01, (-.065, 0, 0), M('#AEB6B8', .35, .7), rot=(0, math.pi / 2, 0), n=6, bv=0, name='khoen')
             cyl(.009, .016, (-.078, 0, 0), M(MAU['hong'], .7), rot=(0, math.pi / 2, 0), n=6, bv=.002, name='tay')
+    return g
+
+
+def trang_sao(y):
+    """Trăng khuyết vàng và vài ngôi sao trên bìa xanh đêm (Why We Sleep). Trăng = đĩa vàng, đĩa màu bìa đè lệch phía trước."""
+    g = group('trang_sao', (0, y, 0), 0)
+    with at(g):
+        dung = (math.pi / 2, 0, 0)   # trụ dựng thành đĩa quay mặt ra trước (-Y)
+        cyl(.04, .002, (.01, 0, -.02), M(MAU['vang'], .5), rot=dung, n=8, bv=0, name='trang')
+        cyl(.036, .002, (.026, -.0015, -.008), M(MAU['bia'], .55), rot=dung, n=8, bv=0, name='trang_khuyet')
+        for i, (x, z, r) in enumerate(((-.06, .02, .006), (.06, .035, .005))):
+            box((r, .002, r), (x, 0, z), M(MAU['kem'], .6), 0, rot=(0, math.radians(45), 0), name=f'sao{i}')
     return g
 
 
@@ -59,12 +78,12 @@ def gia_go():
 
 
 def the_thang():
-    """Thẻ giấy "THÁNG 11" kẹp trước giá: nền kem viền đỏ, chữ đỏ."""
+    """Thẻ giấy tháng (THANG) kẹp trước giá: nền kem viền đỏ, chữ đỏ."""
     g = group('the', (0, 0, 0))
     with at(g):
         box((.11, .004, .055), (0, 0, 0), M(MAU['do'], .7), .002, name='vien')
         box((.1, .005, .045), (0, -.001, 0), M(MAU['kem'], .8), .001, name='giay_the')
-        text('THÁNG 11', .026, (0, -.004, -.001), M(MAU['do'], .6), extrude=.0015, name='chu_the')
+        text(THANG, .026, (0, -.004, -.001), M(MAU['do'], .6), extrude=.0015, name='chu_the')
     return g
 
 

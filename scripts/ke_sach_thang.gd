@@ -5,7 +5,7 @@ extends Node
 ## Bơ đi tới gần sạp lần đầu trong cảnh thì hiện một dòng nhắc tên sách của tháng, mỗi cảnh một lần.
 ## Đổi sách tháng sau: sửa SACH ở đây, màu bìa và chữ thẻ trong ke_sach_thang.py rồi xuất lại sap_bao.
 
-const SACH := "Sách tháng 11 của khu phố: Tư duy nhanh và chậm (Kahneman)"
+const SACH := "Sách tháng 12 của khu phố: Tại sao chúng ta ngủ (Walker)"
 const GAN := 2.2  # m tính từ tâm sạp
 
 var main: Node
